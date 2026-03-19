@@ -261,16 +261,18 @@ def aggregate_reviews(reviews: list) -> dict:
     all_issues = []
     for r in valid:
         for issue in r.get("issues", []):
+            issue_str = str(issue) if not isinstance(issue, str) else issue
             # Simple dedup — skip if very similar issue already exists
-            if not any(issue[:30].lower() in existing.lower() for existing in all_issues):
-                all_issues.append(f"[{r.get('_model', '?')}] {issue}")
+            if not any(issue_str[:30].lower() in existing.lower() for existing in all_issues):
+                all_issues.append(f"[{r.get('_model', '?')}] {issue_str}")
     agg["issues"] = all_issues[:10]  # Cap at 10
 
     # Merge suggestions
     all_suggestions = []
     for r in valid:
         for s in r.get("suggestions", []):
-            all_suggestions.append(f"[{r.get('_model', '?')}] {s}")
+            s_str = str(s) if not isinstance(s, str) else s
+            all_suggestions.append(f"[{r.get('_model', '?')}] {s_str}")
     agg["suggestions"] = all_suggestions[:8]
 
     # Metadata
