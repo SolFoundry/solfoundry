@@ -1,24 +1,44 @@
-"""Bounty database and Pydantic models."""
+"""Bounty database and Pydantic models.
+
+This module defines the data models for the bounty system including
+database models (ORM) and API models (Pydantic schemas).
+
+The search_vector column is automatically maintained by a database trigger,
+ensuring consistency between the bounty data and the search index.
+"""
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, Index
 from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 
 from app.database import Base
 
 
+# Constants for validation
+VALID_CATEGORIES = frozenset({
+    "frontend", "backend", "smart_contract", 
+    "documentation", "testing", "infrastructure", "other"
+})
+
+VALID_STATUSES = frozenset({
+    "open", "claimed", "completed", "cancelled"
+})
+
+
 class BountyTier(int, Enum):
-    TIER_1 = 1
-    TIER_2 = 2
-    TIER_3 = 3
+    """Bounty difficulty tier."""
+    TIER_1 = 1  # Simple tasks, 72-hour deadline
+    TIER_2 = 2  # Medium tasks, 7-day deadline
+    TIER_3 = 3  # Complex tasks, 30-day deadline
 
 
 class BountyStatus(str, Enum):
+    """Bounty lifecycle status."""
     OPEN = "open"
     CLAIMED = "claimed"
     COMPLETED = "completed"
@@ -26,6 +46,7 @@ class BountyStatus(str, Enum):
 
 
 class BountyCategory(str, Enum):
+    """Bounty work category."""
     FRONTEND = "frontend"
     BACKEND = "backend"
     SMART_CONTRACT = "smart_contract"
@@ -36,6 +57,13 @@ class BountyCategory(str, Enum):
 
 
 class BountyDB(Base):
+    """
+    Bounty database model with full-text search support.
+    
+    The search_vector column is automatically populated by a database trigger
+    whenever title or description changes. This ensures the search index
+    is always in sync with the data.
+    """
     __tablename__ = "bounties"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -60,16 +88,18 @@ class BountyDB(Base):
 
     __table_args__ = (
         Index('ix_bounties_search_vector', search_vector, postgresql_using='gin'),
-        Index('ix_bounties_tier_status', tier, status),
-        Index('ix_bounties_category_status', category, status),
+        Index('ix_bounties_status_tier', status, tier),
+        Index('ix_bounties_status_category', status, category),
         Index('ix_bounties_reward', reward_amount),
         Index('ix_bounties_deadline', deadline),
         Index('ix_bounties_popularity', popularity),
     )
 
 
-# Pydantic models for API
+# Pydantic models
+
 class BountyBase(BaseModel):
+    """Base fields shared across bounty schemas."""
     title: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
     tier: int = Field(1, ge=1, le=3)
@@ -77,16 +107,25 @@ class BountyBase(BaseModel):
     reward_amount: float = Field(0.0, ge=0)
     reward_token: str = Field("FNDRY")
     deadline: Optional[datetime] = None
-    skills: list[str] = []
+    skills: List[str] = Field(default_factory=list)
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        if v not in VALID_CATEGORIES:
+            raise ValueError(f"Invalid category: {v}")
+        return v
 
 
 class BountyCreate(BountyBase):
+    """Schema for creating a new bounty."""
     github_issue_url: Optional[str] = None
     github_issue_number: Optional[int] = None
     github_repo: Optional[str] = None
 
 
 class BountyUpdate(BaseModel):
+    """Schema for updating an existing bounty."""
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, min_length=1)
     tier: Optional[int] = Field(None, ge=1, le=3)
@@ -94,10 +133,18 @@ class BountyUpdate(BaseModel):
     status: Optional[str] = None
     reward_amount: Optional[float] = Field(None, ge=0)
     deadline: Optional[datetime] = None
-    skills: Optional[list[str]] = None
+    skills: Optional[List[str]] = None
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_STATUSES:
+            raise ValueError(f"Invalid status: {v}")
+        return v
 
 
 class BountyResponse(BountyBase):
+    """Full bounty response."""
     id: str
     status: str
     github_issue_url: Optional[str] = None
@@ -112,6 +159,7 @@ class BountyResponse(BountyBase):
 
 
 class BountyListItem(BaseModel):
+    """Brief bounty info for list views."""
     id: str
     title: str
     description: str
@@ -121,14 +169,15 @@ class BountyListItem(BaseModel):
     reward_amount: float
     reward_token: str
     deadline: Optional[datetime] = None
-    skills: list[str] = []
+    skills: List[str] = Field(default_factory=list)
     popularity: int = 0
     created_at: datetime
     model_config = {"from_attributes": True}
 
 
 class BountyListResponse(BaseModel):
-    items: list[BountyListItem]
+    """Paginated bounty list response."""
+    items: List[BountyListItem]
     total: int
     skip: int
     limit: int
@@ -136,19 +185,18 @@ class BountyListResponse(BaseModel):
 
 class BountySearchParams(BaseModel):
     """Parameters for bounty search endpoint."""
-    q: Optional[str] = Field(None, description="Full-text search query")
-    tier: Optional[int] = Field(None, ge=1, le=3, description="Filter by tier (1/2/3)")
-    category: Optional[str] = Field(None, description="Filter by category")
-    status: Optional[str] = Field(None, description="Filter by status")
-    reward_min: Optional[float] = Field(None, ge=0, description="Minimum reward amount")
-    reward_max: Optional[float] = Field(None, ge=0, description="Maximum reward amount")
-    skills: Optional[str] = Field(None, description="Comma-separated list of skills")
-    sort: str = Field("newest", pattern="^(newest|reward_high|reward_low|deadline|popularity)$", description="Sort order")
-    skip: int = Field(0, ge=0, description="Pagination offset")
-    limit: int = Field(20, ge=1, le=100, description="Number of results per page")
+    q: Optional[str] = None
+    tier: Optional[int] = Field(None, ge=1, le=3)
+    category: Optional[str] = None
+    status: Optional[str] = None
+    reward_min: Optional[float] = Field(None, ge=0)
+    reward_max: Optional[float] = Field(None, ge=0)
+    skills: Optional[str] = None
+    sort: str = Field("newest", pattern="^(newest|reward_high|reward_low|deadline|popularity)$")
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
     
     def get_skills_list(self) -> Optional[List[str]]:
-        """Parse comma-separated skills string into list."""
         if not self.skills:
             return None
         return [s.strip() for s in self.skills.split(",") if s.strip()]
@@ -156,8 +204,8 @@ class BountySearchParams(BaseModel):
 
 class AutocompleteSuggestion(BaseModel):
     text: str
-    type: str  # 'title' or 'skill'
+    type: str
 
 
 class AutocompleteResponse(BaseModel):
-    suggestions: list[AutocompleteSuggestion]
+    suggestions: List[AutocompleteSuggestion]
