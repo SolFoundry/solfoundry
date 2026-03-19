@@ -1,0 +1,75 @@
+name: Anchor Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SOLANA_VERSION: "1.18.4"
+  ANCHOR_VERSION: "0.29.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Solana and Anchor
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.local/share/solana
+            ~/.cache/solana
+            ~/.cargo/bin/anchor
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
+          restore-keys: |
+            solana-${{ env.SOLANA_VERSION }}-
+            solana-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install Solana CLI
+        run: |
+          if ! command -v solana &> /dev/null; then
+            sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+            export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+            solana --version
+          fi
+
+      - name: Install Anchor CLI
+        run: |
+          if ! command -v anchor &> /dev/null; then
+            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+            avm install ${{ env.ANCHOR_VERSION }}
+            avm use ${{ env.ANCHOR_VERSION }}
+          fi
+
+      - name: Configure Solana for devnet
+        run: |
+          solana config set --url devnet
+          solana-keygen new --no-passphrase --silent --outfile ~/.config/solana/id.json || true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Anchor program
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          anchor build
+
+      - name: Run Anchor tests
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          anchor test
