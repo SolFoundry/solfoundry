@@ -14,43 +14,56 @@ jobs:
       - name: Check for claim attempts on T1 bounties
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          LABELS='${{ join(github.event.issue.labels.*.name, ',') }}'
-          COMMENT='${{ github.event.comment.body }}'
-          USER='${{ github.event.comment.user.login }}'
-          ISSUE='${{ github.event.issue.number }}'
-          REPO='${{ github.repository }}'
+          python3 << 'PYEOF'
+          import os, re, requests
 
-          # Only act on tier-1 issues
-          if ! echo "$LABELS" | grep -q "tier-1"; then
-            echo "Not a Tier 1 bounty — skipping"
-            exit 0
-          fi
+          labels = os.environ.get("ISSUE_LABELS", "")
+          comment = os.environ.get("COMMENT_BODY", "")
+          user = os.environ.get("COMMENT_USER", "")
+          issue = os.environ.get("ISSUE_NUMBER", "")
+          repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+          token = os.environ.get("GH_TOKEN", "")
 
-          # Check for claim-like keywords (case insensitive)
-          LOWER=$(echo "$COMMENT" | tr '[:upper:]' '[:lower:]')
-          if echo "$LOWER" | grep -qE "(claim|dibs|i.?ll take|assigning myself|can i (take|work on)|i want to (take|work)|working on this|taking this)"; then
-            echo "Claim attempt from $USER on #$ISSUE"
+          if "tier-1" not in labels:
+              print("Not a Tier 1 bounty - skipping")
+              exit(0)
 
-            BODY="👋 Hey @${USER} — **Tier 1 bounties are first-come, first-served (FCFS)**. No claiming needed!
+          lower = comment.lower()
+          claim_re = r"(claim|dibs|i.?ll take|assigning myself|can i (take|work on)|i want to (take|work)|working on this|taking this)"
+          if not re.search(claim_re, lower):
+              print("Not a claim attempt - ignoring")
+              exit(0)
 
-### How it works:
-1. **Read the bounty spec** in the issue description
-2. **Build your solution** and submit a PR linking this issue (\`Closes #${ISSUE}\`)
-3. **Include your Solana wallet** in the PR body for payout
-4. Our multi-LLM review pipeline (GPT-5.4 + Gemini + Grok) scores your submission
-5. **First PR to pass review wins** the bounty 🏆
+          print(f"Claim attempt from {user} on #{issue}")
 
-⏰ **Deadline:** 72 hours from issue creation
-📊 **Min score:** 6/10 to qualify
-🏁 **Multiple submissions welcome** — best quality wins
+          body = (
+              f"\U0001f44b Hey @{user} \u2014 **Tier 1 bounties are first-come, first-served (FCFS)**. "
+              f"No claiming needed!\n\n"
+              f"### How it works:\n"
+              f"1. **Read the bounty spec** in the issue description\n"
+              f"2. **Build your solution** and submit a PR linking this issue (`Closes #{issue}`)\n"
+              f"3. **Include your Solana wallet** in the PR body for payout\n"
+              f"4. Our multi-LLM review pipeline (GPT-5.4 + Gemini + Grok) scores your submission\n"
+              f"5. **First PR to pass review wins** the bounty \U0001f3c6\n\n"
+              f"\u23f0 **Deadline:** 72 hours from issue creation\n"
+              f"\U0001f4ca **Min score:** 6/10 to qualify\n"
+              f"\U0001f3c1 **Multiple submissions welcome** \u2014 best quality wins\n\n"
+              f"Just ship it! No need to announce \u2014 your code speaks for itself.\n\n"
+              f"*\u2014 SolFoundry Bot \U0001f3ed*"
+          )
 
-Just ship it! No need to announce — your code speaks for itself.
-
-*— SolFoundry Bot 🏭*"
-
-            gh api "repos/$REPO/issues/$ISSUE/comments" -f body="$BODY"
-            echo "Auto-reply posted ✅"
-          else
-            echo "Not a claim attempt — ignoring"
-          fi
+          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+          resp = requests.post(
+              f"https://api.github.com/repos/{repo}/issues/{issue}/comments",
+              json={"body": body}, headers=headers
+          )
+          if resp.status_code in (200, 201):
+              print("Auto-reply posted")
+          else:
+              print(f"Failed: {resp.status_code} {resp.text[:200]}")
+          PYEOF
