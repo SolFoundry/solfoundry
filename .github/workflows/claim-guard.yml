@@ -15,6 +15,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
           ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
           COMMENT_ID: ${{ github.event.comment.id }}
@@ -24,10 +25,22 @@ jobs:
           import os, re, json, urllib.request
 
           labels = os.environ.get("ISSUE_LABELS", "")
+          issue_title = os.environ.get("ISSUE_TITLE", "").lower()
           comment = os.environ.get("COMMENT_BODY", "")
           user = os.environ.get("COMMENT_USER", "")
           comment_id = os.environ.get("COMMENT_ID", "")
           issue = os.environ.get("ISSUE_NUMBER", "")
+
+          # Skip content/social bounties — these expect non-code submissions
+          content_keywords = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
+          if any(kw in issue_title for kw in content_keywords):
+              print(f"Content bounty #{issue} — skipping claim guard")
+              exit(0)
+
+          # Skip star reward issue
+          if issue == "48":
+              print("Star reward issue — skipping")
+              exit(0)
           repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
           token = os.environ.get("GH_TOKEN", "")
 
