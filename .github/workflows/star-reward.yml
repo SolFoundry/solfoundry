@@ -80,7 +80,7 @@ jobs:
 
           # Extract Solana wallet from comment
           # Match base58 addresses (32-44 chars, Solana addresses are typically 43-44)
-          wallet_pattern = r'[1-9A-HJ-NP-Za-km-z]{32,44}'
+          wallet_pattern = r'[1-9A-HJ-NP-Za-km-z]{32,48}'
           wallets = re.findall(wallet_pattern, comment)
 
           # Filter to likely Solana addresses (43-44 chars)

@@ -506,7 +506,7 @@ def _is_solana_address(addr: str) -> bool:
         return False
     if addr.startswith("0x") or addr.startswith("0X"):
         return False
-    if len(addr) < 32 or len(addr) > 44:
+    if len(addr) < 32 or len(addr) > 48:
         return False
     # Base58 charset (no 0, O, I, l)
     import string
@@ -528,12 +528,12 @@ def _extract_solana_wallet(pr_body: str) -> str:
     if not pr_body:
         return None
     patterns = [
-        r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-        r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-        r'\*\*SOL[^*]*\*\*[:\s]*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-        r'[Ss]ol(?:ana)?[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-        r'`([1-9A-HJ-NP-Za-km-z]{32,44})`',
-        r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,44})(?:\s|$)',
+        r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,48})`?',
+        r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,48})`?',
+        r'\*\*SOL[^*]*\*\*[:\s]*`?([1-9A-HJ-NP-Za-km-z]{32,48})`?',
+        r'[Ss]ol(?:ana)?[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,48})`?',
+        r'`([1-9A-HJ-NP-Za-km-z]{32,48})`',
+        r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,48})(?:\s|$)',
     ]
     for pattern in patterns:
         for match in re.finditer(pattern, pr_body):
