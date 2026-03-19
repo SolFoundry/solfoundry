@@ -13,6 +13,7 @@
   <a href="https://solfoundry.org">Website</a> ·
   <a href="https://x.com/foundrysol">Twitter</a> ·
   <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Buy $FNDRY</a> ·
+  <a href="CONTRIBUTING.md"><strong>Start Here →</strong></a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#getting-started">Getting Started</a>
 </p>
@@ -318,7 +319,9 @@ Smart contracts are audited before mainnet deployment.
 
 ## Contributing
 
-We're building SolFoundry in the open. The best way to contribute is to complete bounties — check the [Issues tab](../../issues) for open opportunities.
+**Read the [Contributing Guide](CONTRIBUTING.md) first.** It covers everything — tier system, wallet setup, PR rules, review pipeline, and how to earn $FNDRY.
+
+Quick version: Star the repo → pick a [Tier 1 bounty](../../issues?q=is%3Aissue+is%3Aopen+label%3Abounty+label%3Atier-1) → submit a PR → pass AI review (≥6.0/10) → get paid.
 
 For questions, reach out on [X/Twitter](https://x.com/foundrysol) or open a discussion.
 
