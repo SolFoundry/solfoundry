@@ -134,8 +134,36 @@ jobs:
               print(f"{tier_label} claim from {user} on #{issue} — checking reputation")
 
               try:
-                  # Fetch reputation data from the repo (stored as a JSON file)
-                  # Check merged PRs by this user to determine T1 completion
+                  # Helper: fetch issue labels to determine tier
+                  def get_issue_tier(issue_num):
+                      """Check if an issue is a real bounty and return its tier label."""
+                      try:
+                          url_i = f"https://api.github.com/repos/{repo}/issues/{issue_num}"
+                          req_i = urllib.request.Request(url_i)
+                          req_i.add_header("Authorization", f"token {token}")
+                          req_i.add_header("Accept", "application/vnd.github.v3+json")
+                          resp_i = urllib.request.urlopen(req_i)
+                          issue_data = json.loads(resp_i.read().decode())
+                          title_lower = issue_data.get("title", "").lower()
+                          labels = [l["name"] for l in issue_data.get("labels", [])]
+
+                          # Skip star rewards and content/social bounties
+                          if str(issue_num) == "48":
+                              return None
+                          content_kw = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
+                          if any(kw in title_lower for kw in content_kw):
+                              return None
+                          if "bounty" not in labels:
+                              return None
+
+                          for t in ("tier-3", "tier-2", "tier-1"):
+                              if t in labels:
+                                  return t
+                          return "tier-1"  # bounty label but no tier → assume T1
+                      except Exception:
+                          return None
+
+                  # Fetch merged PRs by this user
                   url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
                   req = urllib.request.Request(url)
                   req.add_header("Authorization", f"token {token}")
@@ -143,45 +171,60 @@ jobs:
                   resp = urllib.request.urlopen(req)
                   all_prs = json.loads(resp.read().decode())
 
-                  # Count merged T1 PRs by this user
-                  user_merged = []
+                  # Count merged bounty PRs by tier (only real bounties count)
+                  t1_count = 0
+                  t2_count = 0
+                  t3_count = 0
                   for pr in all_prs:
-                      if pr["user"]["login"] == user and pr.get("merged_at"):
-                          user_merged.append(pr["number"])
+                      if pr["user"]["login"] != user or not pr.get("merged_at"):
+                          continue
+                      # Extract linked issue from PR body ("Closes #N", "Fixes #N", etc.)
+                      pr_body = pr.get("body", "") or ""
+                      linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
+                      for linked_num in linked:
+                          tier = get_issue_tier(linked_num)
+                          if tier == "tier-1":
+                              t1_count += 1
+                          elif tier == "tier-2":
+                              t2_count += 1
+                          elif tier == "tier-3":
+                              t3_count += 1
 
-                  t1_completed = len(user_merged)
-                  print(f"{user} has {t1_completed} merged PRs: {user_merged}")
+                  print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
 
-                  # Gate 1: Must have at least 1 merged T1 PR
-                  if t1_completed == 0:
-                      print(f"NO T1 completions — blocking {tier_label} claim")
+                  # Gate 1: T2 requires 4+ completed T1 bounties
+                  if is_t2 and t1_count < 4:
+                      remaining = 4 - t1_count
+                      print(f"Only {t1_count} T1 completions — blocking T2 claim (need 4+)")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
                       body = (
-                          f"⚠️ @{user} — **{tier_label} bounties require at least one completed Tier 1 bounty first.**\n\n"
-                          f"### How to unlock {tier_label}:\n"
-                          f"1. Pick a **Tier 1** bounty (open race, no claiming needed)\n"
-                          f"2. Submit a PR that passes our AI review (6.0+ score)\n"
-                          f"3. Get merged and earn $FNDRY\n"
-                          f"4. You'll then be eligible for {tier_label} bounties\n\n"
-                          f"Tier 1 is your entry ticket — prove your code integrates with the project, "
-                          f"then the higher tiers open up.\n\n"
+                          f"⚠️ @{user} — **Tier 2 bounties require at least 4 completed Tier 1 bounties.**\n\n"
+                          f"You have **{t1_count}** merged T1 bounty PR(s) so far. "
+                          f"You're **{remaining}** away from T2 access.\n\n"
+                          f"### How to unlock Tier 2:\n"
+                          f"1. Pick **Tier 1** bounties (open race, no claiming needed)\n"
+                          f"2. Submit PRs that pass our AI review (6.0+ score)\n"
+                          f"3. Get 4 merged and you'll unlock Tier 2\n\n"
+                          f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
                           f"Browse T1 bounties: [Filter by tier-1](https://github.com/{repo}/labels/tier-1)\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                       exit(0)
 
-                  # Gate 2: For T3, need more experience (3+ merged PRs)
-                  if is_t3 and t1_completed < 3:
-                      print(f"Only {t1_completed} merges — blocking T3 claim (need 3+)")
+                  # Gate 2: T3 requires 3+ completed T2 bounties
+                  if is_t3 and t2_count < 3:
+                      remaining = 3 - t2_count
+                      print(f"Only {t2_count} T2 completions — blocking T3 claim (need 3+)")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
                       body = (
-                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed bounties.**\n\n"
-                          f"You have **{t1_completed}** merged PR(s) so far. Keep building — "
-                          f"you're {3 - t1_completed} away from T3 access.\n\n"
-                          f"In the meantime, Tier 1 and Tier 2 bounties are available to you.\n\n"
+                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed Tier 2 bounties.**\n\n"
+                          f"You have **{t2_count}** merged T2 bounty PR(s) so far. "
+                          f"You're **{remaining}** away from T3 access.\n\n"
+                          f"Keep building through T2 — the top-tier bounties will open up.\n\n"
+                          f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
