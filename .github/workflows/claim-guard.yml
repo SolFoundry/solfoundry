@@ -1,0 +1,56 @@
+name: Claim Guard
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  claim-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for claim attempts on T1 bounties
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABELS='${{ join(github.event.issue.labels.*.name, ',') }}'
+          COMMENT='${{ github.event.comment.body }}'
+          USER='${{ github.event.comment.user.login }}'
+          ISSUE='${{ github.event.issue.number }}'
+          REPO='${{ github.repository }}'
+
+          # Only act on tier-1 issues
+          if ! echo "$LABELS" | grep -q "tier-1"; then
+            echo "Not a Tier 1 bounty — skipping"
+            exit 0
+          fi
+
+          # Check for claim-like keywords (case insensitive)
+          LOWER=$(echo "$COMMENT" | tr '[:upper:]' '[:lower:]')
+          if echo "$LOWER" | grep -qE "(claim|dibs|i.?ll take|assigning myself|can i (take|work on)|i want to (take|work)|working on this|taking this)"; then
+            echo "Claim attempt from $USER on #$ISSUE"
+
+            BODY="👋 Hey @${USER} — **Tier 1 bounties are first-come, first-served (FCFS)**. No claiming needed!
+
+### How it works:
+1. **Read the bounty spec** in the issue description
+2. **Build your solution** and submit a PR linking this issue (\`Closes #${ISSUE}\`)
+3. **Include your Solana wallet** in the PR body for payout
+4. Our multi-LLM review pipeline (GPT-5.4 + Gemini + Grok) scores your submission
+5. **First PR to pass review wins** the bounty 🏆
+
+⏰ **Deadline:** 72 hours from issue creation
+📊 **Min score:** 6/10 to qualify
+🏁 **Multiple submissions welcome** — best quality wins
+
+Just ship it! No need to announce — your code speaks for itself.
+
+*— SolFoundry Bot 🏭*"
+
+            gh api "repos/$REPO/issues/$ISSUE/comments" -f body="$BODY"
+            echo "Auto-reply posted ✅"
+          else
+            echo "Not a claim attempt — ignoring"
+          fi
