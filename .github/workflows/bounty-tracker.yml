@@ -1,0 +1,90 @@
+name: Bounty Tracker
+
+on:
+  pull_request:
+    types: [closed]
+  issues:
+    types: [closed, labeled]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  track-bounty:
+    if: github.event.pull_request.merged == true || github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Track Bounty
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, requests, json
+
+          def send_telegram(msg):
+              token = os.environ.get("TELEGRAM_BOT_TOKEN")
+              chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+              if not token or not chat_id:
+                  print("Telegram not configured")
+                  return
+              requests.post(
+                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True}
+              )
+
+          event = os.environ["EVENT_NAME"]
+
+          if event == "pull_request":
+              # PR was merged — check if it closes a bounty issue
+              pr_body = os.environ.get("PR_BODY", "")
+              pr_title = os.environ.get("PR_TITLE", "")
+              pr_author = os.environ.get("PR_AUTHOR", "")
+              pr_number = os.environ.get("PR_NUMBER", "")
+              pr_url = os.environ.get("PR_URL", "")
+
+              # Find "Closes #N" patterns
+              closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_body.lower())
+
+              if closes:
+                  issue_nums = ", ".join(f"#{n}" for n in closes)
+                  msg = (
+                      f"\U0001f389 <b>Bounty PR Merged!</b>\n\n"
+                      f"PR #{pr_number}: {pr_title}\n"
+                      f"by @{pr_author}\n"
+                      f"Closes: {issue_nums}\n\n"
+                      f"\U0001f4b0 Review payout eligibility and send $FNDRY\n\n"
+                      f"{pr_url}"
+                  )
+                  send_telegram(msg)
+              else:
+                  msg = (
+                      f"\u2705 <b>PR Merged</b>\n\n"
+                      f"PR #{pr_number}: {pr_title}\n"
+                      f"by @{pr_author}\n\n"
+                      f"{pr_url}"
+                  )
+                  send_telegram(msg)
+
+          print("Bounty tracking complete")
+          PYEOF
