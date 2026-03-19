@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ matrix.python-version }}-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt ruff
+
+      - name: ruff check
+        working-directory: backend
+        run: ruff check .
+
+      - name: ruff format check
+        working-directory: backend
+        run: ruff format --check .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ matrix.python-version }}-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest pytest-cov
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: pytest --tb=short -q
+
+  build:
+    name: Verify build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-build-${{ hashFiles('backend/requirements*.txt') }}
+
+      - name: Verify backend requirements install cleanly
+        run: |
+          python -m venv /tmp/venv-build
+          /tmp/venv-build/bin/pip install -r backend/requirements.txt
