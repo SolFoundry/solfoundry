@@ -128,48 +128,106 @@ jobs:
               gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 
           elif is_t2 or is_t3:
-              # T2/T3: Claim-based, but check if user is spamming claims across many issues
-              # For now just acknowledge — future: check reputation, limit concurrent claims
-              print(f"T2/T3 claim from {user} on #{issue} — checking for spam")
+              # T2/T3: Claim-based — must have completed T1 first + reputation check
+              tier_label = "Tier 2" if is_t2 else "Tier 3"
+              min_score = 50 if is_t2 else 200
+              print(f"{tier_label} claim from {user} on #{issue} — checking reputation")
 
-              # Check how many issues this user has claimed (bulk claim = spam)
               try:
-                  url = f"https://api.github.com/repos/{repo}/issues/comments?per_page=100"
+                  # Fetch reputation data from the repo (stored as a JSON file)
+                  # Check merged PRs by this user to determine T1 completion
+                  url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
                   req = urllib.request.Request(url)
                   req.add_header("Authorization", f"token {token}")
                   req.add_header("Accept", "application/vnd.github.v3+json")
                   resp = urllib.request.urlopen(req)
-                  all_comments = json.loads(resp.read().decode())
+                  all_prs = json.loads(resp.read().decode())
 
-                  user_claims = []
+                  # Count merged T1 PRs by this user
+                  user_merged = []
+                  for pr in all_prs:
+                      if pr["user"]["login"] == user and pr.get("merged_at"):
+                          user_merged.append(pr["number"])
+
+                  t1_completed = len(user_merged)
+                  print(f"{user} has {t1_completed} merged PRs: {user_merged}")
+
+                  # Gate 1: Must have at least 1 merged T1 PR
+                  if t1_completed == 0:
+                      print(f"NO T1 completions — blocking {tier_label} claim")
+                      gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+
+                      body = (
+                          f"⚠️ @{user} — **{tier_label} bounties require at least one completed Tier 1 bounty first.**\n\n"
+                          f"### How to unlock {tier_label}:\n"
+                          f"1. Pick a **Tier 1** bounty (open race, no claiming needed)\n"
+                          f"2. Submit a PR that passes our AI review (6.0+ score)\n"
+                          f"3. Get merged and earn $FNDRY\n"
+                          f"4. You'll then be eligible for {tier_label} bounties\n\n"
+                          f"Tier 1 is your entry ticket — prove your code integrates with the project, "
+                          f"then the higher tiers open up.\n\n"
+                          f"Browse T1 bounties: [Filter by tier-1](https://github.com/{repo}/labels/tier-1)\n\n"
+                          f"*— SolFoundry Bot 🏭*"
+                      )
+                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+                      exit(0)
+
+                  # Gate 2: For T3, need more experience (3+ merged PRs)
+                  if is_t3 and t1_completed < 3:
+                      print(f"Only {t1_completed} merges — blocking T3 claim (need 3+)")
+                      gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+
+                      body = (
+                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed bounties.**\n\n"
+                          f"You have **{t1_completed}** merged PR(s) so far. Keep building — "
+                          f"you're {3 - t1_completed} away from T3 access.\n\n"
+                          f"In the meantime, Tier 1 and Tier 2 bounties are available to you.\n\n"
+                          f"*— SolFoundry Bot 🏭*"
+                      )
+                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+                      exit(0)
+
+                  # Gate 3: Check for bulk claiming (max 2 concurrent T2/T3 claims)
+                  url2 = f"https://api.github.com/repos/{repo}/issues/comments?per_page=100"
+                  req2 = urllib.request.Request(url2)
+                  req2.add_header("Authorization", f"token {token}")
+                  req2.add_header("Accept", "application/vnd.github.v3+json")
+                  resp2 = urllib.request.urlopen(req2)
+                  all_comments = json.loads(resp2.read().decode())
+
+                  user_claims = set()
                   for c in all_comments:
                       if c["user"]["login"] == user:
                           c_lower = c.get("body", "").lower()
                           if re.search(claim_re, c_lower):
-                              # Extract issue number from URL
                               issue_num = c["issue_url"].rstrip("/").split("/")[-1]
-                              user_claims.append(issue_num)
+                              user_claims.add(issue_num)
 
-                  unique_claims = set(user_claims)
-                  print(f"{user} has claimed {len(unique_claims)} unique issues: {unique_claims}")
-
-                  if len(unique_claims) > 3:
-                      # Bulk claimer — delete all their claims and warn
-                      print(f"BULK CLAIMER: {user} — deleting current claim")
+                  if len(user_claims) > 2:
+                      print(f"BULK CLAIMER: {user} has {len(user_claims)} active claims")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
                       body = (
-                          f"⚠️ @{user} — You've attempted to claim {len(unique_claims)} bounties simultaneously. "
-                          f"Please focus on **one bounty at a time** and deliver before claiming another.\n\n"
-                          f"Your claim has been removed. Pick your strongest bounty, submit a quality PR, "
-                          f"and earn your way to more.\n\n"
+                          f"⚠️ @{user} — You already have **{len(user_claims)}** active claims. "
+                          f"Please complete or release existing claims before taking on more.\n\n"
+                          f"Max **2 concurrent claims** for T2/T3 bounties.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                   else:
-                      print(f"Legitimate T2/T3 claim from {user} — allowing")
+                      # All gates passed — allow the claim
+                      print(f"APPROVED: {user} claiming {tier_label} on #{issue} ({t1_completed} merges)")
+
+                      body = (
+                          f"✅ @{user} — Claim approved for this {tier_label} bounty.\n\n"
+                          f"**Deadline:** {'7 days' if is_t2 else '14 days'} from now.\n"
+                          f"**Min review score:** {'7.0/10' if is_t2 else '8.0/10'}\n\n"
+                          f"Good luck! Submit your PR when ready.\n\n"
+                          f"*— SolFoundry Bot 🏭*"
+                      )
+                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 
               except Exception as e:
-                  print(f"Claim check failed: {e}")
+                  print(f"Reputation check failed: {e}")
 
           PYEOF
