@@ -1,61 +1,32 @@
-name: "🟢 Tier 1 Bounty (50-500 $FNDRY)"
-description: "Open race bounty — first quality PR wins"
-title: "🏭 Bounty T1: "
+name: 🟢 Tier 1 Bounty
+description: Submit a Tier 1 Bounty (Open Race)
+title: "🏭 Bounty T1: [Task Name]"
 labels: ["bounty", "tier-1"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Tier 1 — Open Race
-        - **Reward:** 50-500 $FNDRY
-        - **Mode:** Open race — first quality PR that passes review wins
-        - **Deadline:** 72 hours from issue creation
-        - **Rules:** One PR per person. Must pass AI code review (score ≥ 6/10).
+        ## 🟢 Tier 1 Bounty — Open Race
+        **Reward:** 200,000 $FNDRY
+        **Deadline:** 72h | **Min review score:** 6/10
   - type: textarea
     id: description
     attributes:
-      label: Bounty Description
-      description: What needs to be built or fixed
-      placeholder: Describe the task clearly...
+      label: Description
+      description: Provide a detailed description of the task (e.g., Full tokenomics page showing $FNDRY distribution, buyback mechanics, treasury).
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What are the criteria for a valid submission?
     validations:
       required: true
   - type: input
-    id: reward
+    id: submission_link
     attributes:
-      label: Reward Amount ($FNDRY)
-      description: "How many $FNDRY tokens for this bounty"
-      placeholder: "100"
-    validations:
-      required: true
-  - type: textarea
-    id: requirements
-    attributes:
-      label: Requirements
-      description: "Specific requirements and acceptance criteria"
-      placeholder: |
-        - [ ] Requirement 1
-        - [ ] Requirement 2
-        - [ ] Include tests
-    validations:
-      required: true
-  - type: dropdown
-    id: category
-    attributes:
-      label: Category
-      options:
-        - Frontend
-        - Backend
-        - Smart Contract
-        - Docs
-        - DevOps
-        - Design
-    validations:
-      required: true
-  - type: textarea
-    id: resources
-    attributes:
-      label: Resources & References
-      description: "Links, docs, or examples that might help"
-      placeholder: "https://docs.example.com"
+      label: Submission Link
+      description: Link to your PR or work.
     validations:
       required: false
