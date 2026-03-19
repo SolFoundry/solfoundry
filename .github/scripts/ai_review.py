@@ -107,9 +107,13 @@ def spam_check(diff: str, pr_body: str, pr_title: str) -> dict:
     if len(diff) > 200000:
         return {"pass": False, "reason": f"Diff too large ({len(diff)//1000}KB) — suspicious bulk dump"}
 
-    # 6. Binary files or node_modules
-    if "node_modules/" in diff or "Binary file" in diff[:5000]:
-        return {"pass": False, "reason": "Contains binary files or node_modules"}
+    # 6. Binary files or committed node_modules (not just references in config/gitignore)
+    if "Binary file" in diff[:5000]:
+        return {"pass": False, "reason": "Contains binary files"}
+    # Only flag node_modules if actual module files are being added (not gitignore/config refs)
+    node_module_files = [l for l in diff.split("\n") if l.startswith("+++ b/node_modules/")]
+    if len(node_module_files) > 0:
+        return {"pass": False, "reason": "Contains committed node_modules"}
 
     # 7. Copy-paste detection — same block repeated many times
     chunks = diff.split("\n")
@@ -479,27 +483,65 @@ def send_telegram(review: dict):
         print(f"State save warning: {e}")
 
 
-def send_spam_rejection(reason: str):
-    """Notify Telegram that a PR was auto-rejected as spam."""
-    bot_token = os.environ.get("SOLFOUNDRY_TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("SOLFOUNDRY_TELEGRAM_CHAT_ID")
-    if not bot_token or not chat_id:
-        return
+def close_pr_github(pr_number: str, comment: str):
+    """Close a PR on GitHub with a comment."""
+    gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+    headers = {
+        "Authorization": f"token {gh_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    # Post comment
+    requests.post(
+        f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+        json={"body": comment}, headers=headers
+    )
+    # Close PR
+    requests.patch(
+        f"https://api.github.com/repos/{repo}/pulls/{pr_number}",
+        json={"state": "closed"}, headers=headers
+    )
 
+
+def send_spam_rejection(reason: str):
+    """Auto-close spam PR, comment with rules, and notify Telegram."""
     pr_number = os.environ.get("PR_NUMBER", "?")
     pr_title = os.environ.get("PR_TITLE", "?")
     pr_author = os.environ.get("PR_AUTHOR", "?")
     pr_url = os.environ.get("PR_URL", "")
 
+    # Auto-close with comment on GitHub
+    if pr_number != "?":
+        close_pr_github(pr_number, (
+            f"🚫 **Auto-closed — did not pass submission checks**\n\n"
+            f"**Reason:** {reason}\n\n"
+            f"### Submission Rules\n"
+            f"- PR must link a bounty issue (`Closes #N`)\n"
+            f"- Do not commit `node_modules/`, binary files, or build artifacts\n"
+            f"- Include meaningful code changes (not just config/README edits)\n"
+            f"- Keep submissions focused on the bounty scope\n"
+            f"- No excessive TODOs/placeholders\n\n"
+            f"Please review the [bounty rules](https://github.com/SolFoundry/solfoundry#-bounty-tiers) "
+            f"and open a new PR when ready.\n\n"
+            f"---\n*SolFoundry Review Bot*"
+        ))
+        print(f"Auto-closed PR #{pr_number} on GitHub")
+
+    # Notify Telegram with reopen option
+    bot_token = os.environ.get("SOLFOUNDRY_TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("SOLFOUNDRY_TELEGRAM_CHAT_ID")
+    if not bot_token or not chat_id:
+        return
+
     msg = (
-        f"\U0001f6ab <b>PR #{pr_number} — Spam Filtered</b>"
+        f"\U0001f6ab <b>PR #{pr_number} — Auto-Closed (Spam Filter)</b>"
         f"\n\U0001f464 {pr_author}"
         f"\n\U0001f4cb {pr_title}"
         f"\n\n<b>Reason:</b> {reason}"
-        f"\n<i>No LLM review run — saved API credits</i>"
+        f"\n<i>PR closed with rules comment. No LLM review run.</i>"
     )
 
-    keyboard = [[{"text": "\U0001f517 View on GitHub", "url": pr_url}]] if pr_url else []
+    keyboard = [[{"text": "\U0001f517 View PR", "url": pr_url}]] if pr_url else []
 
     requests.post(
         f"https://api.telegram.org/bot{bot_token}/sendMessage",
