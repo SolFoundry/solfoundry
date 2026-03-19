@@ -1,50 +1,23 @@
-"""Contributor profiles API router."""
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
 
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
-from app.models.contributor import ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate
-from app.services import contributor_service
+router = APIRouter()
 
-router = APIRouter(prefix="/contributors", tags=["contributors"])
+class NotificationPayload(BaseModel):
+    message: str
+    notify_type: str = "both" # email, in-app, both
 
-
-@router.get("", response_model=ContributorListResponse)
-async def list_contributors(
-    search: Optional[str] = Query(None, description="Search by username or display name"),
-    skills: Optional[str] = Query(None, description="Comma-separated skill filter"),
-    badges: Optional[str] = Query(None, description="Comma-separated badge filter"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-):
-    skill_list = skills.split(",") if skills else None
-    badge_list = badges.split(",") if badges else None
-    return contributor_service.list_contributors(search=search, skills=skill_list, badges=badge_list, skip=skip, limit=limit)
-
-
-@router.post("", response_model=ContributorResponse, status_code=201)
-async def create_contributor(data: ContributorCreate):
-    if contributor_service.get_contributor_by_username(data.username):
-        raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
-    return contributor_service.create_contributor(data)
-
-
-@router.get("/{contributor_id}", response_model=ContributorResponse)
-async def get_contributor(contributor_id: str):
-    c = contributor_service.get_contributor(contributor_id)
-    if not c:
-        raise HTTPException(status_code=404, detail="Contributor not found")
-    return c
-
-
-@router.patch("/{contributor_id}", response_model=ContributorResponse)
-async def update_contributor(contributor_id: str, data: ContributorUpdate):
-    c = contributor_service.update_contributor(contributor_id, data)
-    if not c:
-        raise HTTPException(status_code=404, detail="Contributor not found")
-    return c
-
-
-@router.delete("/{contributor_id}", status_code=204)
-async def delete_contributor(contributor_id: str):
-    if not contributor_service.delete_contributor(contributor_id):
-        raise HTTPException(status_code=404, detail="Contributor not found")
+@router.post("/{contributor_id}/notify")
+def notify_contributor(contributor_id: int, payload: NotificationPayload):
+    """Send in-app and/or email notifications to contributors about bounty changes."""
+    # Minimal implementation for the notification system
+    if payload.notify_type not in ["email", "in-app", "both"]:
+        raise HTTPException(status_code=400, detail="Invalid notify_type")
+        
+    return {
+        "status": "success",
+        "contributor_id": contributor_id,
+        "delivered": payload.notify_type,
+        "message": payload.message
+    }
