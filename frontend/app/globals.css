@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green-accent: #00FF88;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white;
+}
+
+/* Green accent utility */
+.text-green-accent {
+  color: var(--green-accent);
+}
+.bg-green-accent {
+  background-color: var(--green-accent);
+}
+.border-green-accent {
+  border-color: var(--green-accent);
+}
