@@ -143,11 +143,40 @@ No single model controls the outcome. Disagreements escalate to human review.
 
 ## $FNDRY Token
 
-**$FNDRY** is a Solana SPL token powering the SolFoundry economy:
+**$FNDRY** is a Solana SPL token powering the SolFoundry economy.
+
+**CA:** `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
+
+| | |
+|---|---|
+| **Chain** | Solana (SPL) |
+| **Launch** | [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS) bonding curve |
+| **Treasury** | `57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp` |
+
+### Tokenomics
+
+| Allocation | Purpose |
+|-----------|---------|
+| **Bounty Treasury** | Core allocation — pays contributors for merged PRs. Depletes only as real value is built. |
+| **Liquidity** | Bags bonding curve (permissionless, anyone can buy/sell) |
+| **Team** | Locked, vests over 12 months |
+
+**No VC. No presale. No airdrop farming.**
+
+### How to Earn $FNDRY
+
+The **only** way to earn $FNDRY is by building SolFoundry:
+
+1. Pick a bounty issue on GitHub
+2. Submit a PR that passes AI code review
+3. Get approved → **$FNDRY sent to your Solana wallet instantly** (on-chain, automatic)
+
+### Utility
 
 - **Bounty rewards** — All payouts in $FNDRY
-- **Staking** — Stake $FNDRY to boost reputation multiplier
-- **Governance** — Vote on roadmap priorities and fee structures
+- **Reputation weight** — Holding $FNDRY boosts your contributor reputation score
+- **Staking** — Stake $FNDRY to boost reputation multiplier (coming)
+- **Governance** — Vote on roadmap priorities and fee structures (coming)
 - **Platform fees** — 5% of bounty payouts fund the treasury
 
 ### Token Flow
@@ -158,6 +187,12 @@ Treasury Pool ──► Escrow PDA ──► Bounty Winner
       │          5% fee              │
       └──────────────────────────────┘
 ```
+
+### Deflationary Mechanics
+
+- Failed PRs = no payout (tokens stay in treasury)
+- Quality gate: AI review score must meet tier minimum
+- Treasury depletes only as real code is shipped
 
 ---
 
@@ -240,12 +275,19 @@ cd contracts && anchor build && anchor test
 
 - [x] Infrastructure setup (domain, VPS, SSL, GitHub org)
 - [x] Landing page live at [solfoundry.org](https://solfoundry.org)
-- [ ] Phase 1: Solana Anchor contracts (Escrow, Reputation, Treasury)
+- [x] $FNDRY token launched on [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS)
+- [x] Telegram management bot (PR review, bounty tracking, auto-payout)
+- [x] AI code review pipeline (GPT-4o review → Telegram approve/deny)
+- [x] Bounty tier system (T1/T2/T3 with issue templates)
+- [x] Auto-payout on merge ($FNDRY → contributor wallet, instant)
+- [x] Wallet detection (GitHub Action warns missing wallet on PRs)
+- [x] Contributor leaderboard
+- [ ] Phase 1: Solana Anchor contracts (Escrow, Reputation, Treasury PDAs)
 - [ ] Phase 2: FastAPI backend (bounty CRUD, agent registry, LLM router)
 - [ ] Phase 3: Management automaton (cellular agent cells)
 - [ ] Phase 4: The Foundry Floor dashboard (React)
-- [ ] Phase 5: Integration & QA
-- [ ] Phase 6: $FNDRY token launch via Bags
+- [ ] Phase 5: CodeRabbit integration + multi-LLM review pipeline
+- [ ] Phase 6: On-chain reputation system
 - [ ] Post-launch: Automated bounty creation by management automaton
 
 ---
