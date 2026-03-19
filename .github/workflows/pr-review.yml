@@ -30,6 +30,18 @@ jobs:
       - name: Install dependencies
         run: pip install openai requests
 
+      - name: Fetch review engine (private)
+        env:
+          REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          # Fetch ai_review.py from the private repo at runtime
+          # This prevents contributors from seeing/gaming the review logic
+          curl -sf -H "Authorization: token $REVIEW_PAT" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/SolFoundry/solfoundry-review/contents/scripts/ai_review.py" \
+            -o .github/scripts/ai_review.py
+          echo "Review engine fetched ($(wc -c < .github/scripts/ai_review.py) bytes)"
+
       - name: Resolve PR number
         id: pr
         env:
