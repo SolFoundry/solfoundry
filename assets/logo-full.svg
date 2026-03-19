@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="100" viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="solGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9945FF"/>
+      <stop offset="100%" style="stop-color:#14F195"/>
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9945FF"/>
+      <stop offset="50%" style="stop-color:#14F195"/>
+      <stop offset="100%" style="stop-color:#9945FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Anvil/Forge Icon -->
+  <g transform="translate(10, 10)">
+    <!-- Anvil base -->
+    <path d="M10 65 L20 45 L60 45 L70 65 Z" fill="url(#iconGrad)" opacity="0.9"/>
+    <!-- Anvil top -->
+    <rect x="15" y="35" width="50" height="12" rx="2" fill="url(#solGrad)"/>
+    <!-- Hammer -->
+    <rect x="35" y="8" width="8" height="28" rx="2" fill="#14F195" transform="rotate(-15, 39, 22)"/>
+    <rect x="28" y="5" width="22" height="10" rx="3" fill="url(#solGrad)" transform="rotate(-15, 39, 10)"/>
+    <!-- Sparks -->
+    <circle cx="55" cy="30" r="2" fill="#14F195" opacity="0.8"/>
+    <circle cx="62" cy="25" r="1.5" fill="#9945FF" opacity="0.7"/>
+    <circle cx="58" cy="20" r="1" fill="#14F195" opacity="0.6"/>
+    <circle cx="65" cy="32" r="1" fill="#FFD700" opacity="0.5"/>
+  </g>
+
+  <!-- Text -->
+  <text x="95" y="62" font-family="'SF Mono', 'Fira Code', 'Courier New', monospace" font-size="42" font-weight="700" fill="url(#solGrad)">SolFoundry</text>
+
+  <!-- Tagline -->
+  <text x="97" y="82" font-family="'SF Mono', 'Fira Code', 'Courier New', monospace" font-size="11" fill="#666" letter-spacing="3">THE AI FACTORY THAT BUILDS ITSELF</text>
+</svg>
