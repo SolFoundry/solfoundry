@@ -92,9 +92,11 @@ jobs:
             echo "submission_order=0" >> $GITHUB_OUTPUT
           fi
 
-      - name: AI Review
+      - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
