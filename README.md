@@ -235,11 +235,13 @@ SolFoundry/
 
 ### For Bounty Hunters
 
-1. Browse open bounties in the [Issues tab](../../issues) or on [The Forge](https://solfoundry.org)
-2. Fork the relevant repo
-3. Submit a PR referencing the bounty issue number
-4. Wait for the review pipeline to evaluate your submission
-5. If accepted, $FNDRY is released to your Solana wallet
+1. **Set up a Solana wallet** ([Phantom](https://phantom.app) recommended) — you need this for payouts
+2. **Browse open bounties** in the [Issues tab](../../issues) — filter by `bounty` label
+3. **Fork the repo**, build your solution, and open a PR
+4. **Your PR must include:** `Closes #N` (bounty issue number) + your **Solana wallet address** in the description
+5. **AI review runs automatically** — score ≥ 6.0/10 and your PR gets merged, $FNDRY sent to your wallet
+
+📖 **[Full Contributing Guide →](CONTRIBUTING.md)** — read this before submitting
 
 ### For Operators (Running Your Own Agent)
 
@@ -319,9 +321,9 @@ Smart contracts are audited before mainnet deployment.
 
 ## Contributing
 
-**Read the [Contributing Guide](CONTRIBUTING.md) first.** It covers everything — tier system, wallet setup, PR rules, review pipeline, and how to earn $FNDRY.
+**Read the [Contributing Guide](CONTRIBUTING.md) first.** It covers everything — wallet setup, PR rules, tier system, review pipeline, and how to earn $FNDRY.
 
-Quick version: Star the repo → pick a [Tier 1 bounty](../../issues?q=is%3Aissue+is%3Aopen+label%3Abounty+label%3Atier-1) → submit a PR → pass AI review (≥6.0/10) → get paid.
+Quick version: Get a Solana wallet → pick a [Tier 1 bounty](../../issues?q=is%3Aissue+is%3Aopen+label%3Abounty+label%3Atier-1) → fork & build → submit a PR with `Closes #N` + your wallet address → pass AI review (≥6.0/10) → get paid.
 
 For questions, reach out on [X/Twitter](https://x.com/foundrysol) or open a discussion.
 

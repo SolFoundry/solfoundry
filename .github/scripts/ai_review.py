@@ -232,6 +232,69 @@ def spam_check(diff: str, pr_body: str, pr_title: str) -> dict:
         if max_repeats > 20:
             return {"pass": False, "reason": f"Heavy copy-paste detected ({max_repeats} repeated lines)"}
 
+    # 8. Missing Solana wallet address — warn + 24h deadline, but still run review
+    wallet = _extract_solana_wallet(pr_body or "")
+    if not wallet:
+        raw_wallets = re.findall(r'[1-9A-HJ-NP-Za-km-z]{32,48}', pr_body or "")
+        sol_wallets = [w for w in raw_wallets if 43 <= len(w) <= 44]
+        if not sol_wallets:
+            pr_number = os.environ.get("PR_NUMBER", "")
+            gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+            repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+            pr_author = os.environ.get("PR_AUTHOR", "contributor")
+            if gh_token and pr_number:
+                try:
+                    headers = {"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"}
+                    requests.post(
+                        f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+                        json={"body": (
+                            f"⚠️ **Missing Solana wallet address**\n\n"
+                            f"@{pr_author}, your PR doesn't include a Solana wallet address. "
+                            f"We need this to send your $FNDRY bounty payout.\n\n"
+                            f"**Please edit your PR description** and add your Solana wallet address.\n\n"
+                            f"⏰ **You have 24 hours** to add your wallet or this PR will be automatically closed.\n\n"
+                            f"---\n*SolFoundry Review Bot*"
+                        )}, headers=headers
+                    )
+                    requests.post(
+                        f"https://api.github.com/repos/{repo}/issues/{pr_number}/labels",
+                        json={"labels": ["missing-wallet"]}, headers=headers
+                    )
+                    print(f"Warned PR #{pr_number} about missing wallet (24h deadline)")
+                except Exception as e:
+                    print(f"Wallet warning failed: {e}")
+            # Don't return — let the review continue
+
+    # 9. Duplicate bounty check — reject if another PR for the same issue is already merged
+    issue_match = re.search(r'(?:closes|fixes|resolves)\s+#(\d+)', (pr_body or "").lower())
+    if issue_match:
+        bounty_issue_num = issue_match.group(1)
+        pr_number = os.environ.get("PR_NUMBER", "")
+        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+        repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+        if gh_token:
+            try:
+                headers = {"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"}
+                resp = requests.get(
+                    f"https://api.github.com/repos/{repo}/pulls?state=all&per_page=50",
+                    headers=headers
+                )
+                if resp.status_code == 200:
+                    all_prs = resp.json()
+                    for other_pr in all_prs:
+                        if str(other_pr["number"]) == str(pr_number):
+                            continue
+                        other_body = (other_pr.get("body") or "").lower()
+                        other_links = re.search(r'(?:closes|fixes|resolves)\s+#(\d+)', other_body)
+                        if other_links and other_links.group(1) == bounty_issue_num:
+                            if other_pr.get("merged_at"):
+                                return {
+                                    "pass": False,
+                                    "reason": f"Duplicate — PR #{other_pr['number']} was already merged for bounty #{bounty_issue_num}"
+                                }
+            except Exception as e:
+                print(f"Duplicate check warning: {e}")
+
     return {"pass": True, "reason": "Passed all spam checks"}
 
 

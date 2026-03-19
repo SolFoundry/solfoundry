@@ -10,16 +10,65 @@ No applications. No interviews. Ship code, get paid.
 
 ## Getting Started
 
-1. **Star the repo.** There's a star bounty to test your setup (issue [#48](https://github.com/SolFoundry/solfoundry/issues/48)).
-2. **Set up your Solana wallet.** [Phantom](https://phantom.app) recommended. You need this for payouts.
-3. **Browse open bounties** in the [Issues tab](https://github.com/SolFoundry/solfoundry/issues). Filter by the `bounty` label.
-4. **Pick a Tier 1 bounty.** These are open races -- no claiming needed, first quality PR wins.
-5. **Fork the repo** and build your solution.
-6. **Submit a PR** using the PR template. Include your wallet address and `Closes #N` referencing the bounty issue.
-7. **Wait for AI review.** Usually takes minutes, not hours.
-8. **Score >= 6.0 and your PR gets merged** -- $FNDRY is sent to your wallet.
+### Step 1: Set Up Your Wallet
 
-> Start with the star bounty (issue #48) to test your entire workflow end to end before touching real bounties.
+You need a **Solana wallet** to receive $FNDRY payouts. [Phantom](https://phantom.app) is recommended.
+
+Copy your wallet address — you'll need it for every PR you submit.
+
+### Step 2: Pick a Bounty
+
+Browse open bounties in the [Issues tab](https://github.com/SolFoundry/solfoundry/issues). Filter by the `bounty` label.
+
+Start with a **Tier 1 bounty** — these are open races. No claiming needed, first quality PR wins.
+
+### Step 3: Fork & Build
+
+1. **Fork this repo** to your GitHub account
+2. **Clone your fork** locally
+3. **Create a branch** for the bounty (e.g. `feat/bounty-18-nav-shell`)
+4. **Build your solution** following the issue requirements exactly
+
+### Step 4: Submit Your PR
+
+This is the most important part. **Follow these rules exactly or your PR will be rejected:**
+
+1. **Title:** Descriptive — e.g. `feat: Implement site navigation shell`
+2. **PR description must include:**
+   - `Closes #N` — where N is the bounty issue number (e.g. `Closes #18`). **Required.** PRs without this are auto-closed.
+   - **Your Solana wallet address** — paste it in the description. No wallet = no payout, and your PR will be closed after 24 hours if you don't add one.
+3. **Push your branch** and open the PR against `main`
+
+**Example PR description:**
+```
+Implements the site navigation and layout shell with dark theme, responsive sidebar, and mobile menu.
+
+Closes #18
+
+**Wallet:** 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
+```
+
+### Step 5: AI Review
+
+Your PR is automatically reviewed by **3 AI models in parallel** (GPT-5.4, Gemini 2.5 Pro, Grok 4). This usually takes 1-2 minutes.
+
+- **Score ≥ 6.0/10** → PR is approved for merge → $FNDRY sent to your wallet automatically
+- **Score < 6.0/10** → Changes requested with feedback. Fix the issues and push an update.
+- Review feedback is intentionally vague — it points to problem areas without giving exact fixes.
+
+### Spam Filter (Auto-Rejection)
+
+Your PR will be **instantly closed** if:
+- Missing `Closes #N` in the description
+- Empty or trivial diff (< 5 lines of real code)
+- Contains binary files or `node_modules/`
+- Excessive TODOs/placeholders (AI slop)
+- Duplicate — another PR for the same bounty was already merged
+
+Your PR gets a **24-hour warning** if:
+- Missing Solana wallet address — add it within 24 hours or it's auto-closed
+
+> **💡 Tip:** There's also a temporary star bounty (issue [#48](https://github.com/SolFoundry/solfoundry/issues/48)) — star the repo and comment with your wallet to earn 10,000 $FNDRY. This is a one-time promo and does NOT count toward tier progression.
 
 ---
 
@@ -142,11 +191,12 @@ We take this seriously.
 
 ## Quick Tips
 
-- **Start with the star bounty** (issue [#48](https://github.com/SolFoundry/solfoundry/issues/48)) to test your entire workflow before touching real bounties.
+- **Read the bounty issue carefully.** Most rejections come from not reading the requirements. Match the spec exactly.
+- **Always include your Solana wallet in the PR description.** No wallet = no payout.
+- **Always include `Closes #N`.** No link to the bounty issue = auto-rejected.
 - **Read merged PRs from other contributors.** See what a passing submission looks like.
 - **Don't ask for exact fixes.** The vague review feedback is intentional. Read the feedback, read the code, figure it out.
 - **Speed matters on T1 bounties.** First clean PR wins. Don't spend three days polishing when someone else ships in three hours.
-- **Check the issue spec carefully.** Most rejections come from not reading the requirements.
 
 ---
 
