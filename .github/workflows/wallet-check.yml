@@ -102,8 +102,15 @@ jobs:
           pr_author = pr_detail.get("user", {}).get("login", pr_author)
 
           # ── Check for wallet in PR body and comment ──
+          # SECURITY: Only accept wallet from PR author (prevent wallet injection)
           wallet_in_body = find_wallet(pr_body)
-          wallet_in_comment = find_wallet(comment_text)
+          wallet_in_comment = None
+          if event_name == "issue_comment":
+              comment_author = event.get("comment", {}).get("user", {}).get("login", "")
+              if comment_author == pr_author:
+                  wallet_in_comment = find_wallet(comment_text)
+              elif find_wallet(comment_text):
+                  print(f"SECURITY: Ignoring wallet from {comment_author} (not PR author {pr_author})")
           wallet = wallet_in_body or wallet_in_comment
 
           # ── Get current labels ──

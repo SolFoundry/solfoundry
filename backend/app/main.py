@@ -13,12 +13,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
+ALLOWED_ORIGINS = [
+    "https://solfoundry.dev",
+    "https://www.solfoundry.dev",
+    "http://localhost:3000",  # Local dev only
+    "http://localhost:5173",  # Vite dev server
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(contributors_router)
