@@ -1,0 +1,69 @@
+name: "🟡 Tier 2 Bounty (500-5000 $FNDRY)"
+description: "Claim-based bounty — comment to claim, 7-day deadline"
+title: "🏭 Bounty T2: "
+labels: ["bounty", "tier-2"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Tier 2 — Claim-Based
+        - **Reward:** 500-5,000 $FNDRY
+        - **Mode:** Claim-based — comment "claiming" to reserve. One active claim at a time.
+        - **Deadline:** 7 days from claim. Unclaimed after 48h = open to all.
+        - **Rules:** Must pass AI code review (score ≥ 7/10). Include tests and docs.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bounty Description
+      description: What needs to be built
+      placeholder: Describe the feature or fix in detail...
+    validations:
+      required: true
+  - type: input
+    id: reward
+    attributes:
+      label: Reward Amount ($FNDRY)
+      description: "How many $FNDRY tokens for this bounty"
+      placeholder: "1000"
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements & Acceptance Criteria
+      description: "Detailed requirements — PR must satisfy ALL"
+      placeholder: |
+        - [ ] Requirement 1
+        - [ ] Requirement 2
+        - [ ] Tests with >80% coverage
+        - [ ] Documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Frontend
+        - Backend
+        - Smart Contract
+        - Docs
+        - DevOps
+        - Full Stack
+    validations:
+      required: true
+  - type: textarea
+    id: technical_details
+    attributes:
+      label: Technical Details
+      description: "Architecture notes, API specs, DB schemas, etc."
+      placeholder: "Technical implementation guidance..."
+    validations:
+      required: false
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources & References
+      description: "Links, docs, Figma, or examples"
+    validations:
+      required: false

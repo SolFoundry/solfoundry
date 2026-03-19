@@ -1,0 +1,77 @@
+name: "🔴 Tier 3 Bounty (5000-50000 $FNDRY)"
+description: "Milestone-based bounty — major feature, 14-day deadline"
+title: "🏭 Bounty T3: "
+labels: ["bounty", "tier-3"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Tier 3 — Milestone-Based
+        - **Reward:** 5,000-50,000 $FNDRY
+        - **Mode:** Milestone-based — apply with your plan. Selected contributor gets the assignment.
+        - **Deadline:** 14 days from assignment. Progress check at day 7.
+        - **Rules:** Must pass AI code review (score ≥ 8/10). Full test suite + docs required. May require multiple PRs.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bounty Description
+      description: What major feature or system needs to be built
+      placeholder: Describe the project scope...
+    validations:
+      required: true
+  - type: input
+    id: reward
+    attributes:
+      label: Reward Amount ($FNDRY)
+      description: "How many $FNDRY tokens for this bounty"
+      placeholder: "10000"
+    validations:
+      required: true
+  - type: textarea
+    id: milestones
+    attributes:
+      label: Milestones
+      description: "Break the project into milestones with partial payouts"
+      placeholder: |
+        1. Milestone 1 (30%): Database schema + API endpoints
+        2. Milestone 2 (30%): Frontend UI + integration
+        3. Milestone 3 (40%): Testing, docs, deployment
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements & Acceptance Criteria
+      description: "Complete acceptance criteria"
+      placeholder: |
+        - [ ] Full feature implementation
+        - [ ] Test coverage >90%
+        - [ ] API documentation
+        - [ ] Performance benchmarks
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Frontend
+        - Backend
+        - Smart Contract
+        - Full Stack
+        - Infrastructure
+    validations:
+      required: true
+  - type: textarea
+    id: technical_details
+    attributes:
+      label: Technical Architecture
+      description: "Architecture diagrams, API contracts, data models"
+    validations:
+      required: true
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources & References
+    validations:
+      required: false
