@@ -436,19 +436,62 @@ def send_telegram(review: dict):
     if len(msg) > 3800:
         msg = msg[:3800] + "\n\n<i>... truncated</i>"
 
-    inline_keyboard = [
-        [
-            {"text": "\u2705 Approve & Merge", "callback_data": f"pr_approve_{pr_number}"},
-            {"text": "\u26a0\ufe0f Request Changes", "callback_data": f"pr_changes_{pr_number}"}
-        ],
-        [
-            {"text": "\u274c Deny & Close", "callback_data": f"pr_deny_{pr_number}"},
-            {"text": "\U0001f916 Re-review", "callback_data": f"pr_review_{pr_number}"}
-        ],
-        [
-            {"text": "\U0001f517 View on GitHub", "url": pr_url}
+    # Check if PR fails tier minimum
+    below_threshold = min_score > 0 and review["overall_score"] < min_score
+
+    if below_threshold:
+        # AUTO-REQUEST CHANGES on GitHub — no manual action needed
+        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+        repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+        headers = {
+            "Authorization": f"token {gh_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+        # Build feedback from review issues
+        feedback_parts = []
+        if review.get("issues"):
+            feedback_parts.append("**Issues found:**\n" + "\n".join(f"- {i}" for i in review["issues"][:5]))
+        if review.get("suggestions"):
+            feedback_parts.append("**Suggestions:**\n" + "\n".join(f"- {s}" for s in review["suggestions"][:3]))
+        feedback = "\n\n".join(feedback_parts) if feedback_parts else f"AI review scored this PR {review['overall_score']}/10 (minimum required: {min_score}/10)."
+
+        changes_comment = (
+            f"\u26a0\ufe0f **Changes Requested** (Score: {review['overall_score']}/10 — minimum: {min_score}/10)\n\n"
+            f"{feedback}\n\n"
+            f"Please address these items and push an update. "
+            f"If no update within 72 hours, this PR will be automatically closed.\n\n"
+            f"---\n*SolFoundry Review Bot*"
+        )
+
+        # Post changes-requested comment
+        requests.post(
+            f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+            json={"body": changes_comment}, headers=headers
+        )
+        # Add changes-requested label
+        requests.post(
+            f"https://api.github.com/repos/{repo}/issues/{pr_number}/labels",
+            json={"labels": ["changes-requested"]}, headers=headers
+        )
+        print(f"Auto-requested changes on PR #{pr_number} (score {review['overall_score']} < {min_score})")
+
+        # Telegram: info-only with just Override Approve
+        msg += f"\n\n\U0001f6a8 <b>Auto-requested changes on GitHub. Will auto-close in 72h if no update.</b>"
+        inline_keyboard = [
+            [
+                {"text": "\u2705 Override Approve", "callback_data": f"pr_approve_{pr_number}"},
+                {"text": "\U0001f517 View on GitHub", "url": pr_url}
+            ]
         ]
-    ]
+    else:
+        # PASSES threshold — show approve button only (you just tap approve)
+        inline_keyboard = [
+            [
+                {"text": "\u2705 Approve & Merge", "callback_data": f"pr_approve_{pr_number}"},
+                {"text": "\U0001f517 View on GitHub", "url": pr_url}
+            ]
+        ]
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     resp = requests.post(url, json={
@@ -469,12 +512,15 @@ def send_telegram(review: dict):
         state = json.loads(state_file.read_text()) if state_file.exists() else {}
         if "pending_prs" not in state:
             state["pending_prs"] = {}
-        state["pending_prs"][str(pr_number)] = {
+        pr_state = {
             "title": pr_title, "author": pr_author, "url": pr_url,
             "score": review["overall_score"], "verdict": review["verdict"],
             "models": review.get("model_details", []),
             "reviewed_at": datetime.now().isoformat()
         }
+        if below_threshold:
+            pr_state["changes_requested_at"] = datetime.now().isoformat()
+        state["pending_prs"][str(pr_number)] = pr_state
         if "stats" not in state:
             state["stats"] = {}
         state["stats"]["prs_reviewed"] = state["stats"].get("prs_reviewed", 0) + 1
