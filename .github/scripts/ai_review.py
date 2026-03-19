@@ -30,39 +30,55 @@ PR Description: {pr_body}
 {tier_context}
 
 Evaluate (1-10 each):
-1. **Code Quality**: Clean code, naming, conventions, no dead code
+1. **Code Quality**: Clean code, naming, conventions, no dead code, no orphaned files
 2. **Correctness**: Logic errors, edge cases, does it actually work as intended?
 3. **Security**: XSS, injection, secrets, unsafe patterns
 4. **Completeness**: Matches bounty spec? Missing features?
 5. **Tests**: Test coverage, quality of tests
+6. **Integration**: Does this code connect to the existing project? Are all files actually used?
 
-IMPORTANT — Scoring calibration:
-- A score of 5/10 means "acceptable but has notable issues"
-- A score of 7/10 means "good, solid work with minor issues"
-- A score of 9/10 means "excellent, production-grade"
-- If the code works correctly and is clean, that alone merits a 6+ in quality and correctness
-- Judge what IS there, not what's missing. A well-implemented subset is better than a sloppy complete attempt
-- If no tests are included but the code itself is correct and functional, tests_score should be 3-4 (not 0-2). Reserve 0-2 for broken or misleading tests.
+IMPORTANT — Scoring calibration (USE THE FULL RANGE 1-10):
+- 1-2: Broken, non-functional, or completely disconnected from the project
+- 3-4: Major structural problems — files don't connect, wrong branding, bulk of code is dead/orphaned
+- 5-6: Works but has significant issues — missing integration, no tests, sloppy structure
+- 7-8: Solid, well-structured work that integrates properly and handles edge cases
+- 9-10: Excellent production-grade code with tests, documentation, and clean architecture
+- USE THE FULL RANGE. A submission with dead code and disconnected files is a 3, not a 5.
+
+IMPORTANT — Structural integrity checks (score these HARD):
+- If a CSS or JS file is submitted but never imported/linked from any HTML or entry point, that file is DEAD CODE. This should heavily penalize quality_score and integration_score (cap both at 4 max).
+- If CSS class names or JS selectors don't match the HTML elements they target, the code is DISCONNECTED. Penalize correctness_score (cap at 4 max).
+- If the submission uses different branding/naming than the project (e.g., "TokenFactory" instead of "SolFoundry"), penalize completeness_score significantly.
+- If EVERY file in the PR is a new standalone file with zero imports from existing repo code, this is a DISCONNECTED SUBMISSION. It should score lower than one that properly extends the codebase.
+- If the PR contains duplicate logic across files (e.g., same animations defined in both inline <style> and external CSS), penalize quality_score.
+- Count how many submitted files are actually reachable from an entry point. If less than 70% are reachable, cap quality at 5.
+
+IMPORTANT — Reward good engineering:
+- Tests that cover edge cases, not just happy paths: +1 to tests_score
+- Proper integration with existing repo code (imports, extends, modifies existing files): +1 to integration_score
+- Clean separation of concerns (API/service/model layers): +1 to quality_score
+- Documented tradeoffs or known limitations: shows engineering maturity, don't penalize
 
 IMPORTANT — Feedback style rules:
 - Be VAGUE about issues. Point to the AREA or CATEGORY of the problem, NOT the exact fix.
-- Say "there are error handling gaps in the API layer" NOT "add try/catch to line 42 in routes.py"
-- Say "input validation is insufficient" NOT "validate the email field with regex"
-- Say "security concerns in authentication flow" NOT "use bcrypt instead of md5"
-- Say "missing edge case handling in the payment logic" NOT "check for negative amounts on line 88"
+- Say "there are structural connectivity issues between the submitted files" NOT "script.js targets .feature-card but HTML uses .token-feature"
+- Say "the submission has project coherence problems" NOT "it says TokenFactory instead of SolFoundry"
+- Say "some submitted files may not be reachable from the application entry point" NOT "styles.css is never linked"
+- Say "there are consistency issues across the codebase" NOT "inline CSS uses purple but external CSS uses orange"
 - NEVER give code snippets, exact fixes, or copy-pasteable solutions.
 - The goal is to tell them WHAT areas need work, not HOW to fix them.
 - A skilled developer should understand the feedback. Someone copy-pasting into an AI should struggle.
-- For the notes on each category, describe the general quality level, don't list specific fixes.
+- Reference general software engineering principles: "file reachability", "dead code elimination", "project coherence", "structural integrity"
 
 Provide:
 - **Overall verdict**: APPROVE, REQUEST_CHANGES, or REJECT
 - **Summary**: 2-3 sentences on overall impression
 - **Issues**: High-level areas that need work (NO exact fixes, NO line numbers, NO code)
-- **Suggestions**: General directions for improvement (vague, not prescriptive)
+- **Suggestions**: General directions for improvement (vague, reference engineering principles)
 
 Be thorough and critical — this is an experiment proving autonomous agents can ship quality products.
-But be FAIR. If the code works, is clean, and addresses the spec, that should be reflected in the scores.
+But be FAIR. If the code works, integrates well, and addresses the spec, that should be reflected in high scores.
+Well-engineered code with tests and proper integration should score 8-9. Disconnected files dumped into a repo should score 3-4.
 
 DIFF:
 ```
@@ -81,53 +97,90 @@ Respond in this exact JSON format:
   "completeness_note": "brief general assessment, no specific fixes",
   "tests_score": 3,
   "tests_note": "brief general assessment, no specific fixes",
+  "integration_score": 7,
+  "integration_note": "brief assessment of how well code connects to existing project",
   "overall_score": 6.6,
   "verdict": "REQUEST_CHANGES",
   "summary": "overall impression, 2-3 sentences",
   "issues": ["vague area-level problem, no fix given", "another area of concern"],
-  "suggestions": ["general direction, not a specific solution"]
+  "suggestions": ["general direction referencing engineering principles, not a specific solution"]
 }}"""
 
 # Tier-specific context injected into the prompt
 TIER_PROMPTS = {
     "tier-1": (
         "\nBOUNTY TIER: Tier 1 — Basic tasks (UI components, styling, simple endpoints, docs, config)\n"
-        "These are low-risk contributions. No wallet logic, no auth, no financial operations.\n"
-        "Expectations: Working code that addresses the spec. Clean structure and reasonable naming.\n"
-        "Tests are appreciated but NOT required for T1. Judge the code on whether it works and is maintainable.\n"
-        "If no tests are included, score tests_score as 4 (neutral) — do NOT penalize heavily.\n"
-        "Verdict guide: APPROVE if quality ≥ 6, correctness ≥ 6, security ≥ 5, and code works.\n"
-        "A working, clean implementation without tests is a 6-7, not a 4-5."
+        "Low-risk contributions. No wallet logic, no auth, no financial operations.\n"
+        "\n"
+        "EXPECTATIONS FOR T1:\n"
+        "- Code that works and addresses the bounty spec\n"
+        "- All submitted files must be CONNECTED — every file should be reachable from an entry point\n"
+        "- Branding and naming must match the project (SolFoundry, not placeholder names)\n"
+        "- Clean structure and reasonable naming\n"
+        "- Tests appreciated but NOT required — if absent, score tests_score as 4 (neutral)\n"
+        "\n"
+        "SCORING GUIDE FOR T1 (be generous on complexity, strict on coherence):\n"
+        "- Well-integrated code with tests that works: 8-9\n"
+        "- Working code, properly connected, no tests: 6-7\n"
+        "- Code that renders/runs but has orphaned files or disconnected structure: 3-5\n"
+        "- Disconnected files, wrong branding, dead code: 2-4\n"
+        "\n"
+        "T1 is forgiving on sophistication but NOT on structural integrity.\n"
+        "A simple component that properly integrates > a fancy one with dead files."
     ),
     "tier-2": (
         "\nBOUNTY TIER: Tier 2 — Standard tasks (API integrations, data pipelines, complex UI with state)\n"
         "Moderate risk. May touch backend logic, external APIs, or user data.\n"
-        "Expectations: Solid implementation with good error handling. Tests expected for core logic paths.\n"
-        "Frontend components should handle error/loading states. API endpoints need basic validation.\n"
-        "Verdict guide: APPROVE if quality ≥ 6, correctness ≥ 7, security ≥ 7, and main paths tested."
+        "\n"
+        "EXPECTATIONS FOR T2:\n"
+        "- Solid implementation with proper error handling and input validation\n"
+        "- Tests REQUIRED for core logic paths — no tests = cap at 5.5 max overall\n"
+        "- Must integrate with existing repo code (import existing modules, extend existing patterns)\n"
+        "- All submitted files must be connected and reachable\n"
+        "- Frontend: must handle error/loading/empty states\n"
+        "- Backend: proper separation of concerns (routes/services/models)\n"
+        "\n"
+        "SCORING GUIDE FOR T2:\n"
+        "- Production-grade with tests, integration, error handling: 8-9\n"
+        "- Working code with tests but minor gaps: 6-7\n"
+        "- Works but missing tests or poor integration: 4-6\n"
+        "- Structural issues, orphaned files, no error handling: 2-4\n"
     ),
     "tier-3": (
         "\nBOUNTY TIER: Tier 3 — Critical tasks (wallet integration, auth, payments, security, smart contracts)\n"
-        "HIGH RISK. These touch money, credentials, or security boundaries. Be STRICT here.\n"
-        "Expectations: Production-grade. Comprehensive tests including edge cases and failure modes.\n"
-        "Security must be airtight — check for injection, improper validation, race conditions.\n"
-        "Input validation on ALL external data. Error handling must never expose internals.\n"
-        "Verdict guide: APPROVE only if all categories ≥ 7, security ≥ 8, and tests ≥ 6."
+        "HIGH RISK. Touches money, credentials, or security boundaries. Be STRICT.\n"
+        "\n"
+        "EXPECTATIONS FOR T3:\n"
+        "- Production-grade code. No shortcuts, no placeholders, no TODOs in critical paths.\n"
+        "- Comprehensive test suite including edge cases, failure modes, and boundary conditions\n"
+        "- Security must be airtight — injection, validation, race conditions, error exposure\n"
+        "- Input validation on ALL external data. Fail closed, never open.\n"
+        "- Must integrate with existing auth/wallet/security patterns in the repo\n"
+        "- Code review by a senior engineer should find no surprises\n"
+        "\n"
+        "SCORING GUIDE FOR T3:\n"
+        "- Battle-tested with comprehensive tests and security review: 8-10\n"
+        "- Solid but with minor security or test gaps: 6-7\n"
+        "- Missing critical tests or security considerations: 3-5\n"
+        "- Any structural issues, dead code, or integration gaps: automatic cap at 4\n"
+        "\n"
+        "APPROVE only if all categories ≥ 7, security ≥ 8, and tests ≥ 7."
     ),
     "unknown": (
         "\nBOUNTY TIER: Unknown — apply Tier 2 standards as default.\n"
-        "Focus on correctness and security. If the task appears security-critical, be strict."
+        "Focus on correctness, integration, and security. If the task appears security-critical, be strict."
     ),
 }
 
 # Category weights per tier — determines how much each category affects overall score
 # Higher weight = more impact on final score. Weights sum to 1.0 per tier.
+# Integration = are files connected, do they extend existing code, no orphans
 TIER_WEIGHTS = {
-    #                    quality  correct  security  complete  tests
-    "tier-1":  {"quality": 0.30, "correctness": 0.30, "security": 0.15, "completeness": 0.15, "tests": 0.10},
-    "tier-2":  {"quality": 0.20, "correctness": 0.25, "security": 0.20, "completeness": 0.20, "tests": 0.15},
-    "tier-3":  {"quality": 0.15, "correctness": 0.20, "security": 0.25, "completeness": 0.15, "tests": 0.25},
-    "unknown": {"quality": 0.20, "correctness": 0.25, "security": 0.20, "completeness": 0.20, "tests": 0.15},
+    #                    quality  correct  security  complete  tests   integration
+    "tier-1":  {"quality": 0.20, "correctness": 0.25, "security": 0.10, "completeness": 0.15, "tests": 0.10, "integration": 0.20},
+    "tier-2":  {"quality": 0.15, "correctness": 0.20, "security": 0.15, "completeness": 0.15, "tests": 0.15, "integration": 0.20},
+    "tier-3":  {"quality": 0.10, "correctness": 0.15, "security": 0.25, "completeness": 0.10, "tests": 0.25, "integration": 0.15},
+    "unknown": {"quality": 0.15, "correctness": 0.20, "security": 0.15, "completeness": 0.15, "tests": 0.15, "integration": 0.20},
 }
 
 
@@ -296,6 +349,7 @@ def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
             "security_score": 0, "security_note": "All reviewers failed",
             "completeness_score": 0, "completeness_note": "All reviewers failed",
             "tests_score": 0, "tests_note": "All reviewers failed",
+            "integration_score": 0, "integration_note": "All reviewers failed",
             "overall_score": 0, "verdict": "REJECT",
             "summary": "All LLM reviewers failed. Manual review required.",
             "issues": ["All automated reviewers encountered errors"],
@@ -305,11 +359,18 @@ def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
         }
 
     n = len(valid)
-    categories = ["quality", "correctness", "security", "completeness", "tests"]
+    categories = ["quality", "correctness", "security", "completeness", "tests", "integration"]
 
     agg = {}
     for cat in categories:
-        scores = [r.get(f"{cat}_score", 0) for r in valid]
+        # If a model doesn't return integration_score (backward compat), use quality_score as proxy
+        fallback = "quality_score" if cat == "integration" else None
+        scores = []
+        for r in valid:
+            s = r.get(f"{cat}_score")
+            if s is None and fallback:
+                s = r.get(fallback, 5)
+            scores.append(s if s is not None else 0)
         notes = [f"**{r.get('_model', '?')}:** {r.get(f'{cat}_note', 'N/A')}" for r in valid]
         agg[f"{cat}_score"] = round(sum(scores) / n, 1)
         agg[f"{cat}_note"] = " | ".join(notes)
@@ -322,12 +383,12 @@ def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
     agg["overall_score"] = round(weighted_score, 1)
 
     # Verdict = SCORE-BASED per tier, not majority vote
-    # This ensures a working T1 component that scores 6.5 actually gets approved
+    # With recalibrated scoring, these thresholds reflect real quality bars
     tier_approve_thresholds = {
-        "tier-1": 5.5,   # Basic tasks — if it works and is clean, approve
-        "tier-2": 6.5,   # Standard tasks — need solid quality
-        "tier-3": 7.5,   # Critical tasks — high bar for security/wallet/auth code
-        "unknown": 6.5,
+        "tier-1": 6.0,   # Basic tasks — must be structurally sound, connected code
+        "tier-2": 7.0,   # Standard tasks — need solid quality + tests + integration
+        "tier-3": 8.0,   # Critical tasks — production-grade, comprehensive tests required
+        "unknown": 7.0,
     }
     approve_threshold = tier_approve_thresholds.get(tier, 6.5)
 
@@ -394,7 +455,7 @@ def post_pr_comment(review: dict):
         model_scores += f"| {md['model']} | {md['score']}/10 | {m_emoji} {md['verdict']} |\n"
 
     # Category scores
-    categories = ["quality", "correctness", "security", "completeness", "tests"]
+    categories = ["quality", "correctness", "security", "completeness", "tests", "integration"]
     cat_rows = ""
     for cat in categories:
         score = review.get(f"{cat}_score", 0)
@@ -556,7 +617,7 @@ def send_telegram(review: dict):
         f"\n<b>Models:</b>{model_lines}"
         f"\n"
         f"\n<b>Quality:</b> {review.get('quality_score',0)} | <b>Correct:</b> {review.get('correctness_score',0)} | <b>Security:</b> {review.get('security_score',0)}"
-        f"\n<b>Complete:</b> {review.get('completeness_score',0)} | <b>Tests:</b> {review.get('tests_score',0)}"
+        f"\n<b>Complete:</b> {review.get('completeness_score',0)} | <b>Tests:</b> {review.get('tests_score',0)} | <b>Integration:</b> {review.get('integration_score',0)}"
         f"{issues_preview}"
     )
 
