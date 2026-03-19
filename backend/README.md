@@ -62,10 +62,12 @@ backend/
 - Protected routes
 
 ### Issue #29 - Notification System ✅
-- In-app notifications
-- Email notifications (Resend)
-- WebSocket real-time push
-- Mark as read/unread
+- In-app notifications with PostgreSQL storage
+- Email notifications via Resend API
+- **WebSocket real-time push** with Redis pub/sub
+- Connection manager for concurrent users
+- Mark as read/unread with bulk operations
+- Unread count endpoint
 
 ### Issue #30 - Search & Filter Engine ✅
 - Full-text search (PostgreSQL FTS)
