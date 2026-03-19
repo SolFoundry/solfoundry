@@ -229,7 +229,10 @@ def main():
     print(f"Review verdict: {review['verdict']} ({review['overall_score']}/10)")
 
     post_pr_comment(review)
-    send_telegram(review)
+
+    # Skip Telegram if called from the bot (bot handles its own notification)
+    if not os.environ.get("SKIP_TELEGRAM"):
+        send_telegram(review)
 
     # Set exit code based on verdict
     if review["verdict"] == "REJECT":
