@@ -1,16 +1,17 @@
 """Tests for bounty search and filter functionality.
 
-Uses PostgreSQL test database to match production environment.
+Tests the search service with a PostgreSQL test database that mirrors
+the production schema including search vectors and indexes.
+
 Run with: pytest tests/test_bounty_search.py -v
 """
 
 import os
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import text
 
-from app.main import app
 from app.models.bounty import BountyDB, Base
 from app.services.bounty_service import BountySearchService
 from app.models.bounty import BountySearchParams
@@ -25,13 +26,45 @@ TEST_DATABASE_URL = os.getenv(
 
 @pytest_asyncio.fixture
 async def db_engine():
-    """Create test database engine."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=True)
+    """Create test database engine with production-like schema."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     
-    # Create tables
+    # Create tables and search infrastructure
     async with engine.begin() as conn:
+        # Drop existing tables
         await conn.run_sync(Base.metadata.drop_all)
+        
+        # Create tables
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Create search trigger function
+        await conn.execute(text("""
+            CREATE OR REPLACE FUNCTION update_bounty_search_vector()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.search_vector := to_tsvector('english', 
+                    coalesce(NEW.title, '') || ' ' || 
+                    coalesce(NEW.description, '')
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """))
+        
+        # Create trigger
+        await conn.execute(text("""
+            DROP TRIGGER IF EXISTS bounty_search_vector_update ON bounties;
+            CREATE TRIGGER bounty_search_vector_update
+                BEFORE INSERT OR UPDATE ON bounties
+                FOR EACH ROW
+                EXECUTE FUNCTION update_bounty_search_vector();
+        """))
+        
+        # Create indexes
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_bounties_search_vector 
+            ON bounties USING GIN(search_vector);
+        """))
     
     yield engine
     
@@ -55,212 +88,281 @@ async def db_session(db_engine):
         yield session
 
 
-@pytest_asyncio.fixture
-async def client():
-    """Create a test client."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
-
-
-@pytest.mark.asyncio
-async def test_search_bounties_basic(db_session):
-    """Test basic bounty search without filters."""
+class TestBountySearchService:
+    """Tests for BountySearchService."""
     
-    # Create test bounties
-    bounty1 = BountyDB(
-        title="Implement search feature",
-        description="Add full-text search to the bounty system",
-        tier=1,
-        category="backend",
-        status="open",
-        reward_amount=200000.0,
-        skills=["python", "fastapi", "postgresql"],
-    )
-    bounty2 = BountyDB(
-        title="Fix login bug",
-        description="Fix authentication issue on login page",
-        tier=1,
-        category="frontend",
-        status="open",
-        reward_amount=50000.0,
-        skills=["javascript", "react"],
-    )
+    @pytest.mark.asyncio
+    async def test_search_returns_only_open_bounties_by_default(self, db_session):
+        """Test that search defaults to open status."""
+        # Create bounties with different statuses
+        bounties = [
+            BountyDB(title="Open Task", description="D", tier=1, category="backend", status="open", reward_amount=100000.0),
+            BountyDB(title="Completed Task", description="D", tier=1, category="backend", status="completed", reward_amount=50000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams())
+        
+        assert result.total == 1
+        assert result.items[0].title == "Open Task"
     
-    db_session.add(bounty1)
-    db_session.add(bounty2)
-    await db_session.commit()
+    @pytest.mark.asyncio
+    async def test_search_filter_by_tier(self, db_session):
+        """Test tier filtering."""
+        bounties = [
+            BountyDB(title="T1", description="D", tier=1, category="backend", status="open", reward_amount=50000.0),
+            BountyDB(title="T2", description="D", tier=2, category="backend", status="open", reward_amount=500000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams(tier=1))
+        
+        assert result.total == 1
+        assert result.items[0].tier == 1
     
-    # Test search
-    service = BountySearchService(db_session)
-    params = BountySearchParams(skip=0, limit=10)
-    result = await service.search_bounties(params)
+    @pytest.mark.asyncio
+    async def test_search_filter_by_category(self, db_session):
+        """Test category filtering."""
+        bounties = [
+            BountyDB(title="Backend", description="D", tier=1, category="backend", status="open", reward_amount=100000.0),
+            BountyDB(title="Frontend", description="D", tier=1, category="frontend", status="open", reward_amount=100000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams(category="backend"))
+        
+        assert result.total == 1
+        assert result.items[0].category == "backend"
     
-    assert result.total == 2
-    assert len(result.items) == 2
-
-
-@pytest.mark.asyncio
-async def test_search_bounties_filter_by_tier(db_session):
-    """Test bounty search filtered by tier."""
-    
-    # Create test bounties with different tiers
-    bounty1 = BountyDB(
-        title="Tier 1 bounty",
-        description="Small task",
-        tier=1,
-        category="backend",
-        status="open",
-        reward_amount=50000.0,
-    )
-    bounty2 = BountyDB(
-        title="Tier 2 bounty",
-        description="Medium task",
-        tier=2,
-        category="backend",
-        status="open",
-        reward_amount=500000.0,
-    )
-    
-    db_session.add(bounty1)
-    db_session.add(bounty2)
-    await db_session.commit()
-    
-    # Test filter
-    service = BountySearchService(db_session)
-    params = BountySearchParams(tier=1, skip=0, limit=10)
-    result = await service.search_bounties(params)
-    
-    assert result.total == 1
-    assert result.items[0].tier == 1
-
-
-@pytest.mark.asyncio
-async def test_search_bounties_filter_by_reward_range(db_session):
-    """Test bounty search filtered by reward range."""
-    
-    # Create test bounties
-    bounty1 = BountyDB(
-        title="Low reward bounty",
-        description="Small task",
-        tier=1,
-        category="backend",
-        status="open",
-        reward_amount=50000.0,
-    )
-    bounty2 = BountyDB(
-        title="High reward bounty",
-        description="Large task",
-        tier=2,
-        category="backend",
-        status="open",
-        reward_amount=500000.0,
-    )
-    
-    db_session.add(bounty1)
-    db_session.add(bounty2)
-    await db_session.commit()
-    
-    # Test filter
-    service = BountySearchService(db_session)
-    params = BountySearchParams(reward_min=100000.0, reward_max=600000.0, skip=0, limit=10)
-    result = await service.search_bounties(params)
-    
-    assert result.total == 1
-    assert result.items[0].reward_amount == 500000.0
-
-
-@pytest.mark.asyncio
-async def test_search_bounties_sort_by_reward(db_session):
-    """Test bounty search sorted by reward."""
-    
-    # Create test bounties
-    bounty1 = BountyDB(
-        title="Low reward",
-        description="Small task",
-        tier=1,
-        category="backend",
-        status="open",
-        reward_amount=50000.0,
-    )
-    bounty2 = BountyDB(
-        title="High reward",
-        description="Large task",
-        tier=1,
-        category="backend",
-        status="open",
-        reward_amount=500000.0,
-    )
-    
-    db_session.add(bounty1)
-    db_session.add(bounty2)
-    await db_session.commit()
-    
-    # Test sort high to low
-    service = BountySearchService(db_session)
-    params = BountySearchParams(sort="reward_high", skip=0, limit=10)
-    result = await service.search_bounties(params)
-    
-    assert result.items[0].reward_amount >= result.items[1].reward_amount
-
-
-@pytest.mark.asyncio
-async def test_pagination(db_session):
-    """Test pagination of search results."""
-    
-    # Create multiple bounties
-    for i in range(25):
-        bounty = BountyDB(
-            title=f"Bounty {i}",
-            description=f"Description {i}",
-            tier=1,
-            category="backend",
-            status="open",
-            reward_amount=100000.0 * (i + 1),
+    @pytest.mark.asyncio
+    async def test_search_filter_by_reward_range(self, db_session):
+        """Test reward range filtering."""
+        bounties = [
+            BountyDB(title="Low", description="D", tier=1, category="backend", status="open", reward_amount=50000.0),
+            BountyDB(title="Mid", description="D", tier=1, category="backend", status="open", reward_amount=150000.0),
+            BountyDB(title="High", description="D", tier=1, category="backend", status="open", reward_amount=500000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(
+            BountySearchParams(reward_min=100000, reward_max=200000)
         )
-        db_session.add(bounty)
+        
+        assert result.total == 1
+        assert result.items[0].title == "Mid"
     
-    await db_session.commit()
+    @pytest.mark.asyncio
+    async def test_search_filter_by_skills(self, db_session):
+        """Test skills filtering."""
+        bounties = [
+            BountyDB(title="Python Task", description="D", tier=1, category="backend", status="open", reward_amount=100000.0, skills=["python", "fastapi"]),
+            BountyDB(title="JS Task", description="D", tier=1, category="frontend", status="open", reward_amount=100000.0, skills=["javascript", "react"]),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(
+            BountySearchParams(skills="python")
+        )
+        
+        assert result.total == 1
+        assert "python" in result.items[0].skills
     
-    # Test pagination
-    service = BountySearchService(db_session)
+    @pytest.mark.asyncio
+    async def test_search_sort_by_reward_high(self, db_session):
+        """Test sorting by reward descending."""
+        bounties = [
+            BountyDB(title="Low", description="D", tier=1, category="backend", status="open", reward_amount=50000.0),
+            BountyDB(title="High", description="D", tier=1, category="backend", status="open", reward_amount=500000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams(sort="reward_high"))
+        
+        assert result.items[0].reward_amount > result.items[1].reward_amount
     
-    # First page
-    params1 = BountySearchParams(skip=0, limit=10)
-    result1 = await service.search_bounties(params1)
-    assert len(result1.items) == 10
-    assert result1.skip == 0
+    @pytest.mark.asyncio
+    async def test_search_pagination(self, db_session):
+        """Test pagination."""
+        for i in range(25):
+            db_session.add(
+                BountyDB(title=f"B{i}", description="D", tier=1, category="backend", status="open", reward_amount=100000.0)
+            )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        
+        # First page
+        result1 = await service.search_bounties(BountySearchParams(skip=0, limit=10))
+        assert len(result1.items) == 10
+        assert result1.skip == 0
+        
+        # Second page
+        result2 = await service.search_bounties(BountySearchParams(skip=10, limit=10))
+        assert len(result2.items) == 10
+        assert result2.skip == 10
+        
+        # Total should be consistent
+        assert result1.total == 25
+        assert result2.total == 25
     
-    # Second page
-    params2 = BountySearchParams(skip=10, limit=10)
-    result2 = await service.search_bounties(params2)
-    assert len(result2.items) == 10
-    assert result2.skip == 10
+    @pytest.mark.asyncio
+    async def test_search_full_text_search(self, db_session):
+        """Test full-text search using tsvector."""
+        bounties = [
+            BountyDB(title="Implement search engine", description="Build full-text search", tier=1, category="backend", status="open", reward_amount=200000.0),
+            BountyDB(title="Fix login bug", description="Authentication issue", tier=1, category="frontend", status="open", reward_amount=50000.0),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams(q="search"))
+        
+        # Should find the bounty with "search" in title/description
+        assert result.total >= 1
+    
+    @pytest.mark.asyncio
+    async def test_search_combined_filters(self, db_session):
+        """Test multiple filters combined."""
+        bounties = [
+            BountyDB(title="Python Backend", description="D", tier=1, category="backend", status="open", reward_amount=150000.0, skills=["python"]),
+            BountyDB(title="Python Frontend", description="D", tier=1, category="frontend", status="open", reward_amount=100000.0, skills=["python"]),
+            BountyDB(title="Rust Backend", description="D", tier=2, category="backend", status="open", reward_amount=500000.0, skills=["rust"]),
+        ]
+        for b in bounties:
+            db_session.add(b)
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(
+            BountySearchParams(tier=1, category="backend", skills="python")
+        )
+        
+        assert result.total == 1
+        assert result.items[0].title == "Python Backend"
+    
+    @pytest.mark.asyncio
+    async def test_search_empty_result(self, db_session):
+        """Test search with no results."""
+        db_session.add(
+            BountyDB(title="Task", description="D", tier=1, category="backend", status="open", reward_amount=100000.0)
+        )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.search_bounties(BountySearchParams(q="nonexistentxyz123"))
+        
+        assert result.total == 0
+        assert len(result.items) == 0
+    
+    @pytest.mark.asyncio
+    async def test_search_invalid_tier_raises_error(self, db_session):
+        """Test that invalid tier raises ValueError."""
+        service = BountySearchService(db_session)
+        
+        with pytest.raises(ValueError, match="Invalid tier"):
+            await service.search_bounties(BountySearchParams(tier=5))
+    
+    @pytest.mark.asyncio
+    async def test_search_invalid_category_raises_error(self, db_session):
+        """Test that invalid category raises ValueError."""
+        service = BountySearchService(db_session)
+        
+        with pytest.raises(ValueError, match="Invalid category"):
+            await service.search_bounties(BountySearchParams(category="invalid"))
+    
+    @pytest.mark.asyncio
+    async def test_search_negative_reward_raises_error(self, db_session):
+        """Test that negative reward raises ValueError."""
+        service = BountySearchService(db_session)
+        
+        with pytest.raises(ValueError, match="cannot be negative"):
+            await service.search_bounties(BountySearchParams(reward_min=-100))
+    
+    @pytest.mark.asyncio
+    async def test_search_reward_range_invalid_raises_error(self, db_session):
+        """Test that invalid reward range raises ValueError."""
+        service = BountySearchService(db_session)
+        
+        with pytest.raises(ValueError, match="cannot be less than"):
+            await service.search_bounties(
+                BountySearchParams(reward_min=200, reward_max=100)
+            )
 
 
-@pytest.mark.asyncio
-async def test_filter_combinations(db_session):
-    """Test various filter combinations."""
+class TestBountyAutocomplete:
+    """Tests for autocomplete functionality."""
     
-    # Create test bounties
-    bounties = [
-        BountyDB(title="Python Backend", description="Backend task", tier=1, category="backend", status="open", reward_amount=100000.0, skills=["python"]),
-        BountyDB(title="React Frontend", description="Frontend task", tier=1, category="frontend", status="open", reward_amount=100000.0, skills=["react"]),
-        BountyDB(title="Smart Contract", description="Contract task", tier=2, category="smart_contract", status="open", reward_amount=300000.0, skills=["rust"]),
-        BountyDB(title="Completed Task", description="Done", tier=1, category="backend", status="completed", reward_amount=50000.0, skills=["python"]),
-    ]
+    @pytest.mark.asyncio
+    async def test_autocomplete_returns_titles(self, db_session):
+        """Test autocomplete returns matching titles."""
+        db_session.add(
+            BountyDB(title="Search Engine Implementation", description="D", tier=1, category="backend", status="open", reward_amount=100000.0)
+        )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.get_autocomplete_suggestions("search")
+        
+        assert len(result.suggestions) > 0
+        assert any(s.type == "title" for s in result.suggestions)
     
-    for b in bounties:
-        db_session.add(b)
-    await db_session.commit()
+    @pytest.mark.asyncio
+    async def test_autocomplete_returns_skills(self, db_session):
+        """Test autocomplete returns matching skills."""
+        db_session.add(
+            BountyDB(title="Task", description="D", tier=1, category="backend", status="open", reward_amount=100000.0, skills=["postgresql", "python"])
+        )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.get_autocomplete_suggestions("post")
+        
+        assert len(result.suggestions) > 0
+        assert any(s.text == "postgresql" for s in result.suggestions)
     
-    service = BountySearchService(db_session)
+    @pytest.mark.asyncio
+    async def test_autocomplete_minimum_query_length(self, db_session):
+        """Test autocomplete requires minimum 2 characters."""
+        db_session.add(
+            BountyDB(title="Search Task", description="D", tier=1, category="backend", status="open", reward_amount=100000.0)
+        )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.get_autocomplete_suggestions("s")
+        
+        assert len(result.suggestions) == 0
     
-    # Test: tier + category
-    params = BountySearchParams(tier=1, category="backend", skip=0, limit=10)
-    result = await service.search_bounties(params)
-    assert result.total == 1  # Only "Python Backend" (open)
-    
-    # Test: status filter
-    params = BountySearchParams(status="completed", skip=0, limit=10)
-    result = await service.search_bounties(params)
-    assert result.total == 1
+    @pytest.mark.asyncio
+    async def test_autocomplete_limits_results(self, db_session):
+        """Test autocomplete respects limit."""
+        for i in range(20):
+            db_session.add(
+                BountyDB(title=f"Search Task {i}", description="D", tier=1, category="backend", status="open", reward_amount=100000.0)
+            )
+        await db_session.commit()
+        
+        service = BountySearchService(db_session)
+        result = await service.get_autocomplete_suggestions("search", limit=5)
+        
+        assert len(result.suggestions) <= 5
