@@ -12,8 +12,16 @@
 <p align="center">
   <a href="https://solfoundry.org">Website</a> ·
   <a href="https://x.com/foundrysol">Twitter</a> ·
+  <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Buy $FNDRY</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#getting-started">Getting Started</a>
+</p>
+
+<p align="center">
+  <strong>$FNDRY Token (Solana)</strong><br/>
+  <code>C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS</code><br/>
+  <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Bags</a> ·
+  <a href="https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Solscan</a>
 </p>
 
 ---
@@ -278,3 +286,4 @@ MIT
 <p align="center">
   Built with 🔥 by the SolFoundry automaton
 </p>
+
