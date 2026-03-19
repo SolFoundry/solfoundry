@@ -278,25 +278,85 @@ cd contracts && anchor build && anchor test
 
 ## Roadmap
 
-- [x] Infrastructure setup (domain, VPS, SSL, GitHub org)
+Each phase unlocks new bounties when the previous phase is complete. The factory builds itself — one phase at a time.
+
+### Completed
+
+- [x] Infrastructure (domain, VPS, SSL, GitHub org)
 - [x] Landing page live at [solfoundry.org](https://solfoundry.org)
 - [x] $FNDRY token launched on [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS)
 - [x] Telegram management bot (PR review, bounty tracking, auto-payout)
-- [x] AI code review pipeline (multi-LLM: GPT-5.4 + Gemini 2.5 Pro + Grok 4)
-- [x] Bounty tier system (T1/T2/T3 with issue templates)
-- [x] Auto-payout on merge ($FNDRY → contributor wallet, instant)
-- [x] Wallet detection (GitHub Action warns missing wallet on PRs)
-- [x] Contributor leaderboard
-- [x] Spam filter gate (pre-review filter for empty diffs, AI slop, bulk dumps)
-- [x] Claim guard (auto-reply on T1 FCFS bounties)
-- [x] Vague review feedback (no exact fixes — contributors must think)
-- [ ] Phase 1: Solana Anchor contracts (Escrow, Reputation, Treasury PDAs)
-- [ ] Phase 2: FastAPI backend (bounty CRUD, agent registry, LLM router)
-- [ ] Phase 3: Management automaton (cellular agent cells)
-- [ ] Phase 4: The Foundry Floor dashboard (React)
-- [ ] Phase 5: Stale PR auto-closer, advanced anti-spam
-- [ ] Phase 6: On-chain reputation system
-- [ ] Ongoing: New bounties posted continuously — the factory never stops building
+- [x] Multi-LLM code review pipeline (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
+- [x] Bounty tier system with reputation gating (T1/T2/T3)
+- [x] Auto-payout on merge ($FNDRY → contributor wallet)
+- [x] Spam filter, claim guard, wallet detection, tier enforcement
+
+### Phase 1 — The Foundry Floor (NOW)
+
+The core platform. Frontend dashboard + backend API that powers everything.
+
+**Backend API (FastAPI):**
+- [x] Contributor Profiles API
+- [x] Leaderboard API
+- [ ] Bounty CRUD endpoints
+- [ ] GitHub OAuth + Solana wallet auth
+- [ ] Payout history & treasury stats API
+- [ ] Notification system
+
+**Frontend (React):**
+- [x] Landing page redesign
+- [ ] Site navigation & layout shell
+- [ ] Solana wallet connect component
+- [ ] Bounty board — browse & filter open bounties
+- [ ] Bounty detail page
+- [ ] Tokenomics page
+- [ ] Leaderboard page
+- [ ] Contributor profile page
+- [ ] PR status tracker component
+
+### Phase 2 — Advanced Platform Features
+
+Unlocks after Phase 1 is complete. Deeper integrations, real-time features, and self-service tools.
+
+- [ ] Bounty claiming & assignment system
+- [ ] Real-time WebSocket server (live updates)
+- [ ] Bounty creation wizard (anyone can post + fund bounties)
+- [ ] Agent marketplace (browse & hire AI agents)
+- [ ] Contributor dashboard (personal stats, active work, earnings)
+- [ ] GitHub ↔ platform bi-directional sync
+- [ ] Full-text search & filter engine
+- [ ] Mobile responsive audit & fixes
+
+### Phase 3 — Solana Smart Contracts
+
+On-chain bounty lifecycle. Trustless escrow, reputation, and treasury management.
+
+- [ ] Escrow PDA — lock $FNDRY when bounty posted, release on merge
+- [ ] Reputation PDA — on-chain contributor scores
+- [ ] Treasury PDA — fee collection and buyback mechanics
+- [ ] Programmatic payouts replacing manual transfers
+
+### Phase 4 — Management Automaton
+
+The factory starts managing itself. Conway-inspired cellular agents coordinating autonomously.
+
+- [ ] Director cell — identifies work needed from roadmap and community
+- [ ] PM cell — decomposes work into bounty specs with acceptance criteria
+- [ ] Review cell — orchestrates multi-LLM evaluation pipeline
+- [ ] Treasury cell — calculates rewards, manages token flow
+- [ ] Social cell — announces bounties, engages community
+- [ ] Autonomous bounty creation — the factory posts its own work
+
+### Phase 5 — Governance & Scaling
+
+Community-driven direction. Token holders shape the roadmap.
+
+- [ ] $FNDRY staking for reputation boost
+- [ ] Governance voting on roadmap priorities and fee structures
+- [ ] External project bounties — other teams post work on SolFoundry
+- [ ] Cross-chain expansion
+
+The factory never stops building. Each phase funds the next through bounty completion and fee revenue.
 
 ---
 
