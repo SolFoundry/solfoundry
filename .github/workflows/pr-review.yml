@@ -144,5 +144,10 @@ jobs:
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: |
           # Load PR body from file to avoid shell escaping
-          export PR_BODY="$(cat /tmp/pr_body.txt 2>/dev/null || echo '${{ github.event.pull_request.body }}')"
+          if [ -f /tmp/pr_body.txt ]; then
+            export PR_BODY
+            PR_BODY=$(cat /tmp/pr_body.txt)
+          else
+            export PR_BODY=""
+          fi
           python3 .github/scripts/ai_review.py
