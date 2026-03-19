@@ -295,6 +295,97 @@ def spam_check(diff: str, pr_body: str, pr_title: str) -> dict:
             except Exception as e:
                 print(f"Duplicate check warning: {e}")
 
+    # 10. Tier eligibility — reject PRs to T2/T3 bounties if contributor hasn't earned access
+    bounty_tier = os.environ.get("BOUNTY_TIER", "")
+    if bounty_tier in ("tier-2", "tier-3"):
+        pr_author = os.environ.get("PR_AUTHOR", "")
+        pr_number = os.environ.get("PR_NUMBER", "")
+        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+        repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+        if gh_token and pr_author:
+            try:
+                headers = {"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"}
+
+                # Fetch merged PRs by this author
+                resp = requests.get(
+                    f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100",
+                    headers=headers
+                )
+                t1_count = 0
+                t2_count = 0
+                if resp.status_code == 200:
+                    for pr in resp.json():
+                        if pr["user"]["login"] != pr_author or not pr.get("merged_at"):
+                            continue
+                        pr_b = (pr.get("body") or "").lower()
+                        linked = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_b)
+                        for ln in linked:
+                            # Check the linked issue's tier
+                            issue_resp = requests.get(
+                                f"https://api.github.com/repos/{repo}/issues/{ln}",
+                                headers=headers
+                            )
+                            if issue_resp.status_code == 200:
+                                issue_data = issue_resp.json()
+                                issue_labels = [l["name"] for l in issue_data.get("labels", [])]
+                                issue_title_lower = issue_data.get("title", "").lower()
+                                # Skip star rewards and content bounties
+                                if str(ln) == "48":
+                                    continue
+                                content_kw = ["x/twitter", "x post", "content", "tweet", "social media"]
+                                if any(kw in issue_title_lower for kw in content_kw):
+                                    continue
+                                if "bounty" not in issue_labels:
+                                    continue
+                                if "tier-1" in issue_labels:
+                                    t1_count += 1
+                                elif "tier-2" in issue_labels:
+                                    t2_count += 1
+
+                print(f"Tier check for @{pr_author}: T1={t1_count}, T2={t2_count} (needs: {bounty_tier})")
+
+                if bounty_tier == "tier-2" and t1_count < 4:
+                    remaining = 4 - t1_count
+                    # Comment on PR explaining why
+                    requests.post(
+                        f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+                        json={"body": (
+                            f"⚠️ **Tier 2 Access Required**\n\n"
+                            f"@{pr_author}, Tier 2 bounties require **4 completed Tier 1 bounties**. "
+                            f"You have **{t1_count}** so far — you need **{remaining} more**.\n\n"
+                            f"### How to unlock Tier 2:\n"
+                            f"1. Browse [Tier 1 bounties](https://github.com/{repo}/labels/tier-1)\n"
+                            f"2. Submit PRs that pass AI review (≥ 6.0/10)\n"
+                            f"3. Once you have 4 merged T1 bounties, T2 unlocks\n\n"
+                            f"⚠️ Star rewards and content bounties do NOT count toward tier progression.\n\n"
+                            f"---\n*SolFoundry Review Bot*"
+                        )}, headers=headers
+                    )
+                    return {
+                        "pass": False,
+                        "reason": f"Tier 2 requires 4 merged T1 bounties — @{pr_author} has {t1_count}"
+                    }
+
+                if bounty_tier == "tier-3" and t2_count < 3:
+                    remaining = 3 - t2_count
+                    requests.post(
+                        f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+                        json={"body": (
+                            f"⚠️ **Tier 3 Access Required**\n\n"
+                            f"@{pr_author}, Tier 3 bounties require **3 completed Tier 2 bounties**. "
+                            f"You have **{t2_count}** so far — you need **{remaining} more**.\n\n"
+                            f"Keep building through Tier 2 to unlock the top-tier bounties.\n\n"
+                            f"---\n*SolFoundry Review Bot*"
+                        )}, headers=headers
+                    )
+                    return {
+                        "pass": False,
+                        "reason": f"Tier 3 requires 3 merged T2 bounties — @{pr_author} has {t2_count}"
+                    }
+
+            except Exception as e:
+                print(f"Tier eligibility check warning: {e}")
+
     return {"pass": True, "reason": "Passed all spam checks"}
 
 

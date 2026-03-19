@@ -259,7 +259,7 @@ jobs:
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                   else:
                       # All gates passed — allow the claim
-                      print(f"APPROVED: {user} claiming {tier_label} on #{issue} ({t1_completed} merges)")
+                      print(f"APPROVED: {user} claiming {tier_label} on #{issue} (T1={t1_count}, T2={t2_count})")
 
                       body = (
                           f"✅ @{user} — Claim approved for this {tier_label} bounty.\n\n"
