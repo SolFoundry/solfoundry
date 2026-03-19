@@ -439,6 +439,46 @@ def post_pr_comment(review: dict):
 
 
 # ── Post to Telegram ────────────────────────────────────────────────────────
+def _is_solana_address(addr: str) -> bool:
+    """Check if a string looks like a valid Solana address (base58, 32 bytes)."""
+    if not addr:
+        return False
+    if addr.startswith("0x") or addr.startswith("0X"):
+        return False
+    if len(addr) < 32 or len(addr) > 44:
+        return False
+    # Base58 charset (no 0, O, I, l)
+    import string
+    b58_chars = set(string.digits + string.ascii_letters) - set("0OIl")
+    if not all(c in b58_chars for c in addr):
+        return False
+    try:
+        import base58
+        decoded = base58.b58decode(addr)
+        if len(decoded) != 32:
+            return False
+    except Exception:
+        return False
+    return True
+
+
+def _extract_solana_wallet(pr_body: str) -> str:
+    """Extract a Solana wallet address from PR body, filtering out non-Solana addresses."""
+    if not pr_body:
+        return None
+    patterns = [
+        r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+        r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+        r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,44})(?:\s|$)',
+    ]
+    for pattern in patterns:
+        for match in re.finditer(pattern, pr_body):
+            addr = match.group(1)
+            if _is_solana_address(addr):
+                return addr
+    return None
+
+
 def send_telegram(review: dict):
     """Send aggregated review to Telegram with action buttons."""
     bot_token = os.environ.get("SOLFOUNDRY_TELEGRAM_BOT_TOKEN")
@@ -474,6 +514,16 @@ def send_telegram(review: dict):
             f"\n\U0001f4b0 {bounty_reward} $FNDRY | {bounty_tier.upper().replace('-',' ')} | Submission: {order_text}"
         )
 
+    # Extract Solana wallet from PR body for display
+    wallet_line = ""
+    pr_body_text = os.environ.get("PR_BODY", "")
+    if pr_body_text:
+        wallet = _extract_solana_wallet(pr_body_text)
+        if wallet:
+            wallet_line = f"\n\U0001f4ac <b>Wallet:</b> <code>{wallet}</code> — <a href='https://solscan.io/account/{wallet}'>Verify on Solscan</a>"
+        else:
+            wallet_line = "\n\u26a0\ufe0f <b>No Solana wallet found in PR body</b>"
+
     # Model verdict breakdown
     model_lines = ""
     for md in review.get("model_details", []):
@@ -497,7 +547,7 @@ def send_telegram(review: dict):
 
     msg = (
         f"{emoji} <b>PR #{pr_number}: {pr_title}</b>"
-        f"\n\U0001f464 {pr_author}{bounty_line}"
+        f"\n\U0001f464 {pr_author}{bounty_line}{wallet_line}"
         f"\n"
         f"\n<b>Aggregated: {review['overall_score']}/10 — {review['verdict']}</b>{score_warning}"
         f"\n<b>Models:</b>{model_lines}"
