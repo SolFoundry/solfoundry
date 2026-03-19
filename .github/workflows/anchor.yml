@@ -1,0 +1,101 @@
+name: Anchor CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  SOLANA_CLI_VERSION: 1.16.18
+  NODE_VERSION: 18
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Cache Solana CLI
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/solana/
+          ~/.local/share/solana/
+        key: solana-${{ env.SOLANA_CLI_VERSION }}
+
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_CLI_VERSION }}/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+    - name: Install Anchor CLI
+      run: |
+        npm install -g @project-serum/anchor-cli
+
+    - name: Setup Solana config
+      run: |
+        solana config set --url devnet
+        solana-keygen new --no-bip39-passphrase
+
+    - name: Build Anchor program
+      run: anchor build
+
+    - name: Run Anchor tests
+      run: anchor test --provider.cluster devnet
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: anchor-build
+        path: |
+          target/deploy/
+          target/idl/
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_CLI_VERSION }}/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+    - name: Install Anchor CLI
+      run: |
+        npm install -g @project-serum/anchor-cli
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: anchor-build
+
+    - name: Deploy to devnet
+      run: |
+        solana config set --url devnet
+        echo "${{ secrets.SOLANA_DEPLOY_KEY }}" > deploy-key.json
+        solana config set --keypair deploy-key.json
+        anchor deploy --provider.cluster devnet
+      env:
+        ANCHOR_WALLET: deploy-key.json
