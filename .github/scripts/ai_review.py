@@ -28,6 +28,8 @@ Review this pull request diff. The PR is a bounty submission from an external co
 PR Title: {pr_title}
 PR Description: {pr_body}
 {tier_context}
+{domain_context}
+{bounty_spec_section}
 
 Evaluate (1-10 each):
 1. **Code Quality**: Clean code, naming, conventions, no dead code, no orphaned files
@@ -172,9 +174,11 @@ TIER_PROMPTS = {
     ),
 }
 
-# Category weights per tier — determines how much each category affects overall score
-# Higher weight = more impact on final score. Weights sum to 1.0 per tier.
+# Category weights — TWO dimensions: tier (difficulty) × domain (type of work)
+# Tier sets the base weights, domain adjusts them.
 # Integration = are files connected, do they extend existing code, no orphans
+
+# Base weights by tier
 TIER_WEIGHTS = {
     #                    quality  correct  security  complete  tests   integration
     "tier-1":  {"quality": 0.20, "correctness": 0.25, "security": 0.10, "completeness": 0.15, "tests": 0.10, "integration": 0.20},
@@ -182,6 +186,78 @@ TIER_WEIGHTS = {
     "tier-3":  {"quality": 0.10, "correctness": 0.15, "security": 0.25, "completeness": 0.10, "tests": 0.25, "integration": 0.15},
     "unknown": {"quality": 0.15, "correctness": 0.20, "security": 0.15, "completeness": 0.15, "tests": 0.15, "integration": 0.20},
 }
+
+# Domain weight adjustments — applied ON TOP of tier weights
+# Positive = boost that category, negative = reduce it. Must sum to ~0 per domain.
+DOMAIN_WEIGHT_ADJUSTMENTS = {
+    "frontend": {
+        "quality": +0.05, "correctness": +0.05, "security": -0.05, "completeness": 0, "tests": -0.05, "integration": 0
+    },
+    "backend": {
+        "quality": -0.03, "correctness": 0, "security": +0.05, "completeness": 0, "tests": +0.03, "integration": -0.05
+    },
+    "smart-contract": {
+        "quality": -0.05, "correctness": 0, "security": +0.10, "completeness": -0.03, "tests": +0.03, "integration": -0.05
+    },
+    "devops": {
+        "quality": 0, "correctness": +0.05, "security": +0.05, "completeness": 0, "tests": -0.05, "integration": -0.05
+    },
+    "ai-ml": {
+        "quality": 0, "correctness": +0.05, "security": -0.05, "completeness": +0.05, "tests": 0, "integration": -0.05
+    },
+    "security": {
+        "quality": -0.05, "correctness": 0, "security": +0.10, "completeness": -0.03, "tests": +0.03, "integration": -0.05
+    },
+    "bot": {
+        "quality": 0, "correctness": +0.05, "security": 0, "completeness": 0, "tests": 0, "integration": -0.05
+    },
+    "unknown": {
+        "quality": 0, "correctness": 0, "security": 0, "completeness": 0, "tests": 0, "integration": 0
+    },
+}
+
+# Domain-specific context injected alongside tier context
+DOMAIN_PROMPTS = {
+    "frontend": (
+        "\nDOMAIN: Frontend (React, TypeScript, Tailwind CSS)\n"
+        "Focus on: visual correctness, responsive behavior, component structure, proper imports/exports.\n"
+        "Tests: snapshot/render tests appreciated but visual CSS work can be validated by structural review.\n"
+        "Security: XSS in user inputs, dangerouslySetInnerHTML usage, exposed secrets in client code.\n"
+    ),
+    "backend": (
+        "\nDOMAIN: Backend (Python, FastAPI, PostgreSQL)\n"
+        "Focus on: API correctness, input validation, proper error handling, SQL injection prevention.\n"
+        "Tests: REQUIRED for API endpoints and business logic. At minimum: happy path + error cases.\n"
+        "Security: auth bypass, SQL injection, mass assignment, rate limiting, secrets in responses.\n"
+    ),
+    "smart-contract": (
+        "\nDOMAIN: Smart Contract (Rust/Anchor on Solana)\n"
+        "Focus on: arithmetic safety (overflow/underflow), access control, reentrancy, PDA validation.\n"
+        "Tests: MANDATORY. Must test happy path, edge cases, and attack vectors.\n"
+        "Security: This code handles real money. Be EXTREMELY strict. Any security gap = automatic REJECT.\n"
+    ),
+    "devops": (
+        "\nDOMAIN: DevOps / CI-CD (GitHub Actions, Docker, YAML)\n"
+        "Focus on: correctness of pipeline logic, secrets handling, idempotency.\n"
+        "Tests: integration/smoke tests if applicable. YAML config correctness is the main bar.\n"
+        "Security: exposed secrets, insecure image sources, privilege escalation in workflows.\n"
+    ),
+    "unknown": "",
+}
+
+
+def get_effective_weights(tier: str, domain: str) -> dict:
+    """Compute effective weights by combining tier base weights + domain adjustments."""
+    base = TIER_WEIGHTS.get(tier, TIER_WEIGHTS["unknown"]).copy()
+    adjustments = DOMAIN_WEIGHT_ADJUSTMENTS.get(domain, DOMAIN_WEIGHT_ADJUSTMENTS["unknown"])
+
+    effective = {}
+    for cat in base:
+        effective[cat] = max(0.02, base[cat] + adjustments.get(cat, 0))  # Floor at 0.02
+
+    # Normalize to sum to 1.0
+    total = sum(effective.values())
+    return {cat: round(v / total, 3) for cat, v in effective.items()}
 
 
 # ── Spam Filter ─────────────────────────────────────────────────────────────
@@ -390,17 +466,36 @@ def spam_check(diff: str, pr_body: str, pr_title: str) -> dict:
 
 
 # ── LLM Reviewers ───────────────────────────────────────────────────────────
-def review_openai(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
+def _build_prompt(focus: str, pr_title: str, pr_body: str, diff: str,
+                   tier: str, domain: str, bounty_spec: str) -> str:
+    """Build the review prompt with tier, domain, and bounty spec context."""
+    tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
+    domain_context = DOMAIN_PROMPTS.get(domain, DOMAIN_PROMPTS.get("unknown", ""))
+    bounty_spec_section = ""
+    if bounty_spec and bounty_spec.strip():
+        bounty_spec_section = (
+            f"\nBOUNTY ACCEPTANCE CRITERIA (from the issue spec — grade completeness against THIS):\n"
+            f"---\n{bounty_spec[:1500]}\n---\n"
+            f"The submission MUST address these acceptance criteria. If it ignores the spec and builds something else, "
+            f"cap completeness_score at 3 regardless of code quality.\n"
+        )
+    return REVIEW_PROMPT.format(
+        focus=focus, pr_title=pr_title, pr_body=pr_body or "No description.",
+        diff=diff, tier_context=tier_context, domain_context=domain_context,
+        bounty_spec_section=bounty_spec_section
+    )
+
+
+def review_openai(diff: str, pr_title: str, pr_body: str, tier: str = "unknown",
+                   domain: str = "unknown", bounty_spec: str = "") -> dict:
     """GPT-5.4 review — Code Quality & Correctness focus."""
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
-        prompt = REVIEW_PROMPT.format(
-            focus="Code quality, correctness, and naming conventions",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
-            tier_context=tier_context
+        prompt = _build_prompt(
+            "Code quality, correctness, and naming conventions",
+            pr_title, pr_body, diff, tier, domain, bounty_spec
         )
 
         response = client.chat.completions.create(
@@ -418,18 +513,17 @@ def review_openai(diff: str, pr_title: str, pr_body: str, tier: str = "unknown")
         return {"_model": MODELS["gpt"]["name"], "_status": "error", "_error": str(e)}
 
 
-def review_gemini(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
+def review_gemini(diff: str, pr_title: str, pr_body: str, tier: str = "unknown",
+                   domain: str = "unknown", bounty_spec: str = "") -> dict:
     """Gemini 2.5 Pro review — Logic, Completeness & Architecture focus."""
     try:
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             return {"_model": MODELS["gemini"]["name"], "_status": "skipped", "_error": "No API key"}
 
-        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
-        prompt = REVIEW_PROMPT.format(
-            focus="Logic correctness, architectural decisions, and completeness against spec",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
-            tier_context=tier_context
+        prompt = _build_prompt(
+            "Logic correctness, architectural decisions, and completeness against spec",
+            pr_title, pr_body, diff, tier, domain, bounty_spec
         )
 
         resp = requests.post(
@@ -441,7 +535,7 @@ def review_gemini(diff: str, pr_title: str, pr_body: str, tier: str = "unknown")
                     "responseMimeType": "application/json"
                 }
             },
-            timeout=60
+            timeout=120
         )
         data = resp.json()
         text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -454,18 +548,17 @@ def review_gemini(diff: str, pr_title: str, pr_body: str, tier: str = "unknown")
         return {"_model": MODELS["gemini"]["name"], "_status": "error", "_error": str(e)}
 
 
-def review_grok(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
+def review_grok(diff: str, pr_title: str, pr_body: str, tier: str = "unknown",
+                 domain: str = "unknown", bounty_spec: str = "") -> dict:
     """Grok 4 review — Security & Edge Cases focus."""
     try:
         api_key = os.environ.get("XAI_API_KEY", "")
         if not api_key:
             return {"_model": MODELS["grok"]["name"], "_status": "skipped", "_error": "No API key"}
 
-        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
-        prompt = REVIEW_PROMPT.format(
-            focus="Security vulnerabilities, edge cases, and potential exploits",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
-            tier_context=tier_context
+        prompt = _build_prompt(
+            "Security vulnerabilities, edge cases, and potential exploits",
+            pr_title, pr_body, diff, tier, domain, bounty_spec
         )
 
         resp = requests.post(
@@ -477,7 +570,7 @@ def review_grok(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -
                 "temperature": 0.3,
                 "response_format": {"type": "json_object"}
             },
-            timeout=60
+            timeout=120
         )
         data = resp.json()
         text = data["choices"][0]["message"]["content"]
@@ -491,9 +584,9 @@ def review_grok(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -
 
 
 # ── Aggregator ──────────────────────────────────────────────────────────────
-def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
+def aggregate_reviews(reviews: list, tier: str = "unknown", domain: str = "unknown") -> dict:
     """Combine scores from multiple LLM reviews into one unified review.
-    Weights categories differently based on bounty tier."""
+    Weights categories differently based on bounty tier AND domain."""
     valid = [r for r in reviews if r.get("_status") == "ok"]
 
     if not valid:
@@ -529,12 +622,15 @@ def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
         agg[f"{cat}_score"] = round(sum(scores) / n, 1)
         agg[f"{cat}_note"] = " | ".join(notes)
 
-    # Overall score = WEIGHTED average based on tier
-    # T1: quality + correctness matter most, tests barely count
-    # T3: security + tests matter most (money/auth code)
-    weights = TIER_WEIGHTS.get(tier, TIER_WEIGHTS["unknown"])
+    # Overall score = WEIGHTED average based on tier × domain
+    # T1 frontend: quality + correctness matter most, tests barely count
+    # T3 smart-contract: security + tests dominate (handles real money)
+    # T2 backend: security + tests boosted, quality slightly reduced
+    weights = get_effective_weights(tier, domain)
     weighted_score = sum(agg[f"{cat}_score"] * weights[cat] for cat in categories)
     agg["overall_score"] = round(weighted_score, 1)
+    agg["_weights_used"] = weights
+    agg["_domain"] = domain
 
     # Verdict = SCORE-BASED per tier, not majority vote
     # With recalibrated scoring, these thresholds reflect real quality bars
@@ -622,6 +718,12 @@ def post_pr_comment(review: dict):
     if review.get("models_failed"):
         failed_note = f"\n> \u26a0\ufe0f Models failed: {', '.join(review['models_failed'])}\n"
 
+    # Domain-aware footer
+    review_domain = review.get("_domain", "unknown")
+    domain_footer = ""
+    if review_domain and review_domain != "unknown":
+        domain_footer = f"\n*Review profile: {review_domain} — scoring weights adjusted for this domain*"
+
     body = f"""## {emoji} Multi-LLM Code Review — {review['verdict']}
 
 **Aggregated Score: {review['overall_score']}/10** (from {len(review.get('models_used', []))} models)
@@ -645,7 +747,7 @@ def post_pr_comment(review: dict):
 
 ---
 *Reviewed by SolFoundry Multi-LLM Pipeline: {', '.join(review.get('models_used', []))}*
-"""
+{domain_footer}"""
 
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
@@ -723,13 +825,23 @@ def send_telegram(review: dict):
     tier_emoji = {"tier-1": "\U0001f7e2", "tier-2": "\U0001f7e1", "tier-3": "\U0001f534"}
     t_emoji = tier_emoji.get(bounty_tier, "")
 
+    bounty_domain = os.environ.get("BOUNTY_DOMAIN", "unknown")
+    bounty_stack = os.environ.get("BOUNTY_STACK", "unknown")
+
     bounty_line = ""
     if bounty_issue:
         order_map = {"1": "1st \U0001f947", "2": "2nd \U0001f948", "3": "3rd \U0001f949"}
         order_text = order_map.get(str(submission_order), f"#{submission_order}")
+        domain_display = bounty_domain.replace("-", " ").title() if bounty_domain != "unknown" else ""
+        stack_display = bounty_stack.replace(",", " · ") if bounty_stack != "unknown" else ""
+        profile_line = ""
+        if domain_display or stack_display:
+            parts = [p for p in [domain_display, stack_display] if p]
+            profile_line = f"\n\U0001f3af <b>Review profile:</b> {' | '.join(parts)}"
         bounty_line = (
             f"\n{t_emoji} <b>Bounty #{bounty_issue}:</b> {bounty_title}"
             f"\n\U0001f4b0 {bounty_reward} $FNDRY | {bounty_tier.upper().replace('-',' ')} | Submission: {order_text}"
+            f"{profile_line}"
         )
 
     # Extract Solana wallet from PR body for display
@@ -969,20 +1081,30 @@ def main():
             send_spam_rejection(spam["reason"])
         return
 
-    # Get bounty tier from environment (set by workflow)
+    # Get bounty context from environment (set by workflow)
     bounty_tier = os.environ.get("BOUNTY_TIER", "unknown")
     if bounty_tier not in TIER_PROMPTS:
         bounty_tier = "unknown"
-    print(f"Bounty tier: {bounty_tier}")
+    bounty_domain = os.environ.get("BOUNTY_DOMAIN", "unknown")
+    if bounty_domain not in DOMAIN_PROMPTS:
+        bounty_domain = "unknown"
+    bounty_stack = os.environ.get("BOUNTY_STACK", "unknown")
+    bounty_spec = os.environ.get("BOUNTY_SPEC", "")
+
+    effective_weights = get_effective_weights(bounty_tier, bounty_domain)
+    print(f"Bounty tier: {bounty_tier} | Domain: {bounty_domain} | Stack: {bounty_stack}")
+    print(f"Effective weights: {effective_weights}")
+    if bounty_spec:
+        print(f"Bounty spec: {len(bounty_spec)} chars loaded for acceptance criteria checking")
     print("Passed spam filter — launching 3 LLM reviews in parallel...")
 
-    # Step 2: Run all 3 LLMs in parallel (with tier context)
+    # Step 2: Run all 3 LLMs in parallel (with tier + domain + bounty spec context)
     results = {}
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {
-            pool.submit(review_openai, diff, pr_title, pr_body, bounty_tier): "gpt",
-            pool.submit(review_gemini, diff, pr_title, pr_body, bounty_tier): "gemini",
-            pool.submit(review_grok, diff, pr_title, pr_body, bounty_tier): "grok",
+            pool.submit(review_openai, diff, pr_title, pr_body, bounty_tier, bounty_domain, bounty_spec): "gpt",
+            pool.submit(review_gemini, diff, pr_title, pr_body, bounty_tier, bounty_domain, bounty_spec): "gemini",
+            pool.submit(review_grok, diff, pr_title, pr_body, bounty_tier, bounty_domain, bounty_spec): "grok",
         }
         for future in as_completed(futures):
             key = futures[future]
@@ -995,9 +1117,9 @@ def main():
                 print(f"  {MODELS[key]['name']}: EXCEPTION — {e}")
                 results[key] = {"_model": MODELS[key]["name"], "_status": "error", "_error": str(e)}
 
-    # Step 3: Aggregate (with tier-aware weighting)
+    # Step 3: Aggregate (with tier × domain aware weighting)
     all_reviews = [results.get("gpt", {}), results.get("gemini", {}), results.get("grok", {})]
-    aggregated = aggregate_reviews(all_reviews, tier=bounty_tier)
+    aggregated = aggregate_reviews(all_reviews, tier=bounty_tier, domain=bounty_domain)
 
     ok_count = len([r for r in all_reviews if r.get("_status") == "ok"])
     print(f"\nAggregated: {aggregated['overall_score']}/10 — {aggregated['verdict']} ({ok_count}/3 models succeeded)")

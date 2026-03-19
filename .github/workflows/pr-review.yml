@@ -83,7 +83,7 @@ jobs:
             ISSUE_JSON=$(gh api repos/$REPO/issues/$ISSUE_NUM 2>/dev/null || echo '{}')
             ISSUE_TITLE=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title','Unknown'))" 2>/dev/null)
 
-            # Get tier from labels
+            # Get tier and domain from labels
             TIER=$(echo "$ISSUE_JSON" | python3 -c "
           import sys,json
           data=json.loads(sys.stdin.read())
@@ -91,6 +91,34 @@ jobs:
           tier=next((l for l in labels if l.startswith('tier-')),'unknown')
           print(tier)
           " 2>/dev/null)
+
+            # Get domain labels (frontend, backend, smart-contract, devops)
+            DOMAIN=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          labels=[l['name'] for l in data.get('labels',[])]
+          domains = [l for l in labels if l in ('frontend','backend','smart-contract','devops','ai-ml','security','bot','scraping','docs')]
+          print(domains[0] if domains else 'unknown')
+          " 2>/dev/null)
+
+            # Get stack labels (python, typescript, rust, react, etc)
+            STACK=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          labels=[l['name'] for l in data.get('labels',[])]
+          stack_labels = ['python','typescript','rust','react','nextjs','tailwind','fastapi','postgresql','redis','solana','websocket','yaml','solidity']
+          found = [l for l in labels if l in stack_labels]
+          print(','.join(found) if found else 'unknown')
+          " 2>/dev/null)
+
+            # Get bounty spec (issue body) for acceptance criteria
+            echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          body = data.get('body','') or ''
+          # Truncate to 2000 chars to avoid bloating the prompt
+          print(body[:2000])
+          " > /tmp/bounty_spec.txt 2>/dev/null
 
             # Extract reward amount
             REWARD=$(echo "$ISSUE_JSON" | python3 -c "
@@ -103,6 +131,8 @@ jobs:
 
             echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
             echo "tier=$TIER" >> $GITHUB_OUTPUT
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "stack=$STACK" >> $GITHUB_OUTPUT
             echo "reward=$REWARD" >> $GITHUB_OUTPUT
 
             # Count how many PRs target this issue (submission order)
@@ -121,8 +151,11 @@ jobs:
           else
             echo "issue_num=" >> $GITHUB_OUTPUT
             echo "tier=unknown" >> $GITHUB_OUTPUT
+            echo "domain=unknown" >> $GITHUB_OUTPUT
+            echo "stack=unknown" >> $GITHUB_OUTPUT
             echo "reward=0" >> $GITHUB_OUTPUT
             echo "submission_order=0" >> $GITHUB_OUTPUT
+            echo "" > /tmp/bounty_spec.txt
           fi
 
       - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
@@ -141,6 +174,8 @@ jobs:
           BOUNTY_TITLE: ${{ steps.bounty.outputs.issue_title }}
           BOUNTY_TIER: ${{ steps.bounty.outputs.tier }}
           BOUNTY_REWARD: ${{ steps.bounty.outputs.reward }}
+          BOUNTY_DOMAIN: ${{ steps.bounty.outputs.domain }}
+          BOUNTY_STACK: ${{ steps.bounty.outputs.stack }}
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: |
           # Load PR body from file to avoid shell escaping
@@ -149,5 +184,12 @@ jobs:
             PR_BODY=$(cat /tmp/pr_body.txt)
           else
             export PR_BODY=""
+          fi
+          # Load bounty spec for acceptance criteria
+          if [ -f /tmp/bounty_spec.txt ]; then
+            export BOUNTY_SPEC
+            BOUNTY_SPEC=$(cat /tmp/bounty_spec.txt)
+          else
+            export BOUNTY_SPEC=""
           fi
           python3 .github/scripts/ai_review.py

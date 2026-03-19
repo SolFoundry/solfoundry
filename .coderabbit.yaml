@@ -1,0 +1,62 @@
+# CodeRabbit Configuration — SolFoundry
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  auto_title_placeholder: "@coderabbitai"
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  changed_files_summary: true
+  abort_on_close: true
+
+  # Important: keep feedback vague — don't give exact fixes
+  # CodeRabbit's default is already area-level feedback
+
+  path_instructions:
+    - path: "contracts/**"
+      instructions: |
+        This is Solana smart contract code (Rust/Anchor). Focus heavily on:
+        - Arithmetic overflow/underflow
+        - Access control and PDA validation
+        - Reentrancy and CPI safety
+        - Account validation and constraint checks
+        Be STRICT — this handles real money.
+
+    - path: "backend/**"
+      instructions: |
+        Python FastAPI backend. Focus on:
+        - Input validation and SQL injection
+        - Authentication/authorization
+        - Error handling and edge cases
+        - API contract consistency
+
+    - path: "frontend/**"
+      instructions: |
+        React/TypeScript frontend. Focus on:
+        - Component structure and state management
+        - XSS prevention (dangerouslySetInnerHTML, user inputs)
+        - Accessibility basics
+        - Integration with existing components
+
+    - path: ".github/**"
+      instructions: |
+        GitHub Actions and CI/CD config. Focus on:
+        - Secrets handling (never echo/log secrets)
+        - Workflow trigger correctness
+        - Step dependencies and artifact passing
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
