@@ -11,59 +11,152 @@ jobs:
   claim-guard:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for claim attempts on T1 bounties
+      - name: Guard claims and clean spam
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
           ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
+          COMMENT_ID: ${{ github.event.comment.id }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           python3 << 'PYEOF'
-          import os, re, requests
+          import os, re, json, urllib.request
 
           labels = os.environ.get("ISSUE_LABELS", "")
           comment = os.environ.get("COMMENT_BODY", "")
           user = os.environ.get("COMMENT_USER", "")
+          comment_id = os.environ.get("COMMENT_ID", "")
           issue = os.environ.get("ISSUE_NUMBER", "")
           repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
           token = os.environ.get("GH_TOKEN", "")
 
-          if "tier-1" not in labels:
-              print("Not a Tier 1 bounty - skipping")
+          # Skip bot and org owner comments
+          if user in ["github-actions[bot]", "chronoeth-creator"]:
               exit(0)
+
+          # Only act on bounty issues
+          if "bounty" not in labels:
+              print("Not a bounty issue - skipping")
+              exit(0)
+
+          def gh_post(path, data):
+              url = f"https://api.github.com/{path}"
+              req = urllib.request.Request(url, json.dumps(data).encode(), method="POST")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              req.add_header("Content-Type", "application/json")
+              try:
+                  return urllib.request.urlopen(req)
+              except Exception as e:
+                  print(f"POST failed: {e}")
+                  return None
+
+          def gh_delete(path):
+              url = f"https://api.github.com/{path}"
+              req = urllib.request.Request(url, method="DELETE")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              try:
+                  return urllib.request.urlopen(req)
+              except Exception as e:
+                  print(f"DELETE failed: {e}")
+                  return None
 
           lower = comment.lower()
-          claim_re = r"(claim|dibs|i.?ll take|assigning myself|can i (take|work on)|i want to (take|work)|working on this|taking this)"
-          if not re.search(claim_re, lower):
-              print("Not a claim attempt - ignoring")
+
+          # --- SPAM DETECTION ---
+          spam_patterns = [
+              r"(i am a .* developer|hire me|my portfolio|check my profile)",
+              r"(dm me|contact me at|whatsapp|telegram.*@)",
+              r"(upvote|follow me|subscribe|check out my)",
+              r"(great (project|repo|work).*star|nice repo.*followed)",
+          ]
+          is_spam = any(re.search(p, lower) for p in spam_patterns)
+
+          if is_spam:
+              print(f"SPAM detected from {user} on #{issue} — deleting")
+              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
               exit(0)
 
-          print(f"Claim attempt from {user} on #{issue}")
+          # --- CLAIM DETECTION ---
+          claim_re = r"(claim|dibs|i.?ll take|assigning myself|can i (take|work on)|i want to (take|work)|working on this|taking this|claiming this|want to implement)"
+          is_claim = bool(re.search(claim_re, lower))
 
-          body = (
-              f"\U0001f44b Hey @{user} \u2014 **Tier 1 bounties are first-come, first-served (FCFS)**. "
-              f"No claiming needed!\n\n"
-              f"### How it works:\n"
-              f"1. **Read the bounty spec** in the issue description\n"
-              f"2. **Build your solution** and submit a PR linking this issue (`Closes #{issue}`)\n"
-              f"3. **Include your Solana wallet** in the PR body for payout\n"
-              f"4. Our multi-LLM review pipeline (GPT-5.4 + Gemini + Grok) scores your submission\n"
-              f"5. **First PR to pass review wins** the bounty \U0001f3c6\n\n"
-              f"\u23f0 **Deadline:** 72 hours from issue creation\n"
-              f"\U0001f4ca **Min score:** 6/10 to qualify\n"
-              f"\U0001f3c1 **Multiple submissions welcome** \u2014 best quality wins\n\n"
-              f"Just ship it! No need to announce \u2014 your code speaks for itself.\n\n"
-              f"*\u2014 SolFoundry Bot \U0001f3ed*"
-          )
+          if not is_claim:
+              print("Not a claim attempt — ignoring")
+              exit(0)
 
-          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-          resp = requests.post(
-              f"https://api.github.com/repos/{repo}/issues/{issue}/comments",
-              json={"body": body}, headers=headers
-          )
-          if resp.status_code in (200, 201):
-              print("Auto-reply posted")
-          else:
-              print(f"Failed: {resp.status_code} {resp.text[:200]}")
+          # Determine tier
+          is_t1 = "tier-1" in labels
+          is_t2 = "tier-2" in labels
+          is_t3 = "tier-3" in labels
+
+          if is_t1:
+              # T1: Open race, no claiming. Delete the claim comment + post reply
+              print(f"T1 claim attempt from {user} on #{issue} — deleting + replying")
+
+              # Delete the claim comment
+              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+
+              # Post explanation
+              body = (
+                  f"👋 Hey @{user} — **Tier 1 bounties are open race (FCFS)**. "
+                  f"No claiming needed!\n\n"
+                  f"### How it works:\n"
+                  f"1. Read the bounty spec in the issue description\n"
+                  f"2. Build your solution and submit a PR linking this issue (`Closes #{issue}`)\n"
+                  f"3. Include your **Solana wallet** in the PR body for payout\n"
+                  f"4. Our multi-LLM review pipeline scores your submission\n"
+                  f"5. **First PR to pass review wins** the bounty 🏆\n\n"
+                  f"Just ship it — your code speaks for itself.\n\n"
+                  f"*— SolFoundry Bot 🏭*"
+              )
+              gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+
+          elif is_t2 or is_t3:
+              # T2/T3: Claim-based, but check if user is spamming claims across many issues
+              # For now just acknowledge — future: check reputation, limit concurrent claims
+              print(f"T2/T3 claim from {user} on #{issue} — checking for spam")
+
+              # Check how many issues this user has claimed (bulk claim = spam)
+              try:
+                  url = f"https://api.github.com/repos/{repo}/issues/comments?per_page=100"
+                  req = urllib.request.Request(url)
+                  req.add_header("Authorization", f"token {token}")
+                  req.add_header("Accept", "application/vnd.github.v3+json")
+                  resp = urllib.request.urlopen(req)
+                  all_comments = json.loads(resp.read().decode())
+
+                  user_claims = []
+                  for c in all_comments:
+                      if c["user"]["login"] == user:
+                          c_lower = c.get("body", "").lower()
+                          if re.search(claim_re, c_lower):
+                              # Extract issue number from URL
+                              issue_num = c["issue_url"].rstrip("/").split("/")[-1]
+                              user_claims.append(issue_num)
+
+                  unique_claims = set(user_claims)
+                  print(f"{user} has claimed {len(unique_claims)} unique issues: {unique_claims}")
+
+                  if len(unique_claims) > 3:
+                      # Bulk claimer — delete all their claims and warn
+                      print(f"BULK CLAIMER: {user} — deleting current claim")
+                      gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+
+                      body = (
+                          f"⚠️ @{user} — You've attempted to claim {len(unique_claims)} bounties simultaneously. "
+                          f"Please focus on **one bounty at a time** and deliver before claiming another.\n\n"
+                          f"Your claim has been removed. Pick your strongest bounty, submit a quality PR, "
+                          f"and earn your way to more.\n\n"
+                          f"*— SolFoundry Bot 🏭*"
+                      )
+                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+                  else:
+                      print(f"Legitimate T2/T3 claim from {user} — allowing")
+
+              except Exception as e:
+                  print(f"Claim check failed: {e}")
+
           PYEOF
