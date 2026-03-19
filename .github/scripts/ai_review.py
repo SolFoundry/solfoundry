@@ -130,7 +130,7 @@ def post_pr_comment(review: dict):
     print(f"PR comment posted: {resp.status_code}")
 
 def send_telegram(review: dict):
-    """Send review summary to SolFoundry Telegram."""
+    """Send review summary to SolFoundry Telegram with inline action buttons."""
     bot_token = os.environ.get("SOLFOUNDRY_TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("SOLFOUNDRY_TELEGRAM_CHAT_ID")
 
@@ -146,25 +146,69 @@ def send_telegram(review: dict):
     verdict_emoji = {"APPROVE": "\u2705", "REQUEST_CHANGES": "\u26a0\ufe0f", "REJECT": "\u274c"}
     emoji = verdict_emoji.get(review["verdict"], "\u2753")
 
+    # Build inline keyboard with action buttons
+    inline_keyboard = [
+        [
+            {"text": "\u2705 Approve & Merge", "callback_data": f"pr_approve_{pr_number}"},
+            {"text": "\u26a0\ufe0f Request Changes", "callback_data": f"pr_changes_{pr_number}"}
+        ],
+        [
+            {"text": "\u274c Deny & Close", "callback_data": f"pr_deny_{pr_number}"},
+            {"text": "\U0001f916 Re-review", "callback_data": f"pr_review_{pr_number}"}
+        ],
+        [
+            {"text": "\U0001f517 View on GitHub", "url": pr_url}
+        ]
+    ]
+
+    # Top issues (first 3)
+    issues_preview = ""
+    if review.get("issues"):
+        top_issues = review["issues"][:3]
+        issues_preview = "\n<b>Issues:</b>\n" + "\n".join(f"  \u2022 {i[:80]}" for i in top_issues)
+
     msg = f"""{emoji} <b>PR #{pr_number}: {pr_title}</b>
-by @{pr_author}
+by {pr_author}
 
 <b>Score:</b> {review['overall_score']}/10 — {review['verdict']}
 <b>Quality:</b> {review['quality_score']} | <b>Correctness:</b> {review['correctness_score']} | <b>Security:</b> {review['security_score']}
 <b>Completeness:</b> {review['completeness_score']} | <b>Tests:</b> {review['tests_score']}
 
-{review['summary']}
-
-{pr_url}"""
+{review['summary']}{issues_preview}"""
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     resp = requests.post(url, json={
         "chat_id": chat_id,
         "text": msg,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
+        "reply_markup": {"inline_keyboard": inline_keyboard}
     })
     print(f"Telegram notification: {resp.status_code}")
+
+    # Also save review data for the bot to reference
+    import pathlib
+    data_dir = pathlib.Path.home() / ".solfoundry" / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    state_file = data_dir / "state.json"
+    try:
+        state = json.loads(state_file.read_text()) if state_file.exists() else {}
+        if "pending_prs" not in state:
+            state["pending_prs"] = {}
+        state["pending_prs"][str(pr_number)] = {
+            "title": pr_title,
+            "author": pr_author,
+            "url": pr_url,
+            "score": review["overall_score"],
+            "verdict": review["verdict"],
+            "reviewed_at": datetime.now().isoformat()
+        }
+        if "stats" not in state:
+            state["stats"] = {}
+        state["stats"]["prs_reviewed"] = state["stats"].get("prs_reviewed", 0) + 1
+        state_file.write_text(json.dumps(state, indent=2, default=str))
+    except Exception as e:
+        print(f"State save warning: {e}")
 
 def main():
     print("Starting AI Code Review...")
