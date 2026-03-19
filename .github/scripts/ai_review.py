@@ -27,13 +27,22 @@ Review this pull request diff. The PR is a bounty submission from an external co
 
 PR Title: {pr_title}
 PR Description: {pr_body}
+{tier_context}
 
 Evaluate (1-10 each):
 1. **Code Quality**: Clean code, naming, conventions, no dead code
-2. **Correctness**: Logic errors, edge cases, does it work?
+2. **Correctness**: Logic errors, edge cases, does it actually work as intended?
 3. **Security**: XSS, injection, secrets, unsafe patterns
 4. **Completeness**: Matches bounty spec? Missing features?
 5. **Tests**: Test coverage, quality of tests
+
+IMPORTANT — Scoring calibration:
+- A score of 5/10 means "acceptable but has notable issues"
+- A score of 7/10 means "good, solid work with minor issues"
+- A score of 9/10 means "excellent, production-grade"
+- If the code works correctly and is clean, that alone merits a 6+ in quality and correctness
+- Judge what IS there, not what's missing. A well-implemented subset is better than a sloppy complete attempt
+- If no tests are included but the code itself is correct and functional, tests_score should be 3-4 (not 0-2). Reserve 0-2 for broken or misleading tests.
 
 IMPORTANT — Feedback style rules:
 - Be VAGUE about issues. Point to the AREA or CATEGORY of the problem, NOT the exact fix.
@@ -52,7 +61,8 @@ Provide:
 - **Issues**: High-level areas that need work (NO exact fixes, NO line numbers, NO code)
 - **Suggestions**: General directions for improvement (vague, not prescriptive)
 
-Be strict but fair. We pay $FNDRY bounties for quality work only.
+Be thorough and critical — this is an experiment proving autonomous agents can ship quality products.
+But be FAIR. If the code works, is clean, and addresses the spec, that should be reflected in the scores.
 
 DIFF:
 ```
@@ -77,6 +87,48 @@ Respond in this exact JSON format:
   "issues": ["vague area-level problem, no fix given", "another area of concern"],
   "suggestions": ["general direction, not a specific solution"]
 }}"""
+
+# Tier-specific context injected into the prompt
+TIER_PROMPTS = {
+    "tier-1": (
+        "\nBOUNTY TIER: Tier 1 — Basic tasks (UI components, styling, simple endpoints, docs, config)\n"
+        "These are low-risk contributions. No wallet logic, no auth, no financial operations.\n"
+        "Expectations: Working code that addresses the spec. Clean structure and reasonable naming.\n"
+        "Tests are appreciated but NOT required for T1. Judge the code on whether it works and is maintainable.\n"
+        "If no tests are included, score tests_score as 4 (neutral) — do NOT penalize heavily.\n"
+        "Verdict guide: APPROVE if quality ≥ 6, correctness ≥ 6, security ≥ 5, and code works.\n"
+        "A working, clean implementation without tests is a 6-7, not a 4-5."
+    ),
+    "tier-2": (
+        "\nBOUNTY TIER: Tier 2 — Standard tasks (API integrations, data pipelines, complex UI with state)\n"
+        "Moderate risk. May touch backend logic, external APIs, or user data.\n"
+        "Expectations: Solid implementation with good error handling. Tests expected for core logic paths.\n"
+        "Frontend components should handle error/loading states. API endpoints need basic validation.\n"
+        "Verdict guide: APPROVE if quality ≥ 6, correctness ≥ 7, security ≥ 7, and main paths tested."
+    ),
+    "tier-3": (
+        "\nBOUNTY TIER: Tier 3 — Critical tasks (wallet integration, auth, payments, security, smart contracts)\n"
+        "HIGH RISK. These touch money, credentials, or security boundaries. Be STRICT here.\n"
+        "Expectations: Production-grade. Comprehensive tests including edge cases and failure modes.\n"
+        "Security must be airtight — check for injection, improper validation, race conditions.\n"
+        "Input validation on ALL external data. Error handling must never expose internals.\n"
+        "Verdict guide: APPROVE only if all categories ≥ 7, security ≥ 8, and tests ≥ 6."
+    ),
+    "unknown": (
+        "\nBOUNTY TIER: Unknown — apply Tier 2 standards as default.\n"
+        "Focus on correctness and security. If the task appears security-critical, be strict."
+    ),
+}
+
+# Category weights per tier — determines how much each category affects overall score
+# Higher weight = more impact on final score. Weights sum to 1.0 per tier.
+TIER_WEIGHTS = {
+    #                    quality  correct  security  complete  tests
+    "tier-1":  {"quality": 0.30, "correctness": 0.30, "security": 0.15, "completeness": 0.15, "tests": 0.10},
+    "tier-2":  {"quality": 0.20, "correctness": 0.25, "security": 0.20, "completeness": 0.20, "tests": 0.15},
+    "tier-3":  {"quality": 0.15, "correctness": 0.20, "security": 0.25, "completeness": 0.15, "tests": 0.25},
+    "unknown": {"quality": 0.20, "correctness": 0.25, "security": 0.20, "completeness": 0.20, "tests": 0.15},
+}
 
 
 # ── Spam Filter ─────────────────────────────────────────────────────────────
@@ -131,15 +183,17 @@ def spam_check(diff: str, pr_body: str, pr_title: str) -> dict:
 
 
 # ── LLM Reviewers ───────────────────────────────────────────────────────────
-def review_openai(diff: str, pr_title: str, pr_body: str) -> dict:
+def review_openai(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
     """GPT-5.4 review — Code Quality & Correctness focus."""
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
         prompt = REVIEW_PROMPT.format(
             focus="Code quality, correctness, and naming conventions",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff
+            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
+            tier_context=tier_context
         )
 
         response = client.chat.completions.create(
@@ -157,16 +211,18 @@ def review_openai(diff: str, pr_title: str, pr_body: str) -> dict:
         return {"_model": MODELS["gpt"]["name"], "_status": "error", "_error": str(e)}
 
 
-def review_gemini(diff: str, pr_title: str, pr_body: str) -> dict:
+def review_gemini(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
     """Gemini 2.5 Pro review — Logic, Completeness & Architecture focus."""
     try:
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             return {"_model": MODELS["gemini"]["name"], "_status": "skipped", "_error": "No API key"}
 
+        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
         prompt = REVIEW_PROMPT.format(
             focus="Logic correctness, architectural decisions, and completeness against spec",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff
+            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
+            tier_context=tier_context
         )
 
         resp = requests.post(
@@ -191,16 +247,18 @@ def review_gemini(diff: str, pr_title: str, pr_body: str) -> dict:
         return {"_model": MODELS["gemini"]["name"], "_status": "error", "_error": str(e)}
 
 
-def review_grok(diff: str, pr_title: str, pr_body: str) -> dict:
+def review_grok(diff: str, pr_title: str, pr_body: str, tier: str = "unknown") -> dict:
     """Grok 4 review — Security & Edge Cases focus."""
     try:
         api_key = os.environ.get("XAI_API_KEY", "")
         if not api_key:
             return {"_model": MODELS["grok"]["name"], "_status": "skipped", "_error": "No API key"}
 
+        tier_context = TIER_PROMPTS.get(tier, TIER_PROMPTS["unknown"])
         prompt = REVIEW_PROMPT.format(
             focus="Security vulnerabilities, edge cases, and potential exploits",
-            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff
+            pr_title=pr_title, pr_body=pr_body or "No description.", diff=diff,
+            tier_context=tier_context
         )
 
         resp = requests.post(
@@ -226,8 +284,9 @@ def review_grok(diff: str, pr_title: str, pr_body: str) -> dict:
 
 
 # ── Aggregator ──────────────────────────────────────────────────────────────
-def aggregate_reviews(reviews: list) -> dict:
-    """Combine scores from multiple LLM reviews into one unified review."""
+def aggregate_reviews(reviews: list, tier: str = "unknown") -> dict:
+    """Combine scores from multiple LLM reviews into one unified review.
+    Weights categories differently based on bounty tier."""
     valid = [r for r in reviews if r.get("_status") == "ok"]
 
     if not valid:
@@ -255,16 +314,32 @@ def aggregate_reviews(reviews: list) -> dict:
         agg[f"{cat}_score"] = round(sum(scores) / n, 1)
         agg[f"{cat}_note"] = " | ".join(notes)
 
-    # Overall score = average of category averages
-    cat_scores = [agg[f"{cat}_score"] for cat in categories]
-    agg["overall_score"] = round(sum(cat_scores) / len(cat_scores), 1)
+    # Overall score = WEIGHTED average based on tier
+    # T1: quality + correctness matter most, tests barely count
+    # T3: security + tests matter most (money/auth code)
+    weights = TIER_WEIGHTS.get(tier, TIER_WEIGHTS["unknown"])
+    weighted_score = sum(agg[f"{cat}_score"] * weights[cat] for cat in categories)
+    agg["overall_score"] = round(weighted_score, 1)
 
-    # Verdict = majority vote, biased toward caution
+    # Verdict = SCORE-BASED per tier, not majority vote
+    # This ensures a working T1 component that scores 6.5 actually gets approved
+    tier_approve_thresholds = {
+        "tier-1": 5.5,   # Basic tasks — if it works and is clean, approve
+        "tier-2": 6.5,   # Standard tasks — need solid quality
+        "tier-3": 7.5,   # Critical tasks — high bar for security/wallet/auth code
+        "unknown": 6.5,
+    }
+    approve_threshold = tier_approve_thresholds.get(tier, 6.5)
+
+    # Hard rejection: if any model says REJECT AND score is very low
     verdicts = [r.get("verdict", "REQUEST_CHANGES") for r in valid]
-    if verdicts.count("REJECT") >= 2 or (verdicts.count("REJECT") >= 1 and n <= 2):
+    if verdicts.count("REJECT") >= 2:
         agg["verdict"] = "REJECT"
-    elif verdicts.count("APPROVE") > n / 2:
+    elif agg["overall_score"] >= approve_threshold:
         agg["verdict"] = "APPROVE"
+    elif agg["overall_score"] < approve_threshold - 1.5:
+        # More than 1.5 below threshold — reject, don't just request changes
+        agg["verdict"] = "REJECT" if agg["overall_score"] < 3.5 else "REQUEST_CHANGES"
     else:
         agg["verdict"] = "REQUEST_CHANGES"
 
@@ -623,15 +698,20 @@ def main():
             send_spam_rejection(spam["reason"])
         return
 
+    # Get bounty tier from environment (set by workflow)
+    bounty_tier = os.environ.get("BOUNTY_TIER", "unknown")
+    if bounty_tier not in TIER_PROMPTS:
+        bounty_tier = "unknown"
+    print(f"Bounty tier: {bounty_tier}")
     print("Passed spam filter — launching 3 LLM reviews in parallel...")
 
-    # Step 2: Run all 3 LLMs in parallel
+    # Step 2: Run all 3 LLMs in parallel (with tier context)
     results = {}
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {
-            pool.submit(review_openai, diff, pr_title, pr_body): "gpt",
-            pool.submit(review_gemini, diff, pr_title, pr_body): "gemini",
-            pool.submit(review_grok, diff, pr_title, pr_body): "grok",
+            pool.submit(review_openai, diff, pr_title, pr_body, bounty_tier): "gpt",
+            pool.submit(review_gemini, diff, pr_title, pr_body, bounty_tier): "gemini",
+            pool.submit(review_grok, diff, pr_title, pr_body, bounty_tier): "grok",
         }
         for future in as_completed(futures):
             key = futures[future]
@@ -644,9 +724,9 @@ def main():
                 print(f"  {MODELS[key]['name']}: EXCEPTION — {e}")
                 results[key] = {"_model": MODELS[key]["name"], "_status": "error", "_error": str(e)}
 
-    # Step 3: Aggregate
+    # Step 3: Aggregate (with tier-aware weighting)
     all_reviews = [results.get("gpt", {}), results.get("gemini", {}), results.get("grok", {})]
-    aggregated = aggregate_reviews(all_reviews)
+    aggregated = aggregate_reviews(all_reviews, tier=bounty_tier)
 
     ok_count = len([r for r in all_reviews if r.get("_status") == "ok"])
     print(f"\nAggregated: {aggregated['overall_score']}/10 — {aggregated['verdict']} ({ok_count}/3 models succeeded)")
