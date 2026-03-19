@@ -3,6 +3,12 @@ name: AI Code Review
 on:
   pull_request_target:
     types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -24,12 +30,34 @@ jobs:
       - name: Install dependencies
         run: pip install openai requests
 
+      - name: Resolve PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use workflow_dispatch input if available, else pull_request_target event
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            PR_NUM="${{ inputs.pr_number }}"
+          else
+            PR_NUM="${{ github.event.pull_request.number }}"
+          fi
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
+
+          # Get full PR details for workflow_dispatch case
+          PR_JSON=$(gh pr view $PR_NUM --repo ${{ github.repository }} --json title,author,url,body 2>/dev/null || echo '{}')
+          echo "title=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
+          echo "author=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
+          echo "url=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null)" >> $GITHUB_OUTPUT
+
+          # Write body to file to avoid shell escaping issues
+          echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
+
       - name: Get PR diff
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} > /tmp/pr_diff.txt
+          gh pr diff ${{ steps.pr.outputs.number }} --repo ${{ github.repository }} > /tmp/pr_diff.txt
           echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
 
       - name: Get bounty context and submission order
@@ -37,7 +65,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_BODY="${{ github.event.pull_request.body }}"
+          # Read PR body from file (handles both triggers)
+          if [ -f /tmp/pr_body.txt ]; then
+            PR_BODY=$(cat /tmp/pr_body.txt)
+          else
+            PR_BODY="${{ github.event.pull_request.body }}"
+          fi
           REPO="${{ github.repository }}"
 
           # Extract linked issue number from PR body (Closes #N)
@@ -99,15 +132,17 @@ jobs:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_TITLE: ${{ steps.pr.outputs.title || github.event.pull_request.title }}
+          PR_AUTHOR: ${{ steps.pr.outputs.author || github.event.pull_request.user.login }}
+          PR_URL: ${{ steps.pr.outputs.url || github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BOUNTY_ISSUE: ${{ steps.bounty.outputs.issue_num }}
           BOUNTY_TITLE: ${{ steps.bounty.outputs.issue_title }}
           BOUNTY_TIER: ${{ steps.bounty.outputs.tier }}
           BOUNTY_REWARD: ${{ steps.bounty.outputs.reward }}
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
-        run: python3 .github/scripts/ai_review.py
+        run: |
+          # Load PR body from file to avoid shell escaping
+          export PR_BODY="$(cat /tmp/pr_body.txt 2>/dev/null || echo '${{ github.event.pull_request.body }}')"
+          python3 .github/scripts/ai_review.py
