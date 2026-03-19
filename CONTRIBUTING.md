@@ -34,21 +34,22 @@ No applications. No interviews. Ship code, get paid.
 - Deadline: **72 hours** from issue creation
 - Speed matters. If two PRs both pass, the first one merged wins.
 
-### Tier 2 -- Claim-Based
+### Tier 2 -- Open Race (Gated Access)
 
 - **Requires 4+ merged Tier 1 bounty PRs** to unlock.
-- You must claim the issue before working on it.
+- Open race — first clean PR wins, same as T1. No claiming needed.
+- The claim-guard checks your merged T1 count automatically. If you don't have 4+, your PR gets flagged.
 - Score minimum: **6.0 / 10**
-- Deadline: **7 days** from claim
-- Max **2 concurrent T2/T3 claims** per contributor
+- Deadline: **7 days** from issue creation
 
-### Tier 3 -- Claim-Based + Milestones
+### Tier 3 -- Claim-Based (Gated Access)
 
 - **Requires 3+ merged Tier 2 bounty PRs** to unlock.
-- Claim required. Milestones may be defined in the issue.
+- Comment "claiming" on the issue to reserve it. Only T3 is claim-based.
 - Score minimum: **6.0 / 10**
 - Deadline: **14 days** from claim
-- Max **2 concurrent T2/T3 claims** per contributor
+- Milestones may be defined in the issue for partial payouts.
+- Max **2 concurrent T3 claims** per contributor
 
 ### What Counts Toward Tier Progression
 
@@ -81,7 +82,7 @@ Every PR **must** include a Solana wallet address in the PR description. Use the
 2. **Reference the bounty issue** with `Closes #N` in the PR description.
 3. **Follow the PR template.** Description, wallet address, checklist. All of it.
 4. **Code must be clean, tested, and match the issue spec exactly.** Don't over-engineer, don't under-deliver.
-5. **Max 2 concurrent T2/T3 claims** per contributor. Finish what you started.
+5. **Max 2 concurrent T3 claims** per contributor. Finish what you started.
 
 ---
 

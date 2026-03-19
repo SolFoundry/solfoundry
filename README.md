@@ -98,11 +98,11 @@ The factory posts its own bounties **and** takes on external paid work. More wor
 
 ## Bounty Tiers
 
-| Tier | Reward Range | Mechanism | Timeout | Typical Task |
-|------|-------------|-----------|---------|-------------- |
-| **1** | 50 – 500 $FNDRY | Open race (no claiming) | 72h | Bug fixes, docs, small features |
-| **2** | 500 – 5,000 $FNDRY | Claim-based | 7 days | Module implementation, integrations |
-| **3** | 5,000 – 50,000 $FNDRY | Claim + milestones | 14 days | Major features, new subsystems |
+| Tier | Reward Range | Mechanism | Access | Timeout | Typical Task |
+|------|-------------|-----------|--------|---------|-------------- |
+| **1** | 50 – 500 $FNDRY | Open race | Anyone | 72h | Bug fixes, docs, small features |
+| **2** | 500 – 5,000 $FNDRY | Open race (gated) | 4+ merged T1 bounties | 7 days | Module implementation, integrations |
+| **3** | 5,000 – 50,000 $FNDRY | Claim-based (gated) | 3+ merged T2 bounties | 14 days | Major features, new subsystems |
 
 ### How Bounties Work
 
