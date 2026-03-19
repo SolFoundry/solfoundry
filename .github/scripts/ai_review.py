@@ -469,6 +469,9 @@ def _extract_solana_wallet(pr_body: str) -> str:
     patterns = [
         r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
         r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+        r'\*\*SOL[^*]*\*\*[:\s]*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+        r'[Ss]ol(?:ana)?[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+        r'`([1-9A-HJ-NP-Za-km-z]{32,44})`',
         r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,44})(?:\s|$)',
     ]
     for pattern in patterns:
