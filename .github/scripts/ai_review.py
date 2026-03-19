@@ -609,9 +609,12 @@ def send_telegram(review: dict):
         top = review["issues"][:3]
         issues_preview = "\n\n<b>Top Issues:</b>\n" + "\n".join(f"  \u2022 {i[:80]}" for i in top)
 
+    # Submission timestamp
+    submitted_at = datetime.now().strftime("%b %d, %I:%M %p UTC")
+
     msg = (
         f"{emoji} <b>PR #{pr_number}: {pr_title}</b>"
-        f"\n\U0001f464 {pr_author}{bounty_line}{wallet_line}"
+        f"\n\U0001f464 {pr_author} | \U0001f552 {submitted_at}{bounty_line}{wallet_line}"
         f"\n"
         f"\n<b>Aggregated: {review['overall_score']}/10 — {review['verdict']}</b>{score_warning}"
         f"\n<b>Models:</b>{model_lines}"
