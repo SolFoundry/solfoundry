@@ -35,11 +35,22 @@ Evaluate (1-10 each):
 4. **Completeness**: Matches bounty spec? Missing features?
 5. **Tests**: Test coverage, quality of tests
 
+IMPORTANT — Feedback style rules:
+- Be VAGUE about issues. Point to the AREA or CATEGORY of the problem, NOT the exact fix.
+- Say "there are error handling gaps in the API layer" NOT "add try/catch to line 42 in routes.py"
+- Say "input validation is insufficient" NOT "validate the email field with regex"
+- Say "security concerns in authentication flow" NOT "use bcrypt instead of md5"
+- Say "missing edge case handling in the payment logic" NOT "check for negative amounts on line 88"
+- NEVER give code snippets, exact fixes, or copy-pasteable solutions.
+- The goal is to tell them WHAT areas need work, not HOW to fix them.
+- A skilled developer should understand the feedback. Someone copy-pasting into an AI should struggle.
+- For the notes on each category, describe the general quality level, don't list specific fixes.
+
 Provide:
 - **Overall verdict**: APPROVE, REQUEST_CHANGES, or REJECT
-- **Summary**: 2-3 sentences
-- **Issues**: Specific problems with file paths
-- **Suggestions**: Non-blocking improvements
+- **Summary**: 2-3 sentences on overall impression
+- **Issues**: High-level areas that need work (NO exact fixes, NO line numbers, NO code)
+- **Suggestions**: General directions for improvement (vague, not prescriptive)
 
 Be strict but fair. We pay $FNDRY bounties for quality work only.
 
@@ -51,20 +62,20 @@ DIFF:
 Respond in this exact JSON format:
 {{
   "quality_score": 7,
-  "quality_note": "...",
+  "quality_note": "brief general assessment, no specific fixes",
   "correctness_score": 8,
-  "correctness_note": "...",
+  "correctness_note": "brief general assessment, no specific fixes",
   "security_score": 9,
-  "security_note": "...",
+  "security_note": "brief general assessment, no specific fixes",
   "completeness_score": 6,
-  "completeness_note": "...",
+  "completeness_note": "brief general assessment, no specific fixes",
   "tests_score": 3,
-  "tests_note": "...",
+  "tests_note": "brief general assessment, no specific fixes",
   "overall_score": 6.6,
   "verdict": "REQUEST_CHANGES",
-  "summary": "...",
-  "issues": ["issue 1", "issue 2"],
-  "suggestions": ["suggestion 1"]
+  "summary": "overall impression, 2-3 sentences",
+  "issues": ["vague area-level problem, no fix given", "another area of concern"],
+  "suggestions": ["general direction, not a specific solution"]
 }}"""
 
 
