@@ -162,16 +162,51 @@ def send_telegram(review: dict):
         ]
     ]
 
+    # Bounty context
+    bounty_issue = os.environ.get("BOUNTY_ISSUE", "")
+    bounty_title = os.environ.get("BOUNTY_TITLE", "")
+    bounty_tier = os.environ.get("BOUNTY_TIER", "")
+    bounty_reward = os.environ.get("BOUNTY_REWARD", "0")
+    submission_order = os.environ.get("SUBMISSION_ORDER", "0")
+
+    tier_emoji = {"tier-1": "\U0001f7e2", "tier-2": "\U0001f7e1", "tier-3": "\U0001f534"}
+    t_emoji = tier_emoji.get(bounty_tier, "\u2753")
+
+    bounty_line = ""
+    if bounty_issue:
+        order_text = f"#{submission_order}" if submission_order and submission_order != "0" else "1st"
+        if submission_order == "1":
+            order_text = "1st \U0001f947"
+        elif submission_order == "2":
+            order_text = "2nd"
+        elif submission_order == "3":
+            order_text = "3rd"
+        else:
+            order_text = f"#{submission_order}"
+        bounty_line = (
+            f"\n{t_emoji} <b>Bounty #{bounty_issue}:</b> {bounty_title}"
+            f"\n\U0001f4b0 {bounty_reward} $FNDRY | {bounty_tier.upper().replace('-',' ')} | Submission: {order_text}"
+        )
+
     # Top issues (first 3)
     issues_preview = ""
     if review.get("issues"):
         top_issues = review["issues"][:3]
         issues_preview = "\n<b>Issues:</b>\n" + "\n".join(f"  \u2022 {i[:80]}" for i in top_issues)
 
-    msg = f"""{emoji} <b>PR #{pr_number}: {pr_title}</b>
-by {pr_author}
+    # Min score check per tier
+    min_scores = {"tier-1": 6, "tier-2": 7, "tier-3": 8}
+    min_score = min_scores.get(bounty_tier, 0)
+    score_warning = ""
+    if min_score > 0 and review['overall_score'] < min_score:
+        score_warning = f"\n\u26a0\ufe0f <b>Below {bounty_tier.upper().replace('-',' ')} minimum ({min_score}/10)</b>"
+    elif min_score > 0 and review['overall_score'] >= min_score:
+        score_warning = f"\n\u2705 Meets {bounty_tier.upper().replace('-',' ')} threshold ({min_score}/10)"
 
-<b>Score:</b> {review['overall_score']}/10 — {review['verdict']}
+    msg = f"""{emoji} <b>PR #{pr_number}: {pr_title}</b>
+\U0001f464 {pr_author}{bounty_line}
+
+<b>Score:</b> {review['overall_score']}/10 — {review['verdict']}{score_warning}
 <b>Quality:</b> {review['quality_score']} | <b>Correctness:</b> {review['correctness_score']} | <b>Security:</b> {review['security_score']}
 <b>Completeness:</b> {review['completeness_score']} | <b>Tests:</b> {review['tests_score']}
 

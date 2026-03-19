@@ -1,21 +1,20 @@
 name: AI Code Review
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 
 jobs:
   ai-review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout base repo (safe — never runs PR code)
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,18 +29,83 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
+          gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} > /tmp/pr_diff.txt
           echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
+
+      - name: Get bounty context and submission order
+        id: bounty
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          REPO="${{ github.repository }}"
+
+          # Extract linked issue number from PR body (Closes #N)
+          ISSUE_NUM=$(echo "$PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+#\K\d+' | head -1)
+
+          if [ -n "$ISSUE_NUM" ]; then
+            echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+
+            # Get issue details
+            ISSUE_JSON=$(gh api repos/$REPO/issues/$ISSUE_NUM 2>/dev/null || echo '{}')
+            ISSUE_TITLE=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title','Unknown'))" 2>/dev/null)
+
+            # Get tier from labels
+            TIER=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          labels=[l['name'] for l in data.get('labels',[])]
+          tier=next((l for l in labels if l.startswith('tier-')),'unknown')
+          print(tier)
+          " 2>/dev/null)
+
+            # Extract reward amount
+            REWARD=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json,re
+          data=json.loads(sys.stdin.read())
+          text=(data.get('title','') or '') + ' ' + (data.get('body','') or '')
+          m=re.search(r'(\d+)\s*\\\$?FNDRY', text)
+          print(m.group(1) if m else '0')
+          " 2>/dev/null)
+
+            echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+            echo "tier=$TIER" >> $GITHUB_OUTPUT
+            echo "reward=$REWARD" >> $GITHUB_OUTPUT
+
+            # Count how many PRs target this issue (submission order)
+            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,body 2>/dev/null)
+            ORDER=$(echo "$ALL_PRS" | python3 -c "
+          import sys,json,re
+          prs=json.loads(sys.stdin.read())
+          count=0
+          for pr in prs:
+              body=(pr.get('body','') or '').lower()
+              if re.search(r'(?:closes|fixes|resolves)\s+#$ISSUE_NUM', body):
+                  count+=1
+          print(count)
+          " 2>/dev/null)
+            echo "submission_order=$ORDER" >> $GITHUB_OUTPUT
+          else
+            echo "issue_num=" >> $GITHUB_OUTPUT
+            echo "tier=unknown" >> $GITHUB_OUTPUT
+            echo "reward=0" >> $GITHUB_OUTPUT
+            echo "submission_order=0" >> $GITHUB_OUTPUT
+          fi
 
       - name: AI Review
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
+          SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
+          SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_BODY: ${{ github.event.pull_request.body }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BOUNTY_ISSUE: ${{ steps.bounty.outputs.issue_num }}
+          BOUNTY_TITLE: ${{ steps.bounty.outputs.issue_title }}
+          BOUNTY_TIER: ${{ steps.bounty.outputs.tier }}
+          BOUNTY_REWARD: ${{ steps.bounty.outputs.reward }}
+          SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: python3 .github/scripts/ai_review.py
