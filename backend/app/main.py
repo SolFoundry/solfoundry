@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.contributors import router as contributors_router
+from app.api.leaderboard import router as leaderboard_router
 from app.api.webhooks.github import router as github_webhook_router
 
 app = FastAPI(
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(contributors_router)
+app.include_router(leaderboard_router)
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
 
 
