@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 16rem;
+    --sidebar-collapsed: 4rem;
+    --header-height: 3.5rem;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium
+           text-gray-700 dark:text-gray-300 transition-colors duration-150
+           hover:bg-gray-100 dark:hover:bg-gray-800
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900;
+  }
+  .sidebar-link-active {
+    @apply bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300
+           hover:bg-brand-100 dark:hover:bg-brand-900;
+  }
+}
