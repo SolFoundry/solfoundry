@@ -1,0 +1,98 @@
+name: Wallet Check
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-wallet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Solana wallet in PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, requests
+
+          pr_body = os.environ.get("PR_BODY", "")
+          pr_num = os.environ.get("PR_NUMBER", "")
+          pr_author = os.environ.get("PR_AUTHOR", "")
+          gh_token = os.environ.get("GH_TOKEN", "")
+          repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+
+          # Check for Solana wallet (base58, 32-44 chars)
+          wallet_patterns = [
+              r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+              r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
+              r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,44})(?:\s|$)',
+          ]
+
+          has_wallet = False
+          for pattern in wallet_patterns:
+              if re.search(pattern, pr_body or ""):
+                  has_wallet = True
+                  break
+
+          headers = {
+              "Authorization": f"token {gh_token}",
+              "Accept": "application/vnd.github.v3+json"
+          }
+
+          if not has_wallet:
+              # Check if we already commented (avoid spam on edits)
+              comments_url = f"https://api.github.com/repos/{repo}/issues/{pr_num}/comments"
+              comments = requests.get(comments_url, headers=headers).json()
+              already_warned = any("Solana wallet address" in (c.get("body","")) and "missing" in (c.get("body","")).lower() for c in comments if isinstance(c, dict))
+
+              if not already_warned:
+                  comment = (
+                      "⚠️ **Missing Solana Wallet**\n\n"
+                      f"Hey @{pr_author}, your PR is missing a Solana wallet address. "
+                      "We need it to send your $FNDRY bounty payout!\n\n"
+                      "Please edit your PR description and add your wallet:\n"
+                      "```\n**Wallet:** YOUR_SOLANA_ADDRESS_HERE\n```\n\n"
+                      "PRs without a wallet cannot receive bounty payouts."
+                  )
+                  requests.post(
+                      f"https://api.github.com/repos/{repo}/issues/{pr_num}/comments",
+                      json={"body": comment}, headers=headers
+                  )
+
+                  # Add label
+                  requests.post(
+                      f"https://api.github.com/repos/{repo}/issues/{pr_num}/labels",
+                      json={"labels": ["missing-wallet"]}, headers=headers
+                  )
+
+                  # Notify Telegram
+                  bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+                  chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+                  if bot_token and chat_id:
+                      requests.post(
+                          f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                          json={
+                              "chat_id": chat_id,
+                              "text": f"⚠️ PR #{pr_num} by {pr_author} — no Solana wallet. Bot asked them to add one.",
+                              "parse_mode": "HTML"
+                          }
+                      )
+
+              print(f"PR #{pr_num}: NO WALLET FOUND — commented")
+          else:
+              # Remove missing-wallet label if it exists
+              requests.delete(
+                  f"https://api.github.com/repos/{repo}/issues/{pr_num}/labels/missing-wallet",
+                  headers=headers
+              )
+              print(f"PR #{pr_num}: Wallet found ✅")
+          PYEOF
