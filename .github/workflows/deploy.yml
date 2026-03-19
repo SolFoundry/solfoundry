@@ -1,0 +1,127 @@
+name: Deploy Applications
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+    - name: Deploy to DigitalOcean Droplet
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USERNAME }}
+        key: ${{ secrets.DO_SSH_KEY }}
+        script: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:main-${{ github.sha }}
+          docker stop backend-app || true
+          docker rm backend-app || true
+          docker run -d \
+            --name backend-app \
+            --restart unless-stopped \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -e REDIS_URL=${{ secrets.REDIS_URL }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:main-${{ github.sha }}
+          docker image prune -f
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build application
+      working-directory: ./frontend
+      env:
+        NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        NEXT_PUBLIC_ENV: production
+      run: npm run build
+
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        working-directory: ./frontend
+        vercel-args: --prod
+
+  health-check:
+    needs: [build-and-deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Wait for services to be ready
+      run: sleep 30
+
+    - name: Health check backend
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.BACKEND_URL }}/health)
+        if [ $response != "200" ]; then
+          echo "Backend health check failed with status: $response"
+          exit 1
+        fi
+
+    - name: Health check frontend
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.FRONTEND_URL }})
+        if [ $response != "200" ]; then
+          echo "Frontend health check failed with status: $response"
+          exit 1
+        fi
+
+    - name: Notify deployment success
+      if: success()
+      run: echo "✅ Deployment completed successfully!"
+
+    - name: Notify deployment failure
+      if: failure()
+      run: echo "❌ Deployment failed!"
