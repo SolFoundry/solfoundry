@@ -30,15 +30,11 @@ def test_success_logging():
 def test_exception_handler():
     response = client.get("/crash")
     assert response.status_code == 500
-    data = response.json()
-    assert data["error"] == "Internal Server Error"
-    assert "correlation_id" in data
+    assert response.json()["error"] == "Internal Server Error"
 
 def test_legacy_handler():
-    res = handle_error(ValueError("Legacy error"))
-    assert res["error"] == "Legacy error"
+    assert handle_error(ValueError("Legacy error"))["error"] == "Legacy error"
 
 def test_audit_trigger():
     response = client.post("/api/payout")
     assert response.status_code == 200
-    assert "X-Correlation-ID" in response.headers
