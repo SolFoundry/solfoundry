@@ -12,7 +12,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
 
-from app.models.bounty import BountyDB, Base
+from app.models.bounty import BountyDB
+from app.database import Base
 from app.services.bounty_service import BountySearchService
 from app.models.bounty import BountySearchParams
 

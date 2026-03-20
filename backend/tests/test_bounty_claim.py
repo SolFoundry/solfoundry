@@ -5,8 +5,8 @@ from datetime import datetime, timezone, timedelta
 
 from app.models.bounty import (
     BountyDB, BountyTier, BountyStatus,
-    BountyClaimRequest, BountyUnclaimRequest,
-    ClaimStatus, T2_MIN_REPUTATION, T3_MIN_REPUTATION,
+    BountyClaimRequest,
+    T2_MIN_REPUTATION, T3_MIN_REPUTATION,
 )
 from app.services import bounty_service
 

@@ -20,7 +20,6 @@ from app.models.bounty import (
     SubmissionResponse,
     VALID_STATUS_TRANSITIONS,
     # Claim models
-    BountyClaimRequest,
     BountyUnclaimRequest,
     BountyClaimantResponse,
     BountyClaimHistoryResponse,

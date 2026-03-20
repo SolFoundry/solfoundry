@@ -15,7 +15,8 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.main import app
-from app.models.notification import NotificationDB, Base
+from app.models.notification import NotificationDB
+from app.database import Base
 from app.database import get_db
 
 

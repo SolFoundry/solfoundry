@@ -122,7 +122,7 @@ async function fetchDashboardData(userId: string | undefined): Promise<Dashboard
   
   // In a real app, this would fetch from an API using userId
   // For now, return mock data but log userId for future integration
-  if (process.env.NODE_ENV !== 'test') {
+  if (import.meta.env.DEV) {
     console.log('Fetching dashboard data for user:', userId || 'anonymous');
   }
   
@@ -395,6 +395,8 @@ interface SimpleLineChartProps {
 }
 
 function SimpleLineChart({ data }: SimpleLineChartProps) {
+  const chartId = React.useId();
+  
   // Handle empty or insufficient data
   if (!data || data.length === 0) {
     return (
@@ -451,10 +453,10 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
         <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
         
         {/* Area fill */}
-        <path d={areaD} fill="url(#gradient)" opacity="0.3" />
+        <path d={areaD} fill={`url(#${chartId}-gradient)`} opacity="0.3" />
         
         {/* Line */}
-        <path d={pathD} fill="none" stroke="url(#lineGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={pathD} fill="none" stroke={`url(#${chartId}-lineGradient)`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         
         {/* Points */}
         {points.map((p, i) => (
@@ -474,11 +476,11 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
         
         {/* Gradient definitions */}
         <defs>
-          <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <linearGradient id={`${chartId}-gradient`} x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#14F195" />
             <stop offset="100%" stopColor="#9945FF" />
           </linearGradient>
-          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id={`${chartId}-lineGradient`} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#9945FF" />
             <stop offset="100%" stopColor="#14F195" />
           </linearGradient>
