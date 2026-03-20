@@ -13,7 +13,7 @@ from app.database import Base
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     github_id = Column(String(64), unique=True, nullable=False, index=True)
     username = Column(String(128), nullable=False)
@@ -22,9 +22,26 @@ class User(Base):
     wallet_address = Column(String(64), unique=True, nullable=True, index=True)
     wallet_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), 
-                        onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     last_login_at = Column(DateTime, nullable=True)
+
+
+class UserDB(BaseModel):
+    """Pydantic model for user data in tests and services."""
+
+    id: Optional[object] = None
+    github_id: str
+    username: str
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    wallet_address: Optional[str] = None
+    wallet_verified: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class UserResponse(BaseModel):
@@ -37,6 +54,6 @@ class UserResponse(BaseModel):
     wallet_verified: bool = False
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

@@ -297,7 +297,7 @@ export const PRStatusTracker: React.FC<PRStatusTrackerProps> = ({
     if (!wsEndpoint) return;
 
     let ws: WebSocket | null = null;
-    let reconnectTimer: NodeJS.Timeout | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     const connect = () => {
       try {

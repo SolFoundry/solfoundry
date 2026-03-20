@@ -18,6 +18,7 @@ from app.database import Base
 
 class NotificationType(str, Enum):
     """Types of notifications in the system."""
+
     BOUNTY_CLAIMED = "bounty_claimed"
     PR_SUBMITTED = "pr_submitted"
     REVIEW_COMPLETE = "review_complete"
@@ -29,10 +30,11 @@ class NotificationType(str, Enum):
 class NotificationDB(Base):
     """
     Notification database model.
-    
+
     Stores notifications for users about bounty-related events.
     Supports both in-app and email notifications.
     """
+
     __tablename__ = "notifications"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -43,36 +45,38 @@ class NotificationDB(Base):
     read = Column(Boolean, default=False, nullable=False, index=True)
     bounty_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        index=True
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
-    metadata = Column(JSON, nullable=True)  # Additional context
+    extra_data = Column(JSON, nullable=True)  # Additional context
 
     __table_args__ = (
-        Index('ix_notifications_user_read', user_id, read),
-        Index('ix_notifications_user_created', user_id, created_at),
+        Index("ix_notifications_user_read", user_id, read),
+        Index("ix_notifications_user_created", user_id, created_at),
     )
 
 
 # Pydantic models
 
+
 class NotificationBase(BaseModel):
     """Base notification fields."""
+
     notification_type: str
     title: str = Field(..., max_length=255)
     message: str
     bounty_id: Optional[str] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class NotificationCreate(NotificationBase):
     """Schema for creating a notification."""
+
     user_id: str
 
 
 class NotificationResponse(NotificationBase):
     """Full notification response."""
+
     id: str
     user_id: str
     read: bool
@@ -82,6 +86,7 @@ class NotificationResponse(NotificationBase):
 
 class NotificationListItem(BaseModel):
     """Brief notification for list views."""
+
     id: str
     notification_type: str
     title: str
@@ -94,6 +99,7 @@ class NotificationListItem(BaseModel):
 
 class NotificationListResponse(BaseModel):
     """Paginated notification list."""
+
     items: List[NotificationListItem]
     total: int
     unread_count: int
@@ -103,4 +109,5 @@ class NotificationListResponse(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     """Response for unread count endpoint."""
+
     unread_count: int

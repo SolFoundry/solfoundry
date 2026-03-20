@@ -10,7 +10,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -197,10 +197,12 @@ class TokenomicsResponse(BaseModel):
     total_buybacks: float = 0.0
     total_burned: float = 0.0
     fee_revenue_sol: float = 0.0
-    distribution_breakdown: dict[str, float] = Field(default_factory=lambda: {
-        "contributor_rewards": 0.0,
-        "treasury_reserve": 0.0,
-        "buybacks": 0.0,
-        "burned": 0.0,
-    })
+    distribution_breakdown: dict[str, float] = Field(
+        default_factory=lambda: {
+            "contributor_rewards": 0.0,
+            "treasury_reserve": 0.0,
+            "buybacks": 0.0,
+            "burned": 0.0,
+        }
+    )
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

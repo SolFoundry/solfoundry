@@ -18,25 +18,35 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 # Database URL from environment
+# Convert sync driver URL to async driver URL if needed
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost/solfoundry"
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/solfoundry"
 )
+# If DATABASE_URL uses postgresql:// (sync driver), convert to postgresql+asyncpg://
+if DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Connection pool settings
+# Connection pool settings (only for PostgreSQL)
+is_sqlite = DATABASE_URL.startswith("sqlite")
 POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 POOL_MAX_OVERFLOW = int(os.getenv("DB_POOL_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
-# Create async engine with connection pooling
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=os.getenv("SQL_ECHO", "false").lower() == "true",
-    pool_pre_ping=True,
-    pool_size=POOL_SIZE,
-    max_overflow=POOL_MAX_OVERFLOW,
-    pool_timeout=POOL_TIMEOUT,
-)
+# Create async engine with connection pooling (PostgreSQL only)
+engine_kwargs = {
+    "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
+}
+if not is_sqlite:
+    engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_size": POOL_SIZE,
+            "max_overflow": POOL_MAX_OVERFLOW,
+            "pool_timeout": POOL_TIMEOUT,
+        }
+    )
+
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 
 # Create async session factory
 # autocommit=False ensures explicit transaction control
@@ -52,25 +62,26 @@ async_session_factory = async_sessionmaker(
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
-    
+
     Implements the Unit of Work pattern:
     - A new session is created for each request
     - The session automatically commits on successful completion
     - Any exception triggers automatic rollback
     - The session is always properly closed
-    
+
     This ensures that database operations are atomic and consistent
     without requiring manual transaction management in the service layer.
-    
+
     Yields:
         AsyncSession: Database session for the current request.
-    
+
     Example:
         @router.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
@@ -90,13 +101,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_db_session():
     """
     Context manager for database sessions outside of FastAPI.
-    
+
     Use this for background tasks, CLI commands, or testing where
     the FastAPI dependency injection is not available.
-    
+
     Yields:
         AsyncSession: A database session with automatic transaction handling.
-    
+
     Example:
         async with get_db_session() as db:
             db.add(new_item)
@@ -114,21 +125,22 @@ async def get_db_session():
 async def init_db() -> None:
     """
     Initialize the database schema and search infrastructure.
-    
+
     This should be called once during application startup.
     It creates all tables and sets up the search vector trigger.
     """
     logger.info("Initializing database schema...")
-    
+
     async with engine.begin() as conn:
         # Import models to ensure they are registered with Base
         from app.models.notification import NotificationDB  # noqa: F401
-        
+
         # Create all tables from model definitions
         await conn.run_sync(Base.metadata.create_all)
-        
+
         # Create the search vector trigger function
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             CREATE OR REPLACE FUNCTION update_bounty_search_vector()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -139,41 +151,50 @@ async def init_db() -> None:
                 RETURN NEW;
             END;
             $$ LANGUAGE plpgsql;
-        """))
-        
+        """)
+        )
+
         # Create the trigger (idempotent)
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             DROP TRIGGER IF EXISTS bounty_search_vector_update ON bounties;
             CREATE TRIGGER bounty_search_vector_update
                 BEFORE INSERT OR UPDATE ON bounties
                 FOR EACH ROW
                 EXECUTE FUNCTION update_bounty_search_vector();
-        """))
-        
+        """)
+        )
+
         # Create GIN index for fast full-text search
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_bounties_search_vector 
             ON bounties USING GIN(search_vector);
-        """))
-        
+        """)
+        )
+
         # Create composite indexes for common filter patterns
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_bounties_status_tier 
             ON bounties(status, tier);
-        """))
-        
-        await conn.execute(text("""
+        """)
+        )
+
+        await conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_bounties_status_category 
             ON bounties(status, category);
-        """))
-        
+        """)
+        )
+
         logger.info("Database schema initialized successfully")
 
 
 async def close_db() -> None:
     """
     Close all database connections in the pool.
-    
+
     This should be called during application shutdown to ensure
     clean connection closure.
     """

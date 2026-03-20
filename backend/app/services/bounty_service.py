@@ -32,6 +32,7 @@ _bounty_store: dict[str, BountyDB] = {}
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
     return SubmissionResponse(
         id=s.id,
@@ -82,6 +83,7 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def create_bounty(data: BountyCreate) -> BountyResponse:
     """Create a new bounty and return its response representation."""
     bounty = BountyDB(
@@ -122,8 +124,7 @@ def list_bounties(
     if skills:
         skill_set = {s.lower() for s in skills}
         results = [
-            b for b in results
-            if skill_set & {s.lower() for s in b.required_skills}
+            b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
 
     total = len(results)
@@ -179,7 +180,10 @@ def submit_solution(
         return None, "Bounty not found"
 
     if bounty.status not in (BountyStatus.OPEN, BountyStatus.IN_PROGRESS):
-        return None, f"Bounty is not accepting submissions (status: {bounty.status.value})"
+        return (
+            None,
+            f"Bounty is not accepting submissions (status: {bounty.status.value})",
+        )
 
     # Reject duplicate PR URLs on the same bounty
     for existing in bounty.submissions:

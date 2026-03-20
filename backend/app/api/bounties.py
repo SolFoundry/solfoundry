@@ -48,9 +48,7 @@ async def list_bounties(
     limit: int = Query(20, ge=1, le=100, description="Page size"),
 ) -> BountyListResponse:
     skill_list = (
-        [s.strip().lower() for s in skills.split(",") if s.strip()]
-        if skills
-        else None
+        [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
     return bounty_service.list_bounties(
         status=status, tier=tier, skills=skill_list, skip=skip, limit=limit

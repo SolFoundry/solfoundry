@@ -8,14 +8,28 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models.payout import (
-    BuybackCreate, BuybackListResponse, BuybackResponse,
-    PayoutCreate, PayoutListResponse, PayoutResponse, PayoutStatus,
-    TokenomicsResponse, TreasuryStats,
+    BuybackCreate,
+    BuybackListResponse,
+    BuybackResponse,
+    PayoutCreate,
+    PayoutListResponse,
+    PayoutResponse,
+    PayoutStatus,
+    TokenomicsResponse,
+    TreasuryStats,
 )
 from app.services.payout_service import (
-    create_buyback, create_payout, get_payout_by_tx_hash, list_buybacks, list_payouts,
+    create_buyback,
+    create_payout,
+    get_payout_by_tx_hash,
+    list_buybacks,
+    list_payouts,
 )
-from app.services.treasury_service import get_tokenomics, get_treasury_stats, invalidate_cache
+from app.services.treasury_service import (
+    get_tokenomics,
+    get_treasury_stats,
+    invalidate_cache,
+)
 
 router = APIRouter(prefix="/api", tags=["payouts", "treasury"])
 
@@ -46,7 +60,9 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
         )
     payout = get_payout_by_tx_hash(tx_hash)
     if payout is None:
-        raise HTTPException(status_code=404, detail=f"Payout with tx_hash '{tx_hash}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Payout with tx_hash '{tx_hash}' not found"
+        )
     return payout
 
 

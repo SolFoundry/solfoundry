@@ -8,23 +8,30 @@ This module provides REST API endpoints for:
 - Current user info
 """
 
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.models.user import (
-    GitHubOAuthRequest, GitHubOAuthResponse,
-    WalletAuthRequest, WalletAuthResponse,
-    LinkWalletRequest, LinkWalletResponse,
-    RefreshTokenRequest, RefreshTokenResponse,
-    UserResponse, AuthMessageResponse,
+    GitHubOAuthRequest,
+    GitHubOAuthResponse,
+    WalletAuthRequest,
+    WalletAuthResponse,
+    LinkWalletRequest,
+    LinkWalletResponse,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
+    UserResponse,
+    AuthMessageResponse,
 )
 from app.services import auth_service
 from app.services.auth_service import (
-    AuthError, GitHubOAuthError, WalletVerificationError,
-    TokenExpiredError, InvalidTokenError,
+    AuthError,
+    GitHubOAuthError,
+    WalletVerificationError,
+    TokenExpiredError,
+    InvalidTokenError,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -37,24 +44,24 @@ async def get_current_user_id(
 ) -> str:
     """
     Extract and validate the current user ID from JWT token.
-    
+
     This dependency is used to protect routes that require authentication.
     """
     token = None
-    
+
     if credentials:
         token = credentials.credentials
     elif authorization:
         if authorization.startswith("Bearer "):
             token = authorization[7:]
-    
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         user_id = auth_service.decode_token(token, token_type="access")
         return user_id
@@ -76,7 +83,7 @@ async def get_current_user_id(
 async def get_github_authorize(state: Optional[str] = None):
     """
     Get GitHub OAuth authorization URL.
-    
+
     Redirect the user to this URL to start the GitHub OAuth flow.
     After authorization, GitHub will redirect back with a code.
     """
@@ -98,9 +105,9 @@ async def get_github_authorize(state: Optional[str] = None):
 async def github_oauth_callback(request: GitHubOAuthRequest):
     """
     Complete GitHub OAuth flow.
-    
+
     Exchange the authorization code for JWT tokens.
-    
+
     Flow:
     1. User is redirected from GitHub with a code
     2. Exchange code for GitHub access token
@@ -127,7 +134,7 @@ async def github_oauth_callback(request: GitHubOAuthRequest):
 async def get_wallet_auth_message(wallet_address: str):
     """
     Get a message for wallet authentication.
-    
+
     The user must sign this message with their wallet to prove ownership.
     Then submit the signature to /auth/wallet.
     """
@@ -138,12 +145,12 @@ async def get_wallet_auth_message(wallet_address: str):
 async def wallet_authenticate(request: WalletAuthRequest):
     """
     Authenticate with Solana wallet signature.
-    
+
     Flow:
     1. Get a message from /auth/wallet/message
     2. Sign the message with your wallet
     3. Submit the signature, message, and wallet address
-    
+
     The signature proves you own the wallet address.
     """
     try:
@@ -172,10 +179,10 @@ async def link_wallet(
 ):
     """
     Link a Solana wallet to the current user account.
-    
+
     The user must sign a message to prove wallet ownership.
     Each user can only have one wallet linked (one-to-one mapping).
-    
+
     Requires authentication (GitHub OAuth or existing wallet auth).
     """
     try:
@@ -202,7 +209,7 @@ async def link_wallet(
 async def refresh_token(request: RefreshTokenRequest):
     """
     Refresh an access token.
-    
+
     Use the refresh token received during login to get a new access token.
     Refresh tokens are valid for 7 days.
     """
@@ -227,7 +234,7 @@ async def refresh_token(request: RefreshTokenRequest):
 async def get_current_user(user_id: str = Depends(get_current_user_id)):
     """
     Get the current authenticated user.
-    
+
     Returns the user profile including wallet address if linked.
     Requires authentication.
     """
