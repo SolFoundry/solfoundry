@@ -43,23 +43,18 @@ async def receive_github_webhook(
     - X-GitHub-Delivery: Unique delivery ID for idempotency
     """
     payload = await request.body()
-    
-    # Signature verification
-    if WEBHOOK_SECRET:
-        try:
-            verify_signature(payload, x_hub_signature_256 or "", WEBHOOK_SECRET)
-        except WebhookVerificationError as exc:
-            logger.warning(
-                "Webhook verification failed (delivery=%s): %s",
-                x_github_delivery, exc
-            )
-            return JSONResponse(
-                status_code=401,
-                content={"error": str(exc)}
-            )
-    else:
-        logger.warning("GITHUB_WEBHOOK_SECRET not set — skipping verification")
-    
+
+    # ── Signature verification (FAIL CLOSED — reject all if no secret) ──
+    if not WEBHOOK_SECRET:
+        logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting ALL webhooks (fail closed)")
+        return JSONResponse(status_code=503, content={"error": "Webhook secret not configured"})
+
+    try:
+        verify_signature(payload, x_hub_signature_256 or "", WEBHOOK_SECRET)
+    except WebhookVerificationError as exc:
+        logger.warning("Webhook verification failed (delivery=%s): %s", x_github_delivery, exc)
+        return JSONResponse(status_code=401, content={"error": str(exc)})
+
     event_type = x_github_event or "unknown"
     delivery_id = x_github_delivery or "unknown"
     
@@ -126,7 +121,6 @@ async def receive_github_webhook(
                 "Processed issues.%s (issue #%d, delivery=%s)",
                 action, issue.get("number"), delivery_id
             )
-            
             return JSONResponse(status_code=200, content=result)
         
         else:
