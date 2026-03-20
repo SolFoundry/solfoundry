@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -112,10 +113,10 @@ async def get_db_session():
 
 async def init_db() -> None:
     """
-    Initialize the database schema.
+    Initialize the database schema and search infrastructure.
     
     This should be called once during application startup.
-    It creates all tables from model definitions.
+    It creates all tables and sets up the search vector trigger.
     """
     logger.info("Initializing database schema...")
     
@@ -126,7 +127,47 @@ async def init_db() -> None:
         # Create all tables from model definitions
         await conn.run_sync(Base.metadata.create_all)
         
-    logger.info("Database schema initialized successfully")
+        # Create the search vector trigger function
+        await conn.execute(text("""
+            CREATE OR REPLACE FUNCTION update_bounty_search_vector()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.search_vector := to_tsvector('english', 
+                    coalesce(NEW.title, '') || ' ' || 
+                    coalesce(NEW.description, '')
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """))
+        
+        # Create the trigger (idempotent)
+        await conn.execute(text("""
+            DROP TRIGGER IF EXISTS bounty_search_vector_update ON bounties;
+            CREATE TRIGGER bounty_search_vector_update
+                BEFORE INSERT OR UPDATE ON bounties
+                FOR EACH ROW
+                EXECUTE FUNCTION update_bounty_search_vector();
+        """))
+        
+        # Create GIN index for fast full-text search
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_bounties_search_vector 
+            ON bounties USING GIN(search_vector);
+        """))
+        
+        # Create composite indexes for common filter patterns
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_bounties_status_tier 
+            ON bounties(status, tier);
+        """))
+        
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_bounties_status_category 
+            ON bounties(status, category);
+        """))
+        
+        logger.info("Database schema initialized successfully")
 
 
 async def close_db() -> None:
