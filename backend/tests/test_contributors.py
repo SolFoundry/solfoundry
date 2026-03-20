@@ -46,12 +46,14 @@ def test_list_empty():
 
 
 def test_list_with_data():
-    _create("alice")`r`n    _create("bob")
+    _create("alice")
+    _create("bob")
     assert client.get("/api/contributors").json()["total"] == 2
 
 
 def test_search():
-    _create("alice")`r`n    _create("bob")
+    _create("alice")
+    _create("bob")
     resp = client.get("/api/contributors?search=alice")
     assert resp.json()["total"] == 1
 
