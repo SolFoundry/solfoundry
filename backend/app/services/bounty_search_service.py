@@ -503,7 +503,7 @@ class BountySearchService:
         if self._session is None:
             return False
         try:
-            result = await self._session.execute(
+            await self._session.execute(
                 text("SELECT 1 FROM bounties LIMIT 0")
             )
             return True
