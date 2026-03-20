@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.payout_service import reset_stores
-from app.services.treasury_service import CACHE_TTL, _cache, invalidate_cache
+from app.services.treasury_service import invalidate_cache
 
 client = TestClient(app)
 TX1, TX2, TX3, TX4 = chr(52) * 88, chr(53) * 88, chr(54) * 88, chr(55) * 88
