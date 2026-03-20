@@ -265,6 +265,12 @@ function Header({
                     <p className="text-sm font-medium text-white">{userName || 'User'}</p>
                     <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
+                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                    Creator Dashboard
+                  </a>
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                    Contributor Dashboard
+                  </a>
                   <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
                     Profile
                   </a>
