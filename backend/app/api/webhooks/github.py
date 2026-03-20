@@ -1,7 +1,6 @@
 """GitHub webhook receiver endpoint."""
 
 import json
-import logging
 import os
 
 from fastapi import APIRouter, Header, Request, Depends
@@ -14,9 +13,12 @@ from app.services.webhook_service import (
     verify_signature,
 )
 from app.services.webhook_processor import WebhookProcessor
+from app.core.errors import ErrorCode
+from app.core.logging_config import get_logger
+from app.core.audit import audit_log, AuditAction
 
-logger = logging.getLogger(__name__)
 
+logger = get_logger(__name__)
 router = APIRouter()
 
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
@@ -43,34 +45,107 @@ async def receive_github_webhook(
     - X-GitHub-Delivery: Unique delivery ID for idempotency
     """
     payload = await request.body()
+    client_ip = request.headers.get("x-forwarded-for", "unknown")
 
     # ── Signature verification (FAIL CLOSED — reject all if no secret) ──
     if not WEBHOOK_SECRET:
         logger.error("GITHUB_WEBHOOK_SECRET not set — rejecting ALL webhooks (fail closed)")
-        return JSONResponse(status_code=503, content={"error": "Webhook secret not configured"})
+        
+        # Audit log
+        audit_log(
+            action=AuditAction.WEBHOOK_REJECTED,
+            actor="github",
+            resource="webhook",
+            resource_id=x_github_delivery or "unknown",
+            result="failure",
+            ip_address=client_ip,
+            metadata={"reason": "Webhook secret not configured"}
+        )
+        
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": ErrorCode.SERVICE_UNAVAILABLE.value,
+                "message": "Webhook secret not configured"
+            }
+        )
 
     try:
         verify_signature(payload, x_hub_signature_256 or "", WEBHOOK_SECRET)
     except WebhookVerificationError as exc:
-        logger.warning("Webhook verification failed (delivery=%s): %s", x_github_delivery, exc)
-        return JSONResponse(status_code=401, content={"error": str(exc)})
+        logger.warning(f"Webhook verification failed (delivery={x_github_delivery}): {exc}")
+        
+        # Audit log
+        audit_log(
+            action=AuditAction.WEBHOOK_REJECTED,
+            actor="github",
+            resource="webhook",
+            resource_id=x_github_delivery or "unknown",
+            result="failure",
+            ip_address=client_ip,
+            metadata={
+                "reason": str(exc),
+                "event_type": x_github_event,
+            }
+        )
+        
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": ErrorCode.WEBHOOK_SIGNATURE_INVALID.value,
+                "message": str(exc)
+            }
+        )
 
     event_type = x_github_event or "unknown"
     delivery_id = x_github_delivery or "unknown"
     
+    logger.info(
+        f"Webhook received: {event_type}",
+        extra={"extra_data": {
+            "event_type": event_type,
+            "delivery_id": delivery_id,
+            "client_ip": client_ip,
+        }}
+    )
+    
+    # Audit log - webhook verified
+    audit_log(
+        action=AuditAction.WEBHOOK_VERIFIED,
+        actor="github",
+        resource="webhook",
+        resource_id=delivery_id,
+        ip_address=client_ip,
+        metadata={"event_type": event_type}
+    )
+    
     # Handle ping
     if event_type == "ping":
-        logger.info("Received ping from GitHub (delivery=%s)", delivery_id)
+        logger.info(f"Received ping from GitHub (delivery={delivery_id})")
         return JSONResponse(status_code=200, content={"msg": "pong"})
     
     # Parse payload
     try:
         body = json.loads(payload)
     except json.JSONDecodeError as exc:
-        logger.error("Invalid JSON payload (delivery=%s): %s", delivery_id, exc)
+        logger.error(f"Invalid JSON payload (delivery={delivery_id}): {exc}")
+        
+        audit_log(
+            action=AuditAction.WEBHOOK_FAILED,
+            actor="github",
+            resource="webhook",
+            resource_id=delivery_id,
+            result="failure",
+            ip_address=client_ip,
+            metadata={"reason": "Invalid JSON", "error": str(exc)}
+        )
+        
         return JSONResponse(
             status_code=400,
-            content={"error": "Invalid JSON"}
+            content={
+                "error": ErrorCode.WEBHOOK_PAYLOAD_INVALID.value,
+                "message": "Invalid JSON payload"
+            }
         )
     
     # Process event
@@ -93,8 +168,27 @@ async def receive_github_webhook(
             )
             
             logger.info(
-                "Processed pull_request.%s (PR #%d, delivery=%s)",
-                action, pr.get("number"), delivery_id
+                f"Processed pull_request.{action}",
+                extra={"extra_data": {
+                    "action": action,
+                    "pr_number": pr.get("number"),
+                    "delivery_id": delivery_id,
+                }}
+            )
+            
+            # Audit log
+            audit_log(
+                action=AuditAction.WEBHOOK_RECEIVED,
+                actor=body.get("sender", {}).get("login", "unknown"),
+                resource="webhook",
+                resource_id=delivery_id,
+                ip_address=client_ip,
+                metadata={
+                    "event_type": event_type,
+                    "action": action,
+                    "pr_number": pr.get("number"),
+                    "repository": repo.get("full_name"),
+                }
             )
             
             return JSONResponse(status_code=200, content=result)
@@ -118,14 +212,34 @@ async def receive_github_webhook(
             )
             
             logger.info(
-                "Processed issues.%s (issue #%d, delivery=%s)",
-                action, issue.get("number"), delivery_id
+                f"Processed issues.{action}",
+                extra={"extra_data": {
+                    "action": action,
+                    "issue_number": issue.get("number"),
+                    "delivery_id": delivery_id,
+                }}
             )
+            
+            # Audit log
+            audit_log(
+                action=AuditAction.WEBHOOK_RECEIVED,
+                actor=body.get("sender", {}).get("login", "unknown"),
+                resource="webhook",
+                resource_id=delivery_id,
+                ip_address=client_ip,
+                metadata={
+                    "event_type": event_type,
+                    "action": action,
+                    "issue_number": issue.get("number"),
+                    "repository": repo.get("full_name"),
+                }
+            )
+            
             return JSONResponse(status_code=200, content=result)
         
         else:
             # Unhandled event type
-            logger.info("Unhandled event type: %s (delivery=%s)", event_type, delivery_id)
+            logger.info(f"Unhandled event type: {event_type} (delivery={delivery_id})")
             return JSONResponse(
                 status_code=202,
                 content={"status": "accepted", "event": event_type, "handled": False}
@@ -133,10 +247,32 @@ async def receive_github_webhook(
     
     except Exception as exc:
         logger.error(
-            "Error processing %s event (delivery=%s): %s",
-            event_type, delivery_id, exc
+            f"Error processing {event_type} event (delivery={delivery_id}): {exc}",
+            exc_info=True,
+            extra={"extra_data": {
+                "event_type": event_type,
+                "delivery_id": delivery_id,
+            }}
         )
+        
+        # Audit log
+        audit_log(
+            action=AuditAction.WEBHOOK_FAILED,
+            actor="github",
+            resource="webhook",
+            resource_id=delivery_id,
+            result="failure",
+            ip_address=client_ip,
+            metadata={
+                "event_type": event_type,
+                "error": str(exc),
+            }
+        )
+        
         return JSONResponse(
             status_code=500,
-            content={"error": str(exc)}
+            content={
+                "error": ErrorCode.INTERNAL_ERROR.value,
+                "message": "Error processing webhook"
+            }
         )

@@ -1,7 +1,7 @@
 """Bounty search and filter API endpoints."""
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -16,7 +16,12 @@ from app.models.bounty import (
 )
 from app.services.bounty_service import BountySearchService
 from app.database import get_db
+from app.core.errors import NotFoundException, ValidationException, ErrorCode
+from app.core.logging_config import get_logger
+from app.core.audit import audit_log, AuditAction
 
+
+logger = get_logger(__name__)
 router = APIRouter(prefix="/bounties", tags=["bounties"])
 
 
@@ -48,6 +53,15 @@ async def search_bounties(
     - **skip**: Pagination offset
     - **limit**: Number of results per page
     """
+    logger.info(
+        "Searching bounties",
+        extra={"extra_data": {
+            "query": q,
+            "tier": tier,
+            "category": category,
+            "status": status,
+        }}
+    )
     
     params = BountySearchParams(
         q=q,
@@ -90,12 +104,14 @@ async def get_bounty(
     from sqlalchemy import select
     from app.models.bounty import BountyDB
     
+    logger.debug(f"Fetching bounty: {bounty_id}")
+    
     query = select(BountyDB).where(BountyDB.id == bounty_id)
     result = await db.execute(query)
     bounty = result.scalar_one_or_none()
     
     if not bounty:
-        raise HTTPException(status_code=404, detail="Bounty not found")
+        raise NotFoundException("Bounty", bounty_id)
     
     return BountyResponse.model_validate(bounty)
 
@@ -108,6 +124,15 @@ async def create_bounty(
     """Create a new bounty."""
     from app.models.bounty import BountyDB
     
+    logger.info(
+        "Creating bounty",
+        extra={"extra_data": {
+            "title": bounty.title,
+            "tier": bounty.tier,
+            "reward": bounty.reward_amount,
+        }}
+    )
+    
     db_bounty = BountyDB(**bounty.model_dump())
     db.add(db_bounty)
     await db.commit()
@@ -117,4 +142,76 @@ async def create_bounty(
     service = BountySearchService(db)
     await service.update_search_vector(str(db_bounty.id))
     
+    # Audit log
+    audit_log(
+        action=AuditAction.BOUNTY_CREATED,
+        actor="api",  # Would be replaced with actual user in auth implementation
+        resource="bounty",
+        resource_id=str(db_bounty.id),
+        metadata={
+            "title": bounty.title,
+            "tier": bounty.tier,
+            "reward": bounty.reward_amount,
+        }
+    )
+    
+    logger.info(f"Bounty created: {db_bounty.id}")
+    
     return BountyResponse.model_validate(db_bounty)
+
+
+@router.patch("/{bounty_id}", response_model=BountyResponse)
+async def update_bounty(
+    bounty_id: str,
+    bounty_update: BountyUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing bounty."""
+    from app.models.bounty import BountyDB
+    
+    # Fetch existing bounty
+    query = select(BountyDB).where(BountyDB.id == bounty_id)
+    result = await db.execute(query)
+    bounty = result.scalar_one_or_none()
+    
+    if not bounty:
+        raise NotFoundException("Bounty", bounty_id)
+    
+    # Update fields
+    update_data = bounty_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(bounty, field, value)
+    
+    await db.commit()
+    await db.refresh(bounty)
+    
+    logger.info(
+        "Bounty updated",
+        extra={"extra_data": {
+            "bounty_id": bounty_id,
+            "fields_updated": list(update_data.keys()),
+        }}
+    )
+    
+    return BountyResponse.model_validate(bounty)
+
+
+@router.delete("/{bounty_id}", status_code=204)
+async def delete_bounty(
+    bounty_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a bounty."""
+    from app.models.bounty import BountyDB
+    
+    query = select(BountyDB).where(BountyDB.id == bounty_id)
+    result = await db.execute(query)
+    bounty = result.scalar_one_or_none()
+    
+    if not bounty:
+        raise NotFoundException("Bounty", bounty_id)
+    
+    await db.delete(bounty)
+    await db.commit()
+    
+    logger.info(f"Bounty deleted: {bounty_id}")
