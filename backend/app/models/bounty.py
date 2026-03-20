@@ -213,6 +213,7 @@ class BountyListItem(BaseModel):
     reward_amount: float
     status: BountyStatus
     required_skills: list[str] = Field(default_factory=list)
+    github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
     created_by: str
     submission_count: int = 0

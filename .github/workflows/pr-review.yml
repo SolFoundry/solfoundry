@@ -18,6 +18,9 @@ permissions:
 jobs:
   ai-review:
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - name: Checkout base repo (safe — never runs PR code)
         uses: actions/checkout@v4
@@ -77,7 +80,26 @@ jobs:
           # Write body to file to avoid shell escaping issues
           echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
 
+      - name: Check for existing review (dedup)
+        id: dedup
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ steps.pr.outputs.number }}"
+          REPO="${{ github.repository }}"
+          # Check if a multi-LLM review comment already exists on this PR
+          EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete"))] | length' 2>/dev/null || echo "0")
+          if [ "$EXISTING" -gt "0" ]; then
+            echo "Review already exists on PR #${PR_NUM} — skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "No existing review — proceeding"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Get PR diff
+        if: steps.dedup.outputs.skip != 'true'
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,6 +108,7 @@ jobs:
           echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
 
       - name: Get bounty context and submission order
+        if: steps.dedup.outputs.skip != 'true'
         id: bounty
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,7 +212,7 @@ jobs:
           fi
 
       - name: Check for duplicate submissions
-        if: steps.bounty.outputs.issue_num != ''
+        if: steps.dedup.outputs.skip != 'true' && steps.bounty.outputs.issue_num != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -244,6 +267,7 @@ jobs:
           PYEOF
 
       - name: Fetch CodeRabbit analysis (private context for LLM judges)
+        if: steps.dedup.outputs.skip != 'true'
         id: coderabbit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -360,6 +384,7 @@ jobs:
           PYEOF
 
       - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
+        if: steps.dedup.outputs.skip != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

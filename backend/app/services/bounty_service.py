@@ -72,6 +72,7 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         reward_amount=b.reward_amount,
         status=b.status,
         required_skills=b.required_skills,
+        github_issue_url=b.github_issue_url,
         deadline=b.deadline,
         created_by=b.created_by,
         submission_count=len(b.submissions),

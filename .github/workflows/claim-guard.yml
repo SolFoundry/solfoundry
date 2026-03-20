@@ -10,6 +10,8 @@ permissions:
 jobs:
   claim-guard:
     runs-on: ubuntu-latest
+    concurrency:
+      group: claim-guard-${{ github.event.issue.number }}-${{ github.event.comment.user.login }}
     steps:
       - name: Guard claims and clean spam
         env:

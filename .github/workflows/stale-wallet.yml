@@ -12,6 +12,8 @@ permissions:
 jobs:
   close-stale:
     runs-on: ubuntu-latest
+    concurrency:
+      group: stale-wallet
     steps:
       - name: Close PRs missing wallet for 24h+
         env:
@@ -43,11 +45,21 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          def send_telegram(msg):
+          def send_telegram_with_buttons(msg, buttons):
+              """Send Telegram message with inline keyboard buttons."""
               if not tg_token or not tg_chat:
                   return
               url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
-              data = json.dumps({"chat_id": tg_chat, "text": msg, "parse_mode": "HTML"}).encode()
+              payload = {
+                  "chat_id": tg_chat,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True,
+                  "reply_markup": json.dumps({
+                      "inline_keyboard": [buttons]
+                  })
+              }
+              data = json.dumps(payload).encode()
               req = urllib.request.Request(url, data=data, method="POST")
               req.add_header("Content-Type", "application/json")
               try:
@@ -108,13 +120,19 @@ jobs:
                       )
                   })
                   gh_api(f"repos/{repo}/pulls/{pr_num}", method="PATCH", data={"state": "closed"})
-                  closed.append(f"#{pr_num} (@{pr_author}) — {pr_title[:50]}")
+                  closed.append({
+                      "text": f"#{pr_num} (@{pr_author}) — {pr_title[:50]}",
+                      "url": f"https://github.com/{repo}/pull/{pr_num}"
+                  })
                   print(f"Closed PR #{pr_num} — missing wallet 24h+")
 
           if closed:
-              send_telegram(
+              # Build inline keyboard with View PR buttons for each closed PR
+              buttons = [{"text": f"👀 #{c['url'].split('/')[-1]}", "url": c["url"]} for c in closed[:3]]
+              send_telegram_with_buttons(
                   f"🗑 <b>Auto-closed {len(closed)} PR(s) — missing wallet (24h expired)</b>\n\n"
-                  + "\n".join(f"• {c}" for c in closed)
+                  + "\n".join(f"• {c['text']}" for c in closed),
+                  buttons
               )
           else:
               print("No PRs to close")

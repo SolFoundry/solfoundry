@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import Base
 
@@ -57,3 +57,76 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Auth request/response models
+# ---------------------------------------------------------------------------
+
+
+class GitHubOAuthRequest(BaseModel):
+    """GitHub OAuth callback with authorization code."""
+    code: str = Field(..., min_length=1, description="GitHub OAuth authorization code")
+    state: Optional[str] = Field(None, description="OAuth state for CSRF protection")
+
+
+class GitHubOAuthResponse(BaseModel):
+    """Response after successful GitHub OAuth."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    user: UserResponse
+
+
+class WalletAuthRequest(BaseModel):
+    """Solana wallet signature authentication."""
+    wallet_address: str = Field(..., min_length=32, max_length=64)
+    signature: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1)
+
+
+class WalletAuthResponse(BaseModel):
+    """Response after successful wallet authentication."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    user: UserResponse
+
+
+class LinkWalletRequest(BaseModel):
+    """Link a Solana wallet to an existing user."""
+    wallet_address: str = Field(..., min_length=32, max_length=64)
+    signature: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1)
+
+
+class LinkWalletResponse(BaseModel):
+    """Response after linking a wallet."""
+    success: bool = True
+    wallet_address: str
+    message: str = "Wallet linked successfully"
+
+
+class RefreshTokenRequest(BaseModel):
+    """Refresh token exchange."""
+    refresh_token: str = Field(..., min_length=1)
+
+
+class RefreshTokenResponse(BaseModel):
+    """New access token from refresh."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+
+
+class AuthMessageResponse(BaseModel):
+    """Challenge message for wallet signature verification."""
+    message: str
+    nonce: str
+
+
+# Legacy aliases
+TokenRefreshRequest = RefreshTokenRequest
+TokenRefreshResponse = RefreshTokenResponse

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 export interface NavLink {
   label: string;
   href: string;
+  external?: boolean;
 }
 
 export interface SiteLayoutProps {
@@ -27,13 +28,13 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
   { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Agents', href: '/agents' },
-  { label: 'Docs', href: '/docs' },
+  { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
 ];
 
 const FOOTER_LINKS = [
-  { label: 'GitHub', href: 'https://github.com/solfoundry' },
+  { label: 'GitHub', href: 'https://github.com/SolFoundry/solfoundry' },
   { label: 'Twitter', href: 'https://twitter.com/foundrysol' },
-  { label: 'Docs', href: '/docs' },
+  { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme' },
   { label: 'CA', href: 'https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS' },
 ];
 
@@ -216,13 +217,15 @@ function Header({
               <a
                 key={link.href}
                 href={link.href}
-                onClick={() => onNavClick(link.href)}
+                onClick={link.external ? undefined : () => onNavClick(link.href)}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                  ${currentPath === link.href || currentPath.startsWith(link.href + '/')
+                  ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
                     ? 'text-[#14F195] bg-[#14F195]/10'
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
                   }`}
-                aria-current={currentPath === link.href ? 'page' : undefined}
+                aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
               >
                 {link.label}
               </a>
@@ -340,13 +343,15 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
           <a
             key={link.href}
             href={link.href}
-            onClick={() => onNavClick(link.href)}
+            onClick={link.external ? undefined : () => onNavClick(link.href)}
+            target={link.external ? '_blank' : undefined}
+            rel={link.external ? 'noopener noreferrer' : undefined}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
-              ${currentPath === link.href || currentPath.startsWith(link.href + '/')
+              ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
                 ? 'text-[#14F195] bg-[#14F195]/10'
                 : 'text-gray-300 hover:text-white hover:bg-white/5'
               }`}
-            aria-current={currentPath === link.href ? 'page' : undefined}
+            aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
           >
             {link.label}
           </a>

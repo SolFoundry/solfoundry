@@ -21,6 +21,8 @@ jobs:
        github.event.comment.user.login != 'github-actions[bot]' &&
        github.event.comment.user.login != 'chronoeth-creator')
     runs-on: ubuntu-latest
+    concurrency:
+      group: wallet-check-${{ github.event.pull_request.number || github.event.issue.number }}
     steps:
       - name: Check for Solana wallet
         env:
@@ -58,11 +60,23 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          def send_telegram(msg):
+          def send_telegram_with_button(msg, button_text, button_url):
+              """Send Telegram message with an inline keyboard button."""
               if not tg_token or not tg_chat:
                   return
               url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
-              data = json.dumps({"chat_id": tg_chat, "text": msg, "parse_mode": "HTML"}).encode()
+              payload = {
+                  "chat_id": tg_chat,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True,
+                  "reply_markup": json.dumps({
+                      "inline_keyboard": [[
+                          {"text": button_text, "url": button_url}
+                      ]]
+                  })
+              }
+              data = json.dumps(payload).encode()
               req = urllib.request.Request(url, data=data, method="POST")
               req.add_header("Content-Type", "application/json")
               try:
@@ -103,6 +117,7 @@ jobs:
 
           pr_body = pr_detail.get("body", "") or ""
           pr_author = pr_detail.get("user", {}).get("login", pr_author)
+          pr_url = pr_detail.get("html_url", f"https://github.com/{repo}/pull/{pr_number}")
 
           # ── Check for wallet in PR body and comment ──
           # SECURITY: Only accept wallet from PR author (prevent wallet injection)
@@ -157,6 +172,11 @@ jobs:
                           )
                       })
 
+                  # Add review-triggered label so pr-review can skip if it already ran
+                  gh_api(f"repos/{repo}/issues/{pr_number}/labels", method="POST", data={
+                      "labels": ["review-triggered"]
+                  })
+
                   # Trigger AI Code Review via workflow_dispatch (label removal doesn't trigger pull_request_target)
                   trigger_resp = gh_api(
                       f"repos/{repo}/actions/workflows/pr-review.yml/dispatches",
@@ -166,11 +186,14 @@ jobs:
                   review_triggered = trigger_resp[1] == 204
                   review_status = "🔄 Review triggered" if review_triggered else "⚠️ Review trigger failed"
 
-                  send_telegram(
+                  # Send Telegram with inline View PR button (bot doesn't detect wallet-added immediately)
+                  send_telegram_with_button(
                       f"✅ <b>Wallet added — PR #{pr_number}</b>\n"
                       f"👤 {pr_author}\n"
                       f"📬 <code>{wallet}</code>\n"
-                      f"Label removed. {review_status}"
+                      f"Label removed. {review_status}",
+                      "👀 View PR",
+                      pr_url
                   )
                   print(f"PR #{pr_number}: wallet found ({wallet_redacted}), removed missing-wallet label, review={'triggered' if review_triggered else 'trigger failed'}")
               else:
@@ -207,6 +230,7 @@ jobs:
                           "labels": ["missing-wallet"]
                       })
                       print(f"PR #{pr_number}: no wallet, warned + labeled")
+                      # No Telegram for missing wallet — just label the PR, bot will see it
                   else:
                       print(f"PR #{pr_number}: no wallet, already warned")
               else:

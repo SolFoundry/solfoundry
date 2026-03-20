@@ -1,7 +1,7 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'completed';
 export type BountySortBy = 'newest' | 'reward' | 'deadline';
-export interface Bounty { id: string; title: string; description: string; tier: BountyTier; skills: string[]; rewardAmount: number; currency: string; deadline: string; status: BountyStatus; submissionCount: number; createdAt: string; projectName: string; }
+export interface Bounty { id: string; title: string; description: string; tier: BountyTier; skills: string[]; rewardAmount: number; currency: string; deadline: string; status: BountyStatus; submissionCount: number; createdAt: string; projectName: string; githubIssueUrl?: string; }
 export interface BountyBoardFilters { tier: BountyTier | 'all'; status: BountyStatus | 'all'; skills: string[]; searchQuery: string; }
 export const DEFAULT_FILTERS: BountyBoardFilters = { tier: 'all', status: 'all', skills: [], searchQuery: '' };
 export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js'];

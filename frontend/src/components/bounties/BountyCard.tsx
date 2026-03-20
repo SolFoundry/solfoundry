@@ -17,8 +17,10 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
   useEffect(() => { const i = setInterval(() => setTr(formatTimeRemaining(b.deadline)), 6e4); return () => clearInterval(i); }, [b.deadline]);
   const exp = new Date(b.deadline).getTime() <= Date.now();
   const urg = b.status === 'open' && !exp && new Date(b.deadline).getTime() - Date.now() < 2 * 864e5;
-  return (
-    <button type="button" onClick={() => onClick(b.id)} className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-solana-green' + (exp ? ' opacity-60' : '')} data-testid={'bounty-card-' + b.id} aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}>
+  const showSubmissions = b.tier === 'T3';
+
+  const cardContent = (
+    <>
       {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#FF6B6B] animate-pulse" data-testid="urgent-indicator" />}
       <div className="p-5">
         <div className="flex justify-between mb-3"><TierBadge tier={b.tier} /><StatusIndicator status={b.status} /></div>
@@ -28,8 +30,38 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
         <SkillTags skills={b.skills} maxVisible={3} />
         <div className="flex justify-between pt-3 mt-3 border-t border-surface-300">
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
-          <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
+          {showSubmissions && <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>}
         </div>
       </div>
-    </button>);
+    </>
+  );
+
+  // If there's a GitHub issue URL, render as a link that opens in new tab
+  if (b.githubIssueUrl) {
+    return (
+      <a
+        href={b.githubIssueUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all block' + (exp ? ' opacity-60' : '')}
+        data-testid={'bounty-card-' + b.id}
+        aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
+      >
+        {cardContent}
+      </a>
+    );
+  }
+
+  // Fallback: button with onClick
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(b.id)}
+      className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all focus-visible:ring-2 focus-visible:ring-solana-green' + (exp ? ' opacity-60' : '')}
+      data-testid={'bounty-card-' + b.id}
+      aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
+    >
+      {cardContent}
+    </button>
+  );
 }

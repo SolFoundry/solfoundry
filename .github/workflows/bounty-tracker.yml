@@ -15,6 +15,8 @@ jobs:
   track-bounty:
     if: github.event.pull_request.merged == true || github.event_name == 'issues'
     runs-on: ubuntu-latest
+    concurrency:
+      group: bounty-tracker-${{ github.event.pull_request.number }}
     steps:
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -42,16 +44,32 @@ jobs:
           python3 << 'PYEOF'
           import os, re, requests, json
 
-          def send_telegram(msg):
+          def send_telegram(msg, reply_markup=None):
               token = os.environ.get("TELEGRAM_BOT_TOKEN")
               chat_id = os.environ.get("TELEGRAM_CHAT_ID")
               if not token or not chat_id:
                   print("Telegram not configured")
                   return
+              payload = {
+                  "chat_id": chat_id,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True
+              }
+              if reply_markup:
+                  payload["reply_markup"] = json.dumps(reply_markup)
               requests.post(
                   f"https://api.telegram.org/bot{token}/sendMessage",
-                  json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True}
+                  json=payload
               )
+
+          def gh_api_get(path):
+              token = os.environ.get("GH_TOKEN", "")
+              resp = requests.get(
+                  f"https://api.github.com/{path}",
+                  headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+              )
+              return resp.json() if resp.ok else None
 
           event = os.environ["EVENT_NAME"]
 
@@ -62,9 +80,24 @@ jobs:
               pr_author = os.environ.get("PR_AUTHOR", "")
               pr_number = os.environ.get("PR_NUMBER", "")
               pr_url = os.environ.get("PR_URL", "")
+              repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+
+              # Dedup check: skip if we already sent a bounty-tracked comment on this PR
+              comments = gh_api_get(f"repos/{repo}/issues/{pr_number}/comments?per_page=50")
+              if comments:
+                  already_tracked = any(
+                      "Bounty tracked" in (c.get("body", "") or "") or
+                      "bounty-tracked" in (c.get("body", "") or "")
+                      for c in comments if isinstance(c, dict)
+                  )
+                  if already_tracked:
+                      print(f"PR #{pr_number}: already tracked, skipping duplicate")
+                      exit(0)
 
               # Find "Closes #N" patterns
               closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_body.lower())
+
+              keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
 
               if closes:
                   issue_nums = ", ".join(f"#{n}" for n in closes)
@@ -73,18 +106,16 @@ jobs:
                       f"PR #{pr_number}: {pr_title}\n"
                       f"by @{pr_author}\n"
                       f"Closes: {issue_nums}\n\n"
-                      f"\U0001f4b0 Review payout eligibility and send $FNDRY\n\n"
-                      f"{pr_url}"
+                      f"\U0001f4b0 Review payout eligibility and send $FNDRY"
                   )
-                  send_telegram(msg)
+                  send_telegram(msg, reply_markup=keyboard)
               else:
                   msg = (
                       f"\u2705 <b>PR Merged</b>\n\n"
                       f"PR #{pr_number}: {pr_title}\n"
-                      f"by @{pr_author}\n\n"
-                      f"{pr_url}"
+                      f"by @{pr_author}"
                   )
-                  send_telegram(msg)
+                  send_telegram(msg, reply_markup=keyboard)
 
           print("Bounty tracking complete")
           PYEOF
