@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -83,6 +84,9 @@ app.add_middleware(
 # ── Route Registration ──────────────────────────────────────────────────────
 # Auth: /auth/* (prefix defined in router)
 app.include_router(auth_router)
+
+# Agents: /agents/* → /api prefix added here
+app.include_router(agents_router, prefix="/api")
 
 # Contributors: /contributors/* → needs /api prefix added here
 app.include_router(contributors_router, prefix="/api")
