@@ -256,11 +256,27 @@ jobs:
         run: cargo fmt -- --check
         continue-on-error: true
 
+  # ==================== DOCKER VALIDATION ====================
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Dockerfiles exist
+        run: |
+          test -f Dockerfile.backend  || { echo "Missing Dockerfile.backend"; exit 1; }
+          test -f Dockerfile.frontend || { echo "Missing Dockerfile.frontend"; exit 1; }
+
+      - name: Validate Docker Compose Config
+        run: docker compose config --quiet
+
   # ==================== SUMMARY ====================
   ci-status:
     name: CI Status Summary
     runs-on: ubuntu-latest
-    needs: [backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint]
+    needs: [backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint, docker-build-check]
     if: always()
     steps:
       - name: Check CI Results
@@ -275,6 +291,7 @@ jobs:
           echo "| Frontend Type Check | ${{ needs.frontend-typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Tests | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Build | ${{ needs.frontend-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Contracts Check | ${{ needs.contracts-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Rust Lint | ${{ needs.rust-lint.result }} |" >> $GITHUB_STEP_SUMMARY
 
