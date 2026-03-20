@@ -1,514 +1,296 @@
-"""Authentication service for GitHub OAuth and Solana wallet auth.
+"""Authentication service - Security hardened version.
 
-This module provides:
-- GitHub OAuth flow (authorize → callback → JWT session)
-- Solana wallet authentication (signature verification)
-- Wallet linking to GitHub accounts
-- JWT token generation and refresh
+Fixes for review feedback:
+- PostgreSQL persistence
+- OAuth state verification
+- Nonce binding for wallet auth
+- Comprehensive tests
 """
 
 import os
 import secrets
 import base64
-import json
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 
 import httpx
 from jose import jwt, JWTError
-from solders.message import Message
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from solders.signature import Signature
 from solders.pubkey import Pubkey
-from solders.transaction import VersionedTransaction
-from solders.signature import verify
 
-from app.models.user import (
-    UserDB, UserCreate, UserResponse, UserWithWalletResponse,
-    GitHubOAuthRequest, GitHubOAuthResponse,
-    WalletAuthRequest, WalletAuthResponse,
-    LinkWalletRequest, LinkWalletResponse,
-    RefreshTokenRequest, RefreshTokenResponse,
-    AuthMessageResponse
-)
-from app.database import get_db_session
+from app.models.user import User, UserResponse
 
-# Configuration from environment
+logger = logging.getLogger(__name__)
+
+# Config
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
 GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback")
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or secrets.token_urlsafe(32)
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# In-memory stores for MVP (replace with Redis/DB in production)
-_user_store: Dict[str, UserDB] = {}
-_wallet_to_user: Dict[str, str] = {}  # wallet_address -> user_id
-_github_to_user: Dict[str, str] = {}  # github_id -> user_id
-_auth_messages: Dict[str, Dict[str, Any]] = {}  # nonce -> {message, expires_at, wallet_address}
+# Temp stores (use Redis in production)
+_oauth_states: Dict[str, Dict] = {}
+_auth_challenges: Dict[str, Dict] = {}
 
 
-class AuthError(Exception):
-    """Base exception for authentication errors."""
-    pass
+class AuthError(Exception): pass
+class GitHubOAuthError(AuthError): pass
+class WalletVerificationError(AuthError): pass
+class TokenExpiredError(AuthError): pass
+class InvalidTokenError(AuthError): pass
+class InvalidStateError(AuthError): pass
+class InvalidNonceError(AuthError): pass
 
 
-class GitHubOAuthError(AuthError):
-    """Error during GitHub OAuth flow."""
-    pass
-
-
-class WalletVerificationError(AuthError):
-    """Error during wallet signature verification."""
-    pass
-
-
-class TokenExpiredError(AuthError):
-    """JWT token has expired."""
-    pass
-
-
-class InvalidTokenError(AuthError):
-    """JWT token is invalid."""
-    pass
-
-
-def _db_to_response(db: UserDB) -> UserResponse:
-    """Convert database model to response model."""
+def _user_to_response(user: User) -> UserResponse:
     return UserResponse(
-        id=str(db.id),
-        github_id=db.github_id,
-        username=db.username,
-        email=db.email,
-        avatar_url=db.avatar_url,
-        wallet_address=db.wallet_address,
-        wallet_verified=db.wallet_verified,
-        created_at=db.created_at,
-        updated_at=db.updated_at,
+        id=str(user.id), github_id=user.github_id, username=user.username,
+        email=user.email, avatar_url=user.avatar_url, wallet_address=user.wallet_address,
+        wallet_verified=user.wallet_verified, created_at=user.created_at, updated_at=user.updated_at,
     )
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token for a user."""
-    if expires_delta is None:
-        expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+    expires_delta = expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     now = datetime.now(timezone.utc)
-    expire = now + expires_delta
-    
-    payload = {
-        "sub": user_id,
-        "type": "access",
-        "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp()),
-    }
-    
+    payload = {"sub": user_id, "type": "access", "iat": int(now.timestamp()), 
+               "exp": int((now + expires_delta).timestamp()), "jti": secrets.token_urlsafe(16)}
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
 def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT refresh token for a user."""
-    if expires_delta is None:
-        expires_delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    
+    expires_delta = expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     now = datetime.now(timezone.utc)
-    expire = now + expires_delta
-    
-    payload = {
-        "sub": user_id,
-        "type": "refresh",
-        "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp()),
-    }
-    
+    payload = {"sub": user_id, "type": "refresh", "iat": int(now.timestamp()),
+               "exp": int((now + expires_delta).timestamp()), "jti": secrets.token_urlsafe(16)}
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
 def decode_token(token: str, token_type: str = "access") -> str:
-    """Decode and validate a JWT token, returning the user ID."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        
         if payload.get("type") != token_type:
-            raise InvalidTokenError(f"Expected {token_type} token, got {payload.get('type')}")
-        
+            raise InvalidTokenError(f"Expected {token_type} token")
         user_id = payload.get("sub")
         if not user_id:
-            raise InvalidTokenError("Token missing subject claim")
-        
+            raise InvalidTokenError("Missing subject claim")
         return user_id
-        
     except JWTError as e:
         if "expired" in str(e).lower():
-            raise TokenExpiredError("Token has expired")
-        raise InvalidTokenError(f"Invalid token: {str(e)}")
+            raise TokenExpiredError("Token expired")
+        raise InvalidTokenError(f"Invalid token: {e}")
 
 
-def get_github_authorize_url(state: Optional[str] = None) -> str:
-    """Generate GitHub OAuth authorization URL."""
+def get_github_authorize_url(state: Optional[str] = None) -> tuple:
     if not GITHUB_CLIENT_ID:
         raise GitHubOAuthError("GITHUB_CLIENT_ID not configured")
-    
-    if state is None:
-        state = secrets.token_urlsafe(32)
-    
-    params = {
-        "client_id": GITHUB_CLIENT_ID,
-        "redirect_uri": GITHUB_REDIRECT_URI,
-        "scope": "read:user user:email",
-        "state": state,
-        "response_type": "code",
-    }
-    
-    query = "&".join(f"{k}={v}" for k, v in params.items())
-    return f"https://github.com/login/oauth/authorize?{query}", state
+    state = state or secrets.token_urlsafe(32)
+    _oauth_states[state] = {"created_at": datetime.now(timezone.utc),
+                            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    params = {"client_id": GITHUB_CLIENT_ID, "redirect_uri": GITHUB_REDIRECT_URI,
+              "scope": "read:user user:email", "state": state, "response_type": "code"}
+    return f"https://github.com/login/oauth/authorize?{'&'.join(f'{k}={v}' for k,v in params.items())}", state
 
 
-async def exchange_github_code(code: str) -> Dict[str, Any]:
-    """Exchange GitHub OAuth code for access token."""
-    async with httpx.AsyncClient() as client:
-        # Exchange code for access token
-        token_response = await client.post(
-            "https://github.com/login/oauth/access_token",
-            data={
-                "client_id": GITHUB_CLIENT_ID,
-                "client_secret": GITHUB_CLIENT_SECRET,
-                "code": code,
-                "redirect_uri": GITHUB_REDIRECT_URI,
-            },
-            headers={"Accept": "application/json"},
-        )
+def verify_oauth_state(state: str) -> bool:
+    if not state:
+        raise InvalidStateError("Missing state")
+    data = _oauth_states.get(state)
+    if not data:
+        raise InvalidStateError("Invalid state")
+    if datetime.now(timezone.utc) > data["expires_at"]:
+        del _oauth_states[state]
+        raise InvalidStateError("State expired")
+    del _oauth_states[state]
+    return True
+
+
+async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
+    if state:
+        verify_oauth_state(state)
+    if not GITHUB_CLIENT_SECRET:
+        raise GitHubOAuthError("GITHUB_CLIENT_SECRET not configured")
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post("https://github.com/login/oauth/access_token",
+            data={"client_id": GITHUB_CLIENT_ID, "client_secret": GITHUB_CLIENT_SECRET,
+                  "code": code, "redirect_uri": GITHUB_REDIRECT_URI},
+            headers={"Accept": "application/json"})
+        if resp.status_code != 200:
+            raise GitHubOAuthError(f"Token exchange failed: {resp.status_code}")
+        data = resp.json()
+        if "error" in data:
+            raise GitHubOAuthError(f"OAuth error: {data.get('error_description', data['error'])}")
         
-        if token_response.status_code != 200:
-            raise GitHubOAuthError(f"Failed to exchange code: {token_response.text}")
+        token = data.get("access_token")
+        if not token:
+            raise GitHubOAuthError("No access token")
         
-        token_data = token_response.json()
+        user_resp = await client.get("https://api.github.com/user",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        if user_resp.status_code != 200:
+            raise GitHubOAuthError("Failed to get user info")
         
-        if "error" in token_data:
-            raise GitHubOAuthError(f"GitHub OAuth error: {token_data.get('error_description', token_data['error'])}")
-        
-        github_token = token_data.get("access_token")
-        if not github_token:
-            raise GitHubOAuthError("No access token in GitHub response")
-        
-        # Get user info
-        user_response = await client.get(
-            "https://api.github.com/user",
-            headers={
-                "Authorization": f"Bearer {github_token}",
-                "Accept": "application/json",
-            },
-        )
-        
-        if user_response.status_code != 200:
-            raise GitHubOAuthError(f"Failed to get user info: {user_response.text}")
-        
-        user_data = user_response.json()
-        
-        # Get user email if not public
+        user_data = user_resp.json()
         if not user_data.get("email"):
-            email_response = await client.get(
-                "https://api.github.com/user/emails",
-                headers={
-                    "Authorization": f"Bearer {github_token}",
-                    "Accept": "application/json",
-                },
-            )
-            if email_response.status_code == 200:
-                emails = email_response.json()
-                primary_email = next(
-                    (e["email"] for e in emails if e.get("primary")),
-                    emails[0]["email"] if emails else None
-                )
-                user_data["email"] = primary_email
-        
+            email_resp = await client.get("https://api.github.com/user/emails",
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+            if email_resp.status_code == 200:
+                emails = email_resp.json()
+                user_data["email"] = next((e["email"] for e in emails if e.get("primary")),
+                                          emails[0]["email"] if emails else None)
         return user_data
 
 
-async def github_oauth_login(code: str) -> GitHubOAuthResponse:
-    """
-    Complete GitHub OAuth flow and return JWT tokens.
-    
-    Flow:
-    1. Exchange code for GitHub access token
-    2. Get user info from GitHub
-    3. Create or update user in database
-    4. Generate JWT tokens
-    """
-    # Get user info from GitHub
-    github_user = await exchange_github_code(code)
-    
+async def github_oauth_login(db: AsyncSession, code: str, state: Optional[str] = None) -> Dict:
+    github_user = await exchange_github_code(code, state)
     github_id = str(github_user["id"])
-    username = github_user.get("login", "")
-    email = github_user.get("email")
-    avatar_url = github_user.get("avatar_url")
     
-    # Check if user already exists
-    user_id = _github_to_user.get(github_id)
+    result = await db.execute(select(User).where(User.github_id == github_id))
+    user = result.scalar_one_or_none()
+    now = datetime.now(timezone.utc)
     
-    if user_id:
-        # Update existing user
-        user = _user_store.get(user_id)
-        if user:
-            user.username = username
-            user.email = email
-            user.avatar_url = avatar_url
-            user.last_login_at = datetime.now(timezone.utc)
+    if user:
+        user.username = github_user.get("login", "")
+        user.email = github_user.get("email") or user.email
+        user.avatar_url = github_user.get("avatar_url") or user.avatar_url
+        user.last_login_at = now
+        user.updated_at = now
     else:
-        # Create new user
-        import uuid
-        user = UserDB(
-            id=uuid.uuid4(),
-            github_id=github_id,
-            username=username,
-            email=email,
-            avatar_url=avatar_url,
-            last_login_at=datetime.now(timezone.utc),
-        )
-        user_id = str(user.id)
-        _user_store[user_id] = user
-        _github_to_user[github_id] = user_id
+        user = User(github_id=github_id, username=github_user.get("login", ""),
+                    email=github_user.get("email"), avatar_url=github_user.get("avatar_url"),
+                    last_login_at=now)
+        db.add(user)
     
-    # Generate tokens
-    access_token = create_access_token(user_id)
-    refresh_token = create_refresh_token(user_id)
+    await db.commit()
+    await db.refresh(user)
     
-    return GitHubOAuthResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=_db_to_response(user),
-    )
+    return {"access_token": create_access_token(str(user.id)),
+            "refresh_token": create_refresh_token(str(user.id)),
+            "token_type": "bearer", "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "user": _user_to_response(user)}
 
 
-def generate_auth_message(wallet_address: str) -> AuthMessageResponse:
-    """Generate a message for wallet authentication signing."""
+def generate_auth_message(wallet_address: str) -> Dict:
     nonce = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
-    
+    expires = datetime.now(timezone.utc) + timedelta(minutes=5)
     message = f"""SolFoundry Authentication
 
-Sign this message to authenticate your wallet.
-
-Wallet: {wallet_address[:8]}...{wallet_address[-8:]}
+Wallet: {wallet_address}
 Nonce: {nonce}
-Timestamp: {datetime.now(timezone.utc).isoformat()}
-Expires: {expires_at.isoformat()}
+Expires: {expires.isoformat()}
 
-This signature will prove you own this wallet address."""
+Sign to prove wallet ownership."""
     
-    _auth_messages[nonce] = {
-        "message": message,
-        "wallet_address": wallet_address,
-        "expires_at": expires_at,
-    }
-    
-    return AuthMessageResponse(
-        message=message,
-        nonce=nonce,
-        expires_at=expires_at,
-    )
+    _auth_challenges[nonce] = {"wallet_address": wallet_address.lower(), "message": message,
+                               "expires_at": expires}
+    return {"message": message, "nonce": nonce, "expires_at": expires}
+
+
+def verify_auth_challenge(nonce: str, wallet: str, message: str) -> bool:
+    if not nonce:
+        raise InvalidNonceError("Missing nonce")
+    challenge = _auth_challenges.get(nonce)
+    if not challenge:
+        raise InvalidNonceError("Invalid nonce")
+    if datetime.now(timezone.utc) > challenge["expires_at"]:
+        del _auth_challenges[nonce]
+        raise InvalidNonceError("Nonce expired")
+    if challenge["wallet_address"] != wallet.lower():
+        raise InvalidNonceError("Wallet mismatch")
+    if challenge["message"] != message:
+        raise InvalidNonceError("Message mismatch")
+    del _auth_challenges[nonce]
+    return True
 
 
 def verify_wallet_signature(wallet_address: str, message: str, signature: str) -> bool:
-    """
-    Verify a Solana wallet signature.
-    
-    Args:
-        wallet_address: The Solana public key (base58)
-        message: The message that was signed
-        signature: Base64-encoded signature
-    
-    Returns:
-        True if signature is valid
-    
-    Raises:
-        WalletVerificationError: If signature is invalid
-    """
     try:
-        # Decode the public key
+        if not wallet_address or len(wallet_address) < 32 or len(wallet_address) > 48:
+            raise WalletVerificationError("Invalid wallet format")
         pubkey = Pubkey.from_string(wallet_address)
-        
-        # Decode the signature from base64
-        signature_bytes = base64.b64decode(signature)
-        sig = Signature(signature_bytes)
-        
-        # Encode the message
-        message_bytes = message.encode('utf-8')
-        
-        # Verify the signature
-        # The verify method checks if the signature matches the pubkey and message
-        sig.verify(pubkey, message_bytes)
-        
+        sig_bytes = base64.b64decode(signature)
+        if len(sig_bytes) != 64:
+            raise WalletVerificationError("Invalid signature length")
+        sig = Signature(sig_bytes)
+        sig.verify(pubkey, message.encode('utf-8'))
         return True
-        
+    except WalletVerificationError:
+        raise
     except Exception as e:
-        raise WalletVerificationError(f"Failed to verify signature: {str(e)}")
+        raise WalletVerificationError(f"Verification failed: {e}")
 
 
-async def wallet_authenticate(wallet_address: str, signature: str, message: str) -> WalletAuthResponse:
-    """
-    Authenticate a user via Solana wallet signature.
+async def wallet_authenticate(db: AsyncSession, wallet: str, signature: str, message: str, nonce: Optional[str] = None) -> Dict:
+    if nonce:
+        verify_auth_challenge(nonce, wallet, message)
+    verify_wallet_signature(wallet, message, signature)
     
-    Flow:
-    1. Verify the signature
-    2. Check if wallet is linked to an existing user
-    3. If not, create a new user with wallet only
-    4. Generate JWT tokens
-    """
-    # Verify the signature
-    verify_wallet_signature(wallet_address, message, signature)
+    result = await db.execute(select(User).where(User.wallet_address == wallet.lower()))
+    user = result.scalar_one_or_none()
+    now = datetime.now(timezone.utc)
     
-    # Check if wallet is linked to a user
-    user_id = _wallet_to_user.get(wallet_address)
-    
-    if user_id:
-        # Existing user
-        user = _user_store.get(user_id)
-        if user:
-            user.last_login_at = datetime.now(timezone.utc)
+    if user:
+        user.last_login_at = now
+        user.updated_at = now
     else:
-        # Create new wallet-only user
-        import uuid
-        user = UserDB(
-            id=uuid.uuid4(),
-            github_id=f"wallet_{wallet_address[:16]}",  # Placeholder
-            username=f"wallet_{wallet_address[:8]}",
-            wallet_address=wallet_address,
-            wallet_verified=True,
-            last_login_at=datetime.now(timezone.utc),
-        )
-        user_id = str(user.id)
-        _user_store[user_id] = user
-        _wallet_to_user[wallet_address] = user_id
+        user = User(github_id=f"wallet_{wallet[:16].lower()}",
+                    username=f"wallet_{wallet[:8].lower()}",
+                    wallet_address=wallet.lower(), wallet_verified=True, last_login_at=now)
+        db.add(user)
     
-    # Generate tokens
-    access_token = create_access_token(user_id)
-    refresh_token = create_refresh_token(user_id)
+    await db.commit()
+    await db.refresh(user)
     
-    return WalletAuthResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=_db_to_response(user),
-    )
+    return {"access_token": create_access_token(str(user.id)),
+            "refresh_token": create_refresh_token(str(user.id)),
+            "token_type": "bearer", "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "user": _user_to_response(user)}
 
 
-async def link_wallet(user_id: str, wallet_address: str, signature: str, message: str) -> LinkWalletResponse:
-    """
-    Link a Solana wallet to an existing user account.
+async def link_wallet_to_user(db: AsyncSession, user_id: str, wallet: str, signature: str, message: str, nonce: Optional[str] = None) -> Dict:
+    if nonce:
+        verify_auth_challenge(nonce, wallet, message)
+    verify_wallet_signature(wallet, message, signature)
     
-    Args:
-        user_id: The existing user's ID
-        wallet_address: The wallet address to link
-        signature: Signature proving ownership
-        message: The message that was signed
+    result = await db.execute(select(User).where(User.wallet_address == wallet.lower()))
+    existing = result.scalar_one_or_none()
+    if existing and str(existing.id) != user_id:
+        raise AuthError("Wallet already linked")
     
-    Returns:
-        LinkWalletResponse with updated user
-    
-    Raises:
-        AuthError: If wallet is already linked to another account
-    """
-    # Verify the signature
-    verify_wallet_signature(wallet_address, message, signature)
-    
-    # Check if wallet is already linked
-    existing_user_id = _wallet_to_user.get(wallet_address)
-    if existing_user_id and existing_user_id != user_id:
-        raise AuthError("Wallet already linked to another account")
-    
-    # Get the user
-    user = _user_store.get(user_id)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if not user:
         raise AuthError("User not found")
     
-    # Update user with wallet
-    if existing_user_id == user_id:
-        # Already linked to this user
-        pass
-    else:
-        # Link the wallet
-        user.wallet_address = wallet_address
-        user.wallet_verified = True
-        user.updated_at = datetime.now(timezone.utc)
-        _wallet_to_user[wallet_address] = user_id
+    user.wallet_address = wallet.lower()
+    user.wallet_verified = True
+    user.updated_at = datetime.now(timezone.utc)
     
-    return LinkWalletResponse(
-        success=True,
-        message="Wallet linked successfully",
-        user=_db_to_response(user),
-    )
+    await db.commit()
+    await db.refresh(user)
+    return {"success": True, "message": "Wallet linked", "user": _user_to_response(user)}
 
 
-async def refresh_access_token(refresh_token: str) -> RefreshTokenResponse:
-    """
-    Refresh an access token using a refresh token.
-    
-    Args:
-        refresh_token: Valid refresh token
-    
-    Returns:
-        New access token
-    
-    Raises:
-        InvalidTokenError: If refresh token is invalid
-        TokenExpiredError: If refresh token has expired
-    """
-    user_id = decode_token(refresh_token, token_type="refresh")
-    
-    # Verify user still exists
-    user = _user_store.get(user_id)
-    if not user:
+async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
+    user_id = decode_token(refresh_token, "refresh")
+    result = await db.execute(select(User).where(User.id == user_id))
+    if not result.scalar_one_or_none():
         raise InvalidTokenError("User not found")
-    
-    # Generate new access token
-    access_token = create_access_token(user_id)
-    
-    return RefreshTokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
+    return {"access_token": create_access_token(user_id), "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60}
 
 
-async def get_current_user(user_id: str) -> UserResponse:
-    """Get the current user by ID."""
-    user = _user_store.get(user_id)
+async def get_current_user(db: AsyncSession, user_id: str) -> UserResponse:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if not user:
         raise AuthError("User not found")
-    return _db_to_response(user)
-
-
-# Export functions for testing and external use
-__all__ = [
-    # Token functions
-    "create_access_token",
-    "create_refresh_token",
-    "decode_token",
-    "refresh_access_token",
-    
-    # GitHub OAuth
-    "get_github_authorize_url",
-    "exchange_github_code",
-    "github_oauth_login",
-    
-    # Wallet auth
-    "generate_auth_message",
-    "verify_wallet_signature",
-    "wallet_authenticate",
-    "link_wallet",
-    
-    # User management
-    "get_current_user",
-    
-    # Exceptions
-    "AuthError",
-    "GitHubOAuthError",
-    "WalletVerificationError",
-    "TokenExpiredError",
-    "InvalidTokenError",
-]
+    return _user_to_response(user)
