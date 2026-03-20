@@ -125,9 +125,17 @@ function formatRelativeTime(timestamp: string): string {
 
 function getDaysRemaining(deadline: string): number {
   const now = new Date();
-  const deadlineDate = new Date(deadline);
+  // Parse deadline in local timezone to match user's perspective
+  const [year, month, day] = deadline.split('-').map(Number);
+  const deadlineDate = new Date(year, month - 1, day, 23, 59, 59);
   const diffMs = deadlineDate.getTime() - now.getTime();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  // Return 0 for past deadlines, actual days for future
+  return Math.max(0, daysRemaining);
+}
+
+function isDeadlineUrgent(daysRemaining: number): boolean {
+  return daysRemaining > 0 && daysRemaining <= 2;
 }
 
 function getStatusColor(status: Bounty['status']): string {
@@ -237,7 +245,7 @@ interface BountyCardProps {
 
 function BountyCard({ bounty }: BountyCardProps) {
   const daysRemaining = getDaysRemaining(bounty.deadline);
-  const isUrgent = daysRemaining <= 2;
+  const isUrgent = isDeadlineUrgent(daysRemaining);
   
   return (
     <div className="bg-[#1a1a1a] rounded-lg p-4 border border-white/5 hover:border-[#9945FF]/30 transition-colors">
@@ -312,15 +320,27 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
       className={`flex items-start gap-3 py-3 px-2 rounded-lg transition-colors cursor-pointer
                   ${notification.read ? 'opacity-60' : 'bg-white/5 hover:bg-white/10'}`}
       onClick={() => !notification.read && onMarkAsRead(notification.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!notification.read) onMarkAsRead(notification.id);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`${notification.title}: ${notification.message}. ${notification.read ? 'Read' : 'Unread - click to mark as read'}`}
+      aria-pressed={notification.read}
     >
-      <div className="flex-shrink-0 mt-1.5">
+      <div className="flex-shrink-0 mt-1.5" aria-hidden="true">
         {getNotificationIcon(notification.type)}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-white font-medium">{notification.title}</p>
         <p className="text-xs text-gray-400 mt-0.5">{notification.message}</p>
       </div>
-      <span className="text-xs text-gray-500">{formatRelativeTime(notification.timestamp)}</span>
+      <span className="text-xs text-gray-500" aria-label={formatRelativeTime(notification.timestamp)}>
+        {formatRelativeTime(notification.timestamp)}
+      </span>
     </div>
   );
 }
@@ -331,6 +351,36 @@ interface SimpleLineChartProps {
 }
 
 function SimpleLineChart({ data }: SimpleLineChartProps) {
+  // Handle empty or insufficient data
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
+          <span className="text-gray-400 text-lg">0 $FNDRY</span>
+        </div>
+        <div className="h-[120px] flex items-center justify-center text-gray-400">
+          No earnings data available
+        </div>
+      </div>
+    );
+  }
+
+  // For single data point, show a simple display
+  if (data.length === 1) {
+    return (
+      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
+          <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
+        </div>
+        <div className="h-[120px] flex items-center justify-center">
+          <div className="w-4 h-4 rounded-full bg-[#14F195]" />
+        </div>
+      </div>
+    );
+  }
+
   const maxAmount = Math.max(...data.map(d => d.amount), 1);
   const chartHeight = 120;
   const chartWidth = 300;
