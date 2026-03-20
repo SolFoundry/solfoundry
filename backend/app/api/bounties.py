@@ -1,4 +1,4 @@
-"""Bounty search and filter API endpoints.
+"""Bounty CRUD, submission, and search API router.
 
 ## Overview
 
@@ -41,316 +41,38 @@ open → claimed → completed
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
 from app.models.bounty import (
-    BountyDB,
-    BountySearchParams,
+    AutocompleteResponse,
+    BountyCreate,
     BountyListResponse,
     BountyResponse,
-    BountyCreate,
+    BountySearchParams,
+    BountySearchResponse,
+    BountySearchResult,
+    BountyStatus,
+    BountyTier,
     BountyUpdate,
-    AutocompleteResponse,
+    SubmissionCreate,
+    SubmissionResponse,
 )
-from app.services.bounty_service import BountySearchService
-from app.database import get_db
+from app.services import bounty_service
+from app.services.bounty_search_service import BountySearchService
 
 router = APIRouter(prefix="/api/bounties", tags=["bounties"])
 
 
-@router.get(
-    "/search",
-    response_model=BountyListResponse,
-    summary="Search and filter bounties",
-    description="""
-Full-text search and filter for bounties.
-
-## Search Features
-
-- **Full-text search**: Searches across title and description
-- **Multi-filter support**: Combine tier, category, status, reward range, skills
-- **Multiple sort options**: By date, reward, deadline, or popularity
-- **Pagination**: Efficient browsing with skip/limit
-
-## Example Requests
-
-```
-GET /api/bounties/search?q=smart+contract&tier=1&status=open
-GET /api/bounties/search?category=frontend&reward_min=100&reward_max=500
-GET /api/bounties/search?skills=rust,anchor&sort=reward_high
-```
-
-## Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| items | array | List of bounty objects |
-| total | integer | Total matching results |
-| skip | integer | Current pagination offset |
-| limit | integer | Results per page |
-
-## Rate Limit
-
-100 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "Successful search results",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "items": [
-                            {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "title": "Implement wallet connection component",
-                                "description": "Create a React component for Solana wallet connection",
-                                "tier": 1,
-                                "category": "frontend",
-                                "status": "open",
-                                "reward_amount": 200.0,
-                                "reward_token": "FNDRY",
-                                "deadline": "2024-01-15T00:00:00Z",
-                                "skills": ["react", "typescript", "solana"],
-                                "popularity": 42,
-                                "created_at": "2024-01-01T00:00:00Z"
-                            }
-                        ],
-                        "total": 25,
-                        "skip": 0,
-                        "limit": 20
-                    }
-                }
-            }
-        },
-        422: {"description": "Invalid query parameters"}
-    }
-)
-async def search_bounties(
-    q: Optional[str] = Query(
-        None,
-        description="Full-text search query for title and description",
-        example="smart contract"
-    ),
-    tier: Optional[int] = Query(
-        None,
-        ge=1,
-        le=3,
-        description="Filter by bounty tier (1, 2, or 3)",
-        example=1
-    ),
-    category: Optional[str] = Query(
-        None,
-        description="Filter by category: frontend, backend, smart_contract, documentation, testing, infrastructure, other",
-        example="frontend"
-    ),
-    status: Optional[str] = Query(
-        None,
-        description="Filter by status: open, claimed, completed, cancelled",
-        example="open"
-    ),
-    reward_min: Optional[float] = Query(
-        None,
-        ge=0,
-        description="Minimum reward amount in $FNDRY",
-        example=100.0
-    ),
-    reward_max: Optional[float] = Query(
-        None,
-        ge=0,
-        description="Maximum reward amount in $FNDRY",
-        example=500.0
-    ),
-    skills: Optional[str] = Query(
-        None,
-        description="Comma-separated list of required skills",
-        example="react,typescript"
-    ),
-    sort: str = Query(
-        "newest",
-        pattern="^(newest|reward_high|reward_low|deadline|popularity)$",
-        description="Sort order: newest, reward_high, reward_low, deadline, popularity"
-    ),
-    skip: int = Query(
-        0,
-        ge=0,
-        description="Pagination offset (number of items to skip)"
-    ),
-    limit: int = Query(
-        20,
-        ge=1,
-        le=100,
-        description="Number of results per page (max 100)"
-    ),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Search bounties with full-text search and filters.
-    
-    Supports combining multiple filters for precise results.
-    """
-    
-    params = BountySearchParams(
-        q=q,
-        tier=tier,
-        category=category,
-        status=status,
-        reward_min=reward_min,
-        reward_max=reward_max,
-        skills=skills,
-        sort=sort,
-        skip=skip,
-        limit=limit,
-    )
-    
-    service = BountySearchService(db)
-    return await service.search_bounties(params)
-
-
-@router.get(
-    "/autocomplete",
-    response_model=AutocompleteResponse,
-    summary="Get autocomplete suggestions",
-    description="""
-Get autocomplete suggestions for bounty search.
-
-Returns matching bounty titles and skills based on the query string.
-Minimum query length is 2 characters.
-
-## Use Case
-
-Use this endpoint to implement search suggestions as users type.
-Results include both bounty titles and skill names.
-
-## Rate Limit
-
-100 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "Autocomplete suggestions",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "suggestions": [
-                            {"text": "smart contract", "type": "skill"},
-                            {"text": "Smart contract audit", "type": "title"},
-                            {"text": "smart_contract", "type": "category"}
-                        ]
-                    }
-                }
-            }
-        }
-    }
-)
-async def get_autocomplete(
-    q: str = Query(
-        ...,
-        min_length=2,
-        description="Search query for autocomplete (minimum 2 characters)",
-        example="sm"
-    ),
-    limit: int = Query(
-        10,
-        ge=1,
-        le=20,
-        description="Number of suggestions to return (max 20)"
-    ),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Get autocomplete suggestions for bounty search.
-    
-    Returns matching bounty titles and skills.
-    """
-    service = BountySearchService(db)
-    return await service.get_autocomplete_suggestions(q, limit)
-
-
-@router.get(
-    "/{bounty_id}",
-    response_model=BountyResponse,
-    summary="Get a single bounty",
-    description="""
-Retrieve detailed information about a specific bounty.
-
-## Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Unique bounty identifier (UUID) |
-| title | string | Bounty title |
-| description | string | Full bounty description |
-| tier | integer | Difficulty tier (1-3) |
-| category | string | Work category |
-| status | string | Current status |
-| reward_amount | float | $FNDRY reward amount |
-| reward_token | string | Token symbol (always "FNDRY") |
-| deadline | datetime | Submission deadline |
-| skills | array | Required skills |
-| github_issue_url | string | Link to GitHub issue |
-| claimant_id | string | ID of user who claimed (if claimed) |
-| winner_id | string | ID of winner (if completed) |
-| popularity | integer | View/interest count |
-| created_at | datetime | Creation timestamp |
-| updated_at | datetime | Last update timestamp |
-
-## Rate Limit
-
-100 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "Bounty details",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "title": "Implement wallet connection component",
-                        "description": "Create a React component for Solana wallet connection using Phantom wallet adapter.",
-                        "tier": 1,
-                        "category": "frontend",
-                        "status": "open",
-                        "reward_amount": 200.0,
-                        "reward_token": "FNDRY",
-                        "deadline": "2024-01-15T00:00:00Z",
-                        "skills": ["react", "typescript", "solana"],
-                        "github_issue_url": "https://github.com/SolFoundry/solfoundry/issues/123",
-                        "github_issue_number": 123,
-                        "github_repo": "SolFoundry/solfoundry",
-                        "claimant_id": None,
-                        "winner_id": None,
-                        "popularity": 42,
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-01T00:00:00Z"
-                    }
-                }
-            }
-        },
-        404: {"description": "Bounty not found"}
-    }
-)
-async def get_bounty(
-    bounty_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """Get a single bounty by ID."""
-    from sqlalchemy import select
-    from app.models.bounty import BountyDB
-    
-    query = select(BountyDB).where(BountyDB.id == bounty_id)
-    result = await db.execute(query)
-    bounty = result.scalar_one_or_none()
-    
-    if not bounty:
-        raise HTTPException(status_code=404, detail="Bounty not found")
-    
-    return BountyResponse.model_validate(bounty)
+# ---------------------------------------------------------------------------
+# CRUD endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/",
+    "",
     response_model=BountyResponse,
     status_code=201,
     summary="Create a new bounty",
@@ -383,46 +105,360 @@ Create a new bounty on the platform.
 
 30 requests per minute.
 """,
-    responses={
-        201: {
-            "description": "Bounty created successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "title": "Implement wallet connection component",
-                        "description": "Create a React component for Solana wallet connection",
-                        "tier": 1,
-                        "category": "frontend",
-                        "status": "open",
-                        "reward_amount": 200.0,
-                        "reward_token": "FNDRY",
-                        "deadline": "2024-01-15T00:00:00Z",
-                        "skills": ["react", "typescript", "solana"],
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-01T00:00:00Z"
-                    }
-                }
-            }
-        },
-        400: {"description": "Invalid bounty data"},
-        422: {"description": "Validation error"}
-    }
 )
-async def create_bounty(
-    bounty: BountyCreate,
-    db: AsyncSession = Depends(get_db),
-):
-    """Create a new bounty."""
-    from app.models.bounty import BountyDB
-    
-    db_bounty = BountyDB(**bounty.model_dump())
-    db.add(db_bounty)
-    await db.commit()
-    await db.refresh(db_bounty)
-    
-    # Update search vector
-    service = BountySearchService(db)
-    await service.update_search_vector(str(db_bounty.id))
-    
-    return BountyResponse.model_validate(db_bounty)
+async def create_bounty(data: BountyCreate) -> BountyResponse:
+    return bounty_service.create_bounty(data)
+
+
+@router.get(
+    "",
+    response_model=BountyListResponse,
+    summary="List bounties with optional filters",
+    description="""
+Get a paginated list of bounties with optional filtering.
+
+## Filter Options
+
+- **status**: Filter by status (open, claimed, completed, cancelled)
+- **tier**: Filter by tier (1, 2, or 3)
+- **skills**: Filter by skills (comma-separated)
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def list_bounties(
+    status: Optional[BountyStatus] = Query(None, description="Filter by status"),
+    tier: Optional[BountyTier] = Query(None, description="Filter by tier"),
+    skills: Optional[str] = Query(
+        None, description="Comma-separated skill filter (case-insensitive)"
+    ),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Page size"),
+) -> BountyListResponse:
+    skill_list = (
+        [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
+    )
+    return bounty_service.list_bounties(
+        status=status, tier=tier, skills=skill_list, skip=skip, limit=limit
+    )
+
+
+# ---------------------------------------------------------------------------
+# Search endpoints (placed before /{bounty_id} to avoid route conflicts)
+# ---------------------------------------------------------------------------
+
+
+async def _get_search_service(
+    session: AsyncSession = Depends(get_db),
+) -> BountySearchService:
+    return BountySearchService(session)
+
+
+@router.get(
+    "/search",
+    response_model=BountySearchResponse,
+    summary="Full-text search with advanced filters",
+    description="""
+Full-text search and filter for bounties.
+
+## Search Features
+
+- **Full-text search**: Searches across title and description
+- **Multi-filter support**: Combine tier, category, status, reward range, skills
+- **Multiple sort options**: By date, reward, deadline, or popularity
+- **Pagination**: Efficient browsing with page/per_page
+
+## Example Requests
+
+```
+GET /api/bounties/search?q=smart+contract&tier=1&status=open
+GET /api/bounties/search?category=frontend&reward_min=100&reward_max=500
+GET /api/bounties/search?skills=rust,anchor&sort=newest
+```
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def search_bounties(
+    q: str = Query("", max_length=200, description="Search query"),
+    status: Optional[BountyStatus] = Query(None),
+    tier: Optional[int] = Query(None, ge=1, le=3),
+    skills: Optional[str] = Query(None, description="Comma-separated skills"),
+    category: Optional[str] = Query(None),
+    creator_type: Optional[str] = Query(None, pattern=r"^(platform|community)$"),
+    reward_min: Optional[float] = Query(None, ge=0),
+    reward_max: Optional[float] = Query(None, ge=0),
+    deadline_before: Optional[str] = Query(None, description="ISO datetime"),
+    sort: str = Query("newest"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> BountySearchResponse:
+    skill_list = (
+        [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else []
+    )
+    params = BountySearchParams(
+        q=q,
+        status=status,
+        tier=tier,
+        skills=skill_list,
+        category=category,
+        creator_type=creator_type,
+        reward_min=reward_min,
+        reward_max=reward_max,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+    )
+    return await svc.search(params)
+
+
+@router.get(
+    "/autocomplete",
+    response_model=AutocompleteResponse,
+    summary="Search autocomplete suggestions",
+    description="""
+Get autocomplete suggestions for bounty search.
+
+Returns matching bounty titles and skills based on the query string.
+Minimum query length is 2 characters.
+
+## Use Case
+
+Use this endpoint to implement search suggestions as users type.
+Results include both bounty titles and skill names.
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def autocomplete(
+    q: str = Query(..., min_length=2, max_length=100),
+    limit: int = Query(8, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> AutocompleteResponse:
+    return await svc.autocomplete(q, limit)
+
+
+@router.get(
+    "/hot",
+    response_model=list[BountySearchResult],
+    summary="Hot bounties — highest activity in last 24h",
+    description="""
+Get bounties with the highest activity in the last 24 hours.
+
+## Use Case
+
+Display trending bounties on the homepage or in a "Hot" section.
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def hot_bounties(
+    limit: int = Query(6, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> list[BountySearchResult]:
+    return await svc.hot_bounties(limit)
+
+
+@router.get(
+    "/recommended",
+    response_model=list[BountySearchResult],
+    summary="Recommended bounties based on user skills",
+    description="""
+Get recommended bounties based on user skills.
+
+## Use Case
+
+Display personalized bounty recommendations to logged-in users.
+
+## Parameters
+
+- **skills**: Comma-separated list of user skills
+- **exclude**: Comma-separated bounty IDs to exclude (e.g., already viewed)
+- **limit**: Maximum number of recommendations
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def recommended_bounties(
+    skills: str = Query(..., description="Comma-separated user skills"),
+    exclude: Optional[str] = Query(
+        None, description="Comma-separated bounty IDs to exclude"
+    ),
+    limit: int = Query(6, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> list[BountySearchResult]:
+    skill_list = [s.strip().lower() for s in skills.split(",") if s.strip()]
+    excluded = [e.strip() for e in exclude.split(",") if e.strip()] if exclude else []
+    return await svc.recommended(skill_list, excluded, limit)
+
+
+# ---------------------------------------------------------------------------
+# CRUD endpoints (by ID)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{bounty_id}",
+    response_model=BountyResponse,
+    summary="Get a single bounty by ID",
+    description="""
+Retrieve detailed information about a specific bounty.
+
+## Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Unique bounty identifier (UUID) |
+| title | string | Bounty title |
+| description | string | Full bounty description |
+| tier | integer | Difficulty tier (1-3) |
+| category | string | Work category |
+| status | string | Current status |
+| reward_amount | float | $FNDRY reward amount |
+| reward_token | string | Token symbol (always "FNDRY") |
+| deadline | datetime | Submission deadline |
+| skills | array | Required skills |
+| github_issue_url | string | Link to GitHub issue |
+| claimant_id | string | ID of user who claimed (if claimed) |
+| winner_id | string | ID of winner (if completed) |
+| popularity | integer | View/interest count |
+| created_at | datetime | Creation timestamp |
+| updated_at | datetime | Last update timestamp |
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def get_bounty(bounty_id: str) -> BountyResponse:
+    result = bounty_service.get_bounty(bounty_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Bounty not found")
+    return result
+
+
+@router.patch(
+    "/{bounty_id}",
+    response_model=BountyResponse,
+    summary="Partially update a bounty",
+    description="""
+Update an existing bounty.
+
+## Updatable Fields
+
+All fields are optional. Only provided fields will be updated.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| title | string | Bounty title |
+| description | string | Full description |
+| tier | integer | Difficulty tier (1-3) |
+| category | string | Work category |
+| reward_amount | float | $FNDRY reward |
+| deadline | datetime | Submission deadline |
+| skills | array | Required skills |
+
+## Rate Limit
+
+30 requests per minute.
+""",
+)
+async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
+    result, error = bounty_service.update_bounty(bounty_id, data)
+    if error:
+        status_code = 404 if "not found" in error.lower() else 400
+        raise HTTPException(status_code=status_code, detail=error)
+    return result
+
+
+@router.delete(
+    "/{bounty_id}",
+    status_code=204,
+    summary="Delete a bounty",
+    description="""
+Delete a bounty permanently.
+
+## Warning
+
+This action is irreversible. All bounty data will be permanently deleted.
+
+## Rate Limit
+
+30 requests per minute.
+""",
+)
+async def delete_bounty(bounty_id: str) -> None:
+    if not bounty_service.delete_bounty(bounty_id):
+        raise HTTPException(status_code=404, detail="Bounty not found")
+
+
+@router.post(
+    "/{bounty_id}/submit",
+    response_model=SubmissionResponse,
+    status_code=201,
+    summary="Submit a PR solution for a bounty",
+    description="""
+Submit a pull request as a solution for a bounty.
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| pr_url | string | Yes | URL of the pull request |
+| pr_number | integer | Yes | PR number |
+| wallet_address | string | Yes | Solana wallet for payout |
+
+## Requirements
+
+- PR must reference the bounty issue (e.g., "Closes #123")
+- Wallet address must be valid Solana address
+
+## Rate Limit
+
+30 requests per minute.
+""",
+)
+async def submit_solution(bounty_id: str, data: SubmissionCreate) -> SubmissionResponse:
+    result, error = bounty_service.submit_solution(bounty_id, data)
+    if error:
+        status_code = 404 if "not found" in error.lower() else 400
+        raise HTTPException(status_code=status_code, detail=error)
+    return result
+
+
+@router.get(
+    "/{bounty_id}/submissions",
+    response_model=list[SubmissionResponse],
+    summary="List submissions for a bounty",
+    description="""
+Get all submissions for a specific bounty.
+
+## Response
+
+Returns a list of submission objects, each containing:
+- PR URL and number
+- Submitter information
+- Wallet address for payout
+- Submission timestamp
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
+async def get_submissions(bounty_id: str) -> list[SubmissionResponse]:
+    result = bounty_service.get_submissions(bounty_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Bounty not found")
+    return result

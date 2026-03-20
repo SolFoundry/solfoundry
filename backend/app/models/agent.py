@@ -22,7 +22,8 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON, UUID
+from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from app.database import Base
 
@@ -84,7 +85,7 @@ class Agent(Base):
 
     __tablename__ = "agents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(NAME_MAX_LENGTH), nullable=False)
     description = Column(Text, nullable=True)
     role = Column(String(64), nullable=False, index=True)
@@ -131,44 +132,40 @@ def _validate_list_items(
 class AgentCreate(BaseModel):
     """Payload for registering a new agent."""
 
-    name: str = Field(..., min_length=NAME_MIN_LENGTH, max_length=NAME_MAX_LENGTH, description="Agent display name", examples=["RustBot 3000"])
-    description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH, description="Detailed agent profile and expertise", examples=["Expert Rust and Anchor developer with 5+ years experience."])
-    role: AgentRole = Field(..., description="The primary role of the agent", examples=[AgentRole.SMART_CONTRACT_ENGINEER])
+    name: str = Field(..., min_length=NAME_MIN_LENGTH, max_length=NAME_MAX_LENGTH)
+    description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH)
+    role: AgentRole = Field(..., description="Agent role type")
     capabilities: list[str] = Field(
-        default_factory=list, description="List of technical capabilities", examples=[["Anchor", "Security Audit", "Performance Optimization"]]
+        default_factory=list, description="List of agent capabilities"
     )
     languages: list[str] = Field(
-        default_factory=list, description="Programming languages supported", examples=[["rust", "typescript", "c++"]]
+        default_factory=list, description="List of programming languages"
     )
     apis: list[str] = Field(
-        default_factory=list, description="Supported APIs or protocols", examples=[["solana-rpc", "metaplex", "jupiter"]]
+        default_factory=list, description="List of APIs the agent can work with"
     )
     operator_wallet: str = Field(
-        ..., min_length=32, max_length=64, description="Solana wallet address for ownership and payouts", examples=["7Pq6..."]
+        ..., min_length=32, max_length=64, description="Solana wallet address"
     )
 
     @field_validator("operator_wallet")
     @classmethod
     def validate_wallet(cls, v: str) -> str:
-        """Validate Solana wallet address format."""
         return _validate_wallet_address(v)
 
     @field_validator("capabilities")
     @classmethod
     def validate_capabilities(cls, v: list[str]) -> list[str]:
-        """Normalize and validate capabilities list."""
         return _validate_list_items(v, MAX_CAPABILITIES, "capabilities")
 
     @field_validator("languages")
     @classmethod
     def validate_languages(cls, v: list[str]) -> list[str]:
-        """Normalize and validate languages list."""
         return _validate_list_items(v, MAX_LANGUAGES, "languages")
 
     @field_validator("apis")
     @classmethod
     def validate_apis(cls, v: list[str]) -> list[str]:
-        """Normalize and validate supported APIs list."""
         return _validate_list_items(v, MAX_APIS, "apis")
 
 
@@ -188,7 +185,6 @@ class AgentUpdate(BaseModel):
     @field_validator("capabilities")
     @classmethod
     def validate_capabilities(cls, v: Optional[list[str]]) -> Optional[list[str]]:
-        """Normalize and validate capabilities list."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_CAPABILITIES, "capabilities")
@@ -196,7 +192,6 @@ class AgentUpdate(BaseModel):
     @field_validator("languages")
     @classmethod
     def validate_languages(cls, v: Optional[list[str]]) -> Optional[list[str]]:
-        """Normalize and validate languages list."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_LANGUAGES, "languages")
@@ -204,7 +199,6 @@ class AgentUpdate(BaseModel):
     @field_validator("apis")
     @classmethod
     def validate_apis(cls, v: Optional[list[str]]) -> Optional[list[str]]:
-        """Normalize and validate supported APIs list."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_APIS, "apis")
@@ -213,16 +207,16 @@ class AgentUpdate(BaseModel):
 class AgentResponse(BaseModel):
     """Full agent detail returned by GET /agents/{id} and mutations."""
 
-    id: str = Field(..., description="Unique UUID for the agent", examples=["550e8400-e29b-41d4-a716-446655440000"])
-    name: str = Field(..., description="Agent display name")
+    id: str
+    name: str
     description: Optional[str] = None
-    role: str = Field(..., description="Agent role type")
+    role: str
     capabilities: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
     apis: list[str] = Field(default_factory=list)
-    operator_wallet: str = Field(..., description="Solana wallet address of the operator")
-    is_active: bool = Field(True, description="Whether the agent is currently active in the marketplace")
-    availability: str = Field("available", description="Current availability status")
+    operator_wallet: str
+    is_active: bool = True
+    availability: str = "available"
     created_at: datetime
     updated_at: datetime
 

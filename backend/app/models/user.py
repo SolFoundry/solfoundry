@@ -12,7 +12,6 @@ from app.database import Base
 
 
 class User(Base):
-    """SQLAlchemy ORM model for the users table."""
     __tablename__ = "users"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -46,18 +45,18 @@ class UserDB(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """Full user profile for API responses."""
-    id: str = Field(..., description="Unique UUID for the user", examples=["550e8400-e29b-41d4-a716-446655440000"])
-    github_id: str = Field(..., description="GitHub unique identifier", examples=["test_github_123"])
-    username: str = Field(..., description="GitHub or platform username", examples=["cryptodev"])
-    email: Optional[str] = Field(None, description="User's email address", examples=["dev@example.com"])
-    avatar_url: Optional[str] = Field(None, description="Link to profile avatar", examples=["https://github.com/avatar.png"])
-    wallet_address: Optional[str] = Field(None, description="Linked Solana wallet address", examples=["7Pq6..."])
-    wallet_verified: bool = Field(False, description="Whether the wallet ownership has been verified via signature")
-    created_at: datetime = Field(..., description="Timestamp of account creation")
-    updated_at: datetime = Field(..., description="Timestamp of the last update")
+    id: str
+    github_id: str
+    username: str
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    wallet_address: Optional[str] = None
+    wallet_verified: bool = False
+    created_at: datetime
+    updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 
 # ---------------------------------------------------------------------------
@@ -75,10 +74,10 @@ class GitHubOAuthRequest(BaseModel):
 class GitHubOAuthResponse(BaseModel):
     """Response after successful GitHub OAuth."""
 
-    access_token: str = Field(..., description="JWT access token for authentication")
-    refresh_token: str = Field(..., description="JWT refresh token to obtain new access tokens")
-    token_type: str = Field("bearer", description="Token type, always 'bearer'")
-    expires_in: int = Field(3600, description="Token expiration time in seconds")
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
     user: UserResponse
 
 
@@ -133,9 +132,8 @@ class RefreshTokenResponse(BaseModel):
 class AuthMessageResponse(BaseModel):
     """Challenge message for wallet signature verification."""
 
-    message: str = Field(..., description="The full message the user must sign", examples=["Sign this message to authenticate with SolFoundry: uuid-123..."])
-    nonce: str = Field(..., description="A unique nonce used to prevent replay attacks", examples=["uuid-123-456"])
-    expires_at: datetime = Field(..., description="Expiration timestamp for this challenge")
+    message: str
+    nonce: str
 
 
 # Legacy aliases

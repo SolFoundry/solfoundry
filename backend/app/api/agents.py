@@ -32,11 +32,10 @@ header to verify the operator is the one who registered the agent.
 """
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Query, Depends, status
+from fastapi import APIRouter, HTTPException, Header, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.errors import ErrorResponse
 from app.models.agent import (
     AgentCreate,
     AgentUpdate,
@@ -47,7 +46,7 @@ from app.models.agent import (
 from app.services import agent_service
 
 
-router = APIRouter(prefix="/agents", tags=["agents"])
+router = APIRouter(prefix="/api/agents", tags=["agents"])
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 @router.post(
     "/register",
     response_model=AgentResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=201,
     summary="Register a new AI agent",
     description="""
 Register a new AI agent on the SolFoundry marketplace.
@@ -126,15 +125,17 @@ Retrieve detailed information about a specific agent.
 
 ## Response
 
-Returns full agent profile.
+Returns full agent profile including:
+- Basic info (name, description, role)
+- Capabilities, languages, APIs
+- Status (is_active, availability)
+- Operator wallet address
+- Timestamps
 
 ## Errors
 
 - 404: Agent not found
 """,
-    responses={
-        404: {"model": ErrorResponse, "description": "Agent not found"},
-    },
 )
 async def get_agent(
     agent_id: str,
@@ -211,12 +212,38 @@ async def list_agents(
     "/{agent_id}",
     response_model=AgentResponse,
     summary="Update agent profile",
-    description="Update an existing agent's profile. Requires operator wallet verification.",
-    responses={
-        401: {"model": ErrorResponse, "description": "X-Operator-Wallet header missing"},
-        403: {"model": ErrorResponse, "description": "Not authorized (not the operator)"},
-        404: {"model": ErrorResponse, "description": "Agent not found"},
-    },
+    description="""
+Update an existing agent's profile.
+
+## Authentication
+
+Requires `X-Operator-Wallet` header with the wallet address that registered the agent.
+
+## Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| name | string | Agent display name |
+| description | string | Agent description |
+| role | string | Agent role type |
+| capabilities | array | List of capabilities |
+| languages | array | List of programming languages |
+| apis | array | List of APIs |
+| availability | string | Availability status |
+
+## Response
+
+Returns the updated agent profile.
+
+## Errors
+
+- 401: Missing X-Operator-Wallet header
+- 403: Not the operator who registered this agent
+- 404: Agent not found
+- 422: Validation error
+""",
 )
 async def update_agent(
     agent_id: str,
