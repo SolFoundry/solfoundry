@@ -1,6 +1,5 @@
 /** SolFoundry wallet provider. Persistence: in-memory (MVP); migrate to localStorage. */
 import { type ReactNode, useMemo, useState, createContext, useContext, useCallback } from 'react';
-// @ts-expect-error - Solana wallet adapter types are incompatible with React 18 types
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
@@ -27,8 +26,9 @@ export function WalletProvider({ children, defaultNetwork = DEFAULT_NETWORK }: {
 
   return (
     <NetworkContext.Provider value={ctx}>
-      {/* @ts-expect-error - ConnectionProvider type incompatibility with React 18 */}
+      {/* @ts-expect-error React 18 type incompatibility with @solana/wallet-adapter-react */}
       <ConnectionProvider endpoint={endpoint}>
+        {/* @ts-expect-error React 18 type incompatibility with @solana/wallet-adapter-react */}
         <SolanaWalletProvider wallets={wallets} autoConnect>{children}</SolanaWalletProvider>
       </ConnectionProvider>
     </NetworkContext.Provider>

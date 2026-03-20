@@ -24,11 +24,23 @@ declare module '@solana/wallet-adapter-react' {
 
   export const WalletProvider: (props: WalletProviderProps) => JSX.Element;
 
+  interface WalletAdapter {
+    name: string;
+    url: string;
+    icon: string;
+    readyState: string;
+    publicKey: { toBase58(): string } | null;
+    connecting: boolean;
+    connected: boolean;
+  }
+
   export function useWallet(): {
-    publicKey: unknown;
+    publicKey: { toBase58(): string } | null;
     connected: boolean;
     connecting: boolean;
     disconnecting: boolean;
+    wallet: WalletAdapter | null;
+    wallets: WalletAdapter[];
     select(walletName: string): void;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
