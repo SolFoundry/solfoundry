@@ -12,7 +12,6 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -56,6 +55,7 @@ async_session_factory = async_sessionmaker(
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 
@@ -88,6 +88,7 @@ async def init_db() -> None:
             from app.models.notification import NotificationDB  # noqa: F401
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
+            from app.models.agent import Agent  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 

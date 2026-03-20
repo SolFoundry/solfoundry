@@ -47,9 +47,7 @@ async def search_bounties_db(
 
     has_query = bool(params.q.strip())
     if has_query:
-        conditions.append(
-            "b.search_vector @@ plainto_tsquery('english', :query)"
-        )
+        conditions.append("b.search_vector @@ plainto_tsquery('english', :query)")
         binds["query"] = params.q.strip()
 
     if params.status is not None:
@@ -327,9 +325,7 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
     if params.skills:
         skill_set = {s.lower() for s in params.skills}
         results = [
-            b
-            for b in results
-            if skill_set & {s.lower() for s in b.required_skills}
+            b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
     if params.reward_min is not None:
         results = [b for b in results if b.reward_amount >= params.reward_min]
@@ -337,9 +333,7 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
         results = [b for b in results if b.reward_amount <= params.reward_max]
     if params.deadline_before is not None:
         results = [
-            b
-            for b in results
-            if b.deadline and b.deadline <= params.deadline_before
+            b for b in results if b.deadline and b.deadline <= params.deadline_before
         ]
 
     q = params.q.strip()
@@ -503,9 +497,7 @@ class BountySearchService:
         if self._session is None:
             return False
         try:
-            result = await self._session.execute(
-                text("SELECT 1 FROM bounties LIMIT 0")
-            )
+            await self._session.execute(text("SELECT 1 FROM bounties LIMIT 0"))
             return True
         except Exception:
             return False
@@ -535,6 +527,4 @@ class BountySearchService:
             return await get_recommended_bounties_db(
                 self._session, user_skills, completed_bounty_ids or [], limit
             )
-        return get_recommended_memory(
-            user_skills, completed_bounty_ids or [], limit
-        )
+        return get_recommended_memory(user_skills, completed_bounty_ids or [], limit)

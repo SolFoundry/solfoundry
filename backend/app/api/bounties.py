@@ -199,9 +199,7 @@ async def search_bounties(
     svc: BountySearchService = Depends(_get_search_service),
 ) -> BountySearchResponse:
     skill_list = (
-        [s.strip().lower() for s in skills.split(",") if s.strip()]
-        if skills
-        else []
+        [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else []
     )
     params = BountySearchParams(
         q=q,
@@ -294,14 +292,14 @@ Display personalized bounty recommendations to logged-in users.
 )
 async def recommended_bounties(
     skills: str = Query(..., description="Comma-separated user skills"),
-    exclude: Optional[str] = Query(None, description="Comma-separated bounty IDs to exclude"),
+    exclude: Optional[str] = Query(
+        None, description="Comma-separated bounty IDs to exclude"
+    ),
     limit: int = Query(6, ge=1, le=20),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> list[BountySearchResult]:
     skill_list = [s.strip().lower() for s in skills.split(",") if s.strip()]
-    excluded = (
-        [e.strip() for e in exclude.split(",") if e.strip()] if exclude else []
-    )
+    excluded = [e.strip() for e in exclude.split(",") if e.strip()] if exclude else []
     return await svc.recommended(skill_list, excluded, limit)
 
 

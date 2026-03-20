@@ -181,7 +181,9 @@ class TestSearchMemory:
         assert result.total == 3
 
     def test_filter_by_status_completed(self):
-        result = search_bounties_memory(BountySearchParams(status=BountyStatus.COMPLETED))
+        result = search_bounties_memory(
+            BountySearchParams(status=BountyStatus.COMPLETED)
+        )
         assert result.total == 1
         assert result.items[0].title == "Lending Protocol v2 Security Audit"
 
@@ -197,7 +199,9 @@ class TestSearchMemory:
             assert "rust" in [s.lower() for s in item.required_skills]
 
     def test_filter_by_reward_range(self):
-        result = search_bounties_memory(BountySearchParams(reward_min=1000, reward_max=10000))
+        result = search_bounties_memory(
+            BountySearchParams(reward_min=1000, reward_max=10000)
+        )
         assert all(1000 <= b.reward_amount <= 10000 for b in result.items)
 
     def test_full_text_search_title(self):
@@ -263,16 +267,13 @@ class TestSearchMemory:
         )
         for item in result.items:
             expected = len(
-                {"react", "typescript"}
-                & {s.lower() for s in item.required_skills}
+                {"react", "typescript"} & {s.lower() for s in item.required_skills}
             )
             assert item.skill_match_count == expected
 
     def test_deadline_filter(self):
         cutoff = NOW + timedelta(days=10)
-        result = search_bounties_memory(
-            BountySearchParams(deadline_before=cutoff)
-        )
+        result = search_bounties_memory(BountySearchParams(deadline_before=cutoff))
         for item in result.items:
             assert item.deadline is not None
             assert item.deadline <= cutoff
@@ -286,7 +287,10 @@ class TestSearchMemory:
 class TestAutocompleteMemory:
     def test_returns_title_matches(self):
         result = autocomplete_memory("staking", limit=5)
-        assert any(s.type == "title" and "staking" in s.text.lower() for s in result.suggestions)
+        assert any(
+            s.type == "title" and "staking" in s.text.lower()
+            for s in result.suggestions
+        )
 
     def test_returns_skill_matches(self):
         result = autocomplete_memory("rust", limit=5)
