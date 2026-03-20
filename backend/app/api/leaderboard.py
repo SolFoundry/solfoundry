@@ -25,21 +25,88 @@ _RANGE_MAP = {
     "month": TimePeriod.month,
 }
 
+_LEADERBOARD_EXAMPLE = [
+    {
+        "rank": 1,
+        "username": "alice",
+        "avatarUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=alice",
+        "points": 9500,
+        "bountiesCompleted": 12,
+        "earningsFndry": 95000.0,
+        "earningsSol": 0,
+        "streak": 6,
+        "topSkills": ["rust", "anchor", "typescript"],
+    },
+    {
+        "rank": 2,
+        "username": "bob",
+        "avatarUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=bob",
+        "points": 7200,
+        "bountiesCompleted": 8,
+        "earningsFndry": 72000.0,
+        "earningsSol": 0,
+        "streak": 4,
+        "topSkills": ["solidity", "frontend", "react"],
+    },
+]
 
-@router.get("/leaderboard")
+
+@router.get(
+    "/leaderboard",
+    summary="Get contributor leaderboard",
+    description="""
+Returns a ranked list of contributors sorted by $FNDRY earned.
+
+**Time period filtering:**
+
+You can use either the backend `period` parameter or the frontend-friendly `range` parameter:
+
+| `range` | `period` equivalent | Description |
+|---------|---------------------|-------------|
+| `7d` | `week` | Last 7 days |
+| `30d` | `month` | Last 30 days |
+| `90d` | `month` | Approximated as 30 days |
+| `all` | `all` | All time (default) |
+
+**Category filter values:** `frontend`, `backend`, `security`, `docs`, `devops`
+
+**Tier filter:** `1`, `2`, or `3` — filter by the tier of bounties completed
+
+Results include enriched skill data from contributor profiles.
+Each entry includes `points` (reputation × 100), `bountiesCompleted`, `earningsFndry`, and `topSkills`.
+""",
+    responses={
+        200: {
+            "description": "Ranked contributor list",
+            "content": {
+                "application/json": {
+                    "example": _LEADERBOARD_EXAMPLE
+                }
+            },
+        }
+    },
+)
 async def leaderboard(
-    period: Optional[TimePeriod] = Query(None, description="Time period: week, month, or all"),
-    range: Optional[str] = Query(None, description="Frontend range: 7d, 30d, 90d, all"),
-    tier: Optional[TierFilter] = Query(None, description="Filter by bounty tier: 1, 2, or 3"),
-    category: Optional[CategoryFilter] = Query(None, description="Filter by category"),
-    limit: int = Query(50, ge=1, le=100, description="Results per page"),
+    period: Optional[TimePeriod] = Query(
+        None,
+        description="Time period: `week`, `month`, or `all`",
+    ),
+    range: Optional[str] = Query(
+        None,
+        description="Frontend range alias: `7d`, `30d`, `90d`, or `all`",
+    ),
+    tier: Optional[TierFilter] = Query(
+        None,
+        description="Filter by bounty tier: `1`, `2`, or `3`",
+    ),
+    category: Optional[CategoryFilter] = Query(
+        None,
+        description="Filter by skill category: `frontend`, `backend`, `security`, `docs`, `devops`",
+    ),
+    limit: int = Query(50, ge=1, le=100, description="Maximum entries to return (max 100)"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
 ):
-    """Ranked list of contributors by $FNDRY earned.
-
-    Supports both backend format (?period=all) and frontend format (?range=all).
-    Returns array of contributors in frontend-friendly camelCase format.
-    """
+    """Ranked list of contributors by $FNDRY earned."""
     # Resolve period from either param
     resolved_period = TimePeriod.all
     if period:
