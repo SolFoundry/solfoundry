@@ -1,0 +1,1 @@
+export default { content: ['./src/**/*.{ts,tsx}'], darkMode: 'class', theme: { extend: { colors: { solana: { green: '#14F195', purple: '#9945FF' }, surface: { DEFAULT: '#0a0a0a', 50: '#111', 100: '#1a1a1a', 200: '#222', 300: '#2a2a2a' } }}} };

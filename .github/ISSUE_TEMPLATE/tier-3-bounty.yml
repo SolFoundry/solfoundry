@@ -1,16 +1,17 @@
 name: "🔴 Tier 3 Bounty (5000-50000 $FNDRY)"
-description: "Milestone-based bounty — major feature, 14-day deadline"
+description: "Claim-based bounty — requires Tier 3 access (3+ merged T2 bounties)"
 title: "🏭 Bounty T3: "
 labels: ["bounty", "tier-3"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Tier 3 — Milestone-Based
+        ## Tier 3 — Claim-Based (Gated Access)
         - **Reward:** 5,000-50,000 $FNDRY
-        - **Mode:** Milestone-based — apply with your plan. Selected contributor gets the assignment.
-        - **Deadline:** 14 days from assignment. Progress check at day 7.
-        - **Rules:** Must pass AI code review (score ≥ 8/10). Full test suite + docs required. May require multiple PRs.
+        - **Mode:** Claim-based — comment "claiming" to reserve. Must have 3+ merged T2 bounty PRs to claim.
+        - **Deadline:** 14 days from claim. Progress check at day 7.
+        - **Rules:** Must pass AI code review (score ≥ 6/10). Full test suite + docs required. May require multiple PRs.
+        - **Access:** Claim-guard checks your merged T2 count automatically. Star rewards and content bounties do NOT count.
   - type: textarea
     id: description
     attributes:
@@ -58,8 +59,15 @@ body:
         - Frontend
         - Backend
         - Smart Contract
+        - AI/ML
+        - Scraping
+        - Bot
+        - DevOps
+        - Security
+        - Design
         - Full Stack
         - Infrastructure
+        - Docs
     validations:
       required: true
   - type: textarea
