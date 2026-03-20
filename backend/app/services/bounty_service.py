@@ -128,6 +128,9 @@ def list_bounties(
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
 
+    # Sort by created_at descending (newest first)
+    results.sort(key=lambda b: b.created_at, reverse=True)
+
     total = len(results)
     page = results[skip : skip + limit]
 
