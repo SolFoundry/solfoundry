@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Bounty, BountyBoardFilters, BountySortBy } from '../types/bounty';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
 import { mockBounties } from '../data/mockBounties';
 
@@ -11,80 +11,185 @@ const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
   paid: 'completed',
 };
 
-/** Transform a backend bounty (snake_case) into frontend Bounty (camelCase). */
 function mapApiBounty(b: any): Bounty {
   return {
     id: b.id,
     title: b.title,
     description: b.description || '',
-    tier: TIER_MAP[b.tier] || 'T2',
-    skills: b.required_skills || [],
-    rewardAmount: b.reward_amount,
+    tier: TIER_MAP[b.tier] || b.tier || 'T2',
+    skills: b.required_skills || b.skills || [],
+    rewardAmount: b.reward_amount ?? b.rewardAmount,
     currency: '$FNDRY',
     deadline: b.deadline || new Date(Date.now() + 7 * 86400000).toISOString(),
-    status: STATUS_MAP[b.status] || 'open',
-    submissionCount: b.submission_count || 0,
-    createdAt: b.created_at,
-    projectName: b.created_by || 'SolFoundry',
-    githubIssueUrl: b.github_issue_url || undefined,
+    status: STATUS_MAP[b.status] || b.status || 'open',
+    submissionCount: b.submission_count ?? b.submissionCount ?? 0,
+    createdAt: b.created_at ?? b.createdAt,
+    projectName: b.created_by || b.projectName || 'SolFoundry',
+    githubIssueUrl: b.github_issue_url || b.githubIssueUrl || undefined,
+    relevanceScore: b.relevance_score ?? 0,
+    skillMatchCount: b.skill_match_count ?? 0,
   };
+}
+
+function buildSearchParams(
+  filters: BountyBoardFilters, sortBy: BountySortBy, page: number, perPage: number,
+): URLSearchParams {
+  const p = new URLSearchParams();
+  if (filters.searchQuery.trim()) p.set('q', filters.searchQuery.trim());
+  if (filters.tier !== 'all') {
+    const tierNum = filters.tier === 'T1' ? '1' : filters.tier === 'T2' ? '2' : '3';
+    p.set('tier', tierNum);
+  }
+  if (filters.status !== 'all') {
+    const map: Record<string, string> = { open: 'open', 'in-progress': 'in_progress', completed: 'completed' };
+    p.set('status', map[filters.status] || filters.status);
+  }
+  if (filters.skills.length) p.set('skills', filters.skills.join(','));
+  if (filters.rewardMin) p.set('reward_min', filters.rewardMin);
+  if (filters.rewardMax) p.set('reward_max', filters.rewardMax);
+  if (filters.creatorType !== 'all') p.set('creator_type', filters.creatorType);
+  p.set('sort', sortBy);
+  p.set('page', String(page));
+  p.set('per_page', String(perPage));
+  return p;
+}
+
+// Legacy sort key compat: old 'reward' maps to 'reward_high'
+const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
+
+function localSort(arr: Bounty[], sortBy: BountySortBy): Bounty[] {
+  const s = [...arr];
+  switch (sortBy) {
+    case 'reward_high': return s.sort((a, b) => b.rewardAmount - a.rewardAmount);
+    case 'reward_low': return s.sort((a, b) => a.rewardAmount - b.rewardAmount);
+    case 'deadline': return s.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+    case 'submissions': return s.sort((a, b) => b.submissionCount - a.submissionCount);
+    case 'best_match':
+    case 'newest':
+    default: return s.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+}
+
+function applyLocalFilters(all: Bounty[], f: BountyBoardFilters, sortBy: BountySortBy): Bounty[] {
+  let r = [...all];
+  if (f.tier !== 'all') r = r.filter(b => b.tier === f.tier);
+  if (f.status !== 'all') r = r.filter(b => b.status === f.status);
+  if (f.skills.length) r = r.filter(b => f.skills.some(s => b.skills.map(sk => sk.toLowerCase()).includes(s.toLowerCase())));
+  if (f.searchQuery.trim()) {
+    const q = f.searchQuery.toLowerCase();
+    r = r.filter(b => b.title.toLowerCase().includes(q) || b.description.toLowerCase().includes(q) || b.projectName.toLowerCase().includes(q));
+  }
+  if (f.rewardMin) { const min = Number(f.rewardMin); if (!isNaN(min)) r = r.filter(b => b.rewardAmount >= min); }
+  if (f.rewardMax) { const max = Number(f.rewardMax); if (!isNaN(max)) r = r.filter(b => b.rewardAmount <= max); }
+  return localSort(r, sortBy);
 }
 
 export function useBountyBoard() {
   const [allBounties, setAllBounties] = useState<Bounty[]>(mockBounties);
-  const [loading, setLoading] = useState(true);
+  const [apiResults, setApiResults] = useState<{ items: Bounty[]; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
-  const [sortBy, setSortBy] = useState<BountySortBy>('newest');
+  const [sortBy, setSortByRaw] = useState<BountySortBy>('newest');
+  const [page, setPage] = useState(1);
+  const [hotBounties, setHotBounties] = useState<Bounty[]>([]);
+  const [recommendedBounties, setRecommendedBounties] = useState<Bounty[]>([]);
+  const perPage = 20;
+  const abortRef = useRef<AbortController | null>(null);
+  const useApiRef = useRef(true);
 
-  // Fetch real bounties from API, fall back to mock data
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/bounties?limit=50');
-        if (!cancelled && res.ok) {
-          const data = await res.json();
-          const items = data.items || data;
-          if (Array.isArray(items) && items.length > 0) {
-            setAllBounties(items.map(mapApiBounty));
-          }
-        }
-      } catch {
-        // Keep mock data on failure
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  // Handle legacy sort values
+  const setSortBy = useCallback((s: BountySortBy | string) => {
+    setSortByRaw((SORT_COMPAT[s] || s) as BountySortBy);
+    setPage(1);
   }, []);
 
-  const bounties = useMemo(() => {
-    let r = [...allBounties];
-    if (filters.tier !== 'all') r = r.filter(b => b.tier === filters.tier);
-    if (filters.status !== 'all') r = r.filter(b => b.status === filters.status);
-    if (filters.skills.length) r = r.filter(b => filters.skills.some(s => b.skills.map(sk => sk.toLowerCase()).includes(s.toLowerCase())));
-    if (filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
-      r = r.filter(b => b.title.toLowerCase().includes(q) || b.projectName.toLowerCase().includes(q));
-    }
-    return r.sort((a, b) =>
-      sortBy === 'reward' ? b.rewardAmount - a.rewardAmount
-      : sortBy === 'deadline' ? new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [allBounties, filters, sortBy]);
+  // Server-side search
+  useEffect(() => {
+    if (!useApiRef.current) return;
+    const timer = setTimeout(async () => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setLoading(true);
+      try {
+        const params = buildSearchParams(filters, sortBy, page, perPage);
+        const res = await fetch(`/api/bounties/search?${params}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error('search failed');
+        const data: SearchResponse = await res.json();
+        setApiResults({ items: data.items.map(mapApiBounty), total: data.total });
+      } catch (e: any) {
+        if (e.name === 'AbortError') return;
+        useApiRef.current = false;
+        setApiResults(null);
+        // Fallback: fetch all bounties once from old list endpoint
+        try {
+          const res = await fetch('/api/bounties?limit=100');
+          if (res.ok) {
+            const data = await res.json();
+            const items = (data.items || data);
+            if (Array.isArray(items) && items.length > 0) {
+              setAllBounties(items.map(mapApiBounty));
+            }
+          }
+        } catch { /* keep mock data */ }
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [filters, sortBy, page]);
 
-  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) =>
-    setFilters(p => ({ ...p, [k]: v })), []);
+  // Client-side filtered results (fallback when API unavailable)
+  const localFiltered = useMemo(
+    () => applyLocalFilters(allBounties, filters, sortBy),
+    [allBounties, filters, sortBy],
+  );
+
+  // Decide which results to use
+  const bounties = apiResults ? apiResults.items : localFiltered;
+  const total = apiResults ? apiResults.total : localFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+  // Fetch hot bounties once
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/bounties/hot?limit=6');
+        if (res.ok) setHotBounties((await res.json()).map(mapApiBounty));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  // Fetch recommended bounties
+  useEffect(() => {
+    const skills = filters.skills.length > 0 ? filters.skills : ['react', 'typescript', 'rust'];
+    (async () => {
+      try {
+        const res = await fetch(`/api/bounties/recommended?skills=${skills.join(',')}&limit=6`);
+        if (res.ok) setRecommendedBounties((await res.json()).map(mapApiBounty));
+      } catch { /* ignore */ }
+    })();
+  }, [filters.skills]);
+
+  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) => {
+    setFilters(p => ({ ...p, [k]: v }));
+    setPage(1);
+  }, []);
 
   return {
     bounties,
     allBounties,
+    total,
     filters,
     sortBy,
     loading,
+    page,
+    totalPages,
+    hotBounties,
+    recommendedBounties,
     setFilter,
-    resetFilters: useCallback(() => setFilters(DEFAULT_FILTERS), []),
+    resetFilters: useCallback(() => { setFilters(DEFAULT_FILTERS); setPage(1); setApiResults(null); }, []),
     setSortBy,
+    setPage,
   };
 }

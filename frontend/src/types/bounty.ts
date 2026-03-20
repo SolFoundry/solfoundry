@@ -1,10 +1,86 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'completed';
-export type BountySortBy = 'newest' | 'reward' | 'deadline';
-export interface Bounty { id: string; title: string; description: string; tier: BountyTier; skills: string[]; rewardAmount: number; currency: string; deadline: string; status: BountyStatus; submissionCount: number; createdAt: string; projectName: string; githubIssueUrl?: string; }
-export interface BountyBoardFilters { tier: BountyTier | 'all'; status: BountyStatus | 'all'; skills: string[]; searchQuery: string; }
-export const DEFAULT_FILTERS: BountyBoardFilters = { tier: 'all', status: 'all', skills: [], searchQuery: '' };
-export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js'];
-export const TIER_OPTIONS: { value: BountyTier | 'all'; label: string }[] = [{ value: 'all', label: 'All Tiers' }, { value: 'T1', label: 'T1' }, { value: 'T2', label: 'T2' }, { value: 'T3', label: 'T3' }];
-export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'in-progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }];
-export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [{ value: 'newest', label: 'Newest' }, { value: 'reward', label: 'Reward' }, { value: 'deadline', label: 'Deadline' }];
+export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+
+export interface Bounty {
+  id: string;
+  title: string;
+  description: string;
+  tier: BountyTier;
+  skills: string[];
+  rewardAmount: number;
+  currency: string;
+  deadline: string;
+  status: BountyStatus;
+  submissionCount: number;
+  createdAt: string;
+  projectName: string;
+  githubIssueUrl?: string;
+  relevanceScore?: number;
+  skillMatchCount?: number;
+}
+
+export interface BountyBoardFilters {
+  tier: BountyTier | 'all';
+  status: BountyStatus | 'all';
+  skills: string[];
+  searchQuery: string;
+  rewardMin: string;
+  rewardMax: string;
+  creatorType: 'all' | 'platform' | 'community';
+}
+
+export const DEFAULT_FILTERS: BountyBoardFilters = {
+  tier: 'all',
+  status: 'all',
+  skills: [],
+  searchQuery: '',
+  rewardMin: '',
+  rewardMax: '',
+  creatorType: 'all',
+};
+
+export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content'];
+
+export const TIER_OPTIONS: { value: BountyTier | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Tiers' },
+  { value: 'T1', label: 'T1 — Open Race' },
+  { value: 'T2', label: 'T2 — Assigned' },
+  { value: 'T3', label: 'T3 — Elite' },
+];
+
+export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+];
+
+export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'reward_high', label: 'Highest Reward' },
+  { value: 'reward_low', label: 'Lowest Reward' },
+  { value: 'deadline', label: 'Ending Soon' },
+  { value: 'submissions', label: 'Most Submissions' },
+  { value: 'best_match', label: 'Best Match' },
+];
+
+export const CREATOR_TYPE_OPTIONS: { value: 'all' | 'platform' | 'community'; label: string }[] = [
+  { value: 'all', label: 'All Creators' },
+  { value: 'platform', label: 'Platform' },
+  { value: 'community', label: 'Community' },
+];
+
+export interface SearchResponse {
+  items: Bounty[];
+  total: number;
+  page: number;
+  per_page: number;
+  query: string;
+}
+
+export interface AutocompleteItem {
+  text: string;
+  type: 'title' | 'skill';
+  bounty_id?: string;
+}

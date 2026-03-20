@@ -20,10 +20,10 @@ from app.services.websocket_manager import manager as ws_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
-    # Startup: Initialize database, seed data, and WebSocket manager
     await init_db()
-    from app.seed_data import seed_bounties
+    from app.seed_data import seed_bounties, seed_bounties_to_db
     seed_bounties()
+    await seed_bounties_to_db()
     from app.seed_leaderboard import seed_leaderboard
     seed_leaderboard()
     await ws_manager.init()

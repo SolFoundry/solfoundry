@@ -85,11 +85,10 @@ async def init_db() -> None:
 
     try:
         async with engine.begin() as conn:
-            # Import models to register with Base
             from app.models.notification import NotificationDB  # noqa: F401
             from app.models.user import User  # noqa: F401
+            from app.models.bounty_table import BountyTable  # noqa: F401
 
-            # Create all tables (checkfirst=True prevents errors on existing tables)
             await conn.run_sync(Base.metadata.create_all)
 
             logger.info("Database schema initialized successfully")
