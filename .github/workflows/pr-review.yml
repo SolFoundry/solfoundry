@@ -188,6 +188,61 @@ jobs:
             echo "" > /tmp/bounty_spec.txt
           fi
 
+      - name: Check for duplicate submissions
+        if: steps.bounty.outputs.issue_num != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, subprocess, re, sys
+
+          pr_num = os.environ.get("PR_NUM", "${{ steps.pr.outputs.number }}")
+          pr_author = "${{ steps.pr.outputs.author }}"
+          issue_num = "${{ steps.bounty.outputs.issue_num }}"
+          tier = "${{ steps.bounty.outputs.tier }}"
+          repo = "${{ github.repository }}"
+
+          if not issue_num:
+              print("No linked issue — skipping duplicate check")
+              sys.exit(0)
+
+          # Get all open PRs
+          result = subprocess.run(
+              ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "100",
+               "--json", "number,author,body"],
+              capture_output=True, text=True
+          )
+          prs = json.loads(result.stdout) if result.stdout else []
+
+          # Find open PRs by the same author targeting the same issue
+          duplicates = []
+          for pr in prs:
+              if str(pr["number"]) == str(pr_num):
+                  continue  # Skip current PR
+              body = (pr.get("body", "") or "").lower()
+              author = pr.get("author", {}).get("login", "")
+              if author == pr_author:
+                  if re.search(rf"(?:closes|fixes|resolves)\s+#{issue_num}\b", body):
+                      duplicates.append(pr["number"])
+
+          if duplicates:
+              print(f"DUPLICATE: {pr_author} already has open PR(s) {duplicates} for issue #{issue_num}")
+
+              # Post comment and close the duplicate
+              comment = (
+                  f"⚠️ **Duplicate submission detected**\n\n"
+                  f"@{pr_author}, you already have an open PR (#{duplicates[0]}) for this bounty.\n\n"
+                  f"**One PR per person per bounty.** Please update your existing PR instead of opening a new one.\n\n"
+                  f"---\n*SolFoundry Review Bot*"
+              )
+              subprocess.run(["gh", "pr", "comment", str(pr_num), "--repo", repo, "--body", comment])
+              subprocess.run(["gh", "pr", "close", str(pr_num), "--repo", repo])
+              print("Duplicate PR closed")
+              sys.exit(1)  # Stop the workflow — don't waste LLM calls
+          else:
+              print(f"No duplicates — {pr_author} is clear for issue #{issue_num}")
+          PYEOF
+
       - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
