@@ -100,14 +100,14 @@ class SubmissionBase(BaseModel):
     description: Optional[str] = Field(None, max_length=2000)
     evidence: List[str] = Field(default_factory=list, description="Links to screenshots, videos, etc.")
     
-    @field_validator('pr_url')
+    @field_validator("pr_url")
     @classmethod
     def validate_pr_url(cls, v: str) -> str:
         """Validate GitHub PR URL format."""
-        if not v.startswith(('https://github.com/', 'http://github.com/')):
-            raise ValueError('PR URL must be a valid GitHub URL')
-        if '/pull/' not in v:
-            raise ValueError('URL must be a pull request URL (containing /pull/)')
+        if not v.startswith(("https://github.com/", "http://github.com/")):
+            raise ValueError("PR URL must be a valid GitHub URL")
+        if "/pull/" not in v:
+            raise ValueError("URL must be a pull request URL (containing /pull/)")
         return v
 
 
