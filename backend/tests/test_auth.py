@@ -1,4 +1,8 @@
-"""Tests for GitHub OAuth + Wallet auth system (Issue #11)."""
+"""Tests for GitHub OAuth + Wallet auth system (Issue #11).
+
+Covers JWT lifecycle, refresh-token rotation, nonce lifecycle, user CRUD,
+GitHub OAuth exchange, OAuth state CSRF protection, and endpoint integration.
+"""
 import hashlib, time
 from unittest.mock import AsyncMock, MagicMock, patch
 import httpx, pytest
@@ -140,17 +144,43 @@ class TestGitHubExchange:
             assert await auth_service.exchange_github_code("code", state="abc") is None
 
 class TestGitHubAuthEndpoint:
+    """Integration tests for POST /api/auth/github with server-side state validation."""
     @patch("app.services.auth_service.exchange_github_code", new_callable=AsyncMock)
     def test_success(self, mock_ex):
+        """Valid state + valid code returns 200 with tokens."""
         mock_ex.return_value = {"id": 12345, "login": "octocat", "avatar_url": "https://x.png"}
-        r = client.post("/api/auth/github", json={"code": "test-code", "state": "csrf-tok"})
+        state = auth_service.generate_oauth_state()
+        r = client.post("/api/auth/github", json={"code": "test-code", "state": state})
         assert r.status_code == 200 and "access_token" in r.json()
     @patch("app.services.auth_service.exchange_github_code", new_callable=AsyncMock)
+    def test_forged_state_rejected(self, mock_ex):
+        """A forged state token returns 403 (CSRF protection)."""
+        mock_ex.return_value = {"id": 12345, "login": "octocat", "avatar_url": "https://x.png"}
+        r = client.post("/api/auth/github", json={"code": "test-code", "state": "forged"})
+        assert r.status_code == 403
+        mock_ex.assert_not_called()
+    @patch("app.services.auth_service.exchange_github_code", new_callable=AsyncMock)
+    def test_reused_state_rejected(self, mock_ex):
+        """State token cannot be used twice (single-use)."""
+        mock_ex.return_value = {"id": 12345, "login": "octocat", "avatar_url": "https://x.png"}
+        state = auth_service.generate_oauth_state()
+        r1 = client.post("/api/auth/github", json={"code": "c1", "state": state})
+        assert r1.status_code == 200
+        r2 = client.post("/api/auth/github", json={"code": "c2", "state": state})
+        assert r2.status_code == 403
+    @patch("app.services.auth_service.exchange_github_code", new_callable=AsyncMock)
     def test_invalid_code(self, mock_ex):
+        """Valid state but invalid code returns 401."""
         mock_ex.return_value = None
-        assert client.post("/api/auth/github", json={"code": "bad", "state": "x"}).status_code == 401
+        state = auth_service.generate_oauth_state()
+        assert client.post("/api/auth/github", json={"code": "bad", "state": state}).status_code == 401
     def test_missing_code(self):
+        """Missing required fields returns 422."""
         r = client.post("/api/auth/github", json={})
+        assert r.status_code == 422
+    def test_missing_state(self):
+        """Missing state field returns 422 (state is now required)."""
+        r = client.post("/api/auth/github", json={"code": "abc"})
         assert r.status_code == 422
 
 class TestWalletAuthEndpoint:
@@ -185,10 +215,34 @@ class TestProtectedRoutes:
         assert r.status_code == 200 and "access_token" in r.json()
 
 class TestOAuthStateCSRF:
-    """OAuth state parameter prevents CSRF attacks on the authorization flow."""
-    def test_state_param_forwarded(self):
-        """State token from frontend is passed through to GitHub OAuth exchange."""
+    """Server-side OAuth CSRF state generation, validation, and endpoint."""
+    def test_generate_and_validate(self):
+        """A freshly generated state token validates successfully."""
+        state = auth_service.generate_oauth_state()
+        assert isinstance(state, str) and len(state) > 20
+        assert auth_service.validate_oauth_state(state) is True
+    def test_single_use(self):
+        """State tokens are consumed on first validation (replay prevention)."""
+        state = auth_service.generate_oauth_state()
+        assert auth_service.validate_oauth_state(state) is True
+        assert auth_service.validate_oauth_state(state) is False
+    def test_unknown_rejected(self):
+        """A fabricated state token is rejected."""
+        assert auth_service.validate_oauth_state("attacker-forged") is False
+    def test_expired(self):
+        """An expired state token is rejected."""
+        state = auth_service.generate_oauth_state()
+        auth_service._oauth_states[state] = time.time() - 1
+        assert auth_service.validate_oauth_state(state) is False
+    def test_state_endpoint(self):
+        """GET /api/auth/github/state returns a unique, valid state token."""
+        r = client.get("/api/auth/github/state")
+        assert r.status_code == 200 and "state" in r.json()
+        assert auth_service.validate_oauth_state(r.json()["state"]) is True
+    def test_state_forwarded(self):
+        """State token is passed through to the GitHub exchange call."""
+        state = auth_service.generate_oauth_state()
         with patch("app.services.auth_service.exchange_github_code", new_callable=AsyncMock) as m:
             m.return_value = {"id": 1, "login": "u", "avatar_url": ""}
-            client.post("/api/auth/github", json={"code": "c", "state": "csrf-token-123"})
-            m.assert_called_once_with("c", state="csrf-token-123")
+            client.post("/api/auth/github", json={"code": "c", "state": state})
+            m.assert_called_once_with("c", state=state)
