@@ -28,7 +28,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests
+        run: pip install openai requests base58
 
       - name: Fetch review engine (private)
         env:
