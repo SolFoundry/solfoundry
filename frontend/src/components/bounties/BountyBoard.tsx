@@ -34,12 +34,10 @@ export function BountyBoard() {
         totalCount={total}
       />
 
-      {/* Hot Bounties — shown when no filters are active */}
       {!hasActiveFilters && hotBounties.length > 0 && (
         <HotBounties bounties={hotBounties} />
       )}
 
-      {/* Recommended For You — shown when no search query is active */}
       {!filters.searchQuery.trim() && recommendedBounties.length > 0 && (
         <RecommendedBounties bounties={recommendedBounties} />
       )}
@@ -65,6 +63,4 @@ export function BountyBoard() {
       ) : (
         <EmptyState onReset={resetFilters} />
       )}
-    </div>
-  );
 }

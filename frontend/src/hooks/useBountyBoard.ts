@@ -3,6 +3,9 @@ import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '.
 import { DEFAULT_FILTERS } from '../types/bounty';
 import { mockBounties } from '../data/mockBounties';
 
+const REPO = 'SolFoundry/solfoundry';
+const GITHUB_API = 'https://api.github.com';
+
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
 const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
   open: 'open',
@@ -54,7 +57,6 @@ function buildSearchParams(
   return p;
 }
 
-// Legacy sort key compat: old 'reward' maps to 'reward_high'
 const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
 
 function localSort(arr: Bounty[], sortBy: BountySortBy): Bounty[] {
@@ -97,7 +99,6 @@ export function useBountyBoard() {
   const abortRef = useRef<AbortController | null>(null);
   const useApiRef = useRef(true);
 
-  // Handle legacy sort values
   const setSortBy = useCallback((s: BountySortBy | string) => {
     setSortByRaw((SORT_COMPAT[s] || s) as BountySortBy);
     setPage(1);

@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,20 +17,43 @@ from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
+from app.services.github_sync import sync_all, periodic_sync
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     await init_db()
-    from app.seed_data import seed_bounties, seed_bounties_to_db
-    seed_bounties()
-    await seed_bounties_to_db()
-    from app.seed_leaderboard import seed_leaderboard
-    seed_leaderboard()
     await ws_manager.init()
+
+    # Sync bounties + contributors from GitHub Issues (replaces static seeds)
+    try:
+        result = await sync_all()
+        logger.info(
+            "GitHub sync complete: %d bounties, %d contributors",
+            result["bounties"], result["contributors"],
+        )
+    except Exception as e:
+        logger.error("GitHub sync failed on startup: %s — falling back to seeds", e)
+        # Fall back to static seed data if GitHub sync fails
+        from app.seed_data import seed_bounties
+        seed_bounties()
+        from app.seed_leaderboard import seed_leaderboard
+        seed_leaderboard()
+
+    # Start periodic sync in background (every 5 minutes)
+    sync_task = asyncio.create_task(periodic_sync())
+
     yield
-    # Shutdown: Close WebSocket connections, then database
+
+    # Shutdown: Cancel background sync, close connections, then database
+    sync_task.cancel()
+    try:
+        await sync_task
+    except asyncio.CancelledError:
+        pass
     await ws_manager.shutdown()
     await close_db()
 
@@ -83,4 +108,20 @@ app.include_router(websocket_router)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    from app.services.github_sync import get_last_sync
+    from app.services.bounty_service import _bounty_store
+    from app.services.contributor_service import _store
+    last_sync = get_last_sync()
+    return {
+        "status": "ok",
+        "bounties": len(_bounty_store),
+        "contributors": len(_store),
+        "last_sync": last_sync.isoformat() if last_sync else None,
+    }
+
+
+@app.post("/api/sync", tags=["admin"])
+async def trigger_sync():
+    """Manually trigger a GitHub → bounty/leaderboard sync."""
+    result = await sync_all()
+    return result
