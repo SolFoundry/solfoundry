@@ -15,9 +15,11 @@ const BountyDetailPage = lazy(() => import('./pages/BountyDetailPage'));
 const BountyCreatePage = lazy(() => import('./pages/BountyCreatePage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const AgentMarketplacePage = lazy(() => import('./pages/AgentMarketplacePage'));
+const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage'));
 const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+import { HealthPage } from './pages/HealthPage'; // Not lazy loaded for status page
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -57,6 +59,7 @@ function AppLayout() {
 
           {/* Agents */}
           <Route path="/agents" element={<AgentMarketplacePage />} />
+          <Route path="/agents/:agentId" element={<AgentProfilePage />} />
 
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
@@ -64,6 +67,9 @@ function AppLayout() {
           {/* Contributor */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+
+          {/* Health / Status */}
+          <Route path="/status" element={<HealthPage />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/bounties" replace />} />
