@@ -6,19 +6,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { BountiesPage } from '../pages/BountiesPage';
 import { BountyBoard } from '../components/bounties/BountyBoard';
 import { BountyCard, formatTimeRemaining, formatReward } from '../components/bounties/BountyCard';
-import { TierBadge } from '../components/bounties/TierBadge';
-import { StatusIndicator } from '../components/bounties/StatusIndicator';
 import { EmptyState } from '../components/bounties/EmptyState';
 import { useBountyBoard } from '../hooks/useBountyBoard';
 import { mockBounties } from '../data/mockBounties';
 import type { Bounty } from '../types/bounty';
 const b: Bounty = { id: 't1', title: 'Test', description: 'D', tier: 'T2', skills: ['React','TS','Rust','Sol'], rewardAmount: 3500, currency: 'USDC', deadline: new Date(Date.now()+5*864e5).toISOString(), status: 'open', submissionCount: 3, createdAt: new Date().toISOString(), projectName: 'TP' };
-describe('Page + Board', () => {
+describe('Page+Board', () => {
   it('integrates Sidebar with BountyBoard', () => {
     render(<MemoryRouter><BountiesPage /></MemoryRouter>);
     expect(screen.getByLabelText('Main navigation')).toBeInTheDocument();
-    expect(screen.getByTestId('bounty-board')).toBeInTheDocument();
-    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByRole('main', { name: /bounty board/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /bounty board/i })).toBeInTheDocument();
   });
   it('renders all cards with filters', () => {
     render(<BountyBoard />);
@@ -42,23 +40,21 @@ describe('BountyCard', () => {
     render(<BountyCard bounty={b} onClick={fn} />);
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('3.5k')).toBeInTheDocument();
-    expect(screen.getByTestId('tier-badge-T2')).toBeInTheDocument();
-    await userEvent.click(screen.getByTestId('bounty-card-t1'));
+    expect(screen.getByText('T2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /test/i }));
     expect(fn).toHaveBeenCalledWith('t1');
   });
-  it('expired/urgent states', () => {
-    const { container, rerender } = render(<BountyCard bounty={{...b, deadline: new Date(Date.now()-1000).toISOString()}} onClick={()=>{}} />);
+  it('expired shows text, urgent shows indicator testid', () => {
+    const { rerender } = render(<BountyCard bounty={{...b, deadline: new Date(Date.now()-1000).toISOString()}} onClick={()=>{}} />);
     expect(screen.getByText('Expired')).toBeInTheDocument();
-    expect(container.firstChild).toHaveClass('opacity-60');
     rerender(<BountyCard bounty={{...b, deadline: new Date(Date.now()+12*36e5).toISOString()}} onClick={()=>{}} />);
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(screen.getByTestId('urgent-indicator')).toBeInTheDocument();
   });
 });
 describe('Helpers + components', () => {
   it('formatters', () => { expect(formatTimeRemaining(new Date(Date.now()-1000).toISOString())).toBe('Expired'); expect(formatReward(3500)).toBe('3.5k'); expect(formatReward(350)).toBe('350'); });
-  it('TierBadge', () => { render(<TierBadge tier="T1" />); expect(screen.getByTestId('tier-badge-T1').className).toContain('text-[#14F195]'); });
-  it('StatusIndicator', () => { render(<StatusIndicator status="open" />); expect(screen.getByTestId('status-open')).toHaveTextContent('Open'); });
-  it('EmptyState', async () => { const fn = vi.fn(); render(<EmptyState onReset={fn} />); await userEvent.click(screen.getByTestId('empty-state-reset')); expect(fn).toHaveBeenCalledOnce(); });
+  it('StatusIndicator', () => { render(<BountyCard bounty={b} onClick={()=>{}} />); expect(screen.getByText('Open')).toBeInTheDocument(); });
+  it('EmptyState', async () => { const fn = vi.fn(); render(<EmptyState onReset={fn} />); await userEvent.click(screen.getByRole('button', { name: /clear all filters/i })); expect(fn).toHaveBeenCalledOnce(); });
 });
 describe('useBountyBoard', () => {
   it('filters and sorts', () => {

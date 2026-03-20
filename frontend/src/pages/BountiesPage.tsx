@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { BountyBoard } from '../components/bounties/BountyBoard';
-/** Integrates BountyBoard with the existing Sidebar layout. Route: /bounties */
 export function BountiesPage() {
   const [c, setC] = useState(false);
   return (

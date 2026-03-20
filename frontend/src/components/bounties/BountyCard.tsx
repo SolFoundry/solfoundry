@@ -19,7 +19,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
   const urg = b.status === 'open' && !exp && new Date(b.deadline).getTime() - Date.now() < 2 * 864e5;
   return (
     <button type="button" onClick={() => onClick(b.id)} className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-solana-green' + (exp ? ' opacity-60' : '')} data-testid={'bounty-card-' + b.id} aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}>
-      {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#FF6B6B] animate-pulse" />}
+      {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#FF6B6B] animate-pulse" data-testid="urgent-indicator" />}
       <div className="p-5">
         <div className="flex justify-between mb-3"><TierBadge tier={b.tier} /><StatusIndicator status={b.status} /></div>
         <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
