@@ -51,6 +51,8 @@ function buildSearchParams(
   if (filters.rewardMin) p.set('reward_min', filters.rewardMin);
   if (filters.rewardMax) p.set('reward_max', filters.rewardMax);
   if (filters.creatorType !== 'all') p.set('creator_type', filters.creatorType);
+  if (filters.category !== 'all') p.set('category', filters.category);
+  if (filters.deadlineBefore) p.set('deadline_before', new Date(filters.deadlineBefore + 'T23:59:59Z').toISOString());
   p.set('sort', sortBy);
   p.set('page', String(page));
   p.set('per_page', String(perPage));
@@ -83,6 +85,10 @@ function applyLocalFilters(all: Bounty[], f: BountyBoardFilters, sortBy: BountyS
   }
   if (f.rewardMin) { const min = Number(f.rewardMin); if (!isNaN(min)) r = r.filter(b => b.rewardAmount >= min); }
   if (f.rewardMax) { const max = Number(f.rewardMax); if (!isNaN(max)) r = r.filter(b => b.rewardAmount <= max); }
+  if (f.deadlineBefore) {
+    const cutoff = new Date(f.deadlineBefore + 'T23:59:59Z').getTime();
+    r = r.filter(b => new Date(b.deadline).getTime() <= cutoff);
+  }
   return localSort(r, sortBy);
 }
 

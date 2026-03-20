@@ -17,7 +17,8 @@ export function BountyBoard() {
   const hasActiveFilters = filters.searchQuery.trim() !== '' ||
     filters.tier !== 'all' || filters.status !== 'all' ||
     filters.skills.length > 0 || filters.rewardMin !== '' ||
-    filters.rewardMax !== '' || filters.creatorType !== 'all';
+    filters.rewardMax !== '' || filters.creatorType !== 'all' ||
+    filters.category !== 'all' || filters.deadlineBefore !== '';
 
   return (
     <div className="min-h-screen bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
@@ -63,4 +64,6 @@ export function BountyBoard() {
       ) : (
         <EmptyState onReset={resetFilters} />
       )}
+    </div>
+  );
 }

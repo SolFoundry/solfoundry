@@ -203,51 +203,65 @@ async def seed_bounties_to_db():
                 return
 
             now = datetime.now(timezone.utc)
+            inserted = 0
+            skipped = 0
             for b_data in LIVE_BOUNTIES:
-                created_at = now - timedelta(hours=b_data["created_at_offset_hours"])
-                deadline = created_at + timedelta(hours=b_data["deadline_hours"])
+                try:
+                    created_at = now - timedelta(hours=b_data["created_at_offset_hours"])
+                    deadline = created_at + timedelta(hours=b_data["deadline_hours"])
 
-                # Upsert: skip if title already exists
-                existing = await session.execute(
-                    sql_text("SELECT id FROM bounties WHERE title = :title"),
-                    {"title": b_data["title"]},
-                )
-                if existing.first():
-                    continue
+                    existing = await session.execute(
+                        sql_text("SELECT id FROM bounties WHERE title = :title"),
+                        {"title": b_data["title"]},
+                    )
+                    if existing.first():
+                        skipped += 1
+                        continue
 
-                await session.execute(
-                    sql_text("""
-                        INSERT INTO bounties (
-                            title, description, tier, reward_amount, status,
-                            category, creator_type, skills, github_issue_url,
-                            created_by, submission_count, popularity,
-                            created_at, updated_at, deadline
-                        ) VALUES (
-                            :title, :description, :tier, :reward_amount, :status,
-                            :category, :creator_type, :skills::jsonb, :github_issue_url,
-                            :created_by, 0, 0,
-                            :created_at, :updated_at, :deadline
-                        )
-                    """),
-                    {
-                        "title": b_data["title"],
-                        "description": b_data["description"],
-                        "tier": b_data["tier"].value,
-                        "reward_amount": b_data["reward_amount"],
-                        "status": b_data["status"].value,
-                        "category": b_data.get("category"),
-                        "creator_type": b_data.get("creator_type", "platform"),
-                        "skills": json.dumps(b_data["skills"]),
-                        "github_issue_url": b_data.get("github_issue"),
-                        "created_by": b_data["created_by"],
-                        "created_at": created_at,
-                        "updated_at": created_at,
-                        "deadline": deadline,
-                    },
-                )
+                    await session.execute(
+                        sql_text("""
+                            INSERT INTO bounties (
+                                title, description, tier, reward_amount, status,
+                                category, creator_type, skills, github_issue_url,
+                                created_by, submission_count, popularity,
+                                created_at, updated_at, deadline
+                            ) VALUES (
+                                :title, :description, :tier, :reward_amount, :status,
+                                :category, :creator_type, :skills::jsonb, :github_issue_url,
+                                :created_by, 0, 0,
+                                :created_at, :updated_at, :deadline
+                            )
+                        """),
+                        {
+                            "title": b_data["title"],
+                            "description": b_data["description"],
+                            "tier": b_data["tier"].value,
+                            "reward_amount": b_data["reward_amount"],
+                            "status": b_data["status"].value,
+                            "category": b_data.get("category"),
+                            "creator_type": b_data.get("creator_type", "platform"),
+                            "skills": json.dumps(b_data["skills"]),
+                            "github_issue_url": b_data.get("github_issue"),
+                            "created_by": b_data["created_by"],
+                            "created_at": created_at,
+                            "updated_at": created_at,
+                            "deadline": deadline,
+                        },
+                    )
+                    inserted += 1
+                except Exception as e:
+                    logger.warning(
+                        "[seed] Failed to insert bounty '%s': %s",
+                        b_data.get("title", "unknown"),
+                        e,
+                    )
 
             await session.commit()
-            logger.info("[seed] Synced bounties to database")
+            logger.info(
+                "[seed] Synced bounties to database: %d inserted, %d skipped",
+                inserted,
+                skipped,
+            )
 
             # Apply search trigger if not already present
             try:
@@ -284,7 +298,8 @@ async def seed_bounties_to_db():
                 await session.commit()
                 logger.info("[seed] Applied search vector trigger")
             except Exception as e:
-                logger.debug(f"[seed] Search trigger setup: {e}")
+                await session.rollback()
+                logger.debug("[seed] Search trigger setup failed: %s", e)
 
     except Exception as e:
-        logger.warning(f"[seed] DB sync skipped: {e}")
+        logger.warning("[seed] DB sync skipped: %s", e)

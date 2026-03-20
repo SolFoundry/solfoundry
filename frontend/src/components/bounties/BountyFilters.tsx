@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import type { BountyBoardFilters, BountyTier, BountyStatus, AutocompleteItem } from '../../types/bounty';
-import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS, CREATOR_TYPE_OPTIONS } from '../../types/bounty';
+import type { BountyBoardFilters, BountyTier, BountyStatus, BountyCategory, AutocompleteItem } from '../../types/bounty';
+import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS, CREATOR_TYPE_OPTIONS, CATEGORY_OPTIONS } from '../../types/bounty';
 
 interface Props {
   filters: BountyBoardFilters;
@@ -22,7 +22,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
   const handleSearch = useCallback((v: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onFilterChange('searchQuery', v), 300);
+    debounceRef.current = setTimeout(() => onFilterChange('searchQuery', v), 150);
 
     // Fetch autocomplete suggestions
     if (v.trim().length >= 2) {
@@ -71,7 +71,8 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
   }, []);
 
   const hasActive = f.tier !== 'all' || f.status !== 'all' || f.skills.length > 0 ||
-    f.searchQuery.trim() !== '' || f.rewardMin !== '' || f.rewardMax !== '' || f.creatorType !== 'all';
+    f.searchQuery.trim() !== '' || f.rewardMin !== '' || f.rewardMax !== '' ||
+    f.creatorType !== 'all' || f.category !== 'all' || f.deadlineBefore !== '';
 
   return (
     <div className="space-y-3" data-testid="bounty-filters">
@@ -149,6 +150,16 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           {CREATOR_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
+        <select
+          value={f.category}
+          onChange={e => onFilterChange('category', e.target.value as BountyCategory | 'all')}
+          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          aria-label="Filter by category"
+          data-testid="category-filter"
+        >
+          {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -175,7 +186,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         </span>
       </div>
 
-      {/* Advanced filters (reward range) */}
+      {/* Advanced filters (reward range + deadline) */}
       {showAdvanced && (
         <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-surface-300 bg-surface-50" data-testid="advanced-filters">
           <span className="text-xs text-gray-500">Reward:</span>
@@ -199,6 +210,16 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             data-testid="reward-max"
           />
           <span className="text-xs text-gray-500 ml-1">$FNDRY</span>
+
+          <span className="text-xs text-gray-500 ml-3">Deadline before:</span>
+          <input
+            type="date"
+            value={f.deadlineBefore}
+            onChange={e => onFilterChange('deadlineBefore', e.target.value)}
+            className="rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white focus:outline-none focus:border-solana-green/50 scheme-dark"
+            aria-label="Deadline before date"
+            data-testid="deadline-filter"
+          />
         </div>
       )}
 

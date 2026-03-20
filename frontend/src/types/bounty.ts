@@ -20,6 +20,8 @@ export interface Bounty {
   skillMatchCount?: number;
 }
 
+export type BountyCategory = 'smart-contract' | 'frontend' | 'backend' | 'design' | 'content' | 'security' | 'devops' | 'documentation';
+
 export interface BountyBoardFilters {
   tier: BountyTier | 'all';
   status: BountyStatus | 'all';
@@ -28,6 +30,8 @@ export interface BountyBoardFilters {
   rewardMin: string;
   rewardMax: string;
   creatorType: 'all' | 'platform' | 'community';
+  category: BountyCategory | 'all';
+  deadlineBefore: string;
 }
 
 export const DEFAULT_FILTERS: BountyBoardFilters = {
@@ -38,6 +42,8 @@ export const DEFAULT_FILTERS: BountyBoardFilters = {
   rewardMin: '',
   rewardMax: '',
   creatorType: 'all',
+  category: 'all',
+  deadlineBefore: '',
 };
 
 export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content'];
@@ -69,6 +75,18 @@ export const CREATOR_TYPE_OPTIONS: { value: 'all' | 'platform' | 'community'; la
   { value: 'all', label: 'All Creators' },
   { value: 'platform', label: 'Platform' },
   { value: 'community', label: 'Community' },
+];
+
+export const CATEGORY_OPTIONS: { value: BountyCategory | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'smart-contract', label: 'Smart Contract' },
+  { value: 'frontend', label: 'Frontend' },
+  { value: 'backend', label: 'Backend' },
+  { value: 'design', label: 'Design' },
+  { value: 'content', label: 'Content' },
+  { value: 'security', label: 'Security' },
+  { value: 'devops', label: 'DevOps' },
+  { value: 'documentation', label: 'Documentation' },
 ];
 
 export interface SearchResponse {
