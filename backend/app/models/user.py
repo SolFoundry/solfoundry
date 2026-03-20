@@ -66,12 +66,14 @@ class UserResponse(BaseModel):
 
 class GitHubOAuthRequest(BaseModel):
     """GitHub OAuth callback with authorization code."""
+
     code: str = Field(..., min_length=1, description="GitHub OAuth authorization code")
     state: Optional[str] = Field(None, description="OAuth state for CSRF protection")
 
 
 class GitHubOAuthResponse(BaseModel):
     """Response after successful GitHub OAuth."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -81,6 +83,7 @@ class GitHubOAuthResponse(BaseModel):
 
 class WalletAuthRequest(BaseModel):
     """Solana wallet signature authentication."""
+
     wallet_address: str = Field(..., min_length=32, max_length=64)
     signature: str = Field(..., min_length=1)
     message: str = Field(..., min_length=1)
@@ -88,6 +91,7 @@ class WalletAuthRequest(BaseModel):
 
 class WalletAuthResponse(BaseModel):
     """Response after successful wallet authentication."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -97,6 +101,7 @@ class WalletAuthResponse(BaseModel):
 
 class LinkWalletRequest(BaseModel):
     """Link a Solana wallet to an existing user."""
+
     wallet_address: str = Field(..., min_length=32, max_length=64)
     signature: str = Field(..., min_length=1)
     message: str = Field(..., min_length=1)
@@ -104,6 +109,7 @@ class LinkWalletRequest(BaseModel):
 
 class LinkWalletResponse(BaseModel):
     """Response after linking a wallet."""
+
     success: bool = True
     wallet_address: str
     message: str = "Wallet linked successfully"
@@ -111,11 +117,13 @@ class LinkWalletResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     """Refresh token exchange."""
+
     refresh_token: str = Field(..., min_length=1)
 
 
 class RefreshTokenResponse(BaseModel):
     """New access token from refresh."""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int = 3600
@@ -123,6 +131,7 @@ class RefreshTokenResponse(BaseModel):
 
 class AuthMessageResponse(BaseModel):
     """Challenge message for wallet signature verification."""
+
     message: str
     nonce: str
 

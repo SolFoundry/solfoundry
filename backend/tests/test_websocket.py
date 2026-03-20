@@ -23,8 +23,10 @@ INVALID_TOKEN = "not-a-uuid"
 
 class FakeWebSocket:
     """Minimal WS double for unit tests."""
+
     def __init__(self):
         from starlette.websockets import WebSocketState
+
         self.client_state = WebSocketState.CONNECTED
         self.accepted = False
         self.closed = False
@@ -36,6 +38,7 @@ class FakeWebSocket:
 
     async def close(self, code: int = 1000):
         from starlette.websockets import WebSocketState
+
         self.closed = True
         self.close_code = code
         self.client_state = WebSocketState.DISCONNECTED
@@ -63,6 +66,7 @@ async def connected(mgr):
 
 
 # -- Auth tests --
+
 
 class TestAuthentication:
     @pytest.mark.asyncio
@@ -105,6 +109,7 @@ class TestAuthentication:
 
 # -- Heartbeat tests --
 
+
 class TestHeartbeat:
     @pytest.mark.asyncio
     async def test_heartbeat_sends_ping(self, connected):
@@ -137,6 +142,7 @@ class TestHeartbeat:
 
 
 # -- Broadcast tests --
+
 
 class TestBroadcast:
     @pytest.mark.asyncio
@@ -179,6 +185,7 @@ class TestBroadcast:
 
 # -- Redis adapter tests (mocked) --
 
+
 class TestRedisPubSubAdapter:
     @pytest.mark.asyncio
     async def test_publish_calls_redis(self):
@@ -220,12 +227,15 @@ class TestRedisPubSubAdapter:
     async def test_init_falls_back_to_inmemory(self):
         mgr = WebSocketManager()
         with patch("app.services.websocket_manager.REDIS_URL", "redis://bad:9999"):
-            with patch.object(RedisPubSubAdapter, "_connect", side_effect=ConnectionError):
+            with patch.object(
+                RedisPubSubAdapter, "_connect", side_effect=ConnectionError
+            ):
                 await mgr.init()
         assert isinstance(mgr._adapter, InMemoryPubSubAdapter)
 
 
 # -- Rate limiting --
+
 
 class TestRateLimiting:
     @pytest.mark.asyncio
@@ -240,13 +250,18 @@ class TestRateLimiting:
 
 # -- Channel lifecycle --
 
+
 class TestChannelLifecycle:
     @pytest.mark.asyncio
     async def test_subscribe_unsubscribe(self, connected):
         mgr, cid, _ = connected
-        resp = await mgr.handle_message(cid, json.dumps({"type": "subscribe", "channel": "b:42"}))
+        resp = await mgr.handle_message(
+            cid, json.dumps({"type": "subscribe", "channel": "b:42"})
+        )
         assert resp["type"] == "subscribed"
-        resp = await mgr.handle_message(cid, json.dumps({"type": "unsubscribe", "channel": "b:42"}))
+        resp = await mgr.handle_message(
+            cid, json.dumps({"type": "unsubscribe", "channel": "b:42"})
+        )
         assert resp["type"] == "unsubscribed"
         assert "b:42" not in mgr._subscriptions
 
@@ -273,10 +288,12 @@ class TestChannelLifecycle:
 
 # -- Integration --
 
+
 class TestEndpoint:
     @pytest.mark.asyncio
     async def test_connect_without_token_rejected(self):
         from app.main import app
+
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/ws")
@@ -285,9 +302,11 @@ class TestEndpoint:
 
 # -- helpers --
 
+
 async def _empty_aiter():
     return
     yield
+
 
 async def _async_iter(items):
     for item in items:

@@ -68,17 +68,36 @@ def _parse_tier_from_labels(labels: list[dict]) -> BountyTier:
 def _parse_skills_from_labels(labels: list[dict]) -> list[str]:
     """Extract skill tags from GitHub labels (exclude meta labels)."""
     meta_labels = {
-        "bounty", "tier-1", "tier-2", "tier-3",
-        "good first issue", "help wanted", "bug", "enhancement",
-        "duplicate", "invalid", "wontfix", "question",
+        "bounty",
+        "tier-1",
+        "tier-2",
+        "tier-3",
+        "good first issue",
+        "help wanted",
+        "bug",
+        "enhancement",
+        "duplicate",
+        "invalid",
+        "wontfix",
+        "question",
     }
     # Map label names to display-friendly versions
     display_map = {
-        "python": "Python", "typescript": "TypeScript", "react": "React",
-        "fastapi": "FastAPI", "solana": "Solana", "rust": "Rust",
-        "anchor": "Anchor", "postgresql": "PostgreSQL", "redis": "Redis",
-        "websocket": "WebSocket", "devops": "DevOps", "docker": "Docker",
-        "frontend": "Frontend", "backend": "Backend", "node.js": "Node.js",
+        "python": "Python",
+        "typescript": "TypeScript",
+        "react": "React",
+        "fastapi": "FastAPI",
+        "solana": "Solana",
+        "rust": "Rust",
+        "anchor": "Anchor",
+        "postgresql": "PostgreSQL",
+        "redis": "Redis",
+        "websocket": "WebSocket",
+        "devops": "DevOps",
+        "docker": "Docker",
+        "frontend": "Frontend",
+        "backend": "Backend",
+        "node.js": "Node.js",
     }
     skills = []
     for label in labels:
@@ -197,7 +216,9 @@ async def fetch_bounty_issues() -> list[dict]:
             if resp.status_code != 200:
                 logger.error(
                     "GitHub API error fetching issues (page %d): %d %s",
-                    page, resp.status_code, resp.text[:200],
+                    page,
+                    resp.status_code,
+                    resp.text[:200],
                 )
                 break
 
@@ -237,7 +258,9 @@ async def fetch_merged_prs() -> list[dict]:
             if resp.status_code != 200:
                 logger.error(
                     "GitHub API error fetching PRs (page %d): %d %s",
-                    page, resp.status_code, resp.text[:200],
+                    page,
+                    resp.status_code,
+                    resp.text[:200],
                 )
                 break
 
@@ -296,7 +319,8 @@ async def sync_bounties() -> int:
             except Exception as e:
                 logger.error(
                     "Failed to convert issue #%d: %s",
-                    issue.get("number", 0), e,
+                    issue.get("number", 0),
+                    e,
                 )
 
         # Atomic swap — replace entire store
@@ -308,15 +332,21 @@ async def sync_bounties() -> int:
         return len(new_store)
 
 
-
-
 # ── Known Phase 1 payout data (on-chain payouts, not tracked via labels) ──
 # Maps GitHub username → {bounties_completed, total_fndry, skills}
 KNOWN_PAYOUTS: dict[str, dict] = {
     "HuiNeng6": {
         "bounties_completed": 12,
         "total_fndry": 1_800_000,
-        "skills": ["Python", "FastAPI", "React", "TypeScript", "WebSocket", "Redis", "PostgreSQL"],
+        "skills": [
+            "Python",
+            "FastAPI",
+            "React",
+            "TypeScript",
+            "WebSocket",
+            "Redis",
+            "PostgreSQL",
+        ],
         "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
     },
     "ItachiDevv": {
@@ -374,7 +404,9 @@ async def sync_contributors() -> int:
             bounty_id = f"gh-{linked_issue}"
             bounty = _bounty_store.get(bounty_id)
             if bounty and bounty.status == BountyStatus.COMPLETED:
-                phase2_earnings[author] = phase2_earnings.get(author, 0) + bounty.reward_amount
+                phase2_earnings[author] = (
+                    phase2_earnings.get(author, 0) + bounty.reward_amount
+                )
 
     # Build contributor store — merge known payouts with live PR data
     new_store: dict[str, ContribDB] = {}
@@ -392,7 +424,10 @@ async def sync_contributors() -> int:
         earnings = known.get("total_fndry", 0) + phase2_earnings.get(author, 0)
         skills = known.get("skills", [])
         bio = known.get("bio", f"SolFoundry contributor — {total_prs} merged PRs")
-        avatar = pr_data.get("avatar_url") or f"https://avatars.githubusercontent.com/{author}"
+        avatar = (
+            pr_data.get("avatar_url")
+            or f"https://avatars.githubusercontent.com/{author}"
+        )
 
         # Compute badges
         badges = []
@@ -488,9 +523,9 @@ def _compute_badges(stats: dict) -> list[str]:
 def _compute_reputation(stats: dict) -> int:
     """Compute reputation score (0-100) from contribution stats."""
     score = 0
-    score += min(stats["total_prs"] * 5, 40)       # Up to 40 pts for PRs
-    score += min(stats["bounty_prs"] * 10, 40)      # Up to 40 pts for bounties
-    score += min(len(stats["skills"]) * 2, 20)      # Up to 20 pts for skill breadth
+    score += min(stats["total_prs"] * 5, 40)  # Up to 40 pts for PRs
+    score += min(stats["bounty_prs"] * 10, 40)  # Up to 40 pts for bounties
+    score += min(len(stats["skills"]) * 2, 20)  # Up to 20 pts for skill breadth
     return min(score, 100)
 
 
