@@ -145,13 +145,13 @@ jobs:
           print(body[:2000])
           " > /tmp/bounty_spec.txt 2>/dev/null
 
-            # Extract reward amount
+            # Extract reward amount (handles commas: 200,000 $FNDRY)
             REWARD=$(echo "$ISSUE_JSON" | python3 -c "
           import sys,json,re
           data=json.loads(sys.stdin.read())
           text=(data.get('title','') or '') + ' ' + (data.get('body','') or '')
-          m=re.search(r'(\d+)\s*\\\$?FNDRY', text)
-          print(m.group(1) if m else '0')
+          m=re.search(r'([\d,]+)\s*\\\$?FNDRY', text)
+          print(m.group(1).replace(',','') if m else '0')
           " 2>/dev/null)
 
             # SECURITY: Use heredoc delimiter for issue_title (could contain shell metacharacters)
