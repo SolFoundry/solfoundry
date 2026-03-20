@@ -145,8 +145,9 @@ jobs:
           fi
           REPO="${{ github.repository }}"
 
-          # Extract linked issue number from PR body (Closes #N)
-          ISSUE_NUM=$(echo "$PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+#\K\d+' | head -1)
+          # Extract linked issue number from PR title + body (Closes #N or Closes #Org/repo#N)
+          PR_TITLE="${{ steps.pr.outputs.title }}"
+          ISSUE_NUM=$(echo "$PR_TITLE $PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)\K\d+' | head -1)
 
           if [ -n "$ISSUE_NUM" ]; then
             echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
@@ -213,14 +214,16 @@ jobs:
             echo "reward=$REWARD" >> $GITHUB_OUTPUT
 
             # Count how many PRs target this issue (submission order)
-            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,body 2>/dev/null)
+            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,title,body 2>/dev/null)
             ORDER=$(echo "$ALL_PRS" | python3 -c "
           import sys,json,re
           prs=json.loads(sys.stdin.read())
           count=0
           for pr in prs:
+              title=(pr.get('title','') or '').lower()
               body=(pr.get('body','') or '').lower()
-              if re.search(r'(?:closes|fixes|resolves)\s+#$ISSUE_NUM', body):
+              text=title+' '+body
+              if re.search(r'(?:closes|fixes|resolves)\s+#(?:\S+#)?$ISSUE_NUM\b', text):
                   count+=1
           print(count)
           " 2>/dev/null)
@@ -256,7 +259,7 @@ jobs:
           # Get all open PRs
           result = subprocess.run(
               ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "100",
-               "--json", "number,author,body"],
+               "--json", "number,author,title,body"],
               capture_output=True, text=True
           )
           prs = json.loads(result.stdout) if result.stdout else []
@@ -266,10 +269,12 @@ jobs:
           for pr in prs:
               if str(pr["number"]) == str(pr_num):
                   continue  # Skip current PR
+              title = (pr.get("title", "") or "").lower()
               body = (pr.get("body", "") or "").lower()
+              text = title + " " + body
               author = pr.get("author", {}).get("login", "")
               if author == pr_author:
-                  if re.search(rf"(?:closes|fixes|resolves)\s+#{issue_num}\b", body):
+                  if re.search(rf"(?:closes|fixes|resolves)\s+#(?:\S+#)?{issue_num}\b", text):
                       duplicates.append(pr["number"])
 
           if duplicates:
