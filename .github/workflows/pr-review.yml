@@ -57,9 +57,22 @@ jobs:
 
           # Get full PR details for workflow_dispatch case
           PR_JSON=$(gh pr view $PR_NUM --repo ${{ github.repository }} --json title,author,url,body 2>/dev/null || echo '{}')
-          echo "title=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "author=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "url=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null)" >> $GITHUB_OUTPUT
+          # SECURITY: Use heredoc delimiter to prevent shell injection from PR title/author
+          {
+            echo "title<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "author<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "url<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
 
           # Write body to file to avoid shell escaping issues
           echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
@@ -141,7 +154,12 @@ jobs:
           print(m.group(1) if m else '0')
           " 2>/dev/null)
 
-            echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+            # SECURITY: Use heredoc delimiter for issue_title (could contain shell metacharacters)
+            {
+              echo "issue_title<<GHEOF"
+              echo "$ISSUE_TITLE"
+              echo "GHEOF"
+            } >> $GITHUB_OUTPUT
             echo "tier=$TIER" >> $GITHUB_OUTPUT
             echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
             echo "stack=$STACK" >> $GITHUB_OUTPUT

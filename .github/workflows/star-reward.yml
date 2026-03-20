@@ -160,5 +160,7 @@ jobs:
               msg += "Ready to pay. Send 10,000 $FNDRY?"
 
           send_telegram(msg)
-          print(f"Processed: {user} | Wallet: {wallet} | Starred: {is_stargazer} | Duplicate: {already_claimed}")
+          # SECURITY: Redact wallet in CI logs (full wallet only in Telegram, which is private)
+          wallet_redacted = f"{wallet[:4]}...{wallet[-4:]}" if len(wallet) > 8 else wallet
+          print(f"Processed: {user} | Wallet: {wallet_redacted} | Starred: {is_stargazer} | Duplicate: {already_claimed}")
           PYEOF

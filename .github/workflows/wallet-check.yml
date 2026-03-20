@@ -120,17 +120,24 @@ jobs:
 
           headers_simple = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
 
+          # SECURITY: Redact wallet in public GitHub comments (show first 4 + last 4 only)
+          def redact_wallet(w):
+              if w and len(w) > 8:
+                  return f"{w[:4]}...{w[-4:]}"
+              return w or "N/A"
+
           if wallet:
               # ── WALLET FOUND ──
+              wallet_redacted = redact_wallet(wallet)
               if has_missing_label:
                   # Remove the missing-wallet label
                   gh_api(f"repos/{repo}/issues/{pr_number}/labels/missing-wallet", method="DELETE")
 
-                  # Confirm on GitHub
+                  # Confirm on GitHub (REDACTED wallet — full wallet only goes to Telegram)
                   if wallet_in_body:
                       gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
                           "body": (
-                              f"✅ **Wallet detected:** `{wallet}`\n\n"
+                              f"✅ **Wallet detected:** `{wallet_redacted}`\n\n"
                               f"Thanks @{pr_author}! Your wallet has been recorded and your "
                               f"PR review will proceed as normal.\n\n"
                               f"---\n*SolFoundry Review Bot*"
@@ -139,7 +146,7 @@ jobs:
                   elif wallet_in_comment:
                       gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
                           "body": (
-                              f"✅ **Wallet detected in comment:** `{wallet}`\n\n"
+                              f"✅ **Wallet detected in comment:** `{wallet_redacted}`\n\n"
                               f"@{pr_author}, please also **edit your PR description** to include your wallet "
                               f"so it's on record for payout processing.\n\n"
                               f"Your review will proceed in the meantime.\n\n"
@@ -153,7 +160,7 @@ jobs:
                       f"📬 <code>{wallet}</code>\n"
                       f"Label removed, review proceeding."
                   )
-                  print(f"PR #{pr_number}: wallet found ({wallet}), removed missing-wallet label")
+                  print(f"PR #{pr_number}: wallet found ({wallet_redacted}), removed missing-wallet label")
               else:
                   print(f"PR #{pr_number}: wallet present, no missing-wallet label — all good")
           else:
