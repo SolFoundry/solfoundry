@@ -46,6 +46,7 @@ class PayoutRecord(BaseModel):
     @field_validator("recipient_wallet")
     @classmethod
     def validate_wallet(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *recipient_wallet* is a valid Solana base-58 address."""
         if v is not None and not _BASE58_RE.match(v):
             raise ValueError("recipient_wallet must be a valid Solana base-58 address")
         return v
@@ -53,6 +54,7 @@ class PayoutRecord(BaseModel):
     @field_validator("tx_hash")
     @classmethod
     def validate_tx_hash(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *tx_hash* is a valid Solana transaction signature."""
         if v is not None and not _TX_HASH_RE.match(v):
             raise ValueError("tx_hash must be a valid Solana transaction signature")
         return v
@@ -72,6 +74,7 @@ class PayoutCreate(BaseModel):
     @field_validator("recipient_wallet")
     @classmethod
     def validate_wallet(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *recipient_wallet* is a valid Solana base-58 address."""
         if v is not None and not _BASE58_RE.match(v):
             raise ValueError("recipient_wallet must be a valid Solana base-58 address")
         return v
@@ -79,6 +82,7 @@ class PayoutCreate(BaseModel):
     @field_validator("tx_hash")
     @classmethod
     def validate_tx_hash(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *tx_hash* is a valid Solana transaction signature."""
         if v is not None and not _TX_HASH_RE.match(v):
             raise ValueError("tx_hash must be a valid Solana transaction signature")
         return v
@@ -137,6 +141,7 @@ class BuybackRecord(BaseModel):
     @field_validator("tx_hash")
     @classmethod
     def validate_tx_hash(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *tx_hash* is a valid Solana transaction signature."""
         if v is not None and not _TX_HASH_RE.match(v):
             raise ValueError("tx_hash must be a valid Solana transaction signature")
         return v
@@ -153,6 +158,7 @@ class BuybackCreate(BaseModel):
     @field_validator("tx_hash")
     @classmethod
     def validate_tx_hash(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure *tx_hash* is a valid Solana transaction signature."""
         if v is not None and not _TX_HASH_RE.match(v):
             raise ValueError("tx_hash must be a valid Solana transaction signature")
         return v
@@ -180,7 +186,7 @@ class BuybackListResponse(BaseModel):
 
 
 class TokenomicsResponse(BaseModel):
-    """$FNDRY supply breakdown, distribution stats, and fee revenue."""
+    """$FNDRY tokenomics: circulating = total_supply - treasury_holdings."""
 
     token_name: str = "FNDRY"
     token_ca: str = "C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS"
