@@ -11,6 +11,7 @@ from app.api.notifications import router as notifications_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
+from app.api.sync import router as sync_router
 from app.database import init_db, close_db
 
 
@@ -52,6 +53,7 @@ app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(leaderboard_router)
 app.include_router(payouts_router)
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
+app.include_router(sync_router)
 
 
 @app.get("/health")
