@@ -1,7 +1,7 @@
 /** SolFoundry wallet provider. Persistence: in-memory (MVP); migrate to localStorage. */
 import { type ReactNode, useMemo, useState, createContext, useContext, useCallback } from 'react';
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
-import { PhantomWalletAdapter, SolflareWalletAdapter, BackpackWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import type { SolanaNetwork, NetworkOption } from '../../types/wallet';
 

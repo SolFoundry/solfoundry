@@ -18,9 +18,13 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 # Database URL from environment
+# Convert sync driver URL to async driver URL if needed
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/solfoundry"
 )
+# If DATABASE_URL uses postgresql:// (sync driver), convert to postgresql+asyncpg://
+if DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 # Connection pool settings (only for PostgreSQL)
 is_sqlite = DATABASE_URL.startswith("sqlite")
