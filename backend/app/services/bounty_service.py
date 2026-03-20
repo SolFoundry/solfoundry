@@ -1,6 +1,10 @@
 """In-memory bounty service for MVP (Issue #3).
 
-Provides CRUD operations and solution submission.
+This module implements the business logic for bounty CRUD operations
+and solution submission. Data is stored in an in-memory dictionary
+for the MVP phase; a PostgreSQL-backed implementation will replace
+this once the database layer is integrated.
+
 Claim lifecycle is out of scope (see Issue #16).
 """
 
@@ -33,6 +37,14 @@ _bounty_store: dict[str, BountyDB] = {}
 # ---------------------------------------------------------------------------
 
 def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
+    """Convert a SubmissionRecord to the API response schema.
+
+    Args:
+        s: Internal submission storage record.
+
+    Returns:
+        SubmissionResponse with all fields mapped from the record.
+    """
     return SubmissionResponse(
         id=s.id,
         bounty_id=s.bounty_id,
@@ -44,6 +56,14 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
 
 
 def _to_bounty_response(b: BountyDB) -> BountyResponse:
+    """Convert a BountyDB record to the full API response schema.
+
+    Args:
+        b: Internal bounty storage record.
+
+    Returns:
+        BountyResponse with all fields mapped, including submissions.
+    """
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyResponse(
         id=b.id,
@@ -64,6 +84,14 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
+    """Convert a BountyDB record to a compact list item schema.
+
+    Args:
+        b: Internal bounty storage record.
+
+    Returns:
+        BountyListItem with summary fields only (no submissions/description).
+    """
     return BountyListItem(
         id=b.id,
         title=b.title,
@@ -83,7 +111,14 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
 # ---------------------------------------------------------------------------
 
 def create_bounty(data: BountyCreate) -> BountyResponse:
-    """Create a new bounty and return its response representation."""
+    """Create a new bounty and store it in memory.
+
+    Args:
+        data: Validated bounty creation payload.
+
+    Returns:
+        The newly created bounty as a full response object.
+    """
     bounty = BountyDB(
         title=data.title,
         description=data.description,
@@ -99,7 +134,14 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
 
 
 def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
-    """Retrieve a single bounty by ID, or None if not found."""
+    """Retrieve a single bounty by ID.
+
+    Args:
+        bounty_id: The UUID of the bounty to retrieve.
+
+    Returns:
+        The bounty response if found, or None if not found.
+    """
     bounty = _bounty_store.get(bounty_id)
     return _to_bounty_response(bounty) if bounty else None
 
@@ -112,7 +154,18 @@ def list_bounties(
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering and pagination."""
+    """List bounties with optional filtering and pagination.
+
+    Args:
+        status: Filter by bounty status (e.g. OPEN, IN_PROGRESS).
+        tier: Filter by bounty tier (1, 2, or 3).
+        skills: Filter by required skills (case-insensitive match).
+        skip: Number of items to skip for pagination.
+        limit: Maximum number of items to return.
+
+    Returns:
+        Paginated response containing matching bounty list items.
+    """
     results = list(_bounty_store.values())
 
     if status is not None:
@@ -140,7 +193,19 @@ def list_bounties(
 def update_bounty(
     bounty_id: str, data: BountyUpdate
 ) -> tuple[Optional[BountyResponse], Optional[str]]:
-    """Update a bounty. Returns (response, None) on success or (None, error) on failure."""
+    """Update a bounty with partial data.
+
+    Validates status transitions against the allowed transition map
+    before applying any changes.
+
+    Args:
+        bounty_id: The UUID of the bounty to update.
+        data: Partial update payload with only the fields to change.
+
+    Returns:
+        A tuple of (response, None) on success, or (None, error_message)
+        on failure.
+    """
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
@@ -166,14 +231,33 @@ def update_bounty(
 
 
 def delete_bounty(bounty_id: str) -> bool:
-    """Delete a bounty by ID. Returns True if deleted, False if not found."""
+    """Delete a bounty by ID.
+
+    Args:
+        bounty_id: The UUID of the bounty to delete.
+
+    Returns:
+        True if the bounty was found and deleted, False otherwise.
+    """
     return _bounty_store.pop(bounty_id, None) is not None
 
 
 def submit_solution(
     bounty_id: str, data: SubmissionCreate
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Submit a PR solution for a bounty."""
+    """Submit a pull request solution for a bounty.
+
+    The bounty must be in OPEN or IN_PROGRESS status. Duplicate PR URLs
+    on the same bounty are rejected.
+
+    Args:
+        bounty_id: The UUID of the bounty to submit a solution for.
+        data: Submission payload with PR URL, submitter, and notes.
+
+    Returns:
+        A tuple of (submission_response, None) on success, or
+        (None, error_message) on failure.
+    """
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
@@ -198,7 +282,15 @@ def submit_solution(
 
 
 def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
-    """List all submissions for a bounty. Returns None if bounty not found."""
+    """List all submissions for a bounty.
+
+    Args:
+        bounty_id: The UUID of the bounty whose submissions to list.
+
+    Returns:
+        A list of submission responses if the bounty exists, or None
+        if the bounty is not found.
+    """
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None
