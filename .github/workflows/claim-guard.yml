@@ -76,7 +76,41 @@ jobs:
                   print(f"DELETE failed: {e}")
                   return None
 
+          def gh_get(path):
+              url = f"https://api.github.com/{path}"
+              req = urllib.request.Request(url)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              try:
+                  resp = urllib.request.urlopen(req)
+                  return json.loads(resp.read().decode()), resp.status
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
           lower = comment.lower()
+
+          # --- REPEAT OFFENDER CHECK (T2/T3 only) ---
+          # If the bot already warned this user on this issue, auto-delete any further comments
+          if "tier-2" in labels or "tier-3" in labels:
+              comments_data, _ = gh_get(f"repos/{repo}/issues/{issue}/comments?per_page=100")
+              if comments_data:
+                  already_warned = False
+                  for c in comments_data:
+                      body_c = c.get("body", "")
+                      author = c["user"]["login"]
+                      # Check if bot/owner already posted a "not qualified" warning for this user
+                      if author in ["chronoeth-creator", "github-actions[bot]"] and f"@{user}" in body_c:
+                          if any(kw in body_c.lower() for kw in [
+                              "require at least", "away from t2", "away from t3",
+                              "posts have been removed", "auto-deleted"
+                          ]):
+                              already_warned = True
+                              break
+
+                  if already_warned:
+                      print(f"REPEAT OFFENDER: {user} already warned on #{issue} — auto-deleting comment {comment_id}")
+                      gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+                      exit(0)
 
           # --- SPAM DETECTION ---
           spam_patterns = [
