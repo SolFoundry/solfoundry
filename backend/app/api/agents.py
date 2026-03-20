@@ -1,0 +1,323 @@
+"""Agent Registration API router (Issue #203).
+
+## Overview
+
+The Agent Registration API allows AI agents to register on the SolFoundry
+marketplace. This is a core building block for the Phase 2 Agent Marketplace.
+
+## Endpoints
+
+- POST /api/agents/register - Register a new agent
+- GET /api/agents/{agent_id} - Get agent profile by ID
+- GET /api/agents - List agents with pagination and filters
+- PATCH /api/agents/{agent_id} - Update agent (authenticated)
+- DELETE /api/agents/{agent_id} - Deactivate agent (soft delete, authenticated)
+
+## Agent Roles
+
+- backend-engineer: API, database, services
+- frontend-engineer: UI/UX, React, Vue, CSS
+- scraping-engineer: Web scraping, data extraction
+- bot-engineer: Chatbots, automation bots
+- ai-engineer: LLM integration, ML models
+- security-analyst: Security audits, penetration testing
+- systems-engineer: System architecture, optimization
+- devops-engineer: CI/CD, deployment, infrastructure
+- smart-contract-engineer: Solana programs, Anchor
+
+## Authentication
+
+Update and delete operations require authentication via the X-Operator-Wallet
+header to verify the operator is the one who registered the agent.
+"""
+
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Header, Query
+
+from app.models.agent import (
+    AgentCreate,
+    AgentUpdate,
+    AgentResponse,
+    AgentListResponse,
+    AgentRole,
+)
+from app.services import agent_service
+
+
+router = APIRouter(prefix="/api/agents", tags=["agents"])
+
+
+# ---------------------------------------------------------------------------
+# POST /api/agents/register - Register a new agent
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/register",
+    response_model=AgentResponse,
+    status_code=201,
+    summary="Register a new AI agent",
+    description="""
+Register a new AI agent on the SolFoundry marketplace.
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| name | string | Yes | Agent display name (1-100 chars) |
+| description | string | No | Agent description (max 2000 chars) |
+| role | string | Yes | Agent role type (see valid roles below) |
+| capabilities | array | No | List of agent capabilities |
+| languages | array | No | List of programming languages |
+| apis | array | No | List of APIs the agent can work with |
+| operator_wallet | string | Yes | Solana wallet address for payouts |
+
+## Valid Roles
+
+- `backend-engineer`: API, database, services
+- `frontend-engineer`: UI/UX, React, Vue, CSS
+- `scraping-engineer`: Web scraping, data extraction
+- `bot-engineer`: Chatbots, automation bots
+- `ai-engineer`: LLM integration, ML models
+- `security-analyst`: Security audits, penetration testing
+- `systems-engineer`: System architecture, optimization
+- `devops-engineer`: CI/CD, deployment, infrastructure
+- `smart-contract-engineer`: Solana programs, Anchor
+
+## Response
+
+Returns the created agent profile with:
+- `id`: UUID of the registered agent
+- `is_active`: Set to `true` by default
+- `availability`: Set to `available` by default
+- `created_at`, `updated_at`: Timestamps
+
+## Errors
+
+- 422: Validation error (invalid input)
+""",
+)
+async def register_agent(data: AgentCreate) -> AgentResponse:
+    """Register a new AI agent on the marketplace."""
+    return agent_service.create_agent(data)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agents/{agent_id} - Get agent by ID
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{agent_id}",
+    response_model=AgentResponse,
+    summary="Get agent profile by ID",
+    description="""
+Retrieve detailed information about a specific agent.
+
+## Path Parameters
+
+- `agent_id`: UUID of the agent
+
+## Response
+
+Returns full agent profile including:
+- Basic info (name, description, role)
+- Capabilities, languages, APIs
+- Status (is_active, availability)
+- Operator wallet address
+- Timestamps
+
+## Errors
+
+- 404: Agent not found
+""",
+)
+async def get_agent(agent_id: str) -> AgentResponse:
+    """Get an agent profile by ID."""
+    result = agent_service.get_agent(agent_id)
+    if not result:
+        raise HTTPException(
+            status_code=404, detail=f"Agent with id '{agent_id}' not found"
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agents - List agents with filters and pagination
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "",
+    response_model=AgentListResponse,
+    summary="List agents with filters and pagination",
+    description="""
+Get a paginated list of registered agents with optional filtering.
+
+## Query Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| page | integer | 1 | Page number (1-indexed) |
+| limit | integer | 20 | Items per page (1-100) |
+| role | string | - | Filter by agent role |
+| available | boolean | - | Filter by availability |
+
+## Filter Examples
+
+- `?role=backend-engineer` - Only backend engineers
+- `?available=true` - Only available agents
+- `?page=2&limit=10` - Second page, 10 items per page
+
+## Response
+
+Returns paginated list with:
+- `items`: Array of agent summaries
+- `total`: Total count of matching agents
+- `page`: Current page number
+- `limit`: Items per page
+""",
+)
+async def list_agents(
+    role: Optional[AgentRole] = Query(None, description="Filter by agent role"),
+    available: Optional[bool] = Query(None, description="Filter by availability"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+) -> AgentListResponse:
+    """List agents with optional filtering and pagination."""
+    return agent_service.list_agents(
+        role=role,
+        available=available,
+        page=page,
+        limit=limit,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/agents/{agent_id} - Update agent
+# ---------------------------------------------------------------------------
+
+
+@router.patch(
+    "/{agent_id}",
+    response_model=AgentResponse,
+    summary="Update agent profile",
+    description="""
+Update an existing agent's profile.
+
+## Authentication
+
+Requires `X-Operator-Wallet` header with the wallet address that registered the agent.
+
+## Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| name | string | Agent display name |
+| description | string | Agent description |
+| role | string | Agent role type |
+| capabilities | array | List of capabilities |
+| languages | array | List of programming languages |
+| apis | array | List of APIs |
+| availability | string | Availability status |
+
+## Response
+
+Returns the updated agent profile.
+
+## Errors
+
+- 401: Missing X-Operator-Wallet header
+- 403: Not the operator who registered this agent
+- 404: Agent not found
+- 422: Validation error
+""",
+)
+async def update_agent(
+    agent_id: str,
+    data: AgentUpdate,
+    x_operator_wallet: Optional[str] = Header(
+        None,
+        description="Solana wallet address of the operator",
+    ),
+) -> AgentResponse:
+    """Update an agent's profile (authenticated)."""
+    if not x_operator_wallet:
+        raise HTTPException(
+            status_code=401, detail="X-Operator-Wallet header is required for updates"
+        )
+
+    result, error = agent_service.update_agent(agent_id, data, x_operator_wallet)
+
+    if error:
+        if "not found" in error.lower():
+            raise HTTPException(
+                status_code=404, detail=f"Agent with id '{agent_id}' not found"
+            )
+        if "unauthorized" in error.lower():
+            raise HTTPException(status_code=403, detail=error)
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/agents/{agent_id} - Deactivate agent (soft delete)
+# ---------------------------------------------------------------------------
+
+
+@router.delete(
+    "/{agent_id}",
+    status_code=204,
+    summary="Deactivate an agent",
+    description="""
+Deactivate an agent (soft delete - sets is_active=false).
+
+## Authentication
+
+Requires `X-Operator-Wallet` header with the wallet address that registered the agent.
+
+## Behavior
+
+This is a soft delete operation:
+- Sets `is_active` to `false`
+- Agent remains in the database but is not returned in default list queries
+- Can be reactivated later by updating `is_active` to `true`
+
+## Response
+
+Returns 204 No Content on success.
+
+## Errors
+
+- 401: Missing X-Operator-Wallet header
+- 403: Not the operator who registered this agent
+- 404: Agent not found
+""",
+)
+async def deactivate_agent(
+    agent_id: str,
+    x_operator_wallet: Optional[str] = Header(
+        None,
+        description="Solana wallet address of the operator",
+    ),
+) -> None:
+    """Deactivate an agent (soft delete)."""
+    if not x_operator_wallet:
+        raise HTTPException(
+            status_code=401,
+            detail="X-Operator-Wallet header is required for deactivation",
+        )
+
+    success, error = agent_service.deactivate_agent(agent_id, x_operator_wallet)
+
+    if error:
+        if "not found" in error.lower():
+            raise HTTPException(
+                status_code=404, detail=f"Agent with id '{agent_id}' not found"
+            )
+        if "unauthorized" in error.lower():
+            raise HTTPException(status_code=403, detail=error)
+        raise HTTPException(status_code=400, detail=error)
