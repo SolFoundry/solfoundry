@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 // ============================================================================
 // Types
@@ -69,7 +69,7 @@ const MOCK_STATS: DashboardStats = {
 };
 
 const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub â†?Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
+  { id: '1', title: 'GitHub <-> Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
   { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
   { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
 ];
@@ -78,7 +78,7 @@ const MOCK_ACTIVITIES: Activity[] = [
   { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
   { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
   { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub â†?Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
+  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub <-> Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
   { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
 ];
 
@@ -97,6 +97,44 @@ const MOCK_EARNINGS: EarningsData[] = [
   { date: '2026-03-18', amount: 800000 },
   { date: '2026-03-20', amount: 950000 },
 ];
+
+const MOCK_LINKED_ACCOUNTS = [
+  { type: 'github', username: 'HuiNeng6', connected: true },
+  { type: 'twitter', username: '', connected: false },
+];
+
+// ============================================================================
+// Data Fetcher (Simulates API calls)
+// ============================================================================
+
+interface DashboardData {
+  stats: DashboardStats;
+  bounties: Bounty[];
+  activities: Activity[];
+  notifications: Notification[];
+  earnings: EarningsData[];
+  linkedAccounts: { type: string; username: string; connected: boolean }[];
+}
+
+async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
+  // Simulate network delay (100-300ms)
+  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+  
+  // In a real app, this would fetch from an API using userId
+  // For now, return mock data but log userId for future integration
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('Fetching dashboard data for user:', userId || 'anonymous');
+  }
+  
+  return {
+    stats: MOCK_STATS,
+    bounties: MOCK_BOUNTIES,
+    activities: MOCK_ACTIVITIES,
+    notifications: MOCK_NOTIFICATIONS,
+    earnings: MOCK_EARNINGS,
+    linkedAccounts: MOCK_LINKED_ACCOUNTS,
+  };
+}
 
 // ============================================================================
 // Helper Functions
@@ -148,6 +186,10 @@ function getStatusColor(status: Bounty['status']): string {
     case 'reviewing': return 'text-orange-400';
     default: return 'text-gray-400';
   }
+}
+
+function formatStatus(status: Bounty['status']): string {
+  return status.replace(/_/g, ' ').toUpperCase();
 }
 
 function getActivityIcon(type: Activity['type']): React.ReactNode {
@@ -256,9 +298,9 @@ function BountyCard({ bounty }: BountyCardProps) {
           <h3 className="text-white font-medium truncate">{bounty.title}</h3>
           <p className="text-sm text-gray-400 mt-1">
             <span className={`font-medium ${getStatusColor(bounty.status)}`}>
-              {bounty.status.replace('_', ' ').toUpperCase()}
+              {formatStatus(bounty.status)}
             </span>
-            {' â€?'}
+            {' â€¢ '}
             <span className={isUrgent ? 'text-red-400' : ''}>
               {daysRemaining} days left
             </span>
@@ -424,7 +466,7 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
             fill="#14F195" 
             stroke="#0a0a0a" 
             strokeWidth="2"
-            className="hover:r-6 transition-all cursor-pointer"
+            className="hover:scale-125 transition-transform cursor-pointer"
           >
             <title>{`${formatNumber(p.amount)} $FNDRY - ${p.date}`}</title>
           </circle>
@@ -574,7 +616,7 @@ function SettingsSection({
 
 export function ContributorDashboard({
   userId,
-  walletAddress = 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7',
+  walletAddress,
   onBrowseBounties,
   onViewLeaderboard,
   onCheckTreasury,
@@ -582,16 +624,18 @@ export function ContributorDashboard({
   onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
-  const [stats] = useState<DashboardStats>(MOCK_STATS);
-  const [bounties] = useState<Bounty[]>(MOCK_BOUNTIES);
-  const [activities] = useState<Activity[]>(MOCK_ACTIVITIES);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
-  const [earnings] = useState<EarningsData[]>(MOCK_EARNINGS);
   
-  const [linkedAccounts] = useState([
-    { type: 'github', username: 'HuiNeng6', connected: true },
-    { type: 'twitter', username: '', connected: false },
-  ]);
+  // Data states
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [bounties, setBounties] = useState<Bounty[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [earnings, setEarnings] = useState<EarningsData[]>([]);
+  const [linkedAccounts, setLinkedAccounts] = useState<{ type: string; username: string; connected: boolean }[]>([]);
+  
+  // UI states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const [notificationPrefs, setNotificationPrefs] = useState([
     { type: 'Payout Alerts', enabled: true },
@@ -599,6 +643,42 @@ export function ContributorDashboard({
     { type: 'Deadline Reminders', enabled: true },
     { type: 'New Bounties', enabled: false },
   ]);
+
+  // Fetch data on mount and when userId changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function loadData() {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const data = await fetchDashboardData(userId);
+        
+        if (!isMounted) return;
+        
+        setStats(data.stats);
+        setBounties(data.bounties);
+        setActivities(data.activities);
+        setNotifications(data.notifications);
+        setEarnings(data.earnings);
+        setLinkedAccounts(data.linkedAccounts);
+      } catch (err) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
@@ -613,6 +693,81 @@ export function ContributorDashboard({
   const handleToggleNotification = useCallback((type: string) => {
     setNotificationPrefs(prev => prev.map(p => p.type === type ? { ...p, enabled: !p.enabled } : p));
   }, []);
+
+  const handleRetry = useCallback(() => {
+    // Trigger a re-render by clearing error and setting loading
+    setError(null);
+    setIsLoading(true);
+    
+    // Re-fetch data
+    fetchDashboardData(userId)
+      .then(data => {
+        setStats(data.stats);
+        setBounties(data.bounties);
+        setActivities(data.activities);
+        setNotifications(data.notifications);
+        setEarnings(data.earnings);
+        setLinkedAccounts(data.linkedAccounts);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+        setIsLoading(false);
+      });
+  }, [userId]);
+
+  // Loading state UI
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+          </div>
+          <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-400">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state UI
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+          </div>
+          <div className="flex items-center justify-center py-20" role="alert" aria-live="assertive">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-2">Failed to Load Dashboard</h2>
+                <p className="text-gray-400 mb-4">{error}</p>
+                <button 
+                  onClick={handleRetry}
+                  className="px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
@@ -650,7 +805,7 @@ export function ContributorDashboard({
         </div>
 
         {/* Content */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && stats && (
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -716,11 +871,15 @@ export function ContributorDashboard({
                     <h3 className="text-white font-medium">Active Bounties</h3>
                     <span className="text-xs text-gray-400">{bounties.length} active</span>
                   </div>
-                  <div className="space-y-3">
-                    {bounties.map((bounty) => (
-                      <BountyCard key={bounty.id} bounty={bounty} />
-                    ))}
-                  </div>
+                  {bounties.length === 0 ? (
+                    <p className="text-gray-400 text-center py-4">No active bounties</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {bounties.map((bounty) => (
+                        <BountyCard key={bounty.id} bounty={bounty} />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Earnings Chart */}
@@ -735,11 +894,15 @@ export function ContributorDashboard({
                     <h3 className="text-white font-medium">Recent Activity</h3>
                     <button className="text-xs text-[#14F195] hover:text-[#14F195]/80">View All</button>
                   </div>
-                  <div className="divide-y divide-white/5">
-                    {activities.map((activity) => (
-                      <ActivityItem key={activity.id} activity={activity} />
-                    ))}
-                  </div>
+                  {activities.length === 0 ? (
+                    <p className="text-gray-400 text-center py-4">No recent activity</p>
+                  ) : (
+                    <div className="divide-y divide-white/5">
+                      {activities.map((activity) => (
+                        <ActivityItem key={activity.id} activity={activity} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -759,15 +922,19 @@ export function ContributorDashboard({
                 </button>
               )}
             </div>
-            <div className="space-y-1">
-              {notifications.map((notification) => (
-                <NotificationItem 
-                  key={notification.id} 
-                  notification={notification} 
-                  onMarkAsRead={handleMarkAsRead}
-                />
-              ))}
-            </div>
+            {notifications.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">No notifications</p>
+            ) : (
+              <div className="space-y-1">
+                {notifications.map((notification) => (
+                  <NotificationItem 
+                    key={notification.id} 
+                    notification={notification} 
+                    onMarkAsRead={handleMarkAsRead}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
