@@ -122,50 +122,52 @@ async def init_db() -> None:
     
     async with engine.begin() as conn:
         # Import models to ensure they are registered with Base
+        from app.models.bounty import BountyDB  # noqa: F401
         from app.models.notification import NotificationDB  # noqa: F401
         
         # Create all tables from model definitions
         await conn.run_sync(Base.metadata.create_all)
         
-        # Create the search vector trigger function
-        await conn.execute(text("""
-            CREATE OR REPLACE FUNCTION update_bounty_search_vector()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.search_vector := to_tsvector('english', 
-                    coalesce(NEW.title, '') || ' ' || 
-                    coalesce(NEW.description, '')
-                );
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-        """))
-        
-        # Create the trigger (idempotent)
-        await conn.execute(text("""
-            DROP TRIGGER IF EXISTS bounty_search_vector_update ON bounties;
-            CREATE TRIGGER bounty_search_vector_update
-                BEFORE INSERT OR UPDATE ON bounties
-                FOR EACH ROW
-                EXECUTE FUNCTION update_bounty_search_vector();
-        """))
-        
-        # Create GIN index for fast full-text search
-        await conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_bounties_search_vector 
-            ON bounties USING GIN(search_vector);
-        """))
-        
-        # Create composite indexes for common filter patterns
-        await conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_bounties_status_tier 
-            ON bounties(status, tier);
-        """))
-        
-        await conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_bounties_status_category 
-            ON bounties(status, category);
-        """))
+        if engine.dialect.name == "postgresql":
+            # Create the search vector trigger function
+            await conn.execute(text("""
+                CREATE OR REPLACE FUNCTION update_bounty_search_vector()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    NEW.search_vector := to_tsvector('english', 
+                        coalesce(NEW.title, '') || ' ' || 
+                        coalesce(NEW.description, '')
+                    );
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+            """))
+            
+            # Create the trigger (idempotent)
+            await conn.execute(text("""
+                DROP TRIGGER IF EXISTS bounty_search_vector_update ON bounties;
+                CREATE TRIGGER bounty_search_vector_update
+                    BEFORE INSERT OR UPDATE ON bounties
+                    FOR EACH ROW
+                    EXECUTE FUNCTION update_bounty_search_vector();
+            """))
+            
+            # Create GIN index for fast full-text search
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_bounties_search_vector 
+                ON bounties USING GIN(search_vector);
+            """))
+            
+            # Create composite indexes for common filter patterns
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_bounties_status_tier 
+                ON bounties(status, tier);
+            """))
+            
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_bounties_status_category 
+                ON bounties(status, category);
+            """))
         
         logger.info("Database schema initialized successfully")
 
