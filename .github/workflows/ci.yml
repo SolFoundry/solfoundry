@@ -104,12 +104,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
       - name: Run ESLint
         working-directory: frontend
@@ -128,12 +126,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
       - name: Run TypeScript Type Check
         working-directory: frontend
@@ -152,12 +148,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
       - name: Run Unit Tests
         working-directory: frontend
@@ -177,12 +171,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: frontend
@@ -216,9 +208,9 @@ jobs:
 
       - name: Install Solana CLI
         if: steps.check.outputs.has_anchor == 'true'
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: '1.18.0'
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor
         if: steps.check.outputs.has_anchor == 'true'
