@@ -1,8 +1,32 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* SolFoundry global styles */
+/* ============================================================================
+   SolFoundry Theme — Tailwind v4 CSS-based config
+   ============================================================================ */
+@theme {
+  /* Solana brand colors */
+  --color-solana-green: #14F195;
+  --color-solana-purple: #9945FF;
+
+  /* Surface colors (dark theme) */
+  --color-surface: #0a0a0a;
+  --color-surface-50: #111111;
+  --color-surface-100: #1a1a1a;
+  --color-surface-200: #222222;
+  --color-surface-300: #2a2a2a;
+  --color-surface-400: #333333;
+
+  /* Accent colors */
+  --color-accent-green: #14F195;
+  --color-accent-purple: #9945FF;
+  --color-accent-gold: #FFD700;
+  --color-accent-red: #FF6B6B;
+  --color-accent-blue: #4DA8FF;
+}
+
+/* ============================================================================
+   Global styles
+   ============================================================================ */
 html {
   scroll-behavior: smooth;
 }
@@ -11,6 +35,8 @@ body {
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #0a0a0a;
+  color: #e5e5e5;
 }
 
 /* Solana gradient utility */
@@ -31,4 +57,20 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* ============================================================================
+   Form element overrides for dark theme
+   ============================================================================ */
+select,
+input[type="search"],
+input[type="text"] {
+  background-color: #1a1a1a;
+  color: #e5e5e5;
+  border-color: #2a2a2a;
+}
+
+select option {
+  background-color: #1a1a1a;
+  color: #e5e5e5;
 }
