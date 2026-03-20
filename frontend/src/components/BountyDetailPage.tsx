@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { EscrowStatus } from './wallet/EscrowStatus';
 
 interface BountyDetail {
   id: string;
@@ -17,6 +18,9 @@ interface BountyDetail {
   views: number;
   submissions: Submission[];
   activities: Activity[];
+  escrowFunded?: boolean;
+  escrowAmount?: number;
+  escrowSignature?: string;
 }
 
 interface Submission {
@@ -220,7 +224,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
             <div className="bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
               <h2 className="text-lg font-semibold">Quick Stats</h2>
 
@@ -257,6 +261,13 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 </a>
               </div>
             </div>
+
+            {/* Escrow Status */}
+            <EscrowStatus
+              funded={bounty.escrowFunded ?? false}
+              amount={bounty.escrowAmount ?? bounty.reward}
+              signature={bounty.escrowSignature}
+            />
           </div>
         </div>
       </div>
