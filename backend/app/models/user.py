@@ -30,6 +30,19 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
 
 
+class UserDB(BaseModel):
+    """Pydantic model for user data in tests and services."""
+    id: Optional[object] = None
+    github_id: str
+    username: str
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    wallet_address: Optional[str] = None
+    wallet_verified: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class UserResponse(BaseModel):
     id: str
     github_id: str
