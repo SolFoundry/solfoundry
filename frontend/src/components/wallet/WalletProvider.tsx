@@ -26,9 +26,7 @@ export function WalletProvider({ children, defaultNetwork = DEFAULT_NETWORK }: {
 
   return (
     <NetworkContext.Provider value={ctx}>
-      {/* @ts-expect-error React 18 type incompatibility with @solana/wallet-adapter-react */}
       <ConnectionProvider endpoint={endpoint}>
-        {/* @ts-expect-error React 18 type incompatibility with @solana/wallet-adapter-react */}
         <SolanaWalletProvider wallets={wallets} autoConnect>{children}</SolanaWalletProvider>
       </ConnectionProvider>
     </NetworkContext.Provider>
