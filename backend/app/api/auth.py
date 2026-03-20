@@ -8,7 +8,6 @@ This module provides REST API endpoints for:
 - Current user info
 """
 
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header

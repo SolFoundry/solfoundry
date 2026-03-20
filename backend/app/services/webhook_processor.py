@@ -231,7 +231,7 @@ class WebhookProcessor:
         result = {"action": action, "issue_number": issue_number}
         
         try:
-            label_names = [l.get("name") if isinstance(l, dict) else l for l in labels]
+            label_names = [lbl.get("name") if isinstance(lbl, dict) else lbl for lbl in labels]
             has_bounty_label = "bounty" in label_names
             
             if action == "labeled" and has_bounty_label:

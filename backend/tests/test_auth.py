@@ -13,10 +13,7 @@ import base64
 from datetime import datetime, timezone, timedelta
 
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 from solders.keypair import Keypair
-from solders.message import Message
-from solders.transaction import VersionedTransaction
 
 from app.main import app
 from app.services import auth_service

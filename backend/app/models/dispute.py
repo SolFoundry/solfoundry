@@ -6,7 +6,7 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index
+from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, GUID

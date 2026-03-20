@@ -70,7 +70,8 @@ def test_filter_badges():
 
 
 def test_pagination():
-    for i in range(5): _create(f"user{i}")
+    for i in range(5):
+        _create(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
     assert resp.json()["total"] == 5
     assert len(resp.json()["items"]) == 2

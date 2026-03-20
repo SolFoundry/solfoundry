@@ -10,7 +10,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 

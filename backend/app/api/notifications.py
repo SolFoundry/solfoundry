@@ -5,7 +5,6 @@ All endpoints require authentication to ensure users can only access
 their own notifications.
 """
 
-from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

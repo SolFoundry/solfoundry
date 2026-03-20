@@ -462,7 +462,7 @@ class TestCreateNotification:
         
         assert data["notification_type"] == "bounty_claimed"
         assert data["title"] == "Test Notification"
-        assert data["read"] == False
+        assert data["read"] is False
     
     @pytest.mark.asyncio
     async def test_create_notification_with_bounty_id(self, client, user_id):

@@ -5,7 +5,6 @@ Stores records of all processed webhook events for audit and idempotency.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import Column, String, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID

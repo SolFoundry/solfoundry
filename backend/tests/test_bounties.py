@@ -14,7 +14,6 @@ from app.api.bounties import router as bounties_router
 from app.models.bounty import (
     BountyCreate,
     BountyStatus,
-    BountyTier,
     BountyUpdate,
     SubmissionCreate,
     VALID_STATUS_TRANSITIONS,

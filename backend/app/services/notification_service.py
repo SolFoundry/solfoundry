@@ -5,7 +5,7 @@ All methods are designed to work with the Unit of Work pattern
 implemented in the database layer.
 """
 
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,7 +64,7 @@ class NotificationService:
         conditions = [NotificationDB.user_id == user_id]
         
         if unread_only:
-            conditions.append(NotificationDB.read == False)
+            conditions.append(NotificationDB.read.is_(False))
         
         filter_condition = and_(*conditions)
         
@@ -75,7 +75,7 @@ class NotificationService:
         unread_query = select(func.count(NotificationDB.id)).where(
             and_(
                 NotificationDB.user_id == user_id,
-                NotificationDB.read == False
+                NotificationDB.read.is_(False)
             )
         )
         
@@ -119,7 +119,7 @@ class NotificationService:
         query = select(func.count(NotificationDB.id)).where(
             and_(
                 NotificationDB.user_id == user_id,
-                NotificationDB.read == False
+                NotificationDB.read.is_(False)
             )
         )
         
@@ -169,7 +169,7 @@ class NotificationService:
         query = select(NotificationDB).where(
             and_(
                 NotificationDB.user_id == user_id,
-                NotificationDB.read == False
+                NotificationDB.read.is_(False)
             )
         )
         
