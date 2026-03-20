@@ -1,0 +1,113 @@
+# CodeRabbit Configuration — SolFoundry
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+#
+# CodeRabbit runs as a PRIVATE analysis layer. Its findings are:
+# 1. Fed into our multi-LLM review pipeline (GPT + Gemini + Grok) as context
+# 2. NOT exposed as detailed inline comments to contributors
+#
+# Contributors only see a collapsed high-level summary.
+# The real value is in feeding CodeRabbit's deep analysis to our LLM judges.
+
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false  # Don't auto-request changes — our LLM pipeline handles this
+  high_level_summary: true        # Post a summary comment (collapsed, no code fixes)
+  high_level_summary_placeholder: "@coderabbitai summary"
+  auto_title_placeholder: "@coderabbitai"
+  poem: false
+  review_status: false             # Don't post review status badge
+  collapse_walkthrough: true       # Collapse the walkthrough section
+  sequence_diagrams: false
+  changed_files_summary: false     # Don't list changed files publicly
+  abort_on_close: true
+
+  auto_review:
+    enabled: true                  # Re-enabled — but inline comments are suppressed below
+    drafts: false
+    base_branches:
+      - main
+
+  # Disable ALL inline code suggestions — these are what contributors copy-paste
+  tools:
+    ast-grep:
+      enabled: false              # No AST-based suggestions
+    github-checks:
+      enabled: false              # No check annotations
+    biome:
+      enabled: false
+    hadolint:
+      enabled: false
+    shellcheck:
+      enabled: false
+    yamllint:
+      enabled: false
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    ruff:
+      enabled: false
+    eslint:
+      enabled: false
+    pylint:
+      enabled: false
+    oxc:
+      enabled: false
+    clippy:
+      enabled: false
+    rubocop:
+      enabled: false
+
+  path_instructions:
+    - path: "**"
+      instructions: |
+        You are reviewing a bounty submission. Your review will be consumed by
+        an automated LLM pipeline, NOT shown directly to the contributor.
+
+        Be DETAILED and SPECIFIC in your analysis — include exact issues,
+        affected files, line numbers, and technical details. This information
+        helps our LLM judges score accurately.
+
+        However, in your WALKTHROUGH and SUMMARY (which ARE visible to the contributor),
+        keep descriptions at the architectural level. Do not include code fixes or
+        copy-pasteable solutions in the summary.
+
+    - path: "contracts/**"
+      instructions: |
+        Solana smart contract code (Rust/Anchor). Analyze deeply:
+        - Arithmetic overflow/underflow risks
+        - Access control and PDA validation gaps
+        - Reentrancy and CPI safety
+        - Account validation and constraint checks
+        Be thorough — this handles real money.
+
+    - path: "backend/**"
+      instructions: |
+        Python FastAPI backend. Analyze thoroughly:
+        - Input validation and SQL injection vectors
+        - Authentication/authorization gaps
+        - Error handling and edge case coverage
+        - API contract consistency with spec
+
+    - path: "frontend/**"
+      instructions: |
+        React/TypeScript frontend. Check:
+        - Component structure and state management
+        - XSS prevention
+        - Integration with existing components
+        - Error/loading/empty state handling
+
+    - path: ".github/**"
+      instructions: |
+        Skip reviewing GitHub Actions — this is maintained by the core team.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"

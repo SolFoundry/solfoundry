@@ -46,9 +46,14 @@ body:
         - Frontend
         - Backend
         - Smart Contract
-        - Docs
+        - AI/ML
+        - Scraping
+        - Bot
         - DevOps
+        - Security
         - Design
+        - Full Stack
+        - Docs
     validations:
       required: true
   - type: textarea
