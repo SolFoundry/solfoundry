@@ -1,17 +1,23 @@
-"""Bounty CRUD and submission API router (Issue #3).
+"""Bounty CRUD, submission, and search API router.
 
-Endpoints: create, list, get, update, delete, submit solution, list submissions.
-Claim lifecycle endpoints belong to Issue #16 and are not included here.
+Endpoints: create, list, get, update, delete, submit solution, list submissions,
+search, autocomplete, hot bounties, recommended bounties.
 """
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
 from app.models.bounty import (
+    AutocompleteResponse,
     BountyCreate,
     BountyListResponse,
     BountyResponse,
+    BountySearchParams,
+    BountySearchResponse,
+    BountySearchResult,
     BountyStatus,
     BountyTier,
     BountyUpdate,
@@ -19,6 +25,7 @@ from app.models.bounty import (
     SubmissionResponse,
 )
 from app.services import bounty_service
+from app.services.bounty_search_service import BountySearchService
 
 router = APIRouter(prefix="/api/bounties", tags=["bounties"])
 
@@ -53,6 +60,106 @@ async def list_bounties(
     return bounty_service.list_bounties(
         status=status, tier=tier, skills=skill_list, skip=skip, limit=limit
     )
+
+
+# ---------------------------------------------------------------------------
+# Search endpoints (placed before /{bounty_id} to avoid route conflicts)
+# ---------------------------------------------------------------------------
+
+
+async def _get_search_service(
+    session: AsyncSession = Depends(get_db),
+) -> BountySearchService:
+    return BountySearchService(session)
+
+
+@router.get(
+    "/search",
+    response_model=BountySearchResponse,
+    summary="Full-text search with advanced filters",
+)
+async def search_bounties(
+    q: str = Query("", max_length=200, description="Search query"),
+    status: Optional[BountyStatus] = Query(None),
+    tier: Optional[int] = Query(None, ge=1, le=3),
+    skills: Optional[str] = Query(None, description="Comma-separated skills"),
+    category: Optional[str] = Query(None),
+    creator_type: Optional[str] = Query(None, pattern=r"^(platform|community)$"),
+    reward_min: Optional[float] = Query(None, ge=0),
+    reward_max: Optional[float] = Query(None, ge=0),
+    deadline_before: Optional[str] = Query(None, description="ISO datetime"),
+    sort: str = Query("newest"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> BountySearchResponse:
+    skill_list = (
+        [s.strip().lower() for s in skills.split(",") if s.strip()]
+        if skills
+        else []
+    )
+    params = BountySearchParams(
+        q=q,
+        status=status,
+        tier=tier,
+        skills=skill_list,
+        category=category,
+        creator_type=creator_type,
+        reward_min=reward_min,
+        reward_max=reward_max,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+    )
+    return await svc.search(params)
+
+
+@router.get(
+    "/autocomplete",
+    response_model=AutocompleteResponse,
+    summary="Search autocomplete suggestions",
+)
+async def autocomplete(
+    q: str = Query(..., min_length=2, max_length=100),
+    limit: int = Query(8, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> AutocompleteResponse:
+    return await svc.autocomplete(q, limit)
+
+
+@router.get(
+    "/hot",
+    response_model=list[BountySearchResult],
+    summary="Hot bounties — highest activity in last 24h",
+)
+async def hot_bounties(
+    limit: int = Query(6, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> list[BountySearchResult]:
+    return await svc.hot_bounties(limit)
+
+
+@router.get(
+    "/recommended",
+    response_model=list[BountySearchResult],
+    summary="Recommended bounties based on user skills",
+)
+async def recommended_bounties(
+    skills: str = Query(..., description="Comma-separated user skills"),
+    exclude: Optional[str] = Query(None, description="Comma-separated bounty IDs to exclude"),
+    limit: int = Query(6, ge=1, le=20),
+    svc: BountySearchService = Depends(_get_search_service),
+) -> list[BountySearchResult]:
+    skill_list = [s.strip().lower() for s in skills.split(",") if s.strip()]
+    excluded = (
+        [e.strip() for e in exclude.split(",") if e.strip()] if exclude else []
+    )
+    return await svc.recommended(skill_list, excluded, limit)
+
+
+# ---------------------------------------------------------------------------
+# CRUD endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.get(

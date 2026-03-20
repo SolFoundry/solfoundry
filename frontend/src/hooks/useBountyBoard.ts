@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Bounty, BountyBoardFilters, BountySortBy } from '../types/bounty';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
+import { mockBounties } from '../data/mockBounties';
 
 const REPO = 'SolFoundry/solfoundry';
 const GITHUB_API = 'https://api.github.com';
@@ -13,194 +14,189 @@ const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
   paid: 'completed',
 };
 
-/** Display-friendly skill names from GitHub labels. */
-const SKILL_DISPLAY: Record<string, string> = {
-  python: 'Python', typescript: 'TypeScript', react: 'React',
-  fastapi: 'FastAPI', solana: 'Solana', rust: 'Rust',
-  anchor: 'Anchor', postgresql: 'PostgreSQL', redis: 'Redis',
-  websocket: 'WebSocket', devops: 'DevOps', docker: 'Docker',
-  frontend: 'Frontend', backend: 'Backend', 'node.js': 'Node.js',
-};
-
-const META_LABELS = new Set([
-  'bounty', 'tier-1', 'tier-2', 'tier-3',
-  'good first issue', 'help wanted', 'bug', 'enhancement',
-  'duplicate', 'invalid', 'wontfix', 'question',
-]);
-
-/** Transform a backend API bounty (snake_case) into frontend Bounty. */
 function mapApiBounty(b: any): Bounty {
   return {
     id: b.id,
     title: b.title,
     description: b.description || '',
-    tier: TIER_MAP[b.tier] || 'T2',
-    skills: b.required_skills || [],
-    rewardAmount: b.reward_amount,
+    tier: TIER_MAP[b.tier] || b.tier || 'T2',
+    skills: b.required_skills || b.skills || [],
+    rewardAmount: b.reward_amount ?? b.rewardAmount,
     currency: '$FNDRY',
-    deadline: b.deadline || new Date(Date.now() + 14 * 86400000).toISOString(),
-    status: STATUS_MAP[b.status] || 'open',
-    submissionCount: b.submission_count || 0,
-    createdAt: b.created_at,
-    projectName: b.created_by || 'SolFoundry',
-    githubIssueUrl: b.github_issue_url || undefined,
+    deadline: b.deadline || new Date(Date.now() + 7 * 86400000).toISOString(),
+    status: STATUS_MAP[b.status] || b.status || 'open',
+    submissionCount: b.submission_count ?? b.submissionCount ?? 0,
+    createdAt: b.created_at ?? b.createdAt,
+    projectName: b.created_by || b.projectName || 'SolFoundry',
+    githubIssueUrl: b.github_issue_url || b.githubIssueUrl || undefined,
+    relevanceScore: b.relevance_score ?? 0,
+    skillMatchCount: b.skill_match_count ?? 0,
   };
 }
 
-/** Parse reward amount from issue title like "— 500,000 $FNDRY". */
-function parseReward(title: string): number {
-  const m = title.match(/([\d,]+)\s*\$FNDRY/);
-  return m ? parseInt(m[1].replace(/,/g, ''), 10) : 0;
-}
-
-/** Parse tier from GitHub labels. */
-function parseTier(labels: any[]): 'T1' | 'T2' | 'T3' {
-  for (const l of labels) {
-    const name = l.name || l;
-    if (name === 'tier-3') return 'T3';
-    if (name === 'tier-2') return 'T2';
-    if (name === 'tier-1') return 'T1';
+function buildSearchParams(
+  filters: BountyBoardFilters, sortBy: BountySortBy, page: number, perPage: number,
+): URLSearchParams {
+  const p = new URLSearchParams();
+  if (filters.searchQuery.trim()) p.set('q', filters.searchQuery.trim());
+  if (filters.tier !== 'all') {
+    const tierNum = filters.tier === 'T1' ? '1' : filters.tier === 'T2' ? '2' : '3';
+    p.set('tier', tierNum);
   }
-  return 'T1';
-}
-
-/** Extract skill tags from labels. */
-function parseSkills(labels: any[]): string[] {
-  return labels
-    .map((l: any) => (l.name || l) as string)
-    .filter(name => !META_LABELS.has(name.toLowerCase()))
-    .map(name => SKILL_DISPLAY[name.toLowerCase()] || name.charAt(0).toUpperCase() + name.slice(1));
-}
-
-/** Clean title — remove emoji prefix and trailing reward. */
-function cleanTitle(title: string): string {
-  let clean = title.replace(/^[🏭🔧⚡🎨🛡️🚀💰]*\s*Bounty:\s*/u, '').trim();
-  clean = clean.replace(/\s*—\s*[\d,]+\s*\$FNDRY\s*$/, '').trim();
-  return clean || title;
-}
-
-/** Transform a GitHub issue into a frontend Bounty. */
-function mapGitHubIssue(issue: any): Bounty {
-  const labels = issue.labels || [];
-  const isOpen = issue.state === 'open';
-  const hasAssignee = !!(issue.assignee || (issue.assignees && issue.assignees.length > 0));
-
-  let status: 'open' | 'in-progress' | 'completed' = 'open';
-  if (!isOpen) status = 'completed';
-  else if (hasAssignee) status = 'in-progress';
-
-  const createdAt = issue.created_at || new Date().toISOString();
-  const deadline = new Date(new Date(createdAt).getTime() + 14 * 86400000).toISOString();
-
-  return {
-    id: `gh-${issue.number}`,
-    title: cleanTitle(issue.title || ''),
-    description: (issue.body || '').slice(0, 500),
-    tier: parseTier(labels),
-    skills: parseSkills(labels),
-    rewardAmount: parseReward(issue.title || ''),
-    currency: '$FNDRY',
-    deadline,
-    status,
-    submissionCount: 0,
-    createdAt,
-    projectName: 'SolFoundry',
-    githubIssueUrl: issue.html_url || `https://github.com/${REPO}/issues/${issue.number}`,
-  };
-}
-
-/** Fetch bounty-labeled issues directly from GitHub API (no auth needed for public repos). */
-async function fetchGitHubBounties(): Promise<Bounty[]> {
-  const allBounties: Bounty[] = [];
-  let page = 1;
-  const perPage = 100;
-
-  while (true) {
-    const url = `${GITHUB_API}/repos/${REPO}/issues?labels=bounty&state=all&per_page=${perPage}&page=${page}&sort=created&direction=desc`;
-    const res = await fetch(url);
-    if (!res.ok) break;
-
-    const issues = await res.json();
-    if (!Array.isArray(issues) || issues.length === 0) break;
-
-    // Filter out pull requests (GitHub API returns PRs in issues endpoint)
-    const realIssues = issues.filter((i: any) => !i.pull_request);
-    allBounties.push(...realIssues.map(mapGitHubIssue));
-
-    if (issues.length < perPage) break;
-    page++;
+  if (filters.status !== 'all') {
+    const map: Record<string, string> = { open: 'open', 'in-progress': 'in_progress', completed: 'completed' };
+    p.set('status', map[filters.status] || filters.status);
   }
+  if (filters.skills.length) p.set('skills', filters.skills.join(','));
+  if (filters.rewardMin) p.set('reward_min', filters.rewardMin);
+  if (filters.rewardMax) p.set('reward_max', filters.rewardMax);
+  if (filters.creatorType !== 'all') p.set('creator_type', filters.creatorType);
+  if (filters.category !== 'all') p.set('category', filters.category);
+  if (filters.deadlineBefore) p.set('deadline_before', new Date(filters.deadlineBefore + 'T23:59:59Z').toISOString());
+  p.set('sort', sortBy);
+  p.set('page', String(page));
+  p.set('per_page', String(perPage));
+  return p;
+}
 
-  return allBounties;
+const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
+
+function localSort(arr: Bounty[], sortBy: BountySortBy): Bounty[] {
+  const s = [...arr];
+  switch (sortBy) {
+    case 'reward_high': return s.sort((a, b) => b.rewardAmount - a.rewardAmount);
+    case 'reward_low': return s.sort((a, b) => a.rewardAmount - b.rewardAmount);
+    case 'deadline': return s.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+    case 'submissions': return s.sort((a, b) => b.submissionCount - a.submissionCount);
+    case 'best_match':
+    case 'newest':
+    default: return s.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+}
+
+function applyLocalFilters(all: Bounty[], f: BountyBoardFilters, sortBy: BountySortBy): Bounty[] {
+  let r = [...all];
+  if (f.tier !== 'all') r = r.filter(b => b.tier === f.tier);
+  if (f.status !== 'all') r = r.filter(b => b.status === f.status);
+  if (f.skills.length) r = r.filter(b => f.skills.some(s => b.skills.map(sk => sk.toLowerCase()).includes(s.toLowerCase())));
+  if (f.searchQuery.trim()) {
+    const q = f.searchQuery.toLowerCase();
+    r = r.filter(b => b.title.toLowerCase().includes(q) || b.description.toLowerCase().includes(q) || b.projectName.toLowerCase().includes(q));
+  }
+  if (f.rewardMin) { const min = Number(f.rewardMin); if (!isNaN(min)) r = r.filter(b => b.rewardAmount >= min); }
+  if (f.rewardMax) { const max = Number(f.rewardMax); if (!isNaN(max)) r = r.filter(b => b.rewardAmount <= max); }
+  if (f.deadlineBefore) {
+    const cutoff = new Date(f.deadlineBefore + 'T23:59:59Z').getTime();
+    r = r.filter(b => new Date(b.deadline).getTime() <= cutoff);
+  }
+  return localSort(r, sortBy);
 }
 
 export function useBountyBoard() {
-  const [allBounties, setAllBounties] = useState<Bounty[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allBounties, setAllBounties] = useState<Bounty[]>(mockBounties);
+  const [apiResults, setApiResults] = useState<{ items: Bounty[]; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
-  const [sortBy, setSortBy] = useState<BountySortBy>('newest');
+  const [sortBy, setSortByRaw] = useState<BountySortBy>('newest');
+  const [page, setPage] = useState(1);
+  const [hotBounties, setHotBounties] = useState<Bounty[]>([]);
+  const [recommendedBounties, setRecommendedBounties] = useState<Bounty[]>([]);
+  const perPage = 20;
+  const abortRef = useRef<AbortController | null>(null);
+  const useApiRef = useRef(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Primary: try backend API first (faster, pre-processed)
-        const apiRes = await fetch('/api/bounties?limit=100');
-        if (!cancelled && apiRes.ok) {
-          const data = await apiRes.json();
-          const items = data.items || data;
-          if (Array.isArray(items) && items.length > 0) {
-            setAllBounties(items.map(mapApiBounty));
-            setLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // Backend unavailable — fall through to GitHub
-      }
-
-      try {
-        // Fallback: fetch directly from GitHub API
-        const bounties = await fetchGitHubBounties();
-        if (!cancelled && bounties.length > 0) {
-          setAllBounties(bounties);
-        }
-      } catch {
-        // GitHub also failed — show empty state
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  const setSortBy = useCallback((s: BountySortBy | string) => {
+    setSortByRaw((SORT_COMPAT[s] || s) as BountySortBy);
+    setPage(1);
   }, []);
 
-  const bounties = useMemo(() => {
-    let r = [...allBounties];
-    if (filters.tier !== 'all') r = r.filter(b => b.tier === filters.tier);
-    if (filters.status !== 'all') r = r.filter(b => b.status === filters.status);
-    if (filters.skills.length) r = r.filter(b => filters.skills.some(s => b.skills.map(sk => sk.toLowerCase()).includes(s.toLowerCase())));
-    if (filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
-      r = r.filter(b => b.title.toLowerCase().includes(q) || b.projectName.toLowerCase().includes(q));
-    }
-    return r.sort((a, b) =>
-      sortBy === 'reward' ? b.rewardAmount - a.rewardAmount
-      : sortBy === 'deadline' ? new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [allBounties, filters, sortBy]);
+  // Server-side search
+  useEffect(() => {
+    if (!useApiRef.current) return;
+    const timer = setTimeout(async () => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setLoading(true);
+      try {
+        const params = buildSearchParams(filters, sortBy, page, perPage);
+        const res = await fetch(`/api/bounties/search?${params}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error('search failed');
+        const data: SearchResponse = await res.json();
+        setApiResults({ items: data.items.map(mapApiBounty), total: data.total });
+      } catch (e: any) {
+        if (e.name === 'AbortError') return;
+        useApiRef.current = false;
+        setApiResults(null);
+        // Fallback: fetch all bounties once from old list endpoint
+        try {
+          const res = await fetch('/api/bounties?limit=100');
+          if (res.ok) {
+            const data = await res.json();
+            const items = (data.items || data);
+            if (Array.isArray(items) && items.length > 0) {
+              setAllBounties(items.map(mapApiBounty));
+            }
+          }
+        } catch { /* keep mock data */ }
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [filters, sortBy, page]);
 
-  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) =>
-    setFilters(p => ({ ...p, [k]: v })), []);
+  // Client-side filtered results (fallback when API unavailable)
+  const localFiltered = useMemo(
+    () => applyLocalFilters(allBounties, filters, sortBy),
+    [allBounties, filters, sortBy],
+  );
+
+  // Decide which results to use
+  const bounties = apiResults ? apiResults.items : localFiltered;
+  const total = apiResults ? apiResults.total : localFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+  // Fetch hot bounties once
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/bounties/hot?limit=6');
+        if (res.ok) setHotBounties((await res.json()).map(mapApiBounty));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  // Fetch recommended bounties
+  useEffect(() => {
+    const skills = filters.skills.length > 0 ? filters.skills : ['react', 'typescript', 'rust'];
+    (async () => {
+      try {
+        const res = await fetch(`/api/bounties/recommended?skills=${skills.join(',')}&limit=6`);
+        if (res.ok) setRecommendedBounties((await res.json()).map(mapApiBounty));
+      } catch { /* ignore */ }
+    })();
+  }, [filters.skills]);
+
+  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) => {
+    setFilters(p => ({ ...p, [k]: v }));
+    setPage(1);
+  }, []);
 
   return {
     bounties,
     allBounties,
+    total,
     filters,
     sortBy,
     loading,
+    page,
+    totalPages,
+    hotBounties,
+    recommendedBounties,
     setFilter,
-    resetFilters: useCallback(() => setFilters(DEFAULT_FILTERS), []),
+    resetFilters: useCallback(() => { setFilters(DEFAULT_FILTERS); setPage(1); setApiResults(null); }, []),
     setSortBy,
+    setPage,
   };
 }

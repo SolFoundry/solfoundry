@@ -1,22 +1,249 @@
-import { useRef, useEffect } from 'react';
-import type { BountyBoardFilters, BountyTier, BountyStatus } from '../../types/bounty';
-import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS } from '../../types/bounty';
-interface Props { filters: BountyBoardFilters; onFilterChange: <K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) => void; onReset: () => void; resultCount: number; totalCount: number; }
+import { useRef, useEffect, useState, useCallback } from 'react';
+import type { BountyBoardFilters, BountyTier, BountyStatus, BountyCategory, AutocompleteItem } from '../../types/bounty';
+import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS, CREATOR_TYPE_OPTIONS, CATEGORY_OPTIONS } from '../../types/bounty';
+
+interface Props {
+  filters: BountyBoardFilters;
+  onFilterChange: <K extends keyof BountyBoardFilters>(k: K, v: BountyBoardFilters[K]) => void;
+  onReset: () => void;
+  resultCount: number;
+  totalCount: number;
+}
+
 export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount, totalCount }: Props) {
-  const sr = useRef<HTMLInputElement>(null), dr = useRef<ReturnType<typeof setTimeout>|null>(null);
-  useEffect(() => () => { if (dr.current) clearTimeout(dr.current); }, []);
-  const hs = (v: string) => { if (dr.current) clearTimeout(dr.current); dr.current = setTimeout(() => onFilterChange('searchQuery', v), 300); };
-  const ts = (s: string) => { const c = f.skills; onFilterChange('skills', c.includes(s) ? c.filter(x => x !== s) : [...c, s]); };
-  const ha = f.tier !== 'all' || f.status !== 'all' || f.skills.length > 0 || f.searchQuery.trim() !== '';
+  const searchRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const handleSearch = useCallback((v: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onFilterChange('searchQuery', v), 150);
+
+    // Fetch autocomplete suggestions
+    if (v.trim().length >= 2) {
+      fetch(`/api/bounties/autocomplete?q=${encodeURIComponent(v.trim())}&limit=6`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.suggestions) {
+            setSuggestions(data.suggestions);
+            setShowSuggestions(true);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [onFilterChange]);
+
+  const selectSuggestion = useCallback((item: AutocompleteItem) => {
+    if (item.type === 'skill') {
+      const skills = f.skills;
+      if (!skills.includes(item.text)) {
+        onFilterChange('skills', [...skills, item.text]);
+      }
+    } else {
+      onFilterChange('searchQuery', item.text);
+      if (searchRef.current) searchRef.current.value = item.text;
+    }
+    setShowSuggestions(false);
+  }, [f.skills, onFilterChange]);
+
+  const toggleSkill = useCallback((s: string) => {
+    const current = f.skills;
+    onFilterChange('skills', current.includes(s) ? current.filter(x => x !== s) : [...current, s]);
+  }, [f.skills, onFilterChange]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const hasActive = f.tier !== 'all' || f.status !== 'all' || f.skills.length > 0 ||
+    f.searchQuery.trim() !== '' || f.rewardMin !== '' || f.rewardMax !== '' ||
+    f.creatorType !== 'all' || f.category !== 'all' || f.deadlineBefore !== '';
+
   return (
     <div className="space-y-3" data-testid="bounty-filters">
-      <input ref={sr} type="search" placeholder="Search bounties..." defaultValue={f.searchQuery} onChange={e => hs(e.target.value)} className="w-full rounded-lg border border-surface-300 bg-surface-50 px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none" aria-label="Search bounties" data-testid="bounty-search" />
-      <div className="flex flex-wrap items-center gap-2">
-        <select value={f.tier} onChange={e => onFilterChange('tier', e.target.value as BountyTier|'all')} className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white" aria-label="Filter by tier" data-testid="tier-filter">{TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-        <select value={f.status} onChange={e => onFilterChange('status', e.target.value as BountyStatus|'all')} className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white" aria-label="Filter by status" data-testid="status-filter">{STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-        {ha && <button type="button" onClick={() => { onReset(); if (sr.current) sr.current.value = ''; }} className="text-sm text-gray-400 hover:text-white" data-testid="reset-filters">Clear</button>}
-        <span className="ml-auto text-xs text-gray-500" data-testid="result-count">{resultCount} of {totalCount}</span>
+      {/* Search bar with autocomplete */}
+      <div className="relative" ref={suggestionsRef}>
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            ref={searchRef}
+            type="search"
+            placeholder="Search bounties by title, description, or skill..."
+            defaultValue={f.searchQuery}
+            onChange={e => handleSearch(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            className="w-full rounded-lg border border-surface-300 bg-surface-50 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors"
+            aria-label="Search bounties"
+            data-testid="bounty-search"
+          />
+        </div>
+
+        {/* Autocomplete dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-surface-300 bg-surface-100 shadow-xl overflow-hidden">
+            {suggestions.map((item, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => selectSuggestion(item)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-surface-200 transition-colors"
+              >
+                <span className={
+                  'rounded px-1.5 py-0.5 text-[10px] font-medium ' +
+                  (item.type === 'skill' ? 'bg-solana-purple/15 text-solana-purple' : 'bg-surface-300 text-gray-400')
+                }>
+                  {item.type}
+                </span>
+                <span className="text-white truncate">{item.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="flex flex-wrap gap-1" data-testid="skill-filters">{SKILL_OPTIONS.map(s => { const a = f.skills.includes(s); return <button key={s} type="button" onClick={() => ts(s)} className={'rounded-full px-2 py-0.5 text-xs ' + (a ? 'bg-solana-green/15 text-solana-green' : 'bg-surface-200 text-gray-400')} aria-pressed={a} data-testid={'skill-filter-' + s}>{s}</button>; })}</div>
-    </div>);
+
+      {/* Primary filters row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={f.tier}
+          onChange={e => onFilterChange('tier', e.target.value as BountyTier | 'all')}
+          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          aria-label="Filter by tier"
+          data-testid="tier-filter"
+        >
+          {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={f.status}
+          onChange={e => onFilterChange('status', e.target.value as BountyStatus | 'all')}
+          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          aria-label="Filter by status"
+          data-testid="status-filter"
+        >
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={f.creatorType}
+          onChange={e => onFilterChange('creatorType', e.target.value as 'all' | 'platform' | 'community')}
+          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          aria-label="Filter by creator type"
+          data-testid="creator-type-filter"
+        >
+          {CREATOR_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={f.category}
+          onChange={e => onFilterChange('category', e.target.value as BountyCategory | 'all')}
+          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          aria-label="Filter by category"
+          data-testid="category-filter"
+        >
+          {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className={'rounded-lg border px-3 py-1.5 text-sm transition-colors ' +
+            (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-surface-300 text-gray-400 hover:text-white')}
+          data-testid="toggle-advanced"
+        >
+          {showAdvanced ? 'Less' : 'More'} Filters
+        </button>
+
+        {hasActive && (
+          <button
+            type="button"
+            onClick={() => { onReset(); if (searchRef.current) searchRef.current.value = ''; setSuggestions([]); }}
+            className="text-sm text-gray-400 hover:text-white"
+            data-testid="reset-filters"
+          >
+            Clear all
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-gray-500" data-testid="result-count">
+          {resultCount} of {totalCount} bounties
+        </span>
+      </div>
+
+      {/* Advanced filters (reward range + deadline) */}
+      {showAdvanced && (
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-surface-300 bg-surface-50" data-testid="advanced-filters">
+          <span className="text-xs text-gray-500">Reward:</span>
+          <input
+            type="number"
+            placeholder="Min"
+            value={f.rewardMin}
+            onChange={e => onFilterChange('rewardMin', e.target.value)}
+            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            aria-label="Minimum reward"
+            data-testid="reward-min"
+          />
+          <span className="text-xs text-gray-500">—</span>
+          <input
+            type="number"
+            placeholder="Max"
+            value={f.rewardMax}
+            onChange={e => onFilterChange('rewardMax', e.target.value)}
+            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            aria-label="Maximum reward"
+            data-testid="reward-max"
+          />
+          <span className="text-xs text-gray-500 ml-1">$FNDRY</span>
+
+          <span className="text-xs text-gray-500 ml-3">Deadline before:</span>
+          <input
+            type="date"
+            value={f.deadlineBefore}
+            onChange={e => onFilterChange('deadlineBefore', e.target.value)}
+            className="rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white focus:outline-none focus:border-solana-green/50 scheme-dark"
+            aria-label="Deadline before date"
+            data-testid="deadline-filter"
+          />
+        </div>
+      )}
+
+      {/* Skill pills */}
+      <div className="flex flex-wrap gap-1.5" data-testid="skill-filters">
+        {SKILL_OPTIONS.map(s => {
+          const active = f.skills.includes(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggleSkill(s)}
+              className={
+                'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ' +
+                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-surface-200 text-gray-400 hover:text-white')
+              }
+              aria-pressed={active}
+              data-testid={'skill-filter-' + s}
+            >
+              {s}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
