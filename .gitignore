@@ -15,13 +15,27 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-.venv/
-*.egg-info/
-.eggs/
-dist/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
 
 # Node
 node_modules/
@@ -38,11 +52,12 @@ out/
 *~
 .DS_Store
 
-# Test
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
+.nox/
 
 # Rust/Anchor
 target/
@@ -55,3 +70,4 @@ target/
 data/
 *.sqlite
 *.db
+*.sqlite3
