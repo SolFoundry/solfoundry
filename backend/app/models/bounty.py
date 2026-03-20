@@ -26,7 +26,7 @@ VALID_CATEGORIES = frozenset({
 })
 
 VALID_STATUSES = frozenset({
-    "open", "claimed", "completed", "cancelled"
+    "open", "claimed", "in_progress", "completed", "cancelled"
 })
 
 
@@ -41,6 +41,7 @@ class BountyStatus(str, Enum):
     """Bounty lifecycle status."""
     OPEN = "open"
     CLAIMED = "claimed"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -93,6 +94,25 @@ class BountyDB(Base):
         Index('ix_bounties_reward', reward_amount),
         Index('ix_bounties_deadline', deadline),
         Index('ix_bounties_popularity', popularity),
+    )
+
+
+class BountyClaimHistoryDB(Base):
+    """Database model for bounty claim history.
+    
+    Tracks all claim and unclaim events for audit purposes.
+    """
+    __tablename__ = "bounty_claim_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    claimant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    action = Column(String(20), nullable=False)  # 'claimed' or 'unclaimed'
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    __table_args__ = (
+        Index('ix_claim_history_bounty_claimant', bounty_id, claimant_id),
     )
 
 
@@ -209,3 +229,43 @@ class AutocompleteSuggestion(BaseModel):
 
 class AutocompleteResponse(BaseModel):
     suggestions: List[AutocompleteSuggestion]
+
+
+# Claim-related models
+
+class BountyClaimRequest(BaseModel):
+    """Request body for claiming a bounty."""
+    claimant_id: str = Field(..., description="UUID of the contributor claiming the bounty")
+
+
+class BountyUnclaimRequest(BaseModel):
+    """Request body for unclaiming a bounty."""
+    reason: Optional[str] = Field(None, max_length=1000, description="Optional reason for unclaiming")
+
+
+class BountyClaimantResponse(BaseModel):
+    """Response for the current claimant of a bounty."""
+    bounty_id: str
+    claimant_id: str
+    claimed_at: datetime
+    status: str
+    model_config = {"from_attributes": True}
+
+
+class BountyClaimHistoryItem(BaseModel):
+    """Single claim history entry."""
+    id: str
+    bounty_id: str
+    claimant_id: str
+    action: str
+    reason: Optional[str] = None
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class BountyClaimHistoryResponse(BaseModel):
+    """Paginated claim history response."""
+    items: List[BountyClaimHistoryItem]
+    total: int
+    skip: int
+    limit: int

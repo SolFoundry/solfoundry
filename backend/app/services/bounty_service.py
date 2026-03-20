@@ -212,3 +212,235 @@ class BountySearchService:
             "deadline": asc(BountyDB.deadline),
             "popularity": desc(BountyDB.popularity),
         }.get(sort, desc(BountyDB.created_at))
+
+
+class BountyClaimService:
+    """Service for bounty claim operations.
+    
+    Handles claiming, unclaiming, and claim history for bounties.
+    """
+    
+    # Statuses that allow claiming
+    CLAIMABLE_STATUSES = {"open"}
+    # Statuses that indicate a bounty is already claimed
+    CLAIMED_STATUSES = {"claimed", "in_progress"}
+    
+    def __init__(self, db):
+        self.db = db
+    
+    async def claim_bounty(
+        self, 
+        bounty_id: str, 
+        claimant_id: str
+    ) -> tuple[BountyDB, "BountyClaimHistoryDB"]:
+        """
+        Claim a bounty for a contributor.
+        
+        Args:
+            bounty_id: UUID of the bounty to claim.
+            claimant_id: UUID of the contributor claiming the bounty.
+            
+        Returns:
+            Tuple of (updated bounty, claim history record).
+            
+        Raises:
+            ValueError: If bounty not found, already claimed, or not open.
+        """
+        from app.models.bounty import BountyClaimHistoryDB
+        
+        # Get the bounty
+        query = select(BountyDB).where(BountyDB.id == bounty_id)
+        result = await self.db.execute(query)
+        bounty = result.scalar_one_or_none()
+        
+        if not bounty:
+            raise ValueError(f"Bounty {bounty_id} not found")
+        
+        # Check if bounty can be claimed
+        if bounty.status not in self.CLAIMABLE_STATUSES:
+            raise ValueError(
+                f"Cannot claim bounty with status '{bounty.status}'. "
+                f"Only bounties with status 'open' can be claimed."
+            )
+        
+        # Check if already claimed
+        if bounty.claimant_id is not None:
+            raise ValueError(
+                f"Bounty {bounty_id} is already claimed by {bounty.claimant_id}"
+            )
+        
+        # Update bounty status and claimant
+        bounty.status = "in_progress"
+        bounty.claimant_id = claimant_id
+        
+        # Create claim history record
+        history = BountyClaimHistoryDB(
+            bounty_id=bounty_id,
+            claimant_id=claimant_id,
+            action="claimed"
+        )
+        
+        self.db.add(history)
+        await self.db.flush()
+        await self.db.refresh(bounty)
+        
+        return bounty, history
+    
+    async def unclaim_bounty(
+        self, 
+        bounty_id: str, 
+        claimant_id: str,
+        reason: str = None
+    ) -> tuple[BountyDB, "BountyClaimHistoryDB"]:
+        """
+        Release a claimed bounty.
+        
+        Args:
+            bounty_id: UUID of the bounty to unclaim.
+            claimant_id: UUID of the current claimant.
+            reason: Optional reason for unclaiming.
+            
+        Returns:
+            Tuple of (updated bounty, claim history record).
+            
+        Raises:
+            ValueError: If bounty not found, not claimed, or claimant mismatch.
+        """
+        from app.models.bounty import BountyClaimHistoryDB
+        
+        # Get the bounty
+        query = select(BountyDB).where(BountyDB.id == bounty_id)
+        result = await self.db.execute(query)
+        bounty = result.scalar_one_or_none()
+        
+        if not bounty:
+            raise ValueError(f"Bounty {bounty_id} not found")
+        
+        # Check if bounty is claimed
+        if bounty.status not in self.CLAIMED_STATUSES:
+            raise ValueError(
+                f"Cannot unclaim bounty with status '{bounty.status}'. "
+                f"Only claimed bounties can be released."
+            )
+        
+        # Check if claimant matches
+        if str(bounty.claimant_id) != str(claimant_id):
+            raise ValueError(
+                f"Only the current claimant can unclaim this bounty. "
+                f"Current claimant: {bounty.claimant_id}"
+            )
+        
+        # Update bounty status and clear claimant
+        bounty.status = "open"
+        bounty.claimant_id = None
+        
+        # Create unclaim history record
+        history = BountyClaimHistoryDB(
+            bounty_id=bounty_id,
+            claimant_id=claimant_id,
+            action="unclaimed",
+            reason=reason
+        )
+        
+        self.db.add(history)
+        await self.db.flush()
+        await self.db.refresh(bounty)
+        
+        return bounty, history
+    
+    async def get_claimant(self, bounty_id: str) -> dict:
+        """
+        Get the current claimant of a bounty.
+        
+        Args:
+            bounty_id: UUID of the bounty.
+            
+        Returns:
+            Dict with claimant info or None if not claimed.
+            
+        Raises:
+            ValueError: If bounty not found.
+        """
+        from app.models.bounty import BountyClaimantResponse
+        
+        # Get the bounty
+        query = select(BountyDB).where(BountyDB.id == bounty_id)
+        result = await self.db.execute(query)
+        bounty = result.scalar_one_or_none()
+        
+        if not bounty:
+            raise ValueError(f"Bounty {bounty_id} not found")
+        
+        if bounty.claimant_id is None:
+            return None
+        
+        # Get the claim time from the most recent claim history
+        from app.models.bounty import BountyClaimHistoryDB
+        history_query = (
+            select(BountyClaimHistoryDB)
+            .where(BountyClaimHistoryDB.bounty_id == bounty_id)
+            .where(BountyClaimHistoryDB.claimant_id == bounty.claimant_id)
+            .where(BountyClaimHistoryDB.action == "claimed")
+            .order_by(desc(BountyClaimHistoryDB.created_at))
+            .limit(1)
+        )
+        history_result = await self.db.execute(history_query)
+        claim_history = history_result.scalar_one_or_none()
+        
+        claimed_at = claim_history.created_at if claim_history else bounty.updated_at
+        
+        return {
+            "bounty_id": str(bounty.id),
+            "claimant_id": str(bounty.claimant_id),
+            "claimed_at": claimed_at,
+            "status": bounty.status
+        }
+    
+    async def get_claim_history(
+        self,
+        bounty_id: str = None,
+        claimant_id: str = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> tuple[list, int]:
+        """
+        Get claim history with optional filters.
+        
+        Args:
+            bounty_id: Filter by bounty ID.
+            claimant_id: Filter by claimant ID.
+            skip: Pagination offset.
+            limit: Number of results.
+            
+        Returns:
+            Tuple of (list of history items, total count).
+        """
+        from app.models.bounty import BountyClaimHistoryDB
+        
+        # Build query conditions
+        conditions = []
+        if bounty_id:
+            conditions.append(BountyClaimHistoryDB.bounty_id == bounty_id)
+        if claimant_id:
+            conditions.append(BountyClaimHistoryDB.claimant_id == claimant_id)
+        
+        # Count query
+        count_query = select(func.count(BountyClaimHistoryDB.id))
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+        
+        # Main query
+        query = select(BountyClaimHistoryDB)
+        if conditions:
+            query = query.where(and_(*conditions))
+        query = query.order_by(desc(BountyClaimHistoryDB.created_at))
+        query = query.offset(skip).limit(limit)
+        
+        # Execute queries
+        result = await self.db.execute(query)
+        items = result.scalars().all()
+        
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar() or 0
+        
+        return list(items), total

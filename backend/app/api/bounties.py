@@ -13,8 +13,13 @@ from app.models.bounty import (
     BountyCreate,
     BountyUpdate,
     AutocompleteResponse,
+    BountyClaimRequest,
+    BountyUnclaimRequest,
+    BountyClaimantResponse,
+    BountyClaimHistoryItem,
+    BountyClaimHistoryResponse,
 )
-from app.services.bounty_service import BountySearchService
+from app.services.bounty_service import BountySearchService, BountyClaimService
 from app.database import get_db
 
 router = APIRouter(prefix="/bounties", tags=["bounties"])
@@ -118,3 +123,114 @@ async def create_bounty(
     await service.update_search_vector(str(db_bounty.id))
     
     return BountyResponse.model_validate(db_bounty)
+
+
+# Claim endpoints
+
+@router.post("/{bounty_id}/claim", response_model=BountyResponse)
+async def claim_bounty(
+    bounty_id: str,
+    request: BountyClaimRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Claim a bounty.
+    
+    The claimant_id in the request body will be set as the bounty's claimant.
+    The bounty status will change to 'in_progress'.
+    
+    Only bounties with status 'open' can be claimed.
+    Each bounty can only have one claimant at a time.
+    """
+    service = BountyClaimService(db)
+    
+    try:
+        bounty, history = await service.claim_bounty(
+            bounty_id=bounty_id,
+            claimant_id=request.claimant_id
+        )
+        await db.commit()
+        return BountyResponse.model_validate(bounty)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{bounty_id}/claim", response_model=BountyResponse)
+async def unclaim_bounty(
+    bounty_id: str,
+    request: BountyUnclaimRequest,
+    claimant_id: str = Query(..., description="UUID of the current claimant"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Release a claimed bounty.
+    
+    Only the current claimant can unclaim a bounty.
+    The bounty status will change back to 'open'.
+    An optional reason can be provided for the unclaim.
+    """
+    service = BountyClaimService(db)
+    
+    try:
+        bounty, history = await service.unclaim_bounty(
+            bounty_id=bounty_id,
+            claimant_id=claimant_id,
+            reason=request.reason
+        )
+        await db.commit()
+        return BountyResponse.model_validate(bounty)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{bounty_id}/claimant", response_model=BountyClaimantResponse)
+async def get_bounty_claimant(
+    bounty_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get the current claimant of a bounty.
+    
+    Returns the claimant's ID and the time the bounty was claimed.
+    Returns 404 if the bounty exists but is not claimed.
+    """
+    service = BountyClaimService(db)
+    
+    try:
+        result = await service.get_claimant(bounty_id)
+        if result is None:
+            raise HTTPException(
+                status_code=404, 
+                detail="Bounty is not currently claimed"
+            )
+        return BountyClaimantResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{bounty_id}/claim-history", response_model=BountyClaimHistoryResponse)
+async def get_bounty_claim_history(
+    bounty_id: str,
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Number of items to return"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get the claim history for a bounty.
+    
+    Returns a paginated list of all claim and unclaim events.
+    """
+    service = BountyClaimService(db)
+    
+    items, total = await service.get_claim_history(
+        bounty_id=bounty_id,
+        skip=skip,
+        limit=limit
+    )
+    
+    return BountyClaimHistoryResponse(
+        items=[BountyClaimHistoryItem.model_validate(item) for item in items],
+        total=total,
+        skip=skip,
+        limit=limit
+    )
