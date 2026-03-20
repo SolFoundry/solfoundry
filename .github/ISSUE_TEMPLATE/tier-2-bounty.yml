@@ -1,16 +1,17 @@
 name: "🟡 Tier 2 Bounty (500-5000 $FNDRY)"
-description: "Claim-based bounty — comment to claim, 7-day deadline"
+description: "Open race bounty — requires Tier 2 access (4+ merged T1 bounties)"
 title: "🏭 Bounty T2: "
 labels: ["bounty", "tier-2"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Tier 2 — Claim-Based
+        ## Tier 2 — Open Race (Gated Access)
         - **Reward:** 500-5,000 $FNDRY
-        - **Mode:** Claim-based — comment "claiming" to reserve. One active claim at a time.
-        - **Deadline:** 7 days from claim. Unclaimed after 48h = open to all.
-        - **Rules:** Must pass AI code review (score ≥ 7/10). Include tests and docs.
+        - **Mode:** Open race — first quality PR wins. Must have 4+ merged T1 bounty PRs to submit.
+        - **Deadline:** 7 days from issue creation
+        - **Rules:** Must pass AI code review (score ≥ 6/10). Include tests and docs.
+        - **Access:** Claim-guard checks your merged T1 count automatically. Star rewards and content bounties do NOT count.
   - type: textarea
     id: description
     attributes:
@@ -47,9 +48,14 @@ body:
         - Frontend
         - Backend
         - Smart Contract
-        - Docs
+        - AI/ML
+        - Scraping
+        - Bot
         - DevOps
+        - Security
+        - Design
         - Full Stack
+        - Docs
     validations:
       required: true
   - type: textarea
