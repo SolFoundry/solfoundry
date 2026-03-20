@@ -65,6 +65,9 @@ async def search_bounties_db(
     if params.creator_type:
         conditions.append("b.creator_type = :creator_type")
         binds["creator_type"] = params.creator_type
+    if params.creator_id:
+        conditions.append("b.created_by = :creator_id")
+        binds["creator_id"] = params.creator_id
     if params.reward_min is not None:
         conditions.append("b.reward_amount >= :reward_min")
         binds["reward_min"] = params.reward_min
@@ -327,6 +330,8 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if params.creator_id:
+        results = [b for b in results if b.created_by == params.creator_id]
     if params.reward_min is not None:
         results = [b for b in results if b.reward_amount >= params.reward_min]
     if params.reward_max is not None:
