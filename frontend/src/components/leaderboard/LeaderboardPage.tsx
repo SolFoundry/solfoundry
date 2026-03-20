@@ -1,3 +1,10 @@
+/**
+ * LeaderboardPage - Main view for the contributor leaderboard feature.
+ * Renders search input, time-range toggle, sort selector, and the ranked
+ * contributor table. Wired into the app router at /leaderboard via
+ * pages/LeaderboardPage.tsx re-export.
+ * @module components/leaderboard/LeaderboardPage
+ */
 import { useLeaderboard } from '../../hooks/useLeaderboard';
 import type { TimeRange, SortField } from '../../types/leaderboard';
 
@@ -10,7 +17,6 @@ const SORTS: { label: string; value: SortField }[] = [
   { label: 'Earnings', value: 'earnings' },
 ];
 
-/** SolFoundry contributor leaderboard -- integrated into Sidebar nav */
 export function LeaderboardPage() {
   const { contributors, loading, error, timeRange, setTimeRange, sortBy, setSortBy, search, setSearch } = useLeaderboard();
 
@@ -18,7 +24,7 @@ export function LeaderboardPage() {
   if (error) return <div className="p-8 text-center text-red-400" role="alert">Error: {error}</div>;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
       <h1 className="text-2xl font-bold text-white">Contributor Leaderboard</h1>
       <div className="flex flex-wrap gap-3 items-center">
         <input type="search" placeholder="Search contributors..." value={search} onChange={e => setSearch(e.target.value)}
@@ -50,7 +56,7 @@ export function LeaderboardPage() {
           <tbody>
             {contributors.map(c => (
               <tr key={c.username} className="border-b border-gray-800 hover:bg-surface-100">
-                <td className="py-3 font-bold text-gray-400">{c.rank <= 3 ? ['🥇','🥈','🥉'][c.rank-1] : c.rank}</td>
+                <td className="py-3 font-bold text-gray-400">{c.rank <= 3 ? ['\u{1F947}','\u{1F948}','\u{1F949}'][c.rank-1] : c.rank}</td>
                 <td className="py-3 flex items-center gap-2">
                   <img src={c.avatarUrl} alt={c.username} className="h-6 w-6 rounded-full" width={24} height={24} />
                   <span className="text-white font-medium">{c.username}</span>

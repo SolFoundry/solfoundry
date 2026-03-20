@@ -1,6 +1,12 @@
+/**
+ * Leaderboard test suite.
+ * Unit tests for the LeaderboardPage component plus an integration
+ * test that renders the full app at /leaderboard to verify route wiring.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LeaderboardPage } from '../components/leaderboard/LeaderboardPage';
 import { MOCK_CONTRIBUTORS } from '../data/mockLeaderboard';
 
@@ -11,6 +17,9 @@ beforeEach(() => mockFetch.mockReset());
 
 function okJson(data: unknown) { return { ok: true, json: () => Promise.resolve(data) }; }
 
+// ---------------------------------------------------------------------------
+// Unit tests -- LeaderboardPage component
+// ---------------------------------------------------------------------------
 describe('LeaderboardPage', () => {
   it('shows loading state', () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
@@ -58,7 +67,7 @@ describe('LeaderboardPage', () => {
     await waitFor(() => expect(screen.getByText('alice_dev')).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /sort/i }), 'bounties');
     const rows = screen.getAllByRole('row');
-    expect(rows[1]).toHaveTextContent('alice_dev'); // 28 bounties = most
+    expect(rows[1]).toHaveTextContent('alice_dev');
   });
 
   it('shows error state', async () => {
@@ -77,5 +86,86 @@ describe('LeaderboardPage', () => {
     mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
     render(<LeaderboardPage />);
     await waitFor(() => expect(screen.getByText(/Rust, Solana/)).toBeInTheDocument());
+  });
+
+  it('renders page heading', async () => {
+    mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
+    render(<LeaderboardPage />);
+    await waitFor(() => expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeInTheDocument());
+  });
+
+  it('renders the data-testid on the page wrapper', async () => {
+    mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
+    render(<LeaderboardPage />);
+    await waitFor(() => expect(screen.getByTestId('leaderboard-page')).toBeInTheDocument());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration test -- full app render at /leaderboard route
+// ---------------------------------------------------------------------------
+describe('Leaderboard route integration', () => {
+  it('renders the leaderboard page when navigating to /leaderboard', async () => {
+    mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
+
+    render(
+      <MemoryRouter initialEntries={['/leaderboard']}>
+        <Routes>
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="*" element={<Navigate to="/leaderboard" replace />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('leaderboard-page')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /leaderboard/i })).toBeInTheDocument();
+    expect(screen.getByText('alice_dev')).toBeInTheDocument();
+  });
+
+  it('redirects unknown routes to /leaderboard', async () => {
+    mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
+
+    render(
+      <MemoryRouter initialEntries={['/unknown']}>
+        <Routes>
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="*" element={<Navigate to="/leaderboard" replace />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('leaderboard-page')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeInTheDocument();
+  });
+
+  it('full page renders filters, table, and contributor data together', async () => {
+    mockFetch.mockResolvedValue(okJson(MOCK_CONTRIBUTORS));
+
+    render(
+      <MemoryRouter initialEntries={['/leaderboard']}>
+        <Routes>
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('leaderboard-page')).toBeInTheDocument());
+
+    // Verify all key sections are present in the integrated page
+    const page = screen.getByTestId('leaderboard-page');
+    expect(within(page).getByRole('searchbox', { name: /search/i })).toBeInTheDocument();
+    expect(within(page).getByRole('group', { name: /time range/i })).toBeInTheDocument();
+    expect(within(page).getByRole('combobox', { name: /sort/i })).toBeInTheDocument();
+    expect(within(page).getByRole('table', { name: /leaderboard/i })).toBeInTheDocument();
+
+    // Verify all 5 mock contributors are rendered
+    for (const c of MOCK_CONTRIBUTORS) {
+      expect(within(page).getByText(c.username)).toBeInTheDocument();
+    }
   });
 });

@@ -1,8 +1,13 @@
+/**
+ * useLeaderboard - Data-fetching hook for the contributor leaderboard.
+ * Tries GET /api/leaderboard, falls back to mock data on failure.
+ * Provides client-side search, sort, and time-range filtering.
+ * @module hooks/useLeaderboard
+ */
 import { useState, useEffect, useMemo } from 'react';
 import type { Contributor, TimeRange, SortField } from '../types/leaderboard';
 import { MOCK_CONTRIBUTORS } from '../data/mockLeaderboard';
 
-/** Fetches leaderboard from /api/leaderboard, falls back to mock data */
 export function useLeaderboard() {
   const [contributors, setContributors] = useState<Contributor[]>(MOCK_CONTRIBUTORS);
   const [loading, setLoading] = useState(true);

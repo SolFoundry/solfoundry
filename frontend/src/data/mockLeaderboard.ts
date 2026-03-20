@@ -1,5 +1,11 @@
+/**
+ * Mock leaderboard data used during development and tests.
+ * Replaced by real API calls once the backend endpoint is available.
+ * @module data/mockLeaderboard
+ */
 import type { Contributor } from '../types/leaderboard';
 
+/** Five sample contributors covering diverse skill sets and point ranges. */
 export const MOCK_CONTRIBUTORS: Contributor[] = [
   { rank: 1, username: 'alice_dev', avatarUrl: 'https://github.com/alice.png', points: 4200, bountiesCompleted: 28, earningsFndry: 12500, earningsSol: 3.2, streak: 14, topSkills: ['Rust', 'Solana'] },
   { rank: 2, username: 'bob_builder', avatarUrl: 'https://github.com/bob.png', points: 3800, bountiesCompleted: 22, earningsFndry: 9800, earningsSol: 2.1, streak: 7, topSkills: ['TypeScript', 'React'] },
