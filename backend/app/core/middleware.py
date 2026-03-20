@@ -6,25 +6,23 @@ This module provides:
 - AccessLoggingMiddleware: HTTP request/response logging
 """
 
+import json
 import time
 import uuid
-import traceback
-from typing import Callable, Optional
-from datetime import datetime, timezone
+from typing import Callable
 
-from fastapi import Request, Response, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import Request, Response, HTTPException
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Send, Scope
 from pydantic import ValidationError as PydanticValidationError
 
 from app.core.errors import (
-    ErrorCode,
     ErrorResponse,
     AppException,
     InternalServerException,
     ValidationException,
-    HTTP_STATUS_TO_ERROR_CODE,
+    ErrorCode,
 )
 from app.core.logging_config import (
     get_logger,
@@ -125,6 +123,10 @@ class ErrorHandlingMiddleware:
             await self.app(scope, receive, send)
         except AppException as exc:
             await self._handle_app_exception(scope, exc, send)
+        except HTTPException as exc:
+            await self._handle_http_exception(scope, exc, send)
+        except RequestValidationError as exc:
+            await self._handle_request_validation_error(scope, exc, send)
         except PydanticValidationError as exc:
             await self._handle_validation_error(scope, exc, send)
         except Exception as exc:
@@ -182,12 +184,128 @@ class ErrorHandlingMiddleware:
             "body": response_body,
         })
     
+    async def _handle_http_exception(
+        self, scope: Scope, exc: HTTPException, send: Send
+    ) -> None:
+        """Handle FastAPI HTTPException."""
+        correlation_id = get_correlation_id() or scope.get("state", {}).get("correlation_id", "unknown")
+        path = scope.get("path", "/")
+        method = scope.get("method", "GET")
+        
+        # Map status code to error code
+        status_to_error_code = {
+            400: ErrorCode.VALIDATION_ERROR,
+            401: ErrorCode.UNAUTHORIZED,
+            403: ErrorCode.FORBIDDEN,
+            404: ErrorCode.NOT_FOUND,
+            409: ErrorCode.CONFLICT,
+            422: ErrorCode.VALIDATION_ERROR,
+            429: ErrorCode.RATE_LIMITED,
+            500: ErrorCode.INTERNAL_ERROR,
+            503: ErrorCode.SERVICE_UNAVAILABLE,
+        }
+        error_code = status_to_error_code.get(exc.status_code, ErrorCode.INTERNAL_ERROR)
+        
+        # Log the error
+        logger.warning(
+            f"HTTP exception: {exc.detail}",
+            extra={"extra_data": {
+                "status_code": exc.status_code,
+                "path": path,
+                "method": method,
+            }}
+        )
+        
+        # Build error response
+        error_response = ErrorResponse(
+            error=error_code,
+            message=str(exc.detail),
+            correlation_id=correlation_id,
+            path=path,
+        )
+        
+        response_body = json.dumps(error_response.model_dump(exclude_none=True)).encode()
+        response_headers = [
+            [b"content-type", b"application/json"],
+            [b"X-Correlation-ID".lower(), correlation_id.encode()],
+        ]
+        
+        # Add any custom headers from HTTPException
+        if exc.headers:
+            for key, value in exc.headers.items():
+                response_headers.append([key.lower().encode(), value.encode()])
+        
+        await send({
+            "type": "http.response.start",
+            "status": exc.status_code,
+            "headers": response_headers,
+        })
+        await send({
+            "type": "http.response.body",
+            "body": response_body,
+        })
+    
+    async def _handle_request_validation_error(
+        self, scope: Scope, exc: RequestValidationError, send: Send
+    ) -> None:
+        """Handle FastAPI RequestValidationError."""
+        from app.core.errors import ErrorDetail
+        
+        correlation_id = get_correlation_id() or scope.get("state", {}).get("correlation_id", "unknown")
+        path = scope.get("path", "/")
+        method = scope.get("method", "GET")
+        
+        # Convert validation errors to ErrorDetail list
+        details = []
+        for error in exc.errors():
+            field = ".".join(str(loc) for loc in error["loc"])
+            details.append(ErrorDetail(
+                field=field,
+                message=error["msg"],
+                code=error["type"],
+            ))
+        
+        validation_exc = ValidationException(
+            message="Validation failed",
+            details=details,
+        )
+        
+        # Log the error
+        logger.warning(
+            "Request validation error",
+            extra={"extra_data": {
+                "path": path,
+                "method": method,
+                "errors": exc.errors(),
+            }}
+        )
+        
+        error_response = validation_exc.to_response(
+            correlation_id=correlation_id,
+            path=path,
+        )
+        
+        response_body = json.dumps(error_response.model_dump(exclude_none=True)).encode()
+        
+        await send({
+            "type": "http.response.start",
+            "status": 422,
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"X-Correlation-ID".lower(), correlation_id.encode()],
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": response_body,
+        })
+    
     async def _handle_validation_error(
         self, scope: Scope, exc: PydanticValidationError, send: Send
     ) -> None:
         """Handle Pydantic validation errors."""
         from app.core.errors import ErrorDetail
-        import json
+        
         correlation_id = get_correlation_id() or scope.get("state", {}).get("correlation_id", "unknown")
         path = scope.get("path", "/")
         method = scope.get("method", "GET")
@@ -241,7 +359,6 @@ class ErrorHandlingMiddleware:
         self, scope: Scope, exc: Exception, send: Send
     ) -> None:
         """Handle unexpected exceptions."""
-        import json
         correlation_id = get_correlation_id() or scope.get("state", {}).get("correlation_id", "unknown")
         path = scope.get("path", "/")
         method = scope.get("method", "GET")
@@ -300,7 +417,6 @@ class AccessLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Log the request and response."""
         start_time = time.time()
-        correlation_id = get_correlation_id()
         
         # Log request
         self.access_logger.info(

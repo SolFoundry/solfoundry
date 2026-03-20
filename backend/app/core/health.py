@@ -20,9 +20,8 @@ from enum import Enum
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import engine, async_session_factory
+from app.database import async_session_factory
 from app.core.logging_config import get_logger
 
 

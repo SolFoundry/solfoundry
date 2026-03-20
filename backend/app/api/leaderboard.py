@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 
 from app.models.leaderboard import (
     CategoryFilter,
-    LeaderboardResponse,
     TierFilter,
     TimePeriod,
 )

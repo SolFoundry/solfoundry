@@ -1,7 +1,7 @@
 """Contributor profiles API router."""
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from app.models.contributor import (
     ContributorCreate,
     ContributorResponse,

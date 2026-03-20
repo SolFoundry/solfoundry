@@ -9,7 +9,6 @@ This module initializes the FastAPI application with:
 """
 
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -24,7 +23,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.database import init_db, close_db
-from app.core.logging_config import setup_logging, get_logger
+from app.core.logging_config import setup_logging_with_cleanup, get_logger
 from app.core.middleware import (
     ErrorHandlingMiddleware,
     CorrelationIdMiddleware,
@@ -34,8 +33,8 @@ from app.core.health import router as health_router
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 
-# Initialize logging system
-setup_logging()
+# Initialize logging system with log cleanup
+setup_logging_with_cleanup()
 logger = get_logger(__name__)
 
 

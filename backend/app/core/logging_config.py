@@ -245,13 +245,7 @@ def setup_logging() -> None:
     log_level = get_log_level()
     log_dir = get_log_directory()
     
-    # Create formatters
-    app_formatter = StructuredFormatter(LogStream.APPLICATION)
-    access_formatter = StructuredFormatter(LogStream.ACCESS)
-    error_formatter = StructuredFormatter(LogStream.ERROR)
-    audit_formatter = AuditFormatter()
-    
-    # Configure handlers
+    # Configure handlers (formatters are defined in the config dict below)
     handlers: Dict[str, Any] = {}
     
     # Console handlers
@@ -388,3 +382,108 @@ def get_error_logger() -> logging.Logger:
 def get_audit_logger() -> logging.Logger:
     """Get the audit logger for security-sensitive operations."""
     return logging.getLogger("audit")
+
+
+def cleanup_old_logs(log_dir: Optional[Path] = None, retention_days: Optional[int] = None) -> int:
+    """Clean up log files older than the retention period.
+    
+    This function removes log files that are older than the specified
+    retention period. It should be called periodically (e.g., on startup
+    or via a scheduled task).
+    
+    Args:
+        log_dir: Directory containing log files. Defaults to get_log_directory().
+        retention_days: Number of days to keep logs. Defaults to get_log_retention_days().
+    
+    Returns:
+        Number of files removed.
+    """
+    from datetime import datetime, timedelta
+    
+    if log_dir is None:
+        log_dir = get_log_directory()
+    
+    if retention_days is None:
+        retention_days = get_log_retention_days()
+    
+    if not log_dir.exists():
+        return 0
+    
+    cutoff_time = datetime.now() - timedelta(days=retention_days)
+    files_removed = 0
+    
+    # Log file patterns to clean up
+    log_patterns = [
+        "application.log",
+        "access.log",
+        "error.log",
+        "audit.log",
+    ]
+    
+    for log_file in log_dir.iterdir():
+        if not log_file.is_file():
+            continue
+        
+        # Check if it's a log file or rotated log file
+        is_log_file = any(
+            log_file.name.startswith(pattern.replace(".log", "")) 
+            for pattern in log_patterns
+        ) or log_file.suffix == ".log"
+        
+        if not is_log_file:
+            continue
+        
+        # Check file modification time
+        try:
+            mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+            if mtime < cutoff_time:
+                log_file.unlink()
+                files_removed += 1
+                logger = get_logger(__name__)
+                logger.info(
+                    f"Removed old log file: {log_file.name}",
+                    extra={"extra_data": {
+                        "file": log_file.name,
+                        "mtime": mtime.isoformat(),
+                        "retention_days": retention_days,
+                    }}
+                )
+        except OSError as e:
+            logger = get_logger(__name__)
+            logger.warning(
+                f"Failed to remove log file {log_file.name}: {e}",
+                extra={"extra_data": {
+                    "file": log_file.name,
+                    "error": str(e),
+                }}
+            )
+    
+    return files_removed
+
+
+def setup_logging_with_cleanup() -> None:
+    """Set up logging and clean up old log files.
+    
+    This combines setup_logging() with cleanup_old_logs() for convenience.
+    Call this at application startup.
+    """
+    setup_logging()
+    
+    # Only clean up if file logging is enabled
+    if should_log_to_file():
+        logger = get_logger(__name__)
+        retention_days = get_log_retention_days()
+        logger.info(
+            f"Starting log cleanup with {retention_days} days retention",
+            extra={"extra_data": {
+                "retention_days": retention_days,
+            }}
+        )
+        files_removed = cleanup_old_logs()
+        if files_removed > 0:
+            logger.info(
+                f"Log cleanup complete: removed {files_removed} old log files",
+                extra={"extra_data": {
+                    "files_removed": files_removed,
+                }}
+            )
