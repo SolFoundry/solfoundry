@@ -1,6 +1,7 @@
 """Tests for logging functionality."""
 import json
 import pytest
+import os
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from backend.src.middleware.logging import StructuredLoggingMiddleware, handle_error
@@ -27,14 +28,20 @@ def test_success_logging():
     assert response.status_code == 200
     assert "X-Correlation-ID" in response.headers
 
-def test_exception_handler():
+def test_exception_handler_masks_details():
     response = client.get("/crash")
     assert response.status_code == 500
-    assert response.json()["error"] == "Internal Server Error"
-
-def test_legacy_handler():
-    assert handle_error(ValueError("Legacy error"))["error"] == "Legacy error"
+    data = response.json()
+    assert data["error"] == "Internal Server Error"
+    assert "correlation_id" in data
+    # Ensure stack trace isn't leaked to client
+    assert "ValueError" not in str(data)
+    assert "stack_trace" not in data
 
 def test_audit_trigger():
     response = client.post("/api/payout")
     assert response.status_code == 200
+    assert "X-Correlation-ID" in response.headers
+
+def test_legacy_handler():
+    assert handle_error(ValueError("Legacy error"))["error"] == "Legacy error"
