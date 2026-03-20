@@ -1,7 +1,7 @@
 """Bounty search and filter API endpoints."""
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -103,10 +103,13 @@ async def get_bounty(
 @router.post("/", response_model=BountyResponse, status_code=201)
 async def create_bounty(
     bounty: BountyCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new bounty."""
     from app.models.bounty import BountyDB
+    from app.services.audit_log_service import AuditLogService, create_audit_log_from_request
+    from app.models.audit_log import AuditAction
     
     db_bounty = BountyDB(**bounty.model_dump())
     db.add(db_bounty)
@@ -116,5 +119,23 @@ async def create_bounty(
     # Update search vector
     service = BountySearchService(db)
     await service.update_search_vector(str(db_bounty.id))
+    
+    # Log the bounty creation
+    audit_service = AuditLogService(db)
+    audit_data = create_audit_log_from_request(
+        action=AuditAction.BOUNTY_CREATED.value,
+        resource_type="bounty",
+        description=f"Bounty created: {bounty.title}",
+        request=request,
+        resource_id=str(db_bounty.id),
+        bounty_id=str(db_bounty.id),
+        metadata={
+            "tier": bounty.tier,
+            "category": bounty.category,
+            "reward_amount": bounty.reward_amount,
+            "reward_token": bounty.reward_token,
+        }
+    )
+    await audit_service.create_log(audit_data)
     
     return BountyResponse.model_validate(db_bounty)
