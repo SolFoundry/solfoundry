@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import type { TokenomicsData, TreasuryStats } from '../types/tokenomics';
 import { MOCK_TOKENOMICS, MOCK_TREASURY } from '../data/mockTokenomics';
 
-/** Fetches tokenomics + treasury data from /api/tokenomics and /api/treasury, falls back to mock data */
+/**
+ * Fetches live tokenomics and treasury data from `/api/tokenomics` and `/api/treasury`.
+ * Falls back to {@link MOCK_TOKENOMICS} / {@link MOCK_TREASURY} when the API is unreachable
+ * or returns a non-OK status, so the page always renders meaningful data.
+ */
 export function useTreasuryStats() {
   const [tokenomics, setTokenomics] = useState<TokenomicsData>(MOCK_TOKENOMICS);
   const [treasury, setTreasury] = useState<TreasuryStats>(MOCK_TREASURY);

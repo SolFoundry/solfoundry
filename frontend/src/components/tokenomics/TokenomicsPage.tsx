@@ -1,8 +1,12 @@
 import { useTreasuryStats } from '../../hooks/useTreasuryStats';
 
+/** Format a number for display: 1B / 200M / 10K / locale string. */
 const fmt = (n: number) => n >= 1e9 ? `${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `${(n/1e3).toFixed(1)}K` : n.toLocaleString();
+
+/** Percentage with one decimal place; returns '0.0' when total is 0. */
 const pct = (n: number, total: number) => total > 0 ? ((n / total) * 100).toFixed(1) : '0.0';
 
+/** Single metric card used throughout the tokenomics dashboard. */
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-gray-700 bg-surface-100 p-4">
@@ -13,6 +17,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
+/** Stacked horizontal bar showing token distribution breakdown with a legend. */
 function DistributionBar({ data, total }: { data: Record<string, number>; total: number }) {
   const items = Object.entries(data).filter(([, v]) => v > 0);
   const colors = ['bg-[#00FF88]', 'bg-[#9945FF]', 'bg-blue-500', 'bg-orange-500'];
@@ -35,7 +40,16 @@ function DistributionBar({ data, total }: { data: Record<string, number>; total:
   );
 }
 
-/** $FNDRY Tokenomics page -- integrated into Sidebar nav. Shows supply, treasury, distribution. */
+/**
+ * $FNDRY Tokenomics dashboard page.
+ *
+ * Displays live supply metrics, treasury balances, distribution chart, and
+ * buyback/burn stats. Data is fetched via {@link useTreasuryStats} with
+ * graceful fallback to mock data when the API is unavailable.
+ *
+ * Integrated into the app via Sidebar nav link at `/tokenomics` and
+ * re-exported through `pages/TokenomicsPage.tsx` for the router.
+ */
 export function TokenomicsPage() {
   const { tokenomics: t, treasury: tr, loading, error } = useTreasuryStats();
 
