@@ -28,7 +28,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests
+        run: pip install openai requests base58
+
+      - name: Fetch review engine (private)
+        env:
+          REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          # Fetch ai_review.py from the private repo at runtime
+          # This prevents contributors from seeing/gaming the review logic
+          curl -sf -H "Authorization: token $REVIEW_PAT" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/SolFoundry/solfoundry-review/contents/scripts/ai_review.py" \
+            -o .github/scripts/ai_review.py
+          echo "Review engine fetched ($(wc -c < .github/scripts/ai_review.py) bytes)"
 
       - name: Resolve PR number
         id: pr
@@ -45,9 +57,22 @@ jobs:
 
           # Get full PR details for workflow_dispatch case
           PR_JSON=$(gh pr view $PR_NUM --repo ${{ github.repository }} --json title,author,url,body 2>/dev/null || echo '{}')
-          echo "title=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "author=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "url=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null)" >> $GITHUB_OUTPUT
+          # SECURITY: Use heredoc delimiter to prevent shell injection from PR title/author
+          {
+            echo "title<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "author<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "url<<GHEOF"
+            echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null
+            echo "GHEOF"
+          } >> $GITHUB_OUTPUT
 
           # Write body to file to avoid shell escaping issues
           echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
@@ -83,7 +108,7 @@ jobs:
             ISSUE_JSON=$(gh api repos/$REPO/issues/$ISSUE_NUM 2>/dev/null || echo '{}')
             ISSUE_TITLE=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title','Unknown'))" 2>/dev/null)
 
-            # Get tier from labels
+            # Get tier and domain from labels
             TIER=$(echo "$ISSUE_JSON" | python3 -c "
           import sys,json
           data=json.loads(sys.stdin.read())
@@ -92,17 +117,52 @@ jobs:
           print(tier)
           " 2>/dev/null)
 
-            # Extract reward amount
+            # Get domain labels (frontend, backend, smart-contract, devops)
+            DOMAIN=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          labels=[l['name'] for l in data.get('labels',[])]
+          domains = [l for l in labels if l in ('frontend','backend','smart-contract','devops','ai-ml','security','bot','scraping','docs')]
+          print(domains[0] if domains else 'unknown')
+          " 2>/dev/null)
+
+            # Get stack labels (python, typescript, rust, react, etc)
+            STACK=$(echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          labels=[l['name'] for l in data.get('labels',[])]
+          stack_labels = ['python','typescript','rust','react','nextjs','tailwind','fastapi','postgresql','redis','solana','websocket','yaml','solidity']
+          found = [l for l in labels if l in stack_labels]
+          print(','.join(found) if found else 'unknown')
+          " 2>/dev/null)
+
+            # Get bounty spec (issue body) for acceptance criteria
+            echo "$ISSUE_JSON" | python3 -c "
+          import sys,json
+          data=json.loads(sys.stdin.read())
+          body = data.get('body','') or ''
+          # Truncate to 2000 chars to avoid bloating the prompt
+          print(body[:2000])
+          " > /tmp/bounty_spec.txt 2>/dev/null
+
+            # Extract reward amount (handles commas: 200,000 $FNDRY)
             REWARD=$(echo "$ISSUE_JSON" | python3 -c "
           import sys,json,re
           data=json.loads(sys.stdin.read())
           text=(data.get('title','') or '') + ' ' + (data.get('body','') or '')
-          m=re.search(r'(\d+)\s*\\\$?FNDRY', text)
-          print(m.group(1) if m else '0')
+          m=re.search(r'([\d,]+)\s*\\\$?FNDRY', text)
+          print(m.group(1).replace(',','') if m else '0')
           " 2>/dev/null)
 
-            echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+            # SECURITY: Use heredoc delimiter for issue_title (could contain shell metacharacters)
+            {
+              echo "issue_title<<GHEOF"
+              echo "$ISSUE_TITLE"
+              echo "GHEOF"
+            } >> $GITHUB_OUTPUT
             echo "tier=$TIER" >> $GITHUB_OUTPUT
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "stack=$STACK" >> $GITHUB_OUTPUT
             echo "reward=$REWARD" >> $GITHUB_OUTPUT
 
             # Count how many PRs target this issue (submission order)
@@ -121,9 +181,183 @@ jobs:
           else
             echo "issue_num=" >> $GITHUB_OUTPUT
             echo "tier=unknown" >> $GITHUB_OUTPUT
+            echo "domain=unknown" >> $GITHUB_OUTPUT
+            echo "stack=unknown" >> $GITHUB_OUTPUT
             echo "reward=0" >> $GITHUB_OUTPUT
             echo "submission_order=0" >> $GITHUB_OUTPUT
+            echo "" > /tmp/bounty_spec.txt
           fi
+
+      - name: Check for duplicate submissions
+        if: steps.bounty.outputs.issue_num != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, subprocess, re, sys
+
+          pr_num = os.environ.get("PR_NUM", "${{ steps.pr.outputs.number }}")
+          pr_author = "${{ steps.pr.outputs.author }}"
+          issue_num = "${{ steps.bounty.outputs.issue_num }}"
+          tier = "${{ steps.bounty.outputs.tier }}"
+          repo = "${{ github.repository }}"
+
+          if not issue_num:
+              print("No linked issue — skipping duplicate check")
+              sys.exit(0)
+
+          # Get all open PRs
+          result = subprocess.run(
+              ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "100",
+               "--json", "number,author,body"],
+              capture_output=True, text=True
+          )
+          prs = json.loads(result.stdout) if result.stdout else []
+
+          # Find open PRs by the same author targeting the same issue
+          duplicates = []
+          for pr in prs:
+              if str(pr["number"]) == str(pr_num):
+                  continue  # Skip current PR
+              body = (pr.get("body", "") or "").lower()
+              author = pr.get("author", {}).get("login", "")
+              if author == pr_author:
+                  if re.search(rf"(?:closes|fixes|resolves)\s+#{issue_num}\b", body):
+                      duplicates.append(pr["number"])
+
+          if duplicates:
+              print(f"DUPLICATE: {pr_author} already has open PR(s) {duplicates} for issue #{issue_num}")
+
+              # Post comment and close the duplicate
+              comment = (
+                  f"⚠️ **Duplicate submission detected**\n\n"
+                  f"@{pr_author}, you already have an open PR (#{duplicates[0]}) for this bounty.\n\n"
+                  f"**One PR per person per bounty.** Please update your existing PR instead of opening a new one.\n\n"
+                  f"---\n*SolFoundry Review Bot*"
+              )
+              subprocess.run(["gh", "pr", "comment", str(pr_num), "--repo", repo, "--body", comment])
+              subprocess.run(["gh", "pr", "close", str(pr_num), "--repo", repo])
+              print("Duplicate PR closed")
+              sys.exit(1)  # Stop the workflow — don't waste LLM calls
+          else:
+              print(f"No duplicates — {pr_author} is clear for issue #{issue_num}")
+          PYEOF
+
+      - name: Fetch CodeRabbit analysis (private context for LLM judges)
+        id: coderabbit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Poll for CodeRabbit's review comments (up to 90s, check every 15s)
+          # CodeRabbit runs in parallel — it usually finishes within 30-60s
+          PR_NUM="${{ steps.pr.outputs.number }}"
+          REPO="${{ github.repository }}"
+
+          echo "Waiting for CodeRabbit analysis on PR #${PR_NUM}..."
+          CR_FOUND=false
+
+          for i in 1 2 3 4 5 6; do
+            # Check for CodeRabbit PR review comments (inline)
+            CR_REVIEWS=$(gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" \
+              --jq '[.[] | select(.user.login == "coderabbitai[bot]")]' 2>/dev/null || echo '[]')
+
+            CR_COUNT=$(echo "$CR_REVIEWS" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+
+            if [ "$CR_COUNT" -gt "0" ]; then
+              echo "CodeRabbit review found after $((i * 15))s"
+              CR_FOUND=true
+              break
+            fi
+
+            # Also check issue comments for CodeRabbit summary
+            CR_COMMENTS=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+              --jq '[.[] | select(.user.login == "coderabbitai[bot]")]' 2>/dev/null || echo '[]')
+
+            CR_COMMENT_COUNT=$(echo "$CR_COMMENTS" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+
+            if [ "$CR_COMMENT_COUNT" -gt "0" ]; then
+              echo "CodeRabbit summary comment found after $((i * 15))s"
+              CR_FOUND=true
+              break
+            fi
+
+            echo "  Attempt $i/6 — CodeRabbit not ready yet, waiting 15s..."
+            sleep 15
+          done
+
+          # Extract CodeRabbit findings into a file for the LLM pipeline
+          python3 << 'PYEOF'
+          import json, os, subprocess, sys
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+          pr_num = os.environ.get("PR_NUM", "${{ steps.pr.outputs.number }}")
+          token = os.environ.get("GH_TOKEN", "")
+
+          findings = []
+
+          # 1. Get inline review comments from CodeRabbit
+          try:
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/pulls/{pr_num}/comments",
+                   "--jq", '[.[] | select(.user.login == "coderabbitai[bot]") | {path: .path, line: .line, body: .body}]'],
+                  capture_output=True, text=True, timeout=15
+              )
+              if result.stdout.strip():
+                  inline = json.loads(result.stdout)
+                  for c in inline:
+                      # Extract just the issue category, strip code suggestions
+                      body = c.get("body", "")
+                      # Remove code blocks (these contain fixes we don't want to forward as-is)
+                      import re
+                      body_clean = re.sub(r'```[\s\S]*?```', '[code block removed]', body)
+                      # Truncate long comments
+                      if len(body_clean) > 300:
+                          body_clean = body_clean[:300] + "..."
+                      findings.append({
+                          "file": c.get("path", "unknown"),
+                          "line": c.get("line", 0),
+                          "issue": body_clean[:300],
+                          "severity": "major" if "Critical" in body or "🔴" in body else "minor"
+                      })
+          except Exception as e:
+              print(f"Inline comments fetch: {e}")
+
+          # 2. Get CodeRabbit's summary comment
+          summary = ""
+          try:
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/issues/{pr_num}/comments",
+                   "--jq", '[.[] | select(.user.login == "coderabbitai[bot]") | .body][0]'],
+                  capture_output=True, text=True, timeout=15
+              )
+              if result.stdout.strip():
+                  raw = result.stdout.strip()
+                  # Extract just the walkthrough/summary sections, skip HTML/details tags
+                  import re
+                  # Get content between Walkthrough header and the next section
+                  walk_match = re.search(r'## Walkthrough\s*(.*?)(?=##|\Z)', raw, re.DOTALL)
+                  if walk_match:
+                      summary = walk_match.group(1).strip()[:2000]
+                  else:
+                      summary = raw[:2000]
+          except Exception as e:
+              print(f"Summary fetch: {e}")
+
+          # Write to file for the review engine
+          output = {
+              "findings_count": len(findings),
+              "critical_count": len([f for f in findings if f["severity"] == "major"]),
+              "findings": findings[:20],  # Cap at 20 findings
+              "summary": summary[:2000],
+          }
+
+          with open("/tmp/coderabbit_analysis.json", "w") as f:
+              json.dump(output, f, indent=2)
+
+          print(f"CodeRabbit analysis: {len(findings)} findings ({output['critical_count']} critical)")
+          if not findings and not summary:
+              print("No CodeRabbit data available — LLMs will review without it")
+          PYEOF
 
       - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
         env:
@@ -141,6 +375,8 @@ jobs:
           BOUNTY_TITLE: ${{ steps.bounty.outputs.issue_title }}
           BOUNTY_TIER: ${{ steps.bounty.outputs.tier }}
           BOUNTY_REWARD: ${{ steps.bounty.outputs.reward }}
+          BOUNTY_DOMAIN: ${{ steps.bounty.outputs.domain }}
+          BOUNTY_STACK: ${{ steps.bounty.outputs.stack }}
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: |
           # Load PR body from file to avoid shell escaping
@@ -149,5 +385,19 @@ jobs:
             PR_BODY=$(cat /tmp/pr_body.txt)
           else
             export PR_BODY=""
+          fi
+          # Load bounty spec for acceptance criteria
+          if [ -f /tmp/bounty_spec.txt ]; then
+            export BOUNTY_SPEC
+            BOUNTY_SPEC=$(cat /tmp/bounty_spec.txt)
+          else
+            export BOUNTY_SPEC=""
+          fi
+          # Load CodeRabbit analysis if available
+          if [ -f /tmp/coderabbit_analysis.json ]; then
+            export CODERABBIT_ANALYSIS
+            CODERABBIT_ANALYSIS=$(cat /tmp/coderabbit_analysis.json)
+          else
+            export CODERABBIT_ANALYSIS=""
           fi
           python3 .github/scripts/ai_review.py
