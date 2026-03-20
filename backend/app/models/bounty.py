@@ -227,3 +227,101 @@ class BountyListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+# ---------------------------------------------------------------------------
+# Search models
+# ---------------------------------------------------------------------------
+
+VALID_SORT_FIELDS = {
+    "newest",
+    "reward_high",
+    "reward_low",
+    "deadline",
+    "submissions",
+    "best_match",
+}
+
+VALID_CATEGORIES = {
+    "smart-contract",
+    "frontend",
+    "backend",
+    "design",
+    "content",
+    "security",
+    "devops",
+    "documentation",
+}
+
+
+class BountySearchParams(BaseModel):
+    """Parameters for the bounty search endpoint."""
+
+    q: str = Field("", max_length=200, description="Full-text search query")
+    status: Optional[BountyStatus] = None
+    tier: Optional[int] = Field(None, ge=1, le=3)
+    skills: list[str] = Field(default_factory=list)
+    category: Optional[str] = None
+    creator_type: Optional[str] = Field(
+        None, pattern=r"^(platform|community)$", description="platform or community"
+    )
+    reward_min: Optional[float] = Field(None, ge=0)
+    reward_max: Optional[float] = Field(None, ge=0)
+    deadline_before: Optional[datetime] = None
+    sort: str = Field("newest", description="Sort order")
+    page: int = Field(1, ge=1)
+    per_page: int = Field(20, ge=1, le=100)
+
+    @field_validator("sort")
+    @classmethod
+    def validate_sort(cls, v: str) -> str:
+        if v not in VALID_SORT_FIELDS:
+            raise ValueError(f"Invalid sort. Must be one of: {VALID_SORT_FIELDS}")
+        return v
+
+    @field_validator("reward_max")
+    @classmethod
+    def validate_reward_range(cls, v: Optional[float], info) -> Optional[float]:
+        reward_min = info.data.get("reward_min")
+        if v is not None and reward_min is not None and v < reward_min:
+            raise ValueError("reward_max must be >= reward_min")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_CATEGORIES:
+            raise ValueError(f"Invalid category. Must be one of: {VALID_CATEGORIES}")
+        return v
+
+
+class BountySearchResult(BountyListItem):
+    """A single search result with relevance metadata."""
+
+    description: str = ""
+    relevance_score: float = 0.0
+    skill_match_count: int = 0
+
+
+class BountySearchResponse(BaseModel):
+    """Paginated search results."""
+
+    items: list[BountySearchResult]
+    total: int
+    page: int
+    per_page: int
+    query: str = ""
+
+
+class AutocompleteItem(BaseModel):
+    """A single autocomplete suggestion."""
+
+    text: str
+    type: str  # "title" or "skill"
+    bounty_id: Optional[str] = None
+
+
+class AutocompleteResponse(BaseModel):
+    """Autocomplete suggestions."""
+
+    suggestions: list[AutocompleteItem]
