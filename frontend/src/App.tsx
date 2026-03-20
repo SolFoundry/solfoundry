@@ -8,6 +8,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const CreateBountyPage = lazy(() => import('./pages/CreateBountyPage'));
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
       <Suspense fallback={<div className="p-8 text-center text-gray-400">Loading...</div>}>
         <Routes>
           <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/bounties/create" element={<CreateBountyPage />} />
           <Route path="*" element={<Navigate to="/leaderboard" replace />} />
         </Routes>
       </Suspense>
