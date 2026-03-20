@@ -298,7 +298,7 @@ jobs:
                       body = (
                           f"✅ @{user} — Claim approved for this {tier_label} bounty.\n\n"
                           f"**Deadline:** {'7 days' if is_t2 else '14 days'} from now.\n"
-                          f"**Min review score:** {'7.0/10' if is_t2 else '8.0/10'}\n\n"
+                          f"**Min review score:** {'6.0/10' if is_t2 else '7.0/10'}\n\n"
                           f"Good luck! Submit your PR when ready.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
