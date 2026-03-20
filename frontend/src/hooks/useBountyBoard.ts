@@ -41,7 +41,7 @@ export function useBountyBoard() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/bounties?limit=50');
+        const res = await fetch('/api/bounties?limit=100');
         if (!cancelled && res.ok) {
           const data = await res.json();
           const items = data.items || data;
