@@ -17,8 +17,12 @@ router = APIRouter(prefix="/api", tags=["leaderboard"])
 
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def leaderboard(
-    period: TimePeriod = Query(TimePeriod.all, description="Time period: week, month, or all"),
-    tier: Optional[TierFilter] = Query(None, description="Filter by bounty tier: 1, 2, or 3"),
+    period: TimePeriod = Query(
+        TimePeriod.all, description="Time period: week, month, or all"
+    ),
+    tier: Optional[TierFilter] = Query(
+        None, description="Filter by bounty tier: 1, 2, or 3"
+    ),
     category: Optional[CategoryFilter] = Query(None, description="Filter by category"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),

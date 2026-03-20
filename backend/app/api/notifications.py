@@ -5,7 +5,6 @@ All endpoints require authentication to ensure users can only access
 their own notifications.
 """
 
-from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,13 +31,13 @@ async def list_notifications(
 ):
     """
     Get paginated notifications for the authenticated user.
-    
+
     - **unread_only**: If true, only return unread notifications
     - **skip**: Pagination offset
     - **limit**: Number of results per page
-    
+
     Returns notifications sorted by creation date (newest first).
-    
+
     **Authentication**: Requires valid Bearer token or X-User-ID header.
     """
     service = NotificationService(db)
@@ -57,9 +56,9 @@ async def get_unread_count(
 ):
     """
     Get unread notification count for the authenticated user.
-    
+
     Returns the number of unread notifications.
-    
+
     **Authentication**: Requires valid Bearer token or X-User-ID header.
     """
     service = NotificationService(db)
@@ -74,44 +73,42 @@ async def mark_notification_read(
 ):
     """
     Mark a notification as read.
-    
+
     - **notification_id**: ID of the notification to mark
-    
+
     Returns the updated notification.
-    
+
     **Authentication**: Requires valid Bearer token or X-User-ID header.
-    
+
     **Authorization**: Users can only mark their own notifications as read.
-    
+
     Raises:
         404: If notification not found or not owned by user.
     """
     service = NotificationService(db)
-    
+
     # Get notification to verify ownership
     notification = await service.get_notification_by_id(notification_id)
-    
+
     if not notification:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
         )
-    
+
     # Verify ownership
     if not user.owns_resource(str(notification.user_id)):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
         )
-    
+
     success = await service.mark_as_read(notification_id, str(notification.user_id))
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to mark notification as read"
+            detail="Failed to mark notification as read",
         )
-    
+
     return NotificationResponse.model_validate(notification)
 
 
@@ -122,14 +119,14 @@ async def mark_all_notifications_read(
 ):
     """
     Mark all notifications as read for the authenticated user.
-    
+
     Returns the number of notifications marked as read.
-    
+
     **Authentication**: Requires valid Bearer token or X-User-ID header.
     """
     service = NotificationService(db)
     count = await service.mark_all_as_read(user_id)
-    
+
     return {"message": f"Marked {count} notifications as read", "count": count}
 
 
@@ -140,28 +137,28 @@ async def create_notification(
 ):
     """
     Create a new notification.
-    
+
     This endpoint is typically called by other services internally.
     It does not require authentication as it's used by backend services.
-    
+
     - **user_id**: User to notify
     - **notification_type**: Type of notification (bounty_claimed, pr_submitted, etc.)
     - **title**: Short title
     - **message**: Detailed message
     - **bounty_id**: Related bounty ID (optional)
     - **metadata**: Additional context (optional)
-    
+
     Note: This endpoint should be protected by API key or internal-only access
     in production.
     """
     service = NotificationService(db)
-    
+
     try:
         notification_db = await service.create_notification(notification)
-        
+
         # Refresh to get generated fields
         await db.refresh(notification_db)
-        
+
         return NotificationResponse.model_validate(notification_db)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

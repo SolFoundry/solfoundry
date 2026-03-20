@@ -17,8 +17,10 @@ from pydantic import BaseModel, Field, field_validator
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class BountyTier(int, Enum):
     """Bounty difficulty / reward tier."""
+
     T1 = 1
     T2 = 2
     T3 = 3
@@ -26,6 +28,7 @@ class BountyTier(int, Enum):
 
 class BountyStatus(str, Enum):
     """Lifecycle status of a bounty."""
+
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -57,8 +60,10 @@ SKILL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.+-]{0,49}$")
 # Submission models
 # ---------------------------------------------------------------------------
 
+
 class SubmissionRecord(BaseModel):
     """Internal storage representation of a submission."""
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     bounty_id: str
     pr_url: str
@@ -69,6 +74,7 @@ class SubmissionRecord(BaseModel):
 
 class SubmissionCreate(BaseModel):
     """Payload for submitting a solution."""
+
     pr_url: str = Field(..., min_length=1)
     submitted_by: str = Field(..., min_length=1, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
@@ -83,6 +89,7 @@ class SubmissionCreate(BaseModel):
 
 class SubmissionResponse(BaseModel):
     """API response for a single submission."""
+
     id: str
     bounty_id: str
     pr_url: str
@@ -94,6 +101,7 @@ class SubmissionResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Bounty models
 # ---------------------------------------------------------------------------
+
 
 def _validate_skills(skills: list[str]) -> list[str]:
     """Normalise and validate a skill list."""
@@ -111,6 +119,7 @@ def _validate_skills(skills: list[str]) -> list[str]:
 
 class BountyCreate(BaseModel):
     """Payload for creating a new bounty."""
+
     title: str = Field(..., min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH)
     description: str = Field("", max_length=DESCRIPTION_MAX_LENGTH)
     tier: BountyTier = BountyTier.T2
@@ -128,14 +137,19 @@ class BountyCreate(BaseModel):
     @field_validator("github_issue_url")
     @classmethod
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.startswith(("https://github.com/", "http://github.com/")):
+        if v is not None and not v.startswith(
+            ("https://github.com/", "http://github.com/")
+        ):
             raise ValueError("github_issue_url must be a GitHub URL")
         return v
 
 
 class BountyUpdate(BaseModel):
     """Payload for partially updating a bounty (PATCH semantics)."""
-    title: Optional[str] = Field(None, min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH)
+
+    title: Optional[str] = Field(
+        None, min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH
+    )
     description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH)
     status: Optional[BountyStatus] = None
     reward_amount: Optional[float] = Field(None, ge=REWARD_MIN, le=REWARD_MAX)
@@ -152,6 +166,7 @@ class BountyUpdate(BaseModel):
 
 class BountyDB(BaseModel):
     """Internal in-memory storage model. Not exposed directly via API."""
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     description: str = ""
@@ -169,6 +184,7 @@ class BountyDB(BaseModel):
 
 class BountyResponse(BaseModel):
     """Full bounty detail returned by GET /bounties/{id} and mutations."""
+
     id: str
     title: str
     description: str
@@ -187,6 +203,7 @@ class BountyResponse(BaseModel):
 
 class BountyListItem(BaseModel):
     """Compact bounty representation for list endpoints."""
+
     id: str
     title: str
     tier: BountyTier
@@ -201,6 +218,7 @@ class BountyListItem(BaseModel):
 
 class BountyListResponse(BaseModel):
     """Paginated list of bounties."""
+
     items: list[BountyListItem]
     total: int
     skip: int

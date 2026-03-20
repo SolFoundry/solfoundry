@@ -31,7 +31,9 @@ export function useLeaderboard() {
   const sorted = useMemo(() => {
     let list = [...contributors];
     if (search) list = list.filter(c => c.username.toLowerCase().includes(search.toLowerCase()));
-    list.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+    const sortKeyMap: Record<SortField, keyof Contributor> = { points: 'points', bounties: 'bountiesCompleted', earnings: 'earningsFndry' };
+    const key = sortKeyMap[sortBy];
+    list.sort((a, b) => (b[key] as number) - (a[key] as number));
     return list.map((c, i) => ({ ...c, rank: i + 1 }));
   }, [contributors, sortBy, search]);
 

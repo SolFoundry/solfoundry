@@ -17,13 +17,21 @@ def clear_store():
 
 def _create(username="alice", display_name="Alice", skills=None, badges=None):
     from app.models.contributor import ContributorCreate
-    return contributor_service.create_contributor(ContributorCreate(
-        username=username, display_name=display_name, skills=skills or ["python"], badges=badges or [],
-    ))
+
+    return contributor_service.create_contributor(
+        ContributorCreate(
+            username=username,
+            display_name=display_name,
+            skills=skills or ["python"],
+            badges=badges or [],
+        )
+    )
 
 
 def test_create_success():
-    resp = client.post("/api/contributors", json={"username": "alice", "display_name": "Alice"})
+    resp = client.post(
+        "/api/contributors", json={"username": "alice", "display_name": "Alice"}
+    )
     assert resp.status_code == 201
     assert resp.json()["username"] == "alice"
     assert resp.json()["stats"]["total_contributions"] == 0
@@ -31,12 +39,16 @@ def test_create_success():
 
 def test_create_duplicate():
     _create("bob")
-    resp = client.post("/api/contributors", json={"username": "bob", "display_name": "Bob"})
+    resp = client.post(
+        "/api/contributors", json={"username": "bob", "display_name": "Bob"}
+    )
     assert resp.status_code == 409
 
 
 def test_create_invalid_username():
-    resp = client.post("/api/contributors", json={"username": "a b", "display_name": "Bad"})
+    resp = client.post(
+        "/api/contributors", json={"username": "a b", "display_name": "Bad"}
+    )
     assert resp.status_code == 422
 
 
@@ -46,12 +58,14 @@ def test_list_empty():
 
 
 def test_list_with_data():
-    _create("alice"); _create("bob")
+    _create("alice")
+    _create("bob")
     assert client.get("/api/contributors").json()["total"] == 2
 
 
 def test_search():
-    _create("alice"); _create("bob")
+    _create("alice")
+    _create("bob")
     resp = client.get("/api/contributors?search=alice")
     assert resp.json()["total"] == 1
 
@@ -70,7 +84,8 @@ def test_filter_badges():
 
 
 def test_pagination():
-    for i in range(5): _create(f"user{i}")
+    for i in range(5):
+        _create(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
     assert resp.json()["total"] == 5
     assert len(resp.json()["items"]) == 2
