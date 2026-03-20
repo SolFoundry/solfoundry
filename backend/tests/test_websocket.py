@@ -538,6 +538,119 @@ class TestHeartbeat:
         assert manager.get_connection_count() == 1
 
 
+class TestRateLimiting:
+    """Tests for rate limiting functionality."""
+    
+    @pytest.mark.asyncio
+    async def test_rate_limit_check_within_limit(self, manager):
+        """Test rate limit check when within limit."""
+        user_id = "user_123"
+        
+        # Should allow messages up to the limit
+        for _ in range(10):
+            assert manager.check_rate_limit(user_id) is True
+    
+    @pytest.mark.asyncio
+    async def test_rate_limit_check_exceeded(self, manager):
+        """Test rate limit check when exceeded."""
+        user_id = "user_456"
+        
+        # Exhaust the rate limit
+        for _ in range(manager.MAX_MESSAGES_PER_MINUTE):
+            manager.check_rate_limit(user_id)
+        
+        # Should now return False
+        assert manager.check_rate_limit(user_id) is False
+    
+    @pytest.mark.asyncio
+    async def test_rate_limit_resets_after_minute(self, manager):
+        """Test that rate limit resets after time window."""
+        import time
+        user_id = "user_789"
+        
+        # Exhaust the rate limit
+        for _ in range(manager.MAX_MESSAGES_PER_MINUTE):
+            manager.check_rate_limit(user_id)
+        
+        # Clear old timestamps (simulate time passing)
+        manager._message_rates[user_id] = []
+        
+        # Should now allow messages again
+        assert manager.check_rate_limit(user_id) is True
+
+
+class TestConnectionLimits:
+    """Tests for connection limits."""
+    
+    @pytest.mark.asyncio
+    async def test_connection_limit_per_user(self, manager):
+        """Test that connection limit per user is enforced."""
+        user_id = "user_limit_test"
+        connections = []
+        
+        # Create connections up to the limit
+        for i in range(manager.MAX_CONNECTIONS_PER_USER):
+            ws = MagicMock(spec=WebSocket)
+            ws.accept = AsyncMock()
+            ws.send_json = AsyncMock()
+            await manager.connect(ws, user_id)
+            connections.append(ws)
+        
+        # Attempt to create one more connection should fail
+        ws_extra = MagicMock(spec=WebSocket)
+        ws_extra.accept = AsyncMock()
+        
+        with pytest.raises(ConnectionRefusedError):
+            await manager.connect(ws_extra, user_id)
+    
+    @pytest.mark.asyncio
+    async def test_subscription_limit_per_connection(self, manager, mock_websocket):
+        """Test that subscription limit per connection is enforced."""
+        await manager.connect(mock_websocket, "user_123")
+        
+        # Subscribe up to the limit
+        for i in range(manager.MAX_SUBSCRIPTIONS_PER_CONNECTION):
+            sub = Subscription(scope=SubscriptionScope.REPO, target_id=f"repo_{i}")
+            success = await manager.subscribe(mock_websocket, sub)
+            assert success is True
+        
+        # Attempt to subscribe one more should fail
+        sub_extra = Subscription(scope=SubscriptionScope.REPO, target_id="repo_extra")
+        success = await manager.subscribe(mock_websocket, sub_extra)
+        assert success is False
+
+
+class TestConnectionStateLifecycle:
+    """Tests for connection state lifecycle."""
+    
+    @pytest.mark.asyncio
+    async def test_connection_state_transitions(self, manager, mock_websocket):
+        """Test connection state transitions during lifecycle."""
+        # Initially not found
+        assert manager.get_connection_state(mock_websocket) is None
+        
+        # After connect, should be 'connected'
+        info = await manager.connect(mock_websocket, "user_123")
+        assert info.connection_state == "connected"
+        assert manager.get_connection_state(mock_websocket) == "connected"
+        
+        # After disconnect, should be 'disconnected'
+        await manager.disconnect(mock_websocket)
+        assert info.connection_state == "disconnected"
+    
+    @pytest.mark.asyncio
+    async def test_connection_info_tracking(self, manager, mock_websocket):
+        """Test that connection info is properly tracked."""
+        info = await manager.connect(mock_websocket, "user_123")
+        
+        # Check initial state
+        assert info.user_id == "user_123"
+        assert info.is_alive is True
+        assert info.connect_time is not None
+        assert info.message_count == 0
+        assert len(info.subscriptions) == 0
+
+
 class TestReconnection:
     """Tests for WebSocket reconnection."""
     

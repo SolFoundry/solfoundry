@@ -17,7 +17,8 @@ import os
 import json
 import asyncio
 import logging
-from typing import Dict, Set, Optional, Any
+import time
+from typing import Dict, Set, Optional, Any, List
 from datetime import datetime, timezone
 from enum import Enum
 from dataclasses import dataclass, field
@@ -75,6 +76,14 @@ class Subscription:
             return cls(scope=scope, target_id=parts[1])
         except ValueError:
             return None
+    
+    def __hash__(self):
+        return hash((self.scope, self.target_id))
+    
+    def __eq__(self, other):
+        if isinstance(other, Subscription):
+            return self.scope == other.scope and self.target_id == other.target_id
+        return False
 
 
 @dataclass
@@ -85,7 +94,19 @@ class ConnectionInfo:
     subscriptions: Set[Subscription] = field(default_factory=set)
     last_ping: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_pong: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_message: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_alive: bool = True
+    connection_state: str = "connecting"  # connecting, connected, disconnecting, disconnected
+    message_count: int = 0
+    connect_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    def __hash__(self):
+        return hash(id(self.websocket))
+    
+    def __eq__(self, other):
+        if isinstance(other, ConnectionInfo):
+            return self.websocket == other.websocket
+        return False
 
 
 class WebSocketMessage(BaseModel):
@@ -122,6 +143,8 @@ class ConnectionManager:
     - Redis pub/sub for distributed deployments
     - Automatic heartbeat/ping-pong
     - Graceful reconnection support
+    - Connection state lifecycle management
+    - Rate limiting and abuse prevention
     
     Example:
         manager = ConnectionManager()
@@ -142,6 +165,11 @@ class ConnectionManager:
     # Heartbeat configuration
     HEARTBEAT_INTERVAL = 30  # seconds
     HEARTBEAT_TIMEOUT = 10   # seconds to wait for pong
+    
+    # Rate limiting configuration
+    MAX_SUBSCRIPTIONS_PER_CONNECTION = 50
+    MAX_MESSAGES_PER_MINUTE = 100
+    MAX_CONNECTIONS_PER_USER = 5
     
     def __init__(self, redis_url: Optional[str] = None):
         """
@@ -168,6 +196,9 @@ class ConnectionManager:
         
         # Heartbeat task
         self._heartbeat_task: Optional[asyncio.Task] = None
+        
+        # Rate limiting: user_id -> message timestamps
+        self._message_rates: Dict[str, List[float]] = {}
     
     async def initialize(self) -> None:
         """Initialize Redis connection and start background tasks."""
@@ -232,10 +263,20 @@ class ConnectionManager:
             
         Returns:
             ConnectionInfo for the new connection
+            
+        Raises:
+            ConnectionRefusedError: If connection limit exceeded
         """
+        # Check connection limit per user
+        existing_connections = self._connections.get(user_id, set())
+        if len(existing_connections) >= self.MAX_CONNECTIONS_PER_USER:
+            logger.warning(f"Connection limit exceeded for user {user_id}")
+            raise ConnectionRefusedError(f"Max connections ({self.MAX_CONNECTIONS_PER_USER}) exceeded for user")
+        
         await websocket.accept()
         
         info = ConnectionInfo(websocket=websocket, user_id=user_id)
+        info.connection_state = "connecting"
         
         # Add to connections
         if user_id not in self._connections:
@@ -246,7 +287,10 @@ class ConnectionManager:
         self._ws_to_user[websocket] = user_id
         self._ws_to_info[websocket] = info
         
-        logger.info(f"WebSocket connected: user={user_id}, total_connections={len(self._ws_to_user)}")
+        # Transition to connected state
+        info.connection_state = "connected"
+        
+        logger.info(f"WebSocket connected: user={user_id}, total_connections={len(self._ws_to_user)}, state={info.connection_state}")
         
         return info
     
@@ -261,6 +305,9 @@ class ConnectionManager:
         info = self._ws_to_info.pop(websocket, None)
         
         if user_id and info:
+            # Transition to disconnecting state
+            info.connection_state = "disconnecting"
+            
             if user_id in self._connections:
                 self._connections[user_id].discard(info)
                 if not self._connections[user_id]:
@@ -274,8 +321,11 @@ class ConnectionManager:
                         await self._pubsub.unsubscribe(channel)
                     except Exception as e:
                         logger.warning(f"Failed to unsubscribe from {channel}: {e}")
-        
-        logger.info(f"WebSocket disconnected: user={user_id}, remaining={len(self._ws_to_user)}")
+            
+            # Transition to disconnected state
+            info.connection_state = "disconnected"
+            connection_duration = (datetime.now(timezone.utc) - info.connect_time).total_seconds()
+            logger.info(f"WebSocket disconnected: user={user_id}, remaining={len(self._ws_to_user)}, duration={connection_duration:.1f}s")
     
     async def subscribe(
         self, 
@@ -290,10 +340,15 @@ class ConnectionManager:
             subscription: The subscription to add
             
         Returns:
-            True if subscription was added, False if connection not found
+            True if subscription was added, False if connection not found or limit exceeded
         """
         info = self._ws_to_info.get(websocket)
         if not info:
+            return False
+        
+        # Check subscription limit
+        if len(info.subscriptions) >= self.MAX_SUBSCRIPTIONS_PER_CONNECTION:
+            logger.warning(f"Subscription limit exceeded for user {info.user_id}")
             return False
         
         info.subscriptions.add(subscription)
@@ -570,6 +625,48 @@ class ConnectionManager:
                 len(info.subscriptions) for info in self._ws_to_info.values()
             )
         }
+    
+    def check_rate_limit(self, user_id: str) -> bool:
+        """
+        Check if user is within rate limit.
+        
+        Args:
+            user_id: The user ID to check
+            
+        Returns:
+            True if within limit, False if exceeded
+        """
+        now = time.time()
+        
+        # Get or create message timestamps for user
+        if user_id not in self._message_rates:
+            self._message_rates[user_id] = []
+        
+        timestamps = self._message_rates[user_id]
+        
+        # Remove timestamps older than 1 minute
+        timestamps[:] = [ts for ts in timestamps if now - ts < 60]
+        
+        # Check if within limit
+        if len(timestamps) >= self.MAX_MESSAGES_PER_MINUTE:
+            return False
+        
+        # Add current timestamp
+        timestamps.append(now)
+        return True
+    
+    def get_connection_state(self, websocket: WebSocket) -> Optional[str]:
+        """
+        Get the connection state for a WebSocket.
+        
+        Args:
+            websocket: The WebSocket connection
+            
+        Returns:
+            Connection state string or None if not found
+        """
+        info = self._ws_to_info.get(websocket)
+        return info.connection_state if info else None
 
 
 # Global connection manager instance

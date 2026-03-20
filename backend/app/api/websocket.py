@@ -118,6 +118,11 @@ async def send_error(
     await websocket.send_json(error.model_dump(mode="json"))
 
 
+# Rate limiting error codes
+RATE_LIMIT_ERROR = "RATE_LIMIT_EXCEEDED"
+CONNECTION_LIMIT_ERROR = "CONNECTION_LIMIT_EXCEEDED"
+
+
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -152,8 +157,12 @@ async def websocket_endpoint(
     #     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
     #     return
     
-    # Connect to the manager
-    info = await manager.connect(websocket, user_id)
+    # Connect to the manager (with connection limit check)
+    try:
+        info = await manager.connect(websocket, user_id)
+    except ConnectionRefusedError as e:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=str(e))
+        return
     
     # Send connection confirmation
     await websocket.send_json({
@@ -179,6 +188,17 @@ async def websocket_endpoint(
         while True:
             # Receive and process messages from client
             data = await websocket.receive_text()
+            
+            # Check rate limit
+            if not manager.check_rate_limit(user_id):
+                await send_error(
+                    websocket,
+                    error_code=RATE_LIMIT_ERROR,
+                    error_message="Rate limit exceeded. Please slow down.",
+                    details={"max_per_minute": manager.MAX_MESSAGES_PER_MINUTE}
+                )
+                continue
+            
             message = await parse_client_message(data)
             
             if message is None:
