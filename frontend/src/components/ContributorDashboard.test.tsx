@@ -172,17 +172,17 @@ describe('ContributorDashboard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       
       // Find the "Payout Alerts" toggle
-      const payoutAlertsRow = screen.getByText('Payout Alerts').parentElement;
-      const toggle = within(payoutAlertsRow!).getByRole('button');
+      const payoutAlertsRow = screen.getByText('Payout Alerts').closest('div');
+      const toggle = within(payoutAlertsRow!).getByRole('switch');
       
-      // Initially enabled (green background)
-      expect(toggle).toHaveClass('bg-[#14F195]');
+      // Initially enabled (aria-checked should be true)
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
       
       // Click to disable
       fireEvent.click(toggle);
       
-      // Should now be disabled (gray background)
-      expect(toggle).toHaveClass('bg-gray-700');
+      // Should now be disabled (aria-checked should be false)
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
     });
 
     it('displays truncated wallet address', () => {
@@ -192,6 +192,44 @@ describe('ContributorDashboard', () => {
       
       // Should show truncated address
       expect(screen.getByText(/Amu1YJjc\.\.\./)).toBeInTheDocument();
+    });
+
+    it('calls onConnectAccount when Connect button is clicked', () => {
+      const mockConnect = jest.fn();
+      render(<ContributorDashboard walletAddress={mockWalletAddress} onConnectAccount={mockConnect} />);
+      
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      
+      // Click Connect for Twitter (not connected)
+      fireEvent.click(screen.getByRole('button', { name: 'Connect twitter' }));
+      
+      expect(mockConnect).toHaveBeenCalledWith('twitter');
+    });
+
+    it('calls onDisconnectAccount when Disconnect button is clicked', () => {
+      const mockDisconnect = jest.fn();
+      render(<ContributorDashboard walletAddress={mockWalletAddress} onDisconnectAccount={mockDisconnect} />);
+      
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      
+      // Click Disconnect for GitHub (connected)
+      fireEvent.click(screen.getByRole('button', { name: 'Disconnect github' }));
+      
+      expect(mockDisconnect).toHaveBeenCalledWith('github');
+    });
+
+    it('connect/disconnect buttons have correct aria attributes', () => {
+      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      
+      // GitHub is connected, so aria-pressed should be true
+      const disconnectBtn = screen.getByRole('button', { name: 'Disconnect github' });
+      expect(disconnectBtn).toHaveAttribute('aria-pressed', 'true');
+      
+      // Twitter is not connected, so aria-pressed should be false
+      const connectBtn = screen.getByRole('button', { name: 'Connect twitter' });
+      expect(connectBtn).toHaveAttribute('aria-pressed', 'false');
     });
   });
 

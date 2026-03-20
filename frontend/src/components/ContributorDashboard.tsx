@@ -52,6 +52,8 @@ interface ContributorDashboardProps {
   onBrowseBounties?: () => void;
   onViewLeaderboard?: () => void;
   onCheckTreasury?: () => void;
+  onConnectAccount?: (accountType: string) => void;
+  onDisconnectAccount?: (accountType: string) => void;
 }
 
 // ============================================================================
@@ -480,9 +482,18 @@ interface SettingsSectionProps {
   notificationPreferences: { type: string; enabled: boolean }[];
   walletAddress?: string;
   onToggleNotification: (type: string) => void;
+  onConnectAccount?: (accountType: string) => void;
+  onDisconnectAccount?: (accountType: string) => void;
 }
 
-function SettingsSection({ linkedAccounts, notificationPreferences, walletAddress, onToggleNotification }: SettingsSectionProps) {
+function SettingsSection({ 
+  linkedAccounts, 
+  notificationPreferences, 
+  walletAddress, 
+  onToggleNotification,
+  onConnectAccount,
+  onDisconnectAccount 
+}: SettingsSectionProps) {
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
       <h3 className="text-white font-medium mb-4">Settings</h3>
@@ -500,7 +511,19 @@ function SettingsSection({ linkedAccounts, notificationPreferences, walletAddres
                   <p className="text-xs text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
                 </div>
               </div>
-              <button className={`text-xs px-3 py-1 rounded ${account.connected ? 'text-gray-400 bg-gray-700' : 'text-[#14F195] bg-[#14F195]/10'}`}>
+              <button 
+                onClick={() => account.connected 
+                  ? onDisconnectAccount?.(account.type) 
+                  : onConnectAccount?.(account.type)
+                }
+                aria-label={account.connected ? `Disconnect ${account.type}` : `Connect ${account.type}`}
+                aria-pressed={account.connected}
+                className={`text-xs px-3 py-1 rounded transition-colors ${
+                  account.connected 
+                    ? 'text-gray-400 bg-gray-700 hover:bg-gray-600' 
+                    : 'text-[#14F195] bg-[#14F195]/10 hover:bg-[#14F195]/20'
+                }`}
+              >
                 {account.connected ? 'Disconnect' : 'Connect'}
               </button>
             </div>
@@ -517,6 +540,9 @@ function SettingsSection({ linkedAccounts, notificationPreferences, walletAddres
               <span className="text-sm text-white">{pref.type}</span>
               <button 
                 onClick={() => onToggleNotification(pref.type)}
+                aria-label={`Toggle ${pref.type} notifications`}
+                aria-checked={pref.enabled}
+                role="switch"
                 className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-700'}`}
               >
                 <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${pref.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -552,6 +578,8 @@ export function ContributorDashboard({
   onBrowseBounties,
   onViewLeaderboard,
   onCheckTreasury,
+  onConnectAccount,
+  onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
   const [stats] = useState<DashboardStats>(MOCK_STATS);
@@ -749,6 +777,8 @@ export function ContributorDashboard({
             notificationPreferences={notificationPrefs}
             walletAddress={walletAddress}
             onToggleNotification={handleToggleNotification}
+            onConnectAccount={onConnectAccount}
+            onDisconnectAccount={onDisconnectAccount}
           />
         )}
       </div>
