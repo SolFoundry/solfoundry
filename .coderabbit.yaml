@@ -21,6 +21,13 @@ reviews:
   changed_files_summary: false     # Don't list all changed files (reveals structure)
   abort_on_close: true
 
+  # Disable auto-review on PRs from external contributors
+  # CodeRabbit's inline comments give away exact fixes that people copy-paste
+  # Maintainers can still trigger reviews manually with @coderabbitai review
+  auto_review:
+    enabled: false                 # No automatic reviews on PR open/update
+    drafts: false
+
   # CRITICAL: Disable inline code suggestions — these give away fixes
   tools:
     ast-grep:
