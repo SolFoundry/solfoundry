@@ -10,16 +10,20 @@ from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.webhooks.github import router as github_webhook_router
+from app.api.websocket import router as websocket_router
 from app.database import init_db, close_db
+from app.services.websocket_manager import manager as ws_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
-    # Startup: Initialize database
+    # Startup: Initialize database and WebSocket manager
     await init_db()
+    await ws_manager.initialize()
     yield
-    # Shutdown: Close database connections
+    # Shutdown: Close database connections and WebSocket manager
+    await ws_manager.shutdown()
     await close_db()
 
 
@@ -50,6 +54,7 @@ app.include_router(bounties_router, prefix="/api", tags=["bounties"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(leaderboard_router)
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
+app.include_router(websocket_router, tags=["websocket"])
 
 
 @app.get("/health")
