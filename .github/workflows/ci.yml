@@ -109,7 +109,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Run ESLint
         working-directory: frontend
@@ -133,7 +133,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Run TypeScript Type Check
         working-directory: frontend
@@ -157,7 +157,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Run Unit Tests
         working-directory: frontend
@@ -182,7 +182,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Build
         working-directory: frontend
