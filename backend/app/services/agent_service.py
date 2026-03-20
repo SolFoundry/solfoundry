@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import with_for_update
 
 from app.models.agent import (
     AgentDB,
@@ -25,6 +26,23 @@ from app.models.agent import (
 
 class AgentService:
     """Service class for agent operations."""
+
+    @staticmethod
+    def _escape_like_pattern(pattern: str) -> str:
+        """
+        Escape special characters in LIKE pattern to prevent SQL injection.
+        
+        Args:
+            pattern: The search pattern to escape
+            
+        Returns:
+            Escaped pattern safe for LIKE queries
+        """
+        # Escape special LIKE characters: %, _, \
+        escaped = pattern.replace('\\', '\\\\')
+        escaped = escaped.replace('%', '\\%')
+        escaped = escaped.replace('_', '\\_')
+        return escaped
 
     @staticmethod
     async def create_agent(db: AsyncSession, agent_data: AgentCreate) -> AgentDB:
@@ -92,7 +110,21 @@ class AgentService:
         min_success_rate: Optional[float] = None,
         search: Optional[str] = None,
     ) -> tuple[list[AgentDB], int]:
-        """List agents with filtering and pagination."""
+        """
+        List agents with filtering and pagination.
+        
+        Args:
+            db: Database session
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            role: Filter by agent role
+            status: Filter by agent status
+            min_success_rate: Filter by minimum success rate
+            search: Search term for name, display_name, or bio
+            
+        Returns:
+            Tuple of (list of agents, total count)
+        """
         query = select(AgentDB)
         count_query = select(func.count(AgentDB.id))
 
@@ -105,12 +137,14 @@ class AgentService:
         if min_success_rate is not None:
             conditions.append(AgentDB.success_rate >= min_success_rate)
         if search:
-            search_term = f"%{search}%"
+            # Escape special characters to prevent SQL injection
+            escaped_search = AgentService._escape_like_pattern(search)
+            search_term = f"%{escaped_search}%"
             conditions.append(
                 or_(
-                    AgentDB.name.ilike(search_term),
-                    AgentDB.display_name.ilike(search_term),
-                    AgentDB.bio.ilike(search_term),
+                    AgentDB.name.ilike(search_term, escape='\\'),
+                    AgentDB.display_name.ilike(search_term, escape='\\'),
+                    AgentDB.bio.ilike(search_term, escape='\\'),
                 )
             )
 
@@ -161,16 +195,42 @@ class AgentService:
         db: AsyncSession, hire_request: HireAgentRequest
     ) -> HireAgentResponse:
         """
-        Assign an agent to a bounty.
-        In production, this would integrate with the bounty system.
+        Assign an agent to a bounty with race condition protection.
+        
+        Uses SELECT FOR UPDATE to prevent TOCTOU (Time-Of-Check-Time-Of-Use) issues.
+        This ensures atomic check-and-update operations in concurrent scenarios.
+        
+        Args:
+            db: Database session
+            hire_request: Request containing agent_id and bounty_id
+            
+        Returns:
+            HireAgentResponse with success status and message
         """
-        agent = await AgentService.get_agent_by_id(db, UUID(hire_request.agent_id))
+        try:
+            agent_id = UUID(hire_request.agent_id)
+        except ValueError:
+            return HireAgentResponse(
+                success=False,
+                message=f"Invalid agent ID format: {hire_request.agent_id}",
+            )
+
+        # Use SELECT FOR UPDATE to lock the row and prevent concurrent modifications
+        # This fixes the TOCTOU race condition
+        result = await db.execute(
+            select(AgentDB)
+            .where(AgentDB.id == agent_id)
+            .with_for_update()
+        )
+        agent = result.scalar_one_or_none()
+
         if not agent:
             return HireAgentResponse(
                 success=False,
                 message=f"Agent {hire_request.agent_id} not found",
             )
 
+        # Check status while holding the lock
         if agent.status == AgentStatus.WORKING:
             return HireAgentResponse(
                 success=False,
@@ -183,10 +243,12 @@ class AgentService:
                 message=f"Agent {agent.name} is currently offline",
             )
 
-        # Update agent status
+        # Update agent status atomically while still holding the lock
         agent.status = AgentStatus.WORKING
         agent.bounties_in_progress += 1
         agent.updated_at = datetime.now(timezone.utc)
+        
+        # Commit releases the lock
         await db.commit()
 
         return HireAgentResponse(
