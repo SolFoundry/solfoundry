@@ -32,6 +32,9 @@ class BountyStatus(str, Enum):
     PAID = "paid"
 
 
+# All valid status values
+VALID_STATUSES = {BountyStatus.OPEN, BountyStatus.CLAIMED, BountyStatus.IN_PROGRESS, BountyStatus.COMPLETED, BountyStatus.PAID}
+
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
     BountyStatus.OPEN: {BountyStatus.CLAIMED},
     BountyStatus.CLAIMED: {BountyStatus.OPEN, BountyStatus.IN_PROGRESS},
