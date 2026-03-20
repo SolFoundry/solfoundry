@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 
 // ============================================================================
 // Types
@@ -69,7 +69,7 @@ const MOCK_STATS: DashboardStats = {
 };
 
 const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub â†” Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
+  { id: '1', title: 'GitHub â†?Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
   { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
   { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
 ];
@@ -78,7 +78,7 @@ const MOCK_ACTIVITIES: Activity[] = [
   { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
   { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
   { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub â†” Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
+  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub â†?Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
   { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
 ];
 
@@ -258,7 +258,7 @@ function BountyCard({ bounty }: BountyCardProps) {
             <span className={`font-medium ${getStatusColor(bounty.status)}`}>
               {bounty.status.replace('_', ' ').toUpperCase()}
             </span>
-            {' â€¢ '}
+            {' â€?'}
             <span className={isUrgent ? 'text-red-400' : ''}>
               {daysRemaining} days left
             </span>
