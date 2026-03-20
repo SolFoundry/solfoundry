@@ -1,4 +1,4 @@
-﻿import type { DashboardData, Notification, Activity, ActiveBounty, DailyEarning } from '../types/dashboard';
+import type { DashboardData, Notification, Activity, ActiveBounty, DailyEarning } from '../types/dashboard';
 
 const daysAgo = (days: number): string => { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString(); };
 const hoursAgo = (hours: number): string => { const date = new Date(); date.setHours(date.getHours() - hours); return date.toISOString(); };
@@ -15,7 +15,7 @@ export const mockActiveBounties: ActiveBounty[] = [
 ];
 
 export const mockActivities: Activity[] = [
-  { id: 'act-1', type: 'payout', title: 'Payout Received', description: 'Received 50,000 \ for PR #134', timestamp: hoursAgo(2), metadata: { amount: 50000, prNumber: 134 } },
+  { id: 'act-1', type: 'payout', title: 'Payout Received', description: 'Received 50,000 SOL for PR #134', timestamp: hoursAgo(2), metadata: { amount: 50000, prNumber: 134 } },
   { id: 'act-2', type: 'review_received', title: 'PR Review Completed', description: 'Your PR #134 passed AI review with score 8.5/10', timestamp: hoursAgo(5), metadata: { prNumber: 134, score: 8.5 } },
   { id: 'act-3', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'You claimed "GitHub <-> Platform Bi-directional Sync"', timestamp: hoursAgo(48), metadata: { bountyId: 'bounty-1', bountyTitle: 'GitHub <-> Platform Bi-directional Sync' } },
   { id: 'act-4', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR #134 for "PR Status Tracker Component"', timestamp: hoursAgo(50), metadata: { prNumber: 134 } },
@@ -26,7 +26,7 @@ export const mockActivities: Activity[] = [
 
 export const mockNotifications: Notification[] = [
   { id: 'notif-1', type: 'warning', priority: 'high', title: 'Deadline Approaching', message: 'Bounty "Real-time WebSocket Server" deadline is in 3 days', timestamp: hoursAgo(1), read: false, actionUrl: '/bounties/bounty-2', actionLabel: 'View Bounty' },
-  { id: 'notif-2', type: 'success', priority: 'medium', title: 'Payout Complete', message: '50,000 \ has been sent to your wallet', timestamp: hoursAgo(2), read: false },
+  { id: 'notif-2', type: 'success', priority: 'medium', title: 'Payout Complete', message: '50,000 SOL has been sent to your wallet', timestamp: hoursAgo(2), read: false },
   { id: 'notif-3', type: 'info', priority: 'medium', title: 'New Bounty Available', message: 'A new Tier 2 bounty matching your skills is available', timestamp: hoursAgo(6), read: true, actionUrl: '/bounties', actionLabel: 'Browse Bounties' },
   { id: 'notif-4', type: 'error', priority: 'high', title: 'PR Needs Revision', message: 'PR #120 requires changes based on AI review feedback', timestamp: daysAgo(1), read: true, actionUrl: '/pr/120', actionLabel: 'View PR' },
   { id: 'notif-5', type: 'info', priority: 'low', title: 'Weekly Summary', message: 'Your weekly contributor report is ready', timestamp: daysAgo(2), read: true, actionUrl: '/reports/weekly', actionLabel: 'View Report' },
@@ -35,7 +35,7 @@ export const mockNotifications: Notification[] = [
 export const mockDashboardData: DashboardData = {
   summary: { totalEarned: 1250000, activeBounties: 3, pendingPayouts: 50000, reputationScore: 87, reputationRank: 12, totalContributors: 156, bountiesCompleted: 10, successRate: 91 },
   activeBounties: mockActiveBounties,
-  earnings: { totalEarned: 1250000, pendingPayouts: 50000, last30Days: mockDailyEarnings, currency: '\' },
+  earnings: { totalEarned: 1250000, pendingPayouts: 50000, last30Days: mockDailyEarnings, currency: 'SOL' },
   recentActivity: mockActivities,
   notifications: mockNotifications,
   settings: {
