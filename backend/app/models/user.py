@@ -55,10 +55,8 @@ class UserResponse(BaseModel):
     created_at: datetime = Field(..., description="Account creation timestamp (UTC)")
     updated_at: datetime = Field(..., description="Last profile update timestamp (UTC)")
 
-    class Config:
-        from_attributes = True
-
     model_config = {
+        "from_attributes": True,
         "json_schema_extra": {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -140,7 +138,7 @@ class WalletAuthRequest(BaseModel):
     wallet_address: str = Field(
         ...,
         min_length=32,
-        max_length=64,
+        max_length=44,
         description="Solana wallet address (base-58 encoded, 32–44 chars)",
         examples=["7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"],
     )
@@ -182,7 +180,7 @@ class LinkWalletRequest(BaseModel):
     wallet_address: str = Field(
         ...,
         min_length=32,
-        max_length=64,
+        max_length=44,
         description="Solana wallet address to link (base-58, 32–44 chars)",
         examples=["7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"],
     )

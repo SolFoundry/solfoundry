@@ -250,6 +250,7 @@ The `extra_data` field accepts arbitrary JSON for type-specific context
                 }
             },
         },
+        401: _401,
     },
     openapi_extra={
         "requestBody": {
@@ -270,6 +271,7 @@ The `extra_data` field accepts arbitrary JSON for type-specific context
 )
 async def create_notification(
     notification: NotificationCreate,
+    _user: AuthenticatedUser = Depends(get_authenticated_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new notification (internal use by backend services)."""
