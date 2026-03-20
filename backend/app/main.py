@@ -46,7 +46,7 @@ app.add_middleware(
 )
 
 app.include_router(contributors_router)
-app.include_router(bounties_router, prefix="/api", tags=["bounties"])
+app.include_router(bounties_router)
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(leaderboard_router)
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
