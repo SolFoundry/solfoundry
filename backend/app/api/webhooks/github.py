@@ -1,19 +1,19 @@
 """GitHub webhook receiver endpoint."""
 
-from __future__ import annotations
-
+import json
 import logging
 import os
-from typing import Any
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Request, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
 from app.services.webhook_service import (
     WebhookVerificationError,
-    parse_event,
     verify_signature,
 )
+from app.services.webhook_processor import WebhookProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,19 @@ async def receive_github_webhook(
     x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
     x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
+    db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """Receive and process GitHub webhook events.
-
-    Verifies the HMAC-SHA256 signature, then routes to the appropriate handler
-    based on the X-GitHub-Event header.
+    """
+    Receive and process GitHub webhook events.
+    
+    Verifies HMAC-SHA256 signature, then processes based on event type:
+    - pull_request: Match to bounty, update status
+    - issues: Auto-create bounty on label
+    
+    Headers:
+    - X-GitHub-Event: Event type (pull_request, issues, push, ping)
+    - X-Hub-Signature-256: HMAC signature
+    - X-GitHub-Delivery: Unique delivery ID for idempotency
     """
     payload = await request.body()
 
@@ -48,24 +56,87 @@ async def receive_github_webhook(
         return JSONResponse(status_code=401, content={"error": str(exc)})
 
     event_type = x_github_event or "unknown"
-
-    # ── Parse and route ────────────────────────────────────────────────
-    try:
-        parsed: dict[str, Any] = parse_event(event_type, payload)
-    except Exception as exc:
-        logger.error("Failed to parse %s event (delivery=%s): %s", event_type, x_github_delivery, exc)
-        return JSONResponse(status_code=422, content={"error": f"Parse error: {exc}"})
-
-    # ── Event-specific responses ───────────────────────────────────────
+    delivery_id = x_github_delivery or "unknown"
+    
+    # Handle ping
     if event_type == "ping":
-        logger.info("Received ping from GitHub (hook_id=%s)", parsed.get("data", {}).get("hook_id"))
+        logger.info("Received ping from GitHub (delivery=%s)", delivery_id)
         return JSONResponse(status_code=200, content={"msg": "pong"})
-
-    logger.info(
-        "Processed %s event (delivery=%s) for repo=%s",
-        event_type,
-        x_github_delivery,
-        parsed.get("data", {}).get("repository", {}).get("full_name") if isinstance(parsed.get("data"), dict) else None,
-    )
-
-    return JSONResponse(status_code=202, content={"status": "accepted", "event": event_type})
+    
+    # Parse payload
+    try:
+        body = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        logger.error("Invalid JSON payload (delivery=%s): %s", delivery_id, exc)
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid JSON"}
+        )
+    
+    # Process event
+    processor = WebhookProcessor(db)
+    
+    try:
+        if event_type == "pull_request":
+            action = body.get("action", "")
+            pr = body.get("pull_request", {})
+            repo = body.get("repository", {})
+            
+            result = await processor.process_pull_request(
+                action=action,
+                pr_number=pr.get("number", 0),
+                pr_body=pr.get("body"),
+                repository=repo.get("full_name", ""),
+                sender=body.get("sender", {}).get("login", ""),
+                delivery_id=delivery_id,
+                payload=payload,
+            )
+            
+            logger.info(
+                "Processed pull_request.%s (PR #%d, delivery=%s)",
+                action, pr.get("number"), delivery_id
+            )
+            
+            return JSONResponse(status_code=200, content=result)
+        
+        elif event_type == "issues":
+            action = body.get("action", "")
+            issue = body.get("issue", {})
+            repo = body.get("repository", {})
+            labels = issue.get("labels", [])
+            
+            result = await processor.process_issues(
+                action=action,
+                issue_number=issue.get("number", 0),
+                issue_title=issue.get("title", ""),
+                issue_body=issue.get("body"),
+                labels=labels,
+                repository=repo.get("full_name", ""),
+                sender=body.get("sender", {}).get("login", ""),
+                delivery_id=delivery_id,
+                payload=payload,
+            )
+            
+            logger.info(
+                "Processed issues.%s (issue #%d, delivery=%s)",
+                action, issue.get("number"), delivery_id
+            )
+            return JSONResponse(status_code=200, content=result)
+        
+        else:
+            # Unhandled event type
+            logger.info("Unhandled event type: %s (delivery=%s)", event_type, delivery_id)
+            return JSONResponse(
+                status_code=202,
+                content={"status": "accepted", "event": event_type, "handled": False}
+            )
+    
+    except Exception as exc:
+        logger.error(
+            "Error processing %s event (delivery=%s): %s",
+            event_type, delivery_id, exc
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(exc)}
+        )
