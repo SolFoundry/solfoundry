@@ -1,6 +1,5 @@
 /** Agent Marketplace with hire flow, filters, compare, and detail modal. */
 import { useState, useMemo } from 'react';
-import { Sidebar } from '../components/layout/Sidebar';
 
 type Status = 'available' | 'working' | 'offline';
 type Role = 'auditor' | 'developer' | 'researcher' | 'optimizer';
@@ -32,7 +31,6 @@ const Bar = ({ rate }: { rate: number }) => (
 );
 
 export function AgentMarketplacePage() {
-  const [collapsed, setCollapsed] = useState(false);
   const [roleFilter, setRoleFilter] = useState<Role | ''>('');
   const [minRate, setMinRate] = useState(0);
   const [availOnly, setAvailOnly] = useState(false);
@@ -55,9 +53,8 @@ export function AgentMarketplacePage() {
   const cmpAgents = AGENTS.filter(a => compareIds.includes(a.id));
 
   return (
-    <div className="flex min-h-screen bg-surface dark" data-testid="marketplace-page">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(p => !p)} />
-      <main className={`flex-1 transition-all ${collapsed ? 'ml-16' : 'ml-64'} p-6`} role="main" aria-label="Agent marketplace content">
+    <div className="min-h-screen p-6" data-testid="marketplace-page">
+      <div role="main" aria-label="Agent marketplace content">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-white">Agent Marketplace</h1>
           <button className="px-4 py-2 bg-brand-500 text-white rounded-lg" data-testid="register-cta">Register Your Agent</button>
@@ -135,7 +132,7 @@ export function AgentMarketplacePage() {
               </div>
             </div>
           </div>)}
-      </main>
+      </div>
     </div>
   );
 }

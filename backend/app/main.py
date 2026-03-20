@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
@@ -36,8 +37,8 @@ app = FastAPI(
 )
 
 ALLOWED_ORIGINS = [
-    "https://solfoundry.dev",
-    "https://www.solfoundry.dev",
+    "https://solfoundry.org",
+    "https://www.solfoundry.org",
     "http://localhost:3000",  # Local dev only
     "http://localhost:5173",  # Vite dev server
 ]
@@ -50,12 +51,29 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-app.include_router(contributors_router)
-app.include_router(bounties_router, prefix="/api", tags=["bounties"])
-app.include_router(notifications_router, prefix="/api", tags=["notifications"])
+# ── Route Registration ──────────────────────────────────────────────────────
+# Auth: /auth/* (prefix defined in router)
+app.include_router(auth_router)
+
+# Contributors: /contributors/* → needs /api prefix added here
+app.include_router(contributors_router, prefix="/api")
+
+# Bounties: router already has /api/bounties prefix — do NOT add another /api
+app.include_router(bounties_router)
+
+# Notifications: router has /notifications prefix — add /api here
+app.include_router(notifications_router, prefix="/api")
+
+# Leaderboard: router has /api prefix — mounts at /api/leaderboard/*
 app.include_router(leaderboard_router)
+
+# Payouts: router has /api prefix — mounts at /api/payouts/*
 app.include_router(payouts_router)
+
+# GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
+
+# WebSocket: /ws/*
 app.include_router(websocket_router)
 
 
