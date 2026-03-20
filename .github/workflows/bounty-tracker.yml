@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   track-bounty:
@@ -116,6 +116,59 @@ jobs:
                       f"by @{pr_author}"
                   )
                   send_telegram(msg, reply_markup=keyboard)
+
+          # ── Auto-close competing PRs for the same bounty ──
+          if event == "pull_request" and closes:
+              import urllib.request
+              gh_token = os.environ.get("GH_TOKEN", "")
+
+              for issue_num in closes:
+                  # Find all OTHER open PRs targeting the same issue
+                  try:
+                      req = urllib.request.Request(
+                          f"https://api.github.com/repos/{repo}/pulls?state=open&per_page=100",
+                          headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"}
+                      )
+                      resp = urllib.request.urlopen(req, timeout=15)
+                      open_prs = json.loads(resp.read().decode())
+
+                      for opr in open_prs:
+                          opr_num = opr["number"]
+                          if str(opr_num) == str(pr_number):
+                              continue  # Skip the merged PR itself
+                          opr_body = (opr.get("body", "") or "").lower()
+                          opr_author = opr.get("user", {}).get("login", "unknown")
+
+                          # Check if this PR targets the same issue
+                          opr_closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', opr_body)
+                          if issue_num in opr_closes:
+                              # Close competing PR with explanation
+                              close_body = json.dumps({
+                                  "body": (
+                                      f"🏭 **Bounty #{issue_num} completed** — PR #{pr_number} by @{pr_author} was merged first.\n\n"
+                                      f"Thank you for your submission @{opr_author}! "
+                                      f"New bounties are launching soon — stay tuned for Phase 2.\n\n"
+                                      f"---\n*SolFoundry Bot*"
+                                  )
+                              }).encode()
+                              comment_req = urllib.request.Request(
+                                  f"https://api.github.com/repos/{repo}/issues/{opr_num}/comments",
+                                  data=close_body, method="POST",
+                                  headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json", "Content-Type": "application/json"}
+                              )
+                              urllib.request.urlopen(comment_req, timeout=15)
+
+                              close_data = json.dumps({"state": "closed"}).encode()
+                              close_req = urllib.request.Request(
+                                  f"https://api.github.com/repos/{repo}/pulls/{opr_num}",
+                                  data=close_data, method="PATCH",
+                                  headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json", "Content-Type": "application/json"}
+                              )
+                              urllib.request.urlopen(close_req, timeout=15)
+                              print(f"Auto-closed competing PR #{opr_num} by @{opr_author} (bounty #{issue_num} already won)")
+
+                  except Exception as e:
+                      print(f"Error auto-closing competing PRs for #{issue_num}: {e}")
 
           print("Bounty tracking complete")
           PYEOF

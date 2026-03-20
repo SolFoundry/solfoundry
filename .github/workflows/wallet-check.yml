@@ -115,6 +115,13 @@ jobs:
               print(f"Could not fetch PR #{pr_number}")
               exit(0)
 
+          # Skip merged or closed PRs — contributors can edit after merge without triggering bots
+          pr_state = pr_detail.get("state", "")
+          pr_merged = pr_detail.get("merged", False)
+          if pr_merged or pr_state == "closed":
+              print(f"PR #{pr_number} is {('merged' if pr_merged else 'closed')} — skipping wallet check")
+              exit(0)
+
           pr_body = pr_detail.get("body", "") or ""
           pr_author = pr_detail.get("user", {}).get("login", pr_author)
           pr_url = pr_detail.get("html_url", f"https://github.com/{repo}/pull/{pr_number}")

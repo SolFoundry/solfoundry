@@ -87,6 +87,15 @@ jobs:
         run: |
           PR_NUM="${{ steps.pr.outputs.number }}"
           REPO="${{ github.repository }}"
+
+          # Skip merged or closed PRs — don't waste LLM calls on already-completed work
+          PR_STATE=$(gh pr view $PR_NUM --repo $REPO --json state,mergedAt --jq '.state' 2>/dev/null || echo "OPEN")
+          if [ "$PR_STATE" = "MERGED" ] || [ "$PR_STATE" = "CLOSED" ]; then
+            echo "PR #${PR_NUM} is ${PR_STATE} — skipping review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Check if a multi-LLM review comment already exists on this PR
           EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
             --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete"))] | length' 2>/dev/null || echo "0")
