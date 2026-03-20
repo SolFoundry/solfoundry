@@ -128,9 +128,11 @@ class ClaimHistoryRecord(BaseModel):
 
 
 class BountyClaimRequest(BaseModel):
-    """Payload for claiming a bounty."""
-    claimant_id: str = Field(..., min_length=1, max_length=100)
-    reputation: int = Field(0, ge=0, description="User's current reputation score")
+    """Payload for claiming a bounty.
+    
+    Security: claimant_id and reputation are obtained from authentication context,
+    not from client input to prevent forgery.
+    """
     application: Optional[str] = Field(None, max_length=2000, description="Application plan (required for T3)")
 
 

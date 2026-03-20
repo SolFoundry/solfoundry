@@ -229,9 +229,19 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
 # ---------------------------------------------------------------------------
 
 def claim_bounty(
-    bounty_id: str, data: BountyClaimRequest
+    bounty_id: str,
+    claimant_id: str,
+    reputation: int,
+    application: Optional[str] = None,
 ) -> tuple[Optional[BountyResponse], Optional[str]]:
-    """Claim a bounty for a contributor."""
+    """Claim a bounty for a contributor.
+    
+    Args:
+        bounty_id: ID of the bounty to claim
+        claimant_id: Authenticated user ID (from auth context, not client input)
+        reputation: User's reputation score (from server, not client input)
+        application: Optional application plan (required for T3 bounties)
+    """
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
@@ -243,15 +253,15 @@ def claim_bounty(
         return None, "Tier 1 bounties do not support claiming. Submit directly."
     
     min_reputation = T2_MIN_REPUTATION if bounty.tier == BountyTier.T2 else T3_MIN_REPUTATION
-    if data.reputation < min_reputation:
+    if reputation < min_reputation:
         return None, f"Insufficient reputation. Tier {bounty.tier} requires reputation >= {min_reputation}"
     
-    if bounty.tier == BountyTier.T3 and not data.application:
+    if bounty.tier == BountyTier.T3 and not application:
         return None, "Tier 3 bounties require an application plan"
     
     if bounty.tier == BountyTier.T2:
         for b in _bounty_store.values():
-            if b.claimant_id == data.claimant_id and b.status == BountyStatus.CLAIMED:
+            if b.claimant_id == claimant_id and b.status == BountyStatus.CLAIMED:
                 return None, "You already have an active claim. Release it before claiming another."
     
     deadline_days = T2_CLAIM_DEADLINE_DAYS if bounty.tier == BountyTier.T2 else T3_CLAIM_DEADLINE_DAYS
@@ -259,14 +269,14 @@ def claim_bounty(
     now = datetime.now(timezone.utc)
     
     history_record = ClaimHistoryRecord(
-        claimant_id=data.claimant_id,
+        claimant_id=claimant_id,
         claimed_at=now,
         deadline=claim_deadline,
         status=ClaimStatus.ACTIVE,
     )
     
     bounty.status = BountyStatus.CLAIMED
-    bounty.claimant_id = data.claimant_id
+    bounty.claimant_id = claimant_id
     bounty.claimed_at = now
     bounty.claim_deadline = claim_deadline
     bounty.claim_history.append(history_record)

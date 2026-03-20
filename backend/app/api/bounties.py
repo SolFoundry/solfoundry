@@ -2,8 +2,9 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
+from app.auth import get_current_user_id
 from app.models.bounty import (
     BountyCreate,
     BountyListResponse,
@@ -19,6 +20,7 @@ from app.models.bounty import (
     BountyClaimHistoryResponse,
 )
 from app.services import bounty_service
+from app.services import contributor_service
 
 router = APIRouter(prefix="/api/bounties", tags=["bounties"])
 
@@ -83,8 +85,27 @@ async def get_submissions(bounty_id: str) -> list[SubmissionResponse]:
 # Claim Lifecycle Endpoints (Issue #16)
 
 @router.post("/{bounty_id}/claim", response_model=BountyResponse, summary="Claim a bounty (T2/T3 only)")
-async def claim_bounty(bounty_id: str, data: BountyClaimRequest) -> BountyResponse:
-    result, error = bounty_service.claim_bounty(bounty_id, data)
+async def claim_bounty(
+    bounty_id: str,
+    data: BountyClaimRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> BountyResponse:
+    """Claim a bounty.
+    
+    Security: 
+    - claimant_id is obtained from authentication context, not client input
+    - reputation is fetched from server-side contributor data, not client input
+    """
+    # Get user's reputation from contributor service
+    contributor = contributor_service.get_contributor(user_id)
+    reputation = contributor.stats.reputation_score if contributor else 0
+    
+    result, error = bounty_service.claim_bounty(
+        bounty_id=bounty_id,
+        claimant_id=user_id,
+        reputation=reputation,
+        application=data.application,
+    )
     if error:
         status_code = 404 if "not found" in error.lower() else 400
         raise HTTPException(status_code=status_code, detail=error)
@@ -94,11 +115,20 @@ async def claim_bounty(bounty_id: str, data: BountyClaimRequest) -> BountyRespon
 @router.delete("/{bounty_id}/claim", response_model=BountyResponse, summary="Release a claim")
 async def unclaim_bounty(
     bounty_id: str,
-    claimant_id: str = Query(..., description="ID of the current claimant"),
     reason: Optional[str] = Query(None, description="Optional reason for releasing"),
+    user_id: str = Depends(get_current_user_id),
 ) -> BountyResponse:
+    """Release a claim on a bounty.
+    
+    Security: claimant_id is obtained from authentication context, not client input.
+    Only the authenticated user who made the claim can release it.
+    """
     unclaim_data = BountyUnclaimRequest(reason=reason) if reason else None
-    result, error = bounty_service.unclaim_bounty(bounty_id, claimant_id, unclaim_data)
+    result, error = bounty_service.unclaim_bounty(
+        bounty_id=bounty_id,
+        claimant_id=user_id,
+        data=unclaim_data,
+    )
     if error:
         status_code = 404 if "not found" in error.lower() else 400
         raise HTTPException(status_code=status_code, detail=error)
