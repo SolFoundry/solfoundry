@@ -68,7 +68,7 @@ jobs:
         run: pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term-missing
         env:
           PYTHONPATH: .
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
           SECRET_KEY: test-secret-key-for-ci
 
   # ==================== FRONTEND (React/TypeScript) ====================

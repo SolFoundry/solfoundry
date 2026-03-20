@@ -14,7 +14,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
 
-from app.models.bounty import BountyDB, Base
+from app.models.bounty import BountyDB
+from app.database import Base
 
 # Skip all tests in this module until BountySearchService is implemented
 pytestmark = pytest.mark.skip(reason="BountySearchService not yet implemented")
