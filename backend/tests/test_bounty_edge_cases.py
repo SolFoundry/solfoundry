@@ -11,7 +11,8 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.main import app
-from app.models.bounty import BountyDB, Base
+from app.models.bounty import BountyDB
+from app.database import Base
 from app.database import get_db
 
 
