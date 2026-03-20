@@ -8,7 +8,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -32,12 +32,26 @@ class BountyStatus(str, Enum):
     PAID = "paid"
 
 
+class BountyCategory(str, Enum):
+    """Bounty work category."""
+    FRONTEND = "frontend"
+    BACKEND = "backend"
+    SMART_CONTRACT = "smart_contract"
+    DOCUMENTATION = "documentation"
+    TESTING = "testing"
+    INFRASTRUCTURE = "infrastructure"
+    OTHER = "other"
+
+
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN},
     BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
 }
+
+VALID_CATEGORIES = frozenset({c.value for c in BountyCategory})
+VALID_SORTS = frozenset({"newest", "reward_high", "reward_low", "deadline", "popularity"})
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +128,7 @@ class BountyCreate(BaseModel):
     title: str = Field(..., min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH)
     description: str = Field("", max_length=DESCRIPTION_MAX_LENGTH)
     tier: BountyTier = BountyTier.T2
+    category: str = Field("other", description="Bounty category")
     reward_amount: float = Field(..., ge=REWARD_MIN, le=REWARD_MAX)
     github_issue_url: Optional[str] = None
     required_skills: list[str] = Field(default_factory=list)
@@ -138,6 +153,7 @@ class BountyUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH)
     description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH)
     status: Optional[BountyStatus] = None
+    category: Optional[str] = None
     reward_amount: Optional[float] = Field(None, ge=REWARD_MIN, le=REWARD_MAX)
     required_skills: Optional[list[str]] = None
     deadline: Optional[datetime] = None
@@ -156,6 +172,7 @@ class BountyDB(BaseModel):
     title: str
     description: str = ""
     tier: BountyTier = BountyTier.T2
+    category: str = "other"
     reward_amount: float
     status: BountyStatus = BountyStatus.OPEN
     github_issue_url: Optional[str] = None
@@ -163,6 +180,7 @@ class BountyDB(BaseModel):
     deadline: Optional[datetime] = None
     created_by: str = "system"
     submissions: list[SubmissionRecord] = Field(default_factory=list)
+    popularity: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -173,6 +191,7 @@ class BountyResponse(BaseModel):
     title: str
     description: str
     tier: BountyTier
+    category: str = "other"
     reward_amount: float
     status: BountyStatus
     github_issue_url: Optional[str] = None
@@ -181,6 +200,7 @@ class BountyResponse(BaseModel):
     created_by: str
     submissions: list[SubmissionResponse] = Field(default_factory=list)
     submission_count: int = 0
+    popularity: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -189,13 +209,16 @@ class BountyListItem(BaseModel):
     """Compact bounty representation for list endpoints."""
     id: str
     title: str
+    description: str = ""
     tier: BountyTier
+    category: str = "other"
     reward_amount: float
     status: BountyStatus
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str
     submission_count: int = 0
+    popularity: int = 0
     created_at: datetime
 
 
@@ -205,3 +228,34 @@ class BountyListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class BountySearchParams(BaseModel):
+    """Parameters for bounty search endpoint."""
+    q: Optional[str] = None
+    tier: Optional[int] = Field(None, ge=1, le=3)
+    category: Optional[str] = None
+    status: Optional[str] = None
+    reward_min: Optional[float] = Field(None, ge=0)
+    reward_max: Optional[float] = Field(None, ge=0)
+    skills: Optional[str] = None
+    sort: str = Field("newest", pattern="^(newest|reward_high|reward_low|deadline|popularity)$")
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
+    
+    def get_skills_list(self) -> Optional[List[str]]:
+        """Parse comma-separated skills string into list."""
+        if not self.skills:
+            return None
+        return [s.strip() for s in self.skills.split(",") if s.strip()]
+
+
+class AutocompleteSuggestion(BaseModel):
+    """Single autocomplete suggestion."""
+    text: str
+    type: str  # "title" or "skill"
+
+
+class AutocompleteResponse(BaseModel):
+    """Response for autocomplete endpoint."""
+    suggestions: List[AutocompleteSuggestion]

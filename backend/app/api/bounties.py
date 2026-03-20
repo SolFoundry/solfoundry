@@ -17,6 +17,8 @@ from app.models.bounty import (
     BountyUpdate,
     SubmissionCreate,
     SubmissionResponse,
+    BountySearchParams,
+    AutocompleteResponse,
 )
 from app.services import bounty_service
 
@@ -55,6 +57,74 @@ async def list_bounties(
     return bounty_service.list_bounties(
         status=status, tier=tier, skills=skill_list, skip=skip, limit=limit
     )
+
+
+@router.get(
+    "/search",
+    response_model=BountyListResponse,
+    summary="Full-text search and filter for bounties",
+)
+async def search_bounties(
+    q: Optional[str] = Query(None, description="Search query for title and description"),
+    tier: Optional[int] = Query(None, ge=1, le=3, description="Filter by tier (1/2/3)"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    reward_min: Optional[float] = Query(None, ge=0, description="Minimum reward amount"),
+    reward_max: Optional[float] = Query(None, ge=0, description="Maximum reward amount"),
+    skills: Optional[str] = Query(None, description="Comma-separated list of skills"),
+    sort: str = Query("newest", pattern="^(newest|reward_high|reward_low|deadline|popularity)$", description="Sort order"),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Number of results per page"),
+) -> BountyListResponse:
+    """
+    Full-text search and filter for bounties.
+    
+    - **q**: Search query for full-text search across title and description
+    - **tier**: Filter by bounty tier (1, 2, or 3)
+    - **category**: Filter by category (frontend, backend, smart_contract, documentation, testing, infrastructure, other)
+    - **status**: Filter by status (open, in_progress, completed, paid)
+    - **reward_min**: Minimum reward amount
+    - **reward_max**: Maximum reward amount
+    - **skills**: Comma-separated list of required skills
+    - **sort**: Sort order (newest, reward_high, reward_low, deadline, popularity)
+    - **skip**: Pagination offset
+    - **limit**: Number of results per page
+    """
+    params = BountySearchParams(
+        q=q,
+        tier=tier,
+        category=category,
+        status=status,
+        reward_min=reward_min,
+        reward_max=reward_max,
+        skills=skills,
+        sort=sort,
+        skip=skip,
+        limit=limit,
+    )
+    
+    try:
+        return bounty_service.search_bounties(params)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/autocomplete",
+    response_model=AutocompleteResponse,
+    summary="Get autocomplete suggestions for bounty search",
+)
+async def get_autocomplete(
+    q: str = Query(..., min_length=2, description="Search query for autocomplete"),
+    limit: int = Query(10, ge=1, le=20, description="Number of suggestions"),
+) -> AutocompleteResponse:
+    """
+    Get autocomplete suggestions for bounty search.
+    
+    Returns matching bounty titles and skills.
+    Minimum query length is 2 characters.
+    """
+    return bounty_service.get_autocomplete_suggestions(q, limit)
 
 
 @router.get(

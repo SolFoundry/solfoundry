@@ -14,11 +14,17 @@ from app.models.bounty import (
     BountyListResponse,
     BountyResponse,
     BountyStatus,
+    BountyTier,
     BountyUpdate,
     SubmissionCreate,
     SubmissionRecord,
     SubmissionResponse,
     VALID_STATUS_TRANSITIONS,
+    BountySearchParams,
+    AutocompleteSuggestion,
+    AutocompleteResponse,
+    VALID_CATEGORIES,
+    VALID_SORTS,
 )
 
 # ---------------------------------------------------------------------------
@@ -50,6 +56,7 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         title=b.title,
         description=b.description,
         tier=b.tier,
+        category=b.category,
         reward_amount=b.reward_amount,
         status=b.status,
         github_issue_url=b.github_issue_url,
@@ -58,6 +65,7 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         created_by=b.created_by,
         submissions=subs,
         submission_count=len(subs),
+        popularity=b.popularity,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -67,13 +75,16 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
     return BountyListItem(
         id=b.id,
         title=b.title,
+        description=b.description,
         tier=b.tier,
+        category=b.category,
         reward_amount=b.reward_amount,
         status=b.status,
         required_skills=b.required_skills,
         deadline=b.deadline,
         created_by=b.created_by,
         submission_count=len(b.submissions),
+        popularity=b.popularity,
         created_at=b.created_at,
     )
 
@@ -88,6 +99,7 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         title=data.title,
         description=data.description,
         tier=data.tier,
+        category=data.category,
         reward_amount=data.reward_amount,
         github_issue_url=data.github_issue_url,
         required_skills=data.required_skills,
@@ -118,7 +130,7 @@ def list_bounties(
     if status is not None:
         results = [b for b in results if b.status == status]
     if tier is not None:
-        results = [b for b in results if b.tier == tier]
+        results = [b for b in results if b.tier.value == tier]
     if skills:
         skill_set = {s.lower() for s in skills}
         results = [
@@ -203,3 +215,179 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
+
+
+# ---------------------------------------------------------------------------
+# Search and Filter Functions
+# ---------------------------------------------------------------------------
+
+def search_bounties(params: BountySearchParams) -> BountyListResponse:
+    """
+    Full-text search with filtering and sorting.
+    
+    Uses simple in-memory text matching for MVP.
+    In production, this would use PostgreSQL full-text search with tsvector.
+    
+    Args:
+        params: Search parameters including query, filters, sort, and pagination.
+        
+    Returns:
+        BountyListResponse with matching bounties and total count.
+        
+    Raises:
+        ValueError: If filter parameters are invalid.
+    """
+    # Validate parameters
+    _validate_search_params(params)
+    
+    # Start with all bounties
+    results = list(_bounty_store.values())
+    
+    # Apply full-text search if query provided
+    if params.q:
+        query_lower = params.q.lower()
+        results = [
+            b for b in results
+            if query_lower in b.title.lower() or query_lower in b.description.lower()
+        ]
+    
+    # Apply filters
+    if params.status:
+        results = [b for b in results if b.status.value == params.status]
+    else:
+        # Default to open bounties only
+        results = [b for b in results if b.status == BountyStatus.OPEN]
+    
+    if params.tier:
+        results = [b for b in results if b.tier.value == params.tier]
+    
+    if params.category:
+        results = [b for b in results if b.category == params.category]
+    
+    if params.reward_min is not None:
+        results = [b for b in results if b.reward_amount >= params.reward_min]
+    
+    if params.reward_max is not None:
+        results = [b for b in results if b.reward_amount <= params.reward_max]
+    
+    if params.skills:
+        skill_list = params.get_skills_list()
+        if skill_list:
+            skill_set = {s.lower() for s in skill_list}
+            results = [
+                b for b in results
+                if skill_set & {s.lower() for s in b.required_skills}
+            ]
+    
+    # Apply sorting
+    results = _sort_bounties(results, params.sort)
+    
+    # Apply pagination
+    total = len(results)
+    page = results[params.skip : params.skip + params.limit]
+    
+    return BountyListResponse(
+        items=[_to_list_item(b) for b in page],
+        total=total,
+        skip=params.skip,
+        limit=params.limit,
+    )
+
+
+def get_autocomplete_suggestions(query: str, limit: int = 10) -> AutocompleteResponse:
+    """
+    Get autocomplete suggestions for search.
+    
+    Returns matching bounty titles and skills for partial queries.
+    Minimum query length is 2 characters.
+    
+    Args:
+        query: Partial search query (min 2 chars).
+        limit: Maximum number of suggestions to return.
+        
+    Returns:
+        AutocompleteResponse with matching suggestions.
+    """
+    suggestions = []
+    
+    # Require minimum query length
+    if not query or len(query.strip()) < 2:
+        return AutocompleteResponse(suggestions=suggestions)
+    
+    query = query.strip().lower()
+    
+    # Search in titles (case-insensitive)
+    seen_titles = set()
+    for bounty in _bounty_store.values():
+        if bounty.status == BountyStatus.OPEN and query in bounty.title.lower():
+            if bounty.title not in seen_titles:
+                suggestions.append(AutocompleteSuggestion(
+                    text=bounty.title,
+                    type="title"
+                ))
+                seen_titles.add(bounty.title)
+            if len(suggestions) >= limit:
+                break
+    
+    # Search in skills if we have room
+    remaining = limit - len(suggestions)
+    if remaining > 0:
+        seen_skills = set()
+        for bounty in _bounty_store.values():
+            if bounty.status == BountyStatus.OPEN:
+                for skill in bounty.required_skills:
+                    if skill.lower().startswith(query) and skill not in seen_skills:
+                        suggestions.append(AutocompleteSuggestion(
+                            text=skill,
+                            type="skill"
+                        ))
+                        seen_skills.add(skill)
+                        if len(suggestions) >= limit:
+                            break
+                if len(suggestions) >= limit:
+                    break
+    
+    return AutocompleteResponse(suggestions=suggestions)
+
+
+def _validate_search_params(params: BountySearchParams) -> None:
+    """Validate search parameters."""
+    if params.tier is not None and params.tier not in (1, 2, 3):
+        raise ValueError(f"Invalid tier: {params.tier}. Must be 1, 2, or 3.")
+    
+    if params.category is not None and params.category not in VALID_CATEGORIES:
+        raise ValueError(f"Invalid category: {params.category}. Must be one of {sorted(VALID_CATEGORIES)}.")
+    
+    if params.status is not None:
+        valid_statuses = {s.value for s in BountyStatus}
+        if params.status not in valid_statuses:
+            raise ValueError(f"Invalid status: {params.status}. Must be one of {sorted(valid_statuses)}.")
+    
+    if params.reward_min is not None and params.reward_min < 0:
+        raise ValueError("reward_min cannot be negative.")
+    
+    if params.reward_max is not None and params.reward_max < 0:
+        raise ValueError("reward_max cannot be negative.")
+    
+    if (params.reward_min is not None and params.reward_max is not None 
+            and params.reward_min > params.reward_max):
+        raise ValueError(f"reward_min ({params.reward_min}) cannot be less than reward_max ({params.reward_max}).")
+    
+    if params.sort not in VALID_SORTS:
+        raise ValueError(f"Invalid sort: {params.sort}. Must be one of {sorted(VALID_SORTS)}.")
+
+
+def _sort_bounties(bounties: list[BountyDB], sort: str) -> list[BountyDB]:
+    """Sort bounties by the specified field."""
+    if sort == "newest":
+        return sorted(bounties, key=lambda b: b.created_at, reverse=True)
+    elif sort == "reward_high":
+        return sorted(bounties, key=lambda b: b.reward_amount, reverse=True)
+    elif sort == "reward_low":
+        return sorted(bounties, key=lambda b: b.reward_amount)
+    elif sort == "deadline":
+        # Sort by deadline, with None values at the end
+        return sorted(bounties, key=lambda b: b.deadline or datetime.max.replace(tzinfo=timezone.utc))
+    elif sort == "popularity":
+        return sorted(bounties, key=lambda b: b.popularity, reverse=True)
+    return bounties
