@@ -1,3 +1,14 @@
+# Environment & Secrets
+.env
+.env.*
+*.env
+*.key
+*.pem
+treasury_key.json
+*_key.json
+*secret*
+*.p12
+
 # Python
 __pycache__/
 *.py[cod]
@@ -26,6 +37,21 @@ venv/
 ENV/
 env/
 
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
 # Testing
 .pytest_cache/
 .coverage
@@ -33,16 +59,15 @@ htmlcov/
 .tox/
 .nox/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Rust/Anchor
+target/
+*.so
 
-# Environment variables
-.env
-.env.local
+# Logs
+*.log
 
-# Database
+# Data
+data/
+*.sqlite
 *.db
 *.sqlite3
