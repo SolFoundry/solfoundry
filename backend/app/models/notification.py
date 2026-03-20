@@ -63,7 +63,7 @@ class NotificationBase(BaseModel):
     title: str = Field(..., max_length=255)
     message: str
     bounty_id: Optional[str] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None  # Renamed from metadata
 
 
 class NotificationCreate(NotificationBase):
