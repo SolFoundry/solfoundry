@@ -22,9 +22,8 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Boolean, Text, ARRAY
+from sqlalchemy import Column, String, DateTime, Boolean, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 

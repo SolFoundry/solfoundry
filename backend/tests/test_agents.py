@@ -20,7 +20,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.agents import router as agents_router
-from app.models.agent import AgentRole
 from app.services import agent_service
 
 
@@ -349,7 +348,7 @@ class TestListAgents:
 
     def test_list_filter_by_availability(self):
         """Test filtering by availability."""
-        agent1 = _create_agent(name="Available Agent")
+        _create_agent(name="Available Agent")
         agent2 = _create_agent(name="Inactive Agent")
 
         # Deactivate the second agent
