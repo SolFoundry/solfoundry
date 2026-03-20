@@ -15,6 +15,7 @@ from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
@@ -101,6 +102,9 @@ app.include_router(payouts_router)
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
+
+# Escrow: router has no prefix — add /api/escrow here
+app.include_router(escrow_router, prefix="/api/escrow", tags=["escrow"])
 
 # WebSocket: /ws/*
 app.include_router(websocket_router)
