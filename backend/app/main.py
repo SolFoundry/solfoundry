@@ -345,22 +345,6 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 app.include_router(websocket_router)
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint with sync status."""
-    from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
-
-    last_sync = get_last_sync()
-    return {
-        "status": "ok",
-        "bounties": len(_bounty_store),
-        "contributors": len(_store),
-        "last_sync": last_sync.isoformat() if last_sync else None,
-    }
-
-
 @app.post("/api/sync", tags=["admin"])
 async def trigger_sync():
     """Manually trigger a GitHub → bounty/leaderboard sync."""

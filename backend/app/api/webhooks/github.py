@@ -13,7 +13,7 @@ from app.services.webhook_service import (
     verify_signature,
 )
 from app.services.webhook_processor import WebhookProcessor
-from app.core.errors import ErrorCode
+from app.core.errors import ErrorCode, ErrorResponse
 from app.core.logging_config import get_logger
 from app.core.audit import audit_log, AuditAction
 
@@ -66,10 +66,11 @@ async def receive_github_webhook(
 
         return JSONResponse(
             status_code=503,
-            content={
-                "error": ErrorCode.SERVICE_UNAVAILABLE.value,
-                "message": "Webhook secret not configured",
-            },
+            content=ErrorResponse(
+                error=ErrorCode.SERVICE_UNAVAILABLE,
+                message="Webhook secret not configured",
+                path="/webhooks/github",
+            ).model_dump(mode="json", exclude_none=True),
         )
 
     try:
@@ -95,10 +96,11 @@ async def receive_github_webhook(
 
         return JSONResponse(
             status_code=401,
-            content={
-                "error": ErrorCode.WEBHOOK_SIGNATURE_INVALID.value,
-                "message": str(exc),
-            },
+            content=ErrorResponse(
+                error=ErrorCode.WEBHOOK_SIGNATURE_INVALID,
+                message=str(exc),
+                path="/webhooks/github",
+            ).model_dump(mode="json", exclude_none=True),
         )
 
     event_type = x_github_event or "unknown"
@@ -148,10 +150,11 @@ async def receive_github_webhook(
 
         return JSONResponse(
             status_code=400,
-            content={
-                "error": ErrorCode.WEBHOOK_PAYLOAD_INVALID.value,
-                "message": "Invalid JSON payload",
-            },
+            content=ErrorResponse(
+                error=ErrorCode.WEBHOOK_PAYLOAD_INVALID,
+                message="Invalid JSON payload",
+                path="/webhooks/github",
+            ).model_dump(mode="json", exclude_none=True),
         )
 
     # Process event
@@ -283,8 +286,9 @@ async def receive_github_webhook(
 
         return JSONResponse(
             status_code=500,
-            content={
-                "error": ErrorCode.INTERNAL_ERROR.value,
-                "message": "Error processing webhook",
-            },
+            content=ErrorResponse(
+                error=ErrorCode.INTERNAL_ERROR,
+                message="Error processing webhook",
+                path="/webhooks/github",
+            ).model_dump(mode="json", exclude_none=True),
         )
