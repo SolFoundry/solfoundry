@@ -46,12 +46,14 @@ def test_list_empty():
 
 
 def test_list_with_data():
-    _create("alice")`r`n    _create("bob")
+    _create("alice")
+    _create("bob")
     assert client.get("/api/contributors").json()["total"] == 2
 
 
 def test_search():
-    _create("alice")`r`n    _create("bob")
+    _create("alice")
+    _create("bob")
     resp = client.get("/api/contributors?search=alice")
     assert resp.json()["total"] == 1
 
@@ -70,7 +72,8 @@ def test_filter_badges():
 
 
 def test_pagination():
-    for i in range(5): _create(f"user{i}")
+    for i in range(5):
+        _create(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
     assert resp.json()["total"] == 5
     assert len(resp.json()["items"]) == 2
