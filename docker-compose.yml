@@ -1,0 +1,24 @@
+version: '3.8'
+env_file:
+  - .env
+
+services:
+  app:
+    build: .
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - API_KEY=${API_KEY}
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "8000:8000"
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
