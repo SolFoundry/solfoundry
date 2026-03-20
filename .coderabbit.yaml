@@ -1,57 +1,60 @@
 # CodeRabbit Configuration — SolFoundry
 # https://docs.coderabbit.ai/guides/configure-coderabbit
+#
+# IMPORTANT: CodeRabbit is for internal maintainer use only.
+# We disable detailed suggestions/code fixes to prevent contributors
+# from copy-pasting fixes — they must solve problems themselves.
 
 language: "en-US"
 early_access: false
 
 reviews:
   profile: "assertive"
-  request_changes_workflow: true
+  request_changes_workflow: false  # Don't auto-request changes — our LLM pipeline handles this
   high_level_summary: true
   high_level_summary_placeholder: "@coderabbitai summary"
   auto_title_placeholder: "@coderabbitai"
   poem: false
-  review_status: true
+  review_status: false             # Don't post review status comment
   collapse_walkthrough: true
   sequence_diagrams: false
-  changed_files_summary: true
+  changed_files_summary: false     # Don't list all changed files (reveals structure)
   abort_on_close: true
 
-  # Important: keep feedback vague — don't give exact fixes
-  # CodeRabbit's default is already area-level feedback
+  # CRITICAL: Disable inline code suggestions — these give away fixes
+  tools:
+    ast-grep:
+      enabled: false              # Disable AST pattern suggestions
+    github-checks:
+      enabled: false              # Don't post check annotations
 
   path_instructions:
+    - path: "**"
+      instructions: |
+        You are reviewing a bounty submission. DO NOT provide specific code fixes,
+        corrected code snippets, or copy-pasteable solutions. Only identify the
+        CATEGORY of issue (e.g. "missing input validation", "potential race condition")
+        without showing how to fix it. The contributor must solve it themselves.
+        Keep feedback at the architectural/design level, not line-level.
+
     - path: "contracts/**"
       instructions: |
-        This is Solana smart contract code (Rust/Anchor). Focus heavily on:
-        - Arithmetic overflow/underflow
-        - Access control and PDA validation
-        - Reentrancy and CPI safety
-        - Account validation and constraint checks
-        Be STRICT — this handles real money.
+        Solana smart contract code. Flag security concerns by CATEGORY only:
+        - "Arithmetic safety concern" (don't show the fix)
+        - "Access control gap" (don't show the check)
+        - "CPI safety issue" (don't show the guard)
+        DO NOT provide corrected code.
 
     - path: "backend/**"
       instructions: |
-        Python FastAPI backend. Focus on:
-        - Input validation and SQL injection
-        - Authentication/authorization
-        - Error handling and edge cases
-        - API contract consistency
-
-    - path: "frontend/**"
-      instructions: |
-        React/TypeScript frontend. Focus on:
-        - Component structure and state management
-        - XSS prevention (dangerouslySetInnerHTML, user inputs)
-        - Accessibility basics
-        - Integration with existing components
+        Python FastAPI backend. Flag issues by CATEGORY only:
+        - "Input validation gap" (don't show the validator)
+        - "Auth concern" (don't show the fix)
+        DO NOT provide corrected code or example implementations.
 
     - path: ".github/**"
       instructions: |
-        GitHub Actions and CI/CD config. Focus on:
-        - Secrets handling (never echo/log secrets)
-        - Workflow trigger correctness
-        - Step dependencies and artifact passing
+        Skip reviewing GitHub Actions — this is maintained by the core team.
 
 chat:
   auto_reply: true
