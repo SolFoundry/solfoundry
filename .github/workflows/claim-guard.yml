@@ -93,7 +93,7 @@ jobs:
               exit(0)
 
           # --- CLAIM DETECTION ---
-          claim_re = r"(claim|dibs|i.?ll take|assigning myself|assign.*(me|this)|can i (take|work)|i want to (take|work)|want to work|working on this|taking this|claiming this|want to implement|i.?d like to (work|take|build|implement)|interested in this|please assign|let me work|i.?ll work on|i.?ll build|i.?ll implement)"
+          claim_re = r"(/attempt|attempt|claim|dibs|i.?ll take|assigning myself|assign.*(me|this)|can i (take|work)|i want to (take|work)|want to work|working on this|taking this|claiming this|want to implement|i.?d like to (work|take|build|implement)|interested in this|please assign|let me work|i.?ll work on|i.?ll build|i.?ll implement)"
           is_claim = bool(re.search(claim_re, lower))
 
           if not is_claim:

@@ -51,7 +51,10 @@ jobs:
                   req.add_header("Content-Type", "application/json")
               try:
                   with urllib.request.urlopen(req) as resp:
-                      return json.loads(resp.read()), resp.status
+                      raw = resp.read()
+                      if resp.status == 204 or not raw:
+                          return None, resp.status
+                      return json.loads(raw), resp.status
               except urllib.error.HTTPError as e:
                   return None, e.code
 
@@ -154,13 +157,22 @@ jobs:
                           )
                       })
 
+                  # Trigger AI Code Review via workflow_dispatch (label removal doesn't trigger pull_request_target)
+                  trigger_resp = gh_api(
+                      f"repos/{repo}/actions/workflows/pr-review.yml/dispatches",
+                      method="POST",
+                      data={"ref": "main", "inputs": {"pr_number": str(pr_number)}}
+                  )
+                  review_triggered = trigger_resp[1] == 204
+                  review_status = "🔄 Review triggered" if review_triggered else "⚠️ Review trigger failed"
+
                   send_telegram(
                       f"✅ <b>Wallet added — PR #{pr_number}</b>\n"
                       f"👤 {pr_author}\n"
                       f"📬 <code>{wallet}</code>\n"
-                      f"Label removed, review proceeding."
+                      f"Label removed. {review_status}"
                   )
-                  print(f"PR #{pr_number}: wallet found ({wallet_redacted}), removed missing-wallet label")
+                  print(f"PR #{pr_number}: wallet found ({wallet_redacted}), removed missing-wallet label, review={'triggered' if review_triggered else 'trigger failed'}")
               else:
                   print(f"PR #{pr_number}: wallet present, no missing-wallet label — all good")
           else:
