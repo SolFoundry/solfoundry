@@ -22,20 +22,25 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/solfoundry"
 )
 
-# Connection pool settings
+# Connection pool settings (only for PostgreSQL)
+is_sqlite = DATABASE_URL.startswith("sqlite")
 POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 POOL_MAX_OVERFLOW = int(os.getenv("DB_POOL_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
-# Create async engine with connection pooling
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=os.getenv("SQL_ECHO", "false").lower() == "true",
-    pool_pre_ping=True,
-    pool_size=POOL_SIZE,
-    max_overflow=POOL_MAX_OVERFLOW,
-    pool_timeout=POOL_TIMEOUT,
-)
+# Create async engine with connection pooling (PostgreSQL only)
+engine_kwargs = {
+    "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
+}
+if not is_sqlite:
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": POOL_SIZE,
+        "max_overflow": POOL_MAX_OVERFLOW,
+        "pool_timeout": POOL_TIMEOUT,
+    })
+
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 
 # Create async session factory
 # autocommit=False ensures explicit transaction control
