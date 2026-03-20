@@ -96,6 +96,21 @@ jobs:
             exit 0
           fi
 
+          # For workflow_dispatch (bot-triggered re-reviews after new commits),
+          # delete old review comments so the review runs fresh
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Workflow dispatch — clearing old review for re-review"
+            # Delete old bot review comments
+            OLD_COMMENT_IDS=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+              --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete")) | .id] | .[]' 2>/dev/null || true)
+            for CID in $OLD_COMMENT_IDS; do
+              gh api -X DELETE "repos/${REPO}/issues/comments/${CID}" 2>/dev/null || true
+              echo "Deleted old review comment $CID"
+            done
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Check if a multi-LLM review comment already exists on this PR
           EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
             --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete"))] | length' 2>/dev/null || echo "0")
