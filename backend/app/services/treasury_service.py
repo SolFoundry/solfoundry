@@ -16,7 +16,11 @@ from app.services.payout_service import (
     get_total_buybacks,
     get_total_paid_out,
 )
-from app.services.solana_client import FNDRY_TOKEN_CA, TREASURY_WALLET, get_treasury_balances
+from app.services.solana_client import (
+    FNDRY_TOKEN_CA,
+    TREASURY_WALLET,
+    get_treasury_balances,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +67,14 @@ async def get_treasury_stats() -> TreasuryStats:
     total_buyback_sol, _ = get_total_buybacks()
 
     return TreasuryStats(
-        sol_balance=sol_balance, fndry_balance=fndry_balance,
+        sol_balance=sol_balance,
+        fndry_balance=fndry_balance,
         treasury_wallet=TREASURY_WALLET,
-        total_paid_out_fndry=total_fndry_paid, total_paid_out_sol=total_sol_paid,
+        total_paid_out_fndry=total_fndry_paid,
+        total_paid_out_sol=total_sol_paid,
         total_payouts=_count_confirmed_payouts(),
-        total_buyback_amount=total_buyback_sol, total_buybacks=_count_buybacks(),
+        total_buyback_amount=total_buyback_sol,
+        total_buybacks=_count_buybacks(),
         last_updated=datetime.now(timezone.utc),
     )
 
@@ -109,7 +116,8 @@ async def get_tokenomics() -> TokenomicsResponse:
     circulating = TOTAL_SUPPLY - fndry_balance
 
     return TokenomicsResponse(
-        token_name="FNDRY", token_ca=FNDRY_TOKEN_CA,
+        token_name="FNDRY",
+        token_ca=FNDRY_TOKEN_CA,
         total_supply=TOTAL_SUPPLY,
         circulating_supply=circulating,
         treasury_holdings=fndry_balance,

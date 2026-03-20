@@ -63,7 +63,9 @@ def _matches_tier(contributor: ContributorDB, tier: Optional[TierFilter]) -> boo
     return tier_label in (contributor.badges or [])
 
 
-def _matches_category(contributor: ContributorDB, category: Optional[CategoryFilter]) -> bool:
+def _matches_category(
+    contributor: ContributorDB, category: Optional[CategoryFilter]
+) -> bool:
     """Check if contributor has skills in the given category."""
     if category is None:
         return True

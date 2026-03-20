@@ -1,10 +1,15 @@
 """Pytest configuration for backend tests."""
 
 import asyncio
+import os
 import pytest
 
+# Set test database URL before importing app modules
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
+
 # Configure asyncio mode for pytest
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.fixture(scope="session")

@@ -53,7 +53,8 @@ async def get_sol_balance(wallet: str = TREASURY_WALLET) -> float:
 
 
 async def get_token_balance(
-    wallet: str = TREASURY_WALLET, mint: str = FNDRY_TOKEN_CA,
+    wallet: str = TREASURY_WALLET,
+    mint: str = FNDRY_TOKEN_CA,
 ) -> float:
     """Return the SPL-token balance for *mint* held by *wallet*."""
     data = await _rpc_call(

@@ -31,7 +31,11 @@ export function useLeaderboard() {
   const sorted = useMemo(() => {
     let list = [...contributors];
     if (search) list = list.filter(c => c.username.toLowerCase().includes(search.toLowerCase()));
-    list.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+    list.sort((a, b) => {
+      const aValue = sortBy === 'bounties' ? a.bountiesCompleted : sortBy === 'earnings' ? a.earningsFndry : a.points;
+      const bValue = sortBy === 'bounties' ? b.bountiesCompleted : sortBy === 'earnings' ? b.earningsFndry : b.points;
+      return bValue - aValue;
+    });
     return list.map((c, i) => ({ ...c, rank: i + 1 }));
   }, [contributors, sortBy, search]);
 

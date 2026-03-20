@@ -6,8 +6,15 @@ import threading
 from typing import Optional
 
 from app.models.payout import (
-    BuybackCreate, BuybackRecord, BuybackResponse, BuybackListResponse,
-    PayoutCreate, PayoutRecord, PayoutResponse, PayoutListResponse, PayoutStatus,
+    BuybackCreate,
+    BuybackRecord,
+    BuybackResponse,
+    BuybackListResponse,
+    PayoutCreate,
+    PayoutRecord,
+    PayoutResponse,
+    PayoutListResponse,
+    PayoutStatus,
 )
 
 _lock = threading.Lock()
@@ -27,19 +34,30 @@ def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
 def _payout_to_response(p: PayoutRecord) -> PayoutResponse:
     """Map an internal ``PayoutRecord`` to the public ``PayoutResponse`` schema."""
     return PayoutResponse(
-        id=p.id, recipient=p.recipient, recipient_wallet=p.recipient_wallet,
-        amount=p.amount, token=p.token, bounty_id=p.bounty_id,
-        bounty_title=p.bounty_title, tx_hash=p.tx_hash, status=p.status,
-        solscan_url=p.solscan_url, created_at=p.created_at,
+        id=p.id,
+        recipient=p.recipient,
+        recipient_wallet=p.recipient_wallet,
+        amount=p.amount,
+        token=p.token,
+        bounty_id=p.bounty_id,
+        bounty_title=p.bounty_title,
+        tx_hash=p.tx_hash,
+        status=p.status,
+        solscan_url=p.solscan_url,
+        created_at=p.created_at,
     )
 
 
 def _buyback_to_response(b: BuybackRecord) -> BuybackResponse:
     """Map an internal ``BuybackRecord`` to the public ``BuybackResponse`` schema."""
     return BuybackResponse(
-        id=b.id, amount_sol=b.amount_sol, amount_fndry=b.amount_fndry,
-        price_per_fndry=b.price_per_fndry, tx_hash=b.tx_hash,
-        solscan_url=b.solscan_url, created_at=b.created_at,
+        id=b.id,
+        amount_sol=b.amount_sol,
+        amount_fndry=b.amount_fndry,
+        price_per_fndry=b.price_per_fndry,
+        tx_hash=b.tx_hash,
+        solscan_url=b.solscan_url,
+        created_at=b.created_at,
     )
 
 
@@ -48,10 +66,15 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
     solscan = _solscan_url(data.tx_hash)
     status = PayoutStatus.CONFIRMED if data.tx_hash else PayoutStatus.PENDING
     record = PayoutRecord(
-        recipient=data.recipient, recipient_wallet=data.recipient_wallet,
-        amount=data.amount, token=data.token, bounty_id=data.bounty_id,
-        bounty_title=data.bounty_title, tx_hash=data.tx_hash,
-        status=status, solscan_url=solscan,
+        recipient=data.recipient,
+        recipient_wallet=data.recipient_wallet,
+        amount=data.amount,
+        token=data.token,
+        bounty_id=data.bounty_id,
+        bounty_title=data.bounty_title,
+        tx_hash=data.tx_hash,
+        status=status,
+        solscan_url=solscan,
     )
     with _lock:
         if data.tx_hash:
@@ -86,7 +109,9 @@ def list_payouts(
 ) -> PayoutListResponse:
     """Return a filtered, paginated list of payouts (newest first)."""
     with _lock:
-        results = sorted(_payout_store.values(), key=lambda p: p.created_at, reverse=True)
+        results = sorted(
+            _payout_store.values(), key=lambda p: p.created_at, reverse=True
+        )
     if recipient:
         results = [p for p in results if p.recipient == recipient]
     if status:
@@ -94,7 +119,10 @@ def list_payouts(
     total = len(results)
     page = results[skip : skip + limit]
     return PayoutListResponse(
-        items=[_payout_to_response(p) for p in page], total=total, skip=skip, limit=limit,
+        items=[_payout_to_response(p) for p in page],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -116,8 +144,11 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
     """Persist a new buyback; rejects duplicate tx_hash with ValueError."""
     solscan = _solscan_url(data.tx_hash)
     record = BuybackRecord(
-        amount_sol=data.amount_sol, amount_fndry=data.amount_fndry,
-        price_per_fndry=data.price_per_fndry, tx_hash=data.tx_hash, solscan_url=solscan,
+        amount_sol=data.amount_sol,
+        amount_fndry=data.amount_fndry,
+        price_per_fndry=data.price_per_fndry,
+        tx_hash=data.tx_hash,
+        solscan_url=solscan,
     )
     with _lock:
         if data.tx_hash:
@@ -131,11 +162,16 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
 def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
     """Return a paginated list of buybacks (newest first)."""
     with _lock:
-        results = sorted(_buyback_store.values(), key=lambda b: b.created_at, reverse=True)
+        results = sorted(
+            _buyback_store.values(), key=lambda b: b.created_at, reverse=True
+        )
     total = len(results)
     page = results[skip : skip + limit]
     return BuybackListResponse(
-        items=[_buyback_to_response(b) for b in page], total=total, skip=skip, limit=limit,
+        items=[_buyback_to_response(b) for b in page],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 
