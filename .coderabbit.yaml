@@ -1,41 +1,40 @@
 # CodeRabbit Configuration — SolFoundry
 # https://docs.coderabbit.ai/guides/configure-coderabbit
 #
-# CodeRabbit runs as a PRIVATE analysis layer. Its findings are:
-# 1. Fed into our multi-LLM review pipeline (GPT + Gemini + Grok) as context
-# 2. NOT exposed as detailed inline comments to contributors
-#
-# Contributors only see a collapsed high-level summary.
-# The real value is in feeding CodeRabbit's deep analysis to our LLM judges.
+# CodeRabbit runs as a PRIVATE analysis layer feeding our multi-LLM pipeline.
+# It does NOT post inline comments or review suggestions to contributors.
+# Contributors only see our unified SolFoundry Review Bot output.
 
 language: "en-US"
 early_access: false
 
 reviews:
   profile: "assertive"
-  request_changes_workflow: false  # Don't auto-request changes — our LLM pipeline handles this
-  high_level_summary: true        # Post a summary comment (collapsed, no code fixes)
+  request_changes_workflow: false  # Our LLM pipeline handles this
+  high_level_summary: false       # Suppress the summary comment entirely
   high_level_summary_placeholder: "@coderabbitai summary"
   auto_title_placeholder: "@coderabbitai"
   poem: false
-  review_status: false             # Don't post review status badge
-  collapse_walkthrough: true       # Collapse the walkthrough section
+  review_status: false
+  collapse_walkthrough: true
   sequence_diagrams: false
-  changed_files_summary: false     # Don't list changed files publicly
+  changed_files_summary: false
   abort_on_close: true
 
   auto_review:
-    enabled: true                  # Re-enabled — but inline comments are suppressed below
+    enabled: true
     drafts: false
     base_branches:
       - main
 
-  # Disable ALL inline code suggestions — these are what contributors copy-paste
+  # Disable ALL tools and inline review comments
+  # CodeRabbit's value is its analysis fed to our LLM judges via the API,
+  # not its public-facing comments
   tools:
     ast-grep:
-      enabled: false              # No AST-based suggestions
+      enabled: false
     github-checks:
-      enabled: false              # No check annotations
+      enabled: false
     biome:
       enabled: false
     hadolint:
@@ -71,9 +70,9 @@ reviews:
         affected files, line numbers, and technical details. This information
         helps our LLM judges score accurately.
 
-        However, in your WALKTHROUGH and SUMMARY (which ARE visible to the contributor),
-        keep descriptions at the architectural level. Do not include code fixes or
-        copy-pasteable solutions in the summary.
+        Do NOT post inline review comments. Do NOT post code suggestions.
+        Only produce the walkthrough analysis for the API — it will be consumed
+        programmatically by our review pipeline.
 
     - path: "contracts/**"
       instructions: |
@@ -105,7 +104,7 @@ reviews:
         Skip reviewing GitHub Actions — this is maintained by the core team.
 
 chat:
-  auto_reply: true
+  auto_reply: false  # Don't auto-reply to comments either
 
 knowledge_base:
   opt_out: false
