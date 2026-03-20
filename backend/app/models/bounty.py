@@ -31,15 +31,21 @@ class BountyStatus(str, Enum):
 
     OPEN = "open"
     IN_PROGRESS = "in_progress"
+    UNDER_REVIEW = "under_review"
     COMPLETED = "completed"
+    DISPUTED = "disputed"
     PAID = "paid"
+    CANCELLED = "cancelled"
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
-    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS},
-    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN},
-    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS},
+    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
+    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
+    BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
+    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED},
+    BountyStatus.DISPUTED: {BountyStatus.COMPLETED, BountyStatus.CANCELLED, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
+    BountyStatus.CANCELLED: set(),  # terminal
 }
 
 # Valid status values for webhook processor
@@ -72,6 +78,8 @@ class SubmissionRecord(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
+    status: str = "pending"
+    ai_score: float = 0.0
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -98,6 +106,8 @@ class SubmissionResponse(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
+    status: str = "pending"
+    ai_score: float = 0.0
     submitted_at: datetime
 
 
@@ -265,6 +275,7 @@ class BountySearchParams(BaseModel):
     creator_type: Optional[str] = Field(
         None, pattern=r"^(platform|community)$", description="platform or community"
     )
+    creator_id: Optional[str] = Field(None, description="Filter by creator's ID/wallet")
     reward_min: Optional[float] = Field(None, ge=0)
     reward_max: Optional[float] = Field(None, ge=0)
     deadline_before: Optional[datetime] = None

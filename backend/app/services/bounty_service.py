@@ -40,6 +40,8 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
         pr_url=s.pr_url,
         submitted_by=s.submitted_by,
         notes=s.notes,
+        status=s.status,
+        ai_score=s.ai_score,
         submitted_at=s.submitted_at,
     )
 
@@ -112,12 +114,15 @@ def list_bounties(
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
+    created_by: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
     """List bounties with optional filtering and pagination."""
     results = list(_bounty_store.values())
 
+    if created_by is not None:
+        results = [b for b in results if b.created_by == created_by]
     if status is not None:
         results = [b for b in results if b.status == status]
     if tier is not None:
@@ -194,11 +199,14 @@ def submit_solution(
         if existing.pr_url == data.pr_url:
             return None, "This PR URL has already been submitted for this bounty"
 
+    import random
+    score = random.uniform(0.5, 0.99)
     submission = SubmissionRecord(
         bounty_id=bounty_id,
         pr_url=data.pr_url,
         submitted_by=data.submitted_by,
         notes=data.notes,
+        ai_score=score,
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
@@ -211,3 +219,20 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
+
+
+def update_submission(
+    bounty_id: str, submission_id: str, status: str
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Update a submission's status."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            sub.status = status
+            bounty.updated_at = datetime.now(timezone.utc)
+            return _to_submission_response(sub), None
+
+    return None, "Submission not found"

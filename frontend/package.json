@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@solana-mobile/wallet-adapter-mobile": "^2.2.6",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
@@ -31,5 +32,6 @@
     "typescript": "^5.4.5",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

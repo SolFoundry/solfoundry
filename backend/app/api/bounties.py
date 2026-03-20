@@ -51,6 +51,7 @@ async def list_bounties(
     skills: Optional[str] = Query(
         None, description="Comma-separated skill filter (case-insensitive)"
     ),
+    created_by: Optional[str] = Query(None, description="Filter by creator ID"),
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(20, ge=1, le=100, description="Page size"),
 ) -> BountyListResponse:
@@ -58,7 +59,7 @@ async def list_bounties(
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
     return bounty_service.list_bounties(
-        status=status, tier=tier, skills=skill_list, skip=skip, limit=limit
+        status=status, tier=tier, skills=skill_list, created_by=created_by, skip=skip, limit=limit
     )
 
 
@@ -85,6 +86,7 @@ async def search_bounties(
     skills: Optional[str] = Query(None, description="Comma-separated skills"),
     category: Optional[str] = Query(None),
     creator_type: Optional[str] = Query(None, pattern=r"^(platform|community)$"),
+    creator_id: Optional[str] = Query(None, description="Filter by creator ID/wallet"),
     reward_min: Optional[float] = Query(None, ge=0),
     reward_max: Optional[float] = Query(None, ge=0),
     deadline_before: Optional[str] = Query(None, description="ISO datetime"),
@@ -105,6 +107,7 @@ async def search_bounties(
         skills=skill_list,
         category=category,
         creator_type=creator_type,
+        creator_id=creator_id,
         reward_min=reward_min,
         reward_max=reward_max,
         sort=sort,
@@ -220,4 +223,37 @@ async def get_submissions(bounty_id: str) -> list[SubmissionResponse]:
     result = bounty_service.get_submissions(bounty_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Bounty not found")
+    return result
+
+
+class SubmissionStatusUpdate(BaseModel):
+    status: str
+
+
+@router.patch(
+    "/{bounty_id}/submissions/{submission_id}",
+    response_model=SubmissionResponse,
+    summary="Update a submission's status",
+)
+async def update_submission(
+    bounty_id: str, submission_id: str, data: SubmissionStatusUpdate
+) -> SubmissionResponse:
+    result, error = bounty_service.update_submission(bounty_id, submission_id, data.status)
+    if error:
+        status_code = 404 if "not found" in error.lower() else 400
+        raise HTTPException(status_code=status_code, detail=error)
+    return result
+
+
+@router.post(
+    "/{bounty_id}/cancel",
+    response_model=BountyResponse,
+    summary="Cancel a bounty and trigger refund",
+)
+async def cancel_bounty(bounty_id: str) -> BountyResponse:
+    result, error = bounty_service.update_bounty(
+        bounty_id, BountyUpdate(status=BountyStatus.CANCELLED)
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
     return result
