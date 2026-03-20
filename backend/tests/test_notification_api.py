@@ -188,7 +188,7 @@ class TestListNotifications:
         
         assert data["total"] == 2
         for item in data["items"]:
-            assert item["read"] == False
+            assert not item["read"]
     
     @pytest.mark.asyncio
     async def test_pagination(self, client, sample_notifications):
@@ -327,7 +327,7 @@ class TestMarkAsRead:
         
         assert response.status_code == 200
         data = response.json()
-        assert data["read"] == True
+        assert data["read"]
     
     @pytest.mark.asyncio
     async def test_mark_notification_not_found(self, client, user_id):

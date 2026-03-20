@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 from app.main import app
 from app.models.bounty import BountyDB, Base
-from app.models.webhook_log import WebhookEventLogDB
 from app.database import get_db
 
 
@@ -344,4 +343,4 @@ class TestGitHubWebhook:
         data = response.json()
         
         assert data["status"] == "accepted"
-        assert data["handled"] == False
+        assert not data["handled"]
