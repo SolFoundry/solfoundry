@@ -24,20 +24,20 @@ async def get_current_user_id(
 ) -> str:
     """
     Extract and validate the current user ID from the request.
-    
+
     Supports two authentication methods:
     1. Bearer token (for production use)
     2. X-User-ID header (for development/testing)
-    
+
     In production, this should be replaced with proper JWT validation.
-    
+
     Args:
         credentials: Optional Bearer token from Authorization header
         x_user_id: Optional user ID from X-User-ID header
-        
+
     Returns:
         str: The authenticated user ID
-        
+
     Raises:
         HTTPException: If authentication fails or user ID is missing
     """
@@ -48,34 +48,34 @@ async def get_current_user_id(
             return x_user_id
         # For testing, allow a default user
         return "00000000-0000-0000-0000-000000000001"
-    
+
     # Production mode: Require valid authentication
     if credentials:
         # TODO: Implement JWT token validation
         # For now, treat the token as the user ID (development only)
         # In production, decode JWT and extract user_id from claims
         token = credentials.credentials
-        
+
         # Validate token format (UUID)
         if _is_valid_uuid(token):
             return token
-        
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if x_user_id:
         # Validate user ID format
         if _is_valid_uuid(x_user_id):
             return x_user_id
-        
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user ID format",
         )
-    
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Missing authentication credentials",
@@ -86,6 +86,7 @@ async def get_current_user_id(
 def _is_valid_uuid(value: str) -> bool:
     """Check if a string is a valid UUID format."""
     import uuid
+
     try:
         uuid.UUID(value)
         return True
@@ -95,14 +96,14 @@ def _is_valid_uuid(value: str) -> bool:
 
 class AuthenticatedUser:
     """Helper class for authenticated user context."""
-    
+
     def __init__(self, user_id: str):
         self.user_id = user_id
         self._id = user_id  # Alias for convenience
-    
+
     def __str__(self) -> str:
         return self.user_id
-    
+
     def owns_resource(self, resource_user_id: str) -> bool:
         """Check if this user owns a resource."""
         return self.user_id == resource_user_id
@@ -113,12 +114,12 @@ async def get_authenticated_user(
 ) -> AuthenticatedUser:
     """
     Get the authenticated user as an object.
-    
+
     Provides a convenient way to access user context in route handlers.
-    
+
     Args:
         user_id: The authenticated user ID from the auth dependency
-        
+
     Returns:
         AuthenticatedUser: The authenticated user context
     """

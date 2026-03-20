@@ -17,7 +17,7 @@ from app.database import get_db
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost/solfoundry_test"
+    "postgresql+asyncpg://postgres:postgres@localhost/solfoundry_test",
 )
 
 WEBHOOK_SECRET = "test_secret"
@@ -27,16 +27,16 @@ WEBHOOK_SECRET = "test_secret"
 async def db_engine():
     """Create test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -48,7 +48,7 @@ async def db_session(db_engine):
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session() as session:
         yield session
 
@@ -56,31 +56,28 @@ async def db_session(db_engine):
 @pytest_asyncio.fixture
 async def client(db_session):
     """Create a test client."""
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
 def create_signature(payload: bytes, secret: str) -> str:
     """Create HMAC-SHA256 signature for webhook."""
-    signature = hmac.new(
-        secret.encode("utf-8"),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
+    signature = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     return f"sha256={signature}"
 
 
 class TestGitHubWebhook:
     """Tests for GitHub webhook endpoint."""
-    
+
     @pytest.mark.asyncio
     async def test_ping_event(self, client):
         """Test ping event returns pong."""
@@ -92,19 +89,19 @@ class TestGitHubWebhook:
             },
             content=json.dumps({"zen": "test"}).encode(),
         )
-        
+
         assert response.status_code == 200
         assert response.json()["msg"] == "pong"
-    
+
     @pytest.mark.asyncio
     async def test_signature_verification_success(self, client):
         """Test valid signature passes verification."""
         payload = json.dumps({"action": "opened"}).encode()
         signature = create_signature(payload, WEBHOOK_SECRET)
-        
+
         # Set secret in environment
         os.environ["GITHUB_WEBHOOK_SECRET"] = WEBHOOK_SECRET
-        
+
         response = await client.post(
             "/api/webhooks/github",
             headers={
@@ -114,19 +111,19 @@ class TestGitHubWebhook:
             },
             content=payload,
         )
-        
+
         assert response.status_code in [200, 202]
-        
+
         del os.environ["GITHUB_WEBHOOK_SECRET"]
-    
+
     @pytest.mark.asyncio
     async def test_signature_verification_failure(self, client):
         """Test invalid signature returns 401."""
         os.environ["GITHUB_WEBHOOK_SECRET"] = WEBHOOK_SECRET
-        
+
         payload = json.dumps({"action": "opened"}).encode()
         wrong_signature = "sha256=wrong_signature"
-        
+
         response = await client.post(
             "/api/webhooks/github",
             headers={
@@ -136,11 +133,11 @@ class TestGitHubWebhook:
             },
             content=payload,
         )
-        
+
         assert response.status_code == 401
-        
+
         del os.environ["GITHUB_WEBHOOK_SECRET"]
-    
+
     @pytest.mark.asyncio
     async def test_pull_request_opened_updates_bounty(self, client, db_session):
         """Test PR opened with 'Closes #N' updates bounty status."""
@@ -156,7 +153,7 @@ class TestGitHubWebhook:
         )
         db_session.add(bounty)
         await db_session.commit()
-        
+
         # Send PR opened event
         payload = {
             "action": "opened",
@@ -175,7 +172,7 @@ class TestGitHubWebhook:
             },
             "sender": {"login": "testuser", "id": 1},
         }
-        
+
         response = await client.post(
             "/api/webhooks/github",
             headers={
@@ -184,13 +181,13 @@ class TestGitHubWebhook:
             },
             content=json.dumps(payload).encode(),
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "bounty_updated" in data
         assert data["new_status"] == "in_review"
-    
+
     @pytest.mark.asyncio
     async def test_pull_request_merged_completes_bounty(self, client, db_session):
         """Test PR merged updates bounty to completed."""
@@ -206,7 +203,7 @@ class TestGitHubWebhook:
         )
         db_session.add(bounty)
         await db_session.commit()
-        
+
         # Send PR merged event
         payload = {
             "action": "closed",
@@ -226,7 +223,7 @@ class TestGitHubWebhook:
             },
             "sender": {"login": "testuser", "id": 1},
         }
-        
+
         response = await client.post(
             "/api/webhooks/github",
             headers={
@@ -235,13 +232,13 @@ class TestGitHubWebhook:
             },
             content=json.dumps(payload).encode(),
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "bounty_updated" in data
         assert data["new_status"] == "completed"
-    
+
     @pytest.mark.asyncio
     async def test_issue_labeled_creates_bounty(self, client, db_session):
         """Test issue labeled with 'bounty' creates bounty record."""
@@ -264,7 +261,7 @@ class TestGitHubWebhook:
             },
             "sender": {"login": "testuser", "id": 1},
         }
-        
+
         response = await client.post(
             "/api/webhooks/github",
             headers={
@@ -273,12 +270,12 @@ class TestGitHubWebhook:
             },
             content=json.dumps(payload).encode(),
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "bounty_created" in data
-    
+
     @pytest.mark.asyncio
     async def test_idempotency(self, client, db_session):
         """Test duplicate delivery is skipped."""
@@ -300,9 +297,9 @@ class TestGitHubWebhook:
             },
             "sender": {"login": "testuser", "id": 1},
         }
-        
+
         delivery_id = "test-delivery-idempotency"
-        
+
         response1 = await client.post(
             "/api/webhooks/github",
             headers={
@@ -311,9 +308,9 @@ class TestGitHubWebhook:
             },
             content=json.dumps(payload).encode(),
         )
-        
+
         assert response1.status_code == 200
-        
+
         # Second request with same delivery_id
         response2 = await client.post(
             "/api/webhooks/github",
@@ -323,11 +320,11 @@ class TestGitHubWebhook:
             },
             content=json.dumps(payload).encode(),
         )
-        
+
         assert response2.status_code == 200
         assert response2.json()["status"] == "skipped"
         assert response2.json()["reason"] == "duplicate"
-    
+
     @pytest.mark.asyncio
     async def test_unhandled_event_type(self, client):
         """Test unhandled event types are accepted but not processed."""
@@ -339,9 +336,9 @@ class TestGitHubWebhook:
             },
             content=json.dumps({"ref": "main"}).encode(),
         )
-        
+
         assert response.status_code == 202
         data = response.json()
-        
+
         assert data["status"] == "accepted"
         assert not data["handled"]

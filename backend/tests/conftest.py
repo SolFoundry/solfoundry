@@ -4,7 +4,7 @@ import asyncio
 import pytest
 
 # Configure asyncio mode for pytest
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.fixture(scope="session")

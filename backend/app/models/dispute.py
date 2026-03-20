@@ -37,7 +37,9 @@ class DisputeDB(Base):
     __tablename__ = "disputes"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    bounty_id = Column(GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False)
+    bounty_id = Column(
+        GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
+    )
     submitter_id = Column(GUID(), nullable=False)
     reason = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
@@ -47,13 +49,19 @@ class DisputeDB(Base):
     reviewer_id = Column(GUID(), nullable=True)
     review_notes = Column(Text, nullable=True)
     resolution_action = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        Index('ix_disputes_bounty_id', bounty_id),
-        Index('ix_disputes_status', status),
+        Index("ix_disputes_bounty_id", bounty_id),
+        Index("ix_disputes_status", status),
     )
 
 
@@ -61,15 +69,19 @@ class DisputeHistoryDB(Base):
     __tablename__ = "dispute_history"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    dispute_id = Column(GUID(), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False)
+    dispute_id = Column(
+        GUID(), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
+    )
     action = Column(String(50), nullable=False)
     previous_status = Column(String(20), nullable=True)
     new_status = Column(String(20), nullable=True)
     actor_id = Column(GUID(), nullable=False)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
-    __table_args__ = (Index('ix_dispute_history_dispute_id', dispute_id),)
+    __table_args__ = (Index("ix_dispute_history_dispute_id", dispute_id),)
 
 
 class EvidenceItem(BaseModel):
@@ -83,7 +95,7 @@ class DisputeBase(BaseModel):
     description: str = Field(..., min_length=10, max_length=5000)
     evidence_links: List[EvidenceItem] = Field(default_factory=list)
 
-    @field_validator('reason')
+    @field_validator("reason")
     @classmethod
     def validate_reason(cls, v):
         valid_reasons = {r.value for r in DisputeReason}
@@ -94,8 +106,8 @@ class DisputeBase(BaseModel):
 
 class DisputeCreate(DisputeBase):
     bounty_id: str = Field(..., description="ID of the bounty being disputed")
-    
-    @field_validator('bounty_id')
+
+    @field_validator("bounty_id")
     @classmethod
     def validate_bounty_id(cls, v):
         if isinstance(v, str):
@@ -113,7 +125,7 @@ class DisputeResolve(BaseModel):
     review_notes: str = Field(..., min_length=1, max_length=5000)
     resolution_action: Optional[str] = Field(None, max_length=2000)
 
-    @field_validator('outcome')
+    @field_validator("outcome")
     @classmethod
     def validate_outcome(cls, v):
         valid_outcomes = {o.value for o in DisputeOutcome}

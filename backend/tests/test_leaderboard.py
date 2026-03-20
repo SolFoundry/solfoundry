@@ -66,7 +66,9 @@ def test_empty_leaderboard():
 
 
 def test_single_contributor():
-    _seed_contributor("alice", "Alice A", total_earnings=500.0, bounties_completed=3, reputation=80)
+    _seed_contributor(
+        "alice", "Alice A", total_earnings=500.0, bounties_completed=3, reputation=80
+    )
 
     resp = client.get("/api/leaderboard")
     assert resp.status_code == 200

@@ -23,11 +23,14 @@ def verify_signature(payload: bytes, signature_header: str, secret: str) -> None
         raise WebhookVerificationError("Missing X-Hub-Signature-256 header")
 
     if not signature_header.startswith("sha256="):
-        raise WebhookVerificationError(f"Invalid signature format: {signature_header[:20]}")
+        raise WebhookVerificationError(
+            f"Invalid signature format: {signature_header[:20]}"
+        )
 
-    expected = "sha256=" + hmac.new(
-        secret.encode("utf-8"), payload, hashlib.sha256
-    ).hexdigest()
+    expected = (
+        "sha256="
+        + hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    )
 
     if not hmac.compare_digest(expected, signature_header):
         raise WebhookVerificationError("HMAC signature mismatch")
