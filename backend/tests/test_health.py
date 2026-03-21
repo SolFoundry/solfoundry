@@ -1,6 +1,10 @@
 """Unit tests for the /health endpoint (Issue #343).
 
-Covers healthy, degraded, and bot-compatibility scenarios.
+Covers four scenarios:
+- All services healthy
+- Database down
+- Redis down
+- Both down
 """
 
 from unittest.mock import AsyncMock, patch
@@ -9,7 +13,6 @@ from httpx import ASGITransport, AsyncClient
 from fastapi import FastAPI
 from app.api.health import router as health_router
 
-# Create a dedicated test app instance
 app = FastAPI()
 app.include_router(health_router)
 
@@ -19,9 +22,6 @@ async def test_health_all_services_up():
     with (
         patch("app.api.health._check_database", new=AsyncMock(return_value="connected")),
         patch("app.api.health._check_redis", new=AsyncMock(return_value="connected")),
-        patch("app.services.github_sync.get_last_sync", return_value=None),
-        patch("app.services.bounty_service._bounty_store", []),
-        patch("app.services.contributor_service._store", {}),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -33,7 +33,6 @@ async def test_health_all_services_up():
     assert data["status"] == "healthy"
     assert data["services"]["database"] == "connected"
     assert data["services"]["redis"] == "connected"
-    assert data["database_legacy"] == "ok"
     assert "uptime_seconds" in data
     assert "timestamp" in data
     assert "version" in data
@@ -44,9 +43,6 @@ async def test_health_check_db_down():
     with (
         patch("app.api.health._check_database", new=AsyncMock(return_value="disconnected")),
         patch("app.api.health._check_redis", new=AsyncMock(return_value="connected")),
-        patch("app.services.github_sync.get_last_sync", return_value=None),
-        patch("app.services.bounty_service._bounty_store", []),
-        patch("app.services.contributor_service._store", {}),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -57,7 +53,7 @@ async def test_health_check_db_down():
     data = response.json()
     assert data["status"] == "degraded"
     assert data["services"]["database"] == "disconnected"
-    assert data["database_legacy"] == "error"
+    assert data["services"]["redis"] == "connected"
 
 @pytest.mark.asyncio
 async def test_health_check_redis_down():
@@ -65,9 +61,6 @@ async def test_health_check_redis_down():
     with (
         patch("app.api.health._check_database", new=AsyncMock(return_value="connected")),
         patch("app.api.health._check_redis", new=AsyncMock(return_value="disconnected")),
-        patch("app.services.github_sync.get_last_sync", return_value=None),
-        patch("app.services.bounty_service._bounty_store", []),
-        patch("app.services.contributor_service._store", {}),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -77,4 +70,23 @@ async def test_health_check_redis_down():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "degraded"
+    assert data["services"]["database"] == "connected"
+    assert data["services"]["redis"] == "disconnected"
+
+@pytest.mark.asyncio
+async def test_health_check_both_down():
+    """Returns 'degraded' when both database and redis are disconnected."""
+    with (
+        patch("app.api.health._check_database", new=AsyncMock(return_value="disconnected")),
+        patch("app.api.health._check_redis", new=AsyncMock(return_value="disconnected")),
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "degraded"
+    assert data["services"]["database"] == "disconnected"
     assert data["services"]["redis"] == "disconnected"

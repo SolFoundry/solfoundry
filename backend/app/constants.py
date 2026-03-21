@@ -12,4 +12,4 @@ import time
 INTERNAL_SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 # Application start time for heartbeat and telemetry
-START_TIME = time.time()
+START_TIME = time.monotonic()
