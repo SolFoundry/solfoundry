@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { useLeaderboard } from '../../hooks/useLeaderboard';
+import { useLeaderboard, type TimeRange } from '../../hooks/useLeaderboard';
 import { Skeleton, SkeletonTable } from '../common/Skeleton';
 import { NoDataAvailable } from '../common/EmptyState';
-import type { TimeRange, SortField } from '../../types/leaderboard';
+
+export type SortField = 'points' | 'bounties' | 'earnings';
 
 const RANGES: { label: string; value: TimeRange }[] = [
   { label: '7 days', value: '7d' },

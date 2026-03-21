@@ -1,19 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-
-export interface Contributor {
-  id: string;
-  username: string;
-  display_name: string;
-  avatar_url?: string;
-  bio?: string;
-  reputation_score: number;
-  total_earnings: number;
-  total_bounties: number;
-  skills: string[];
-  github_id?: string;
-  wallet_address?: string;
-}
+import { Contributor } from '../types/api';
 
 export const fetchContributor = async (idOrUsername: string): Promise<Contributor> => {
   const { data } = await api.get<Contributor>(`/contributors/${idOrUsername}`);

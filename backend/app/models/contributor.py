@@ -134,6 +134,14 @@ class ContributorUpdate(BaseModel):
     social_links: Optional[dict] = None
 
 
+class BadgeStats(BaseModel):
+    """Statistics for contributor badges and achievements."""
+    merged_pr_count: int = 0
+    merged_without_revision_count: int = 0
+    is_top_contributor_this_month: bool = False
+    pr_submission_timestamps_utc: list[datetime] = []
+
+
 class ContributorStats(BaseModel):
     """Aggregated statistics embedded in contributor API responses.
 
@@ -157,6 +165,7 @@ class ContributorResponse(ContributorBase):
     id: str
     username: str
     stats: ContributorStats
+    badge_stats: BadgeStats = Field(default_factory=BadgeStats)
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}

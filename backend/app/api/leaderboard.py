@@ -104,13 +104,12 @@ async def leaderboard(
             }
         )
 
-    # Enrich with skills from the contributor cache
-    from app.services.contributor_service import _store
+    # Enrich with skills from the database via contributor_service
+    from app.services import contributor_service
 
     for contributor_entry in contributors:
-        for db_contrib in _store.values():
-            if db_contrib.username == contributor_entry["username"]:
-                contributor_entry["topSkills"] = (db_contrib.skills or [])[:3]
-                break
+        db_contrib = await contributor_service.get_contributor_by_username(contributor_entry["username"])
+        if db_contrib:
+            contributor_entry["topSkills"] = (db_contrib.skills or [])[:3]
 
     return JSONResponse(content=contributors)

@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import type { Contributor, TimeRange } from '../types/leaderboard';
+import type { LeaderboardEntry } from '../types/api';
+
+export type TimeRange = '7d' | '30d' | '90d' | 'all';
 
 export const fetchLeaderboard = async (
   range: TimeRange = 'all',
   limit: number = 20
-): Promise<Contributor[]> => {
-  const { data } = await api.get<Contributor[]>('/leaderboard', {
+): Promise<LeaderboardEntry[]> => {
+  const { data } = await api.get<LeaderboardEntry[]>('/leaderboard', {
     params: { range, limit },
   });
   return data;

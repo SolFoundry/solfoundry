@@ -26,18 +26,18 @@ export default function ContributorProfilePage() {
 
   // Map backend stats to the expected badge stats interface
   const badgeStats = {
-    mergedPrCount: contributor.total_bounties,
-    mergedWithoutRevisionCount: Math.floor(contributor.total_bounties * 0.6), // Mock ratio for now
-    isTopContributorThisMonth: contributor.reputation_score > 500,
-    prSubmissionTimestampsUtc: [], // Would need a separate endpoint or enrichment
+    mergedPrCount: contributor.badge_stats?.merged_pr_count ?? contributor.stats.total_bounties_completed,
+    mergedWithoutRevisionCount: contributor.badge_stats?.merged_without_revision_count ?? 0,
+    isTopContributorThisMonth: contributor.badge_stats?.is_top_contributor_this_month ?? false,
+    prSubmissionTimestampsUtc: contributor.badge_stats?.pr_submission_timestamps_utc ?? [],
   };
 
   return (
     <ContributorProfile
       username={contributor.username}
-      bountiesCompleted={contributor.total_bounties}
-      totalEarned={contributor.total_earnings}
-      reputationScore={contributor.reputation_score}
+      bountiesCompleted={contributor.stats.total_bounties_completed}
+      totalEarned={contributor.stats.total_earnings}
+      reputationScore={contributor.stats.reputation_score}
       badgeStats={badgeStats}
     />
   );

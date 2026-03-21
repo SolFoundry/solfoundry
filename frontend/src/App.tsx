@@ -49,6 +49,8 @@ function LoadingSpinner() {
   );
 }
 
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+
 // ── Layout wrapper that reads wallet state ───────────────────────────────────
 function AppLayout() {
   const location = useLocation();
@@ -62,36 +64,38 @@ function AppLayout() {
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
     >
-      <Suspense fallback={<LoadingSpinner />}>
-        <Routes>
-          {/* Bounties */}
-          <Route path="/" element={<Navigate to="/bounties" replace />} />
-          <Route path="/bounties" element={<BountiesPage />} />
-          <Route path="/bounties/:id" element={<BountyDetailPage />} />
-          <Route path="/bounties/create" element={<BountyCreatePage />} />
+      <ErrorBoundary onReset={() => queryClient.resetQueries()}>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* Bounties */}
+            <Route path="/" element={<Navigate to="/bounties" replace />} />
+            <Route path="/bounties" element={<BountiesPage />} />
+            <Route path="/bounties/:id" element={<BountyDetailPage />} />
+            <Route path="/bounties/create" element={<BountyCreatePage />} />
 
-          {/* Leaderboard */}
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
+            {/* Leaderboard */}
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
 
-          {/* Agents */}
-          <Route path="/agents" element={<AgentMarketplacePage />} />
-          <Route path="/agents/:agentId" element={<AgentProfilePage />} />
+            {/* Agents */}
+            <Route path="/agents" element={<AgentMarketplacePage />} />
+            <Route path="/agents/:agentId" element={<AgentProfilePage />} />
 
-          {/* Tokenomics */}
-          <Route path="/tokenomics" element={<TokenomicsPage />} />
+            {/* Tokenomics */}
+            <Route path="/tokenomics" element={<TokenomicsPage />} />
 
-          {/* How It Works */}
-          <Route path="/how-it-works" element={<HowItWorksPage />} />
+            {/* How It Works */}
+            <Route path="/how-it-works" element={<HowItWorksPage />} />
 
-          {/* Contributor and Creator */}
-          <Route path="/profile/:username" element={<ContributorProfilePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/creator" element={<CreatorDashboardPage />} />
+            {/* Contributor and Creator */}
+            <Route path="/profile/:username" element={<ContributorProfilePage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/creator" element={<CreatorDashboardPage />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/bounties" replace />} />
-        </Routes>
-      </Suspense>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/bounties" replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </SiteLayout>
   );
 }

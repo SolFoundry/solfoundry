@@ -32,20 +32,45 @@ export interface BountyListResponse {
   limit: number;
 }
 
+export interface ContributorStats {
+  total_contributions: number;
+  total_bounties_completed: number;
+  total_earnings: number;
+  reputation_score: number;
+}
+
+export interface BadgeStats {
+  merged_pr_count: number;
+  merged_without_revision_count: number;
+  is_top_contributor_this_month: boolean;
+  pr_submission_timestamps_utc: string[];
+}
+
 export interface Contributor {
   id: string;
   username: string;
   display_name: string;
   avatar_url?: string;
   bio?: string;
-  reputation_score: number;
-  total_earnings: number;
-  total_bounties: number;
+  stats: ContributorStats;
+  badge_stats?: BadgeStats;
   skills: string[];
   github_id?: string;
   wallet_address?: string;
   tier?: number;
   rank?: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  avatarUrl: string;
+  points: number;
+  bountiesCompleted: number;
+  earningsFndry: number;
+  earningsSol: number;
+  streak: number;
+  topSkills: string[];
 }
 
 export interface ContributorListResponse {
