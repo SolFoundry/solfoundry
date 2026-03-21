@@ -12,6 +12,7 @@ from app.database import Base
 
 
 class User(Base):
+    """User implementation."""
     __tablename__ = "users"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -45,6 +46,7 @@ class UserDB(BaseModel):
 
 
 class UserResponse(BaseModel):
+    """User response schema."""
     id: str = Field(..., description="Unique UUID for the user", examples=["550e8400-e29b-41d4-a716-446655440000"])
     github_id: str = Field(..., description="GitHub unique identifier", examples=["test_github_123"])
     username: str = Field(..., description="GitHub or platform username", examples=["cryptodev"])

@@ -1,3 +1,4 @@
+"""Core audit logging utilities for tracking sensitive operations."""
 import functools
 import structlog
 from typing import Callable, Optional
@@ -7,8 +8,10 @@ logger = structlog.get_logger("audit")
 def log_audit(event: str, get_details: Optional[Callable[..., dict]] = None):
     """Decorator to log sensitive operations to the audit stream."""
     def decorator(func: Callable):
+        """Wrap the target function with audit logging."""
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
+            """Execute the async function and log the audit event."""
             try:
                 result = await func(*args, **kwargs)
                 details = get_details(*args, **kwargs) if get_details else {}
@@ -30,6 +33,7 @@ def log_audit(event: str, get_details: Optional[Callable[..., dict]] = None):
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
+            """Execute the sync function and log the audit event."""
             try:
                 result = func(*args, **kwargs)
                 details = get_details(*args, **kwargs) if get_details else {}

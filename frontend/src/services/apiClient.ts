@@ -1,31 +1,61 @@
-/** API client with auth, retry, and TTL cache (keyed by URL + auth). @module services/apiClient */
+/**
+ * Shared fetch wrapper — auth, retry, structured errors.
+ * Caching handled by React Query at the hook layer.
+ * @module services/apiClient
+ */
+
+/** Structured error from non-OK responses. */
 export interface ApiError { status: number; message: string; code: string; }
-const BASE: string = (import.meta.env?.VITE_API_URL as string) || '';
-let token: string | null = null;
-/** Set/clear JWT. Clears cache to prevent cross-auth leaks. */
-export function setAuthToken(t: string | null): void { token = t; cache.clear(); }
-export function getAuthToken(): string | null { return token; }
-const cache = new Map<string, { d: unknown; e: number }>();
-export function clearApiCache(): void { cache.clear(); }
-export function isApiError(e: unknown): e is ApiError { return typeof e === 'object' && e !== null && 'status' in e && 'message' in e; }
-function ck(url: string): string { return token ? `${token.slice(-8)}:${url}` : url; }
-export async function apiClient<T>(ep: string, o: RequestInit & { params?: Record<string, string | number | boolean | undefined>; retries?: number; cacheTtl?: number; body?: unknown } = {}): Promise<T> {
-  const { params, retries = 2, cacheTtl = 0, body, headers: hx, ...r } = o;
-  let url = `${BASE}${ep}`;
-  if (params) { const s = new URLSearchParams(); for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') s.set(k, String(v)); const q = s.toString(); if (q) url += `?${q}`; }
-  const m = (r.method ?? (body ? 'POST' : 'GET')).toUpperCase();
-  const key = ck(url);
-  if (m === 'GET' && cacheTtl > 0) { const c = cache.get(key); if (c && c.e > Date.now()) return c.d as T; }
-  const h: Record<string, string> = { 'Content-Type': 'application/json', ...(hx as Record<string, string>) };
-  if (token) h['Authorization'] = `Bearer ${token}`;
-  let last: ApiError = { status: 0, message: 'Request failed', code: 'UNKNOWN' };
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const res = await fetch(url, { ...r, method: m, headers: h, body: body ? JSON.stringify(body) : undefined });
-      if (!res.ok) { let b: Record<string, string> = {}; try { b = await res.json(); } catch { /* */ } const err: ApiError = { status: res.status, message: b.message ?? b.detail ?? res.statusText, code: b.code ?? `HTTP_${res.status}` }; if (res.status < 500 && res.status !== 429) throw err; last = err; }
-      else { const d = (await res.json()) as T; if (m === 'GET' && cacheTtl > 0) cache.set(key, { d, e: Date.now() + cacheTtl }); return d; }
-    } catch (e: unknown) { if (isApiError(e) && e.status > 0 && e.status < 500 && e.status !== 429) throw e; last = isApiError(e) ? e : { status: 0, message: e instanceof Error ? e.message : 'Network error', code: 'NETWORK_ERROR' }; }
-    if (i < retries) await new Promise(w => setTimeout(w, 300 * 2 ** i));
+
+const API_BASE: string = (import.meta.env?.VITE_API_URL as string) || '';
+let authToken: string | null = null;
+
+/** Store or clear the JWT for authenticated requests. */
+export function setAuthToken(token: string | null): void { authToken = token; }
+/** Return the current JWT (or null). */
+export function getAuthToken(): string | null { return authToken; }
+/** Runtime check: is value an ApiError? */
+export function isApiError(value: unknown): value is ApiError {
+  return typeof value === 'object' && value !== null && 'status' in value && 'message' in value && 'code' in value;
+}
+
+/** Send HTTP request with auth, retry on 5xx/429, and throw typed ApiError. */
+export async function apiClient<T>(
+  endpoint: string,
+  options: RequestInit & { params?: Record<string, string | number | boolean | undefined>; retries?: number; body?: unknown } = {},
+): Promise<T> {
+  const { params, retries = 2, body, headers: extraHeaders, ...fetchOptions } = options;
+  let url = `${API_BASE}${endpoint}`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== '') searchParams.set(key, String(value));
+    }
+    const queryString = searchParams.toString();
+    if (queryString) url += (url.includes('?') ? '&' : '?') + queryString;
   }
-  throw last;
+  const method = (fetchOptions.method ?? (body ? 'POST' : 'GET')).toUpperCase();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(extraHeaders as Record<string, string>) };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+  let lastError: ApiError = { status: 0, message: 'Request failed', code: 'UNKNOWN' };
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, { ...fetchOptions, method, headers, body: body ? JSON.stringify(body) : undefined });
+      if (!response.ok) {
+        let parsed: Record<string, string> = {};
+        try { parsed = await response.json(); } catch { /* may not be JSON */ }
+        const error: ApiError = { status: response.status, message: parsed.message ?? parsed.detail ?? response.statusText, code: parsed.code ?? `HTTP_${response.status}` };
+        if (response.status < 500 && response.status !== 429) throw error;
+        lastError = error;
+      } else {
+        return (await response.json()) as T;
+      }
+    } catch (caught: unknown) {
+      if (isApiError(caught) && caught.status > 0 && caught.status < 500 && caught.status !== 429) throw caught;
+      lastError = isApiError(caught) ? caught : { status: 0, message: caught instanceof Error ? caught.message : 'Network error', code: 'NETWORK_ERROR' };
+    }
+    if (attempt < retries) await new Promise((resolve) => setTimeout(resolve, 300 * 2 ** attempt));
+  }
+  throw lastError;
 }

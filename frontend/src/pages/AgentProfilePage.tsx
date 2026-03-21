@@ -1,45 +1,67 @@
-/** Route for /agents/:agentId via apiClient. @module pages/AgentProfilePage */
-import { useState, useEffect } from 'react';
+/**
+ * Route for /agents/:agentId -- React Query fetch via apiClient.
+ * @module pages/AgentProfilePage
+ */
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { AgentProfile } from '../components/agents/AgentProfile';
 import { AgentProfileSkeleton } from '../components/agents/AgentProfileSkeleton';
 import { AgentNotFound } from '../components/agents/AgentNotFound';
-import { apiClient } from '../services/apiClient';
+import { apiClient, isApiError } from '../services/apiClient';
 import type { AgentProfile as AgentProfileType } from '../types/agent';
 
-/** Map API response to AgentProfile. */
-function mapAgent(r: Record<string, unknown>): AgentProfileType {
-  const cb = Array.isArray(r.completed_bounties) ? r.completed_bounties as Record<string, unknown>[] : [];
+const VALID_ROLES: readonly string[] = ['developer', 'reviewer', 'manager', 'auditor'];
+const VALID_STATUSES: readonly string[] = ['online', 'offline', 'busy', 'idle'];
+
+/** Map raw API response to AgentProfile with validated enum fields. */
+function mapAgentResponse(response: Record<string, unknown>): AgentProfileType {
+  const completedBounties = Array.isArray(response.completed_bounties) ? response.completed_bounties as Record<string, unknown>[] : [];
+  const role = VALID_ROLES.includes(String(response.role)) ? response.role as AgentProfileType['role'] : 'developer';
+  const status = VALID_STATUSES.includes(String(response.status)) ? response.status as AgentProfileType['status'] : 'offline';
   return {
-    id: String(r.id ?? ''), name: String(r.name ?? ''), avatar: String(r.avatar ?? r.avatar_url ?? ''),
-    role: (r.role as AgentProfileType['role']) ?? 'developer', status: (r.status as AgentProfileType['status']) ?? 'offline',
-    bio: String(r.bio ?? r.description ?? ''), skills: (r.skills ?? []) as string[], languages: (r.languages ?? []) as string[],
-    bountiesCompleted: Number(r.bounties_completed ?? 0), successRate: Number(r.success_rate ?? 0),
-    avgReviewScore: Number(r.avg_review_score ?? 0), totalEarned: Number(r.total_earned ?? 0),
-    completedBounties: cb.map(b => ({ id: String(b.id ?? ''), title: String(b.title ?? ''), completedAt: String(b.completed_at ?? ''), score: Number(b.score ?? 0), reward: Number(b.reward ?? 0), currency: '$FNDRY' })),
-    joinedAt: String(r.joined_at ?? r.created_at ?? ''),
+    id: String(response.id ?? ''),
+    name: String(response.name ?? ''),
+    avatar: String(response.avatar ?? response.avatar_url ?? ''),
+    role,
+    status,
+    bio: String(response.bio ?? response.description ?? ''),
+    skills: (Array.isArray(response.skills) ? response.skills : []) as string[],
+    languages: (Array.isArray(response.languages) ? response.languages : []) as string[],
+    bountiesCompleted: Number(response.bounties_completed ?? 0),
+    successRate: Number(response.success_rate ?? 0),
+    avgReviewScore: Number(response.avg_review_score ?? 0),
+    totalEarned: Number(response.total_earned ?? 0),
+    completedBounties: completedBounties.map(bounty => ({
+      id: String(bounty.id ?? ''),
+      title: String(bounty.title ?? ''),
+      completedAt: String(bounty.completed_at ?? ''),
+      score: Number(bounty.score ?? 0),
+      reward: Number(bounty.reward ?? 0),
+      currency: '$FNDRY',
+    })),
+    joinedAt: String(response.joined_at ?? response.created_at ?? ''),
   };
 }
 
 export default function AgentProfilePage() {
   const { agentId } = useParams<{ agentId: string }>();
-  const [agent, setAgent] = useState<AgentProfileType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
 
-  useEffect(() => {
-    if (!agentId) { setNotFound(true); setLoading(false); return; }
-    setLoading(true); setNotFound(false); setAgent(null);
-    (async () => {
-      try {
-        const data = await apiClient<Record<string, unknown>>(`/api/agents/${agentId}`, { retries: 1 });
-        setAgent(mapAgent(data));
-      } catch { setNotFound(true); }
-      finally { setLoading(false); }
-    })();
-  }, [agentId]);
+  const { data: agent, isLoading, isError, error } = useQuery({
+    queryKey: ['agent', agentId],
+    queryFn: async () => {
+      const data = await apiClient<Record<string, unknown>>(`/api/agents/${encodeURIComponent(agentId!)}`, { retries: 1 });
+      return mapAgentResponse(data);
+    },
+    enabled: Boolean(agentId),
+    retry: false,
+  });
 
-  if (loading) return <AgentProfileSkeleton />;
-  if (notFound || !agent) return <AgentNotFound />;
+  if (!agentId) return <AgentNotFound />;
+  if (isLoading) return <AgentProfileSkeleton />;
+  if (isError) {
+    if (isApiError(error) && error.status === 404) return <AgentNotFound />;
+    return <AgentNotFound />;
+  }
+  if (!agent) return <AgentNotFound />;
   return <AgentProfile agent={agent} />;
 }

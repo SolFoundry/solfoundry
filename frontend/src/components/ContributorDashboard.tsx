@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
 
 // ============================================================================
@@ -61,17 +62,57 @@ interface ContributorDashboardProps {
 // Data Fetcher — Real API with empty-state fallback
 // ============================================================================
 
-interface DashboardData { stats: DashboardStats; bounties: Bounty[]; activities: Activity[]; notifications: Notification[]; earnings: EarningsData[]; linkedAccounts: { type: string; username: string; connected: boolean }[]; }
-const ES: DashboardStats = { totalEarned: 0, activeBounties: 0, pendingPayouts: 0, reputationRank: 0, totalContributors: 0 };
-async function safe<T>(ep: string, p?: Record<string, string | number | boolean | undefined>): Promise<T | null> { try { return await apiClient<T>(ep, { params: p, retries: 0 }); } catch { return null; } }
+interface DashboardData {
+  stats: DashboardStats;
+  bounties: Bounty[];
+  activities: Activity[];
+  notifications: Notification[];
+  earnings: EarningsData[];
+  linkedAccounts: { type: string; username: string; connected: boolean }[];
+}
+const EMPTY_STATS: DashboardStats = { totalEarned: 0, activeBounties: 0, pendingPayouts: 0, reputationRank: 0, totalContributors: 0 };
+/** Fetch endpoint, logging errors instead of swallowing. */
+async function safeFetch<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T | null> {
+  try { return await apiClient<T>(endpoint, { params, retries: 0 }); }
+  catch (error) { console.warn(`[Dashboard] ${endpoint} failed:`, error); return null; }
+}
+/** Fetch user-specific dashboard data from real API endpoints. */
 async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  const d: DashboardData = { stats: { ...ES }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
-  const [bRaw, nRaw, lRaw] = await Promise.all([safe<{ items?: unknown[] }>('/api/bounties', { claimed_by: userId ?? '', limit: 10 }), safe<{ items?: unknown[] }>('/api/notifications', { limit: 10 }), safe<unknown[]>('/api/leaderboard', { range: 'all', limit: 50 })]);
-  if (bRaw) { const items = (Array.isArray(bRaw) ? bRaw : (bRaw.items ?? [])) as Record<string, unknown>[]; d.bounties = items.map((b) => ({ id: String(b.id ?? ''), title: String(b.title ?? ''), reward: Number(b.reward_amount ?? b.reward ?? 0), deadline: String(b.deadline ?? ''), status: String(b.status ?? 'claimed') as Bounty['status'], progress: Number(b.progress ?? 0) })); }
-  if (nRaw) { const items = (Array.isArray(nRaw) ? nRaw : (nRaw.items ?? [])) as Record<string, unknown>[]; d.notifications = items.map((n) => ({ id: String(n.id ?? ''), type: String(n.type ?? 'info') as Notification['type'], title: String(n.title ?? ''), message: String(n.message ?? ''), timestamp: String(n.created_at ?? n.timestamp ?? ''), read: Boolean(n.read ?? false) })); }
-  if (Array.isArray(lRaw)) { d.stats.totalContributors = lRaw.length; const me = (lRaw as Record<string, unknown>[]).find((e) => String(e.username ?? '').toLowerCase() === (userId ?? '').toLowerCase()); if (me) { d.stats.totalEarned = Number(me.earningsFndry ?? 0); d.stats.reputationRank = Number(me.rank ?? 0); } }
-  d.stats.activeBounties = d.bounties.length;
-  return d;
+  const data: DashboardData = { stats: { ...EMPTY_STATS }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
+  const encodedId = userId ? encodeURIComponent(userId) : '';
+  const [bountiesRaw, notificationsRaw, leaderboardRaw] = await Promise.all([
+    userId ? safeFetch<{ items?: unknown[] }>(`/api/contributors/${encodedId}/bounties`, { limit: 10 }) : safeFetch<{ items?: unknown[] }>('/api/bounties', { limit: 10 }),
+    userId ? safeFetch<{ items?: unknown[] }>(`/api/contributors/${encodedId}/notifications`, { limit: 10 }) : safeFetch<{ items?: unknown[] }>('/api/notifications', { limit: 10 }),
+    safeFetch<unknown[]>('/api/leaderboard', { range: 'all', limit: 50 }),
+  ]);
+  if (bountiesRaw) {
+    const items = (Array.isArray(bountiesRaw) ? bountiesRaw : (bountiesRaw.items ?? [])) as Record<string, unknown>[];
+    data.bounties = items.map(entry => ({
+      id: String(entry.id ?? ''), title: String(entry.title ?? ''),
+      reward: Number(entry.reward_amount ?? entry.reward ?? 0), deadline: String(entry.deadline ?? ''),
+      status: String(entry.status ?? 'claimed') as Bounty['status'], progress: Number(entry.progress ?? 0),
+    }));
+  }
+  if (notificationsRaw) {
+    const items = (Array.isArray(notificationsRaw) ? notificationsRaw : (notificationsRaw.items ?? [])) as Record<string, unknown>[];
+    data.notifications = items.map(entry => ({
+      id: String(entry.id ?? ''), type: String(entry.type ?? 'info') as Notification['type'],
+      title: String(entry.title ?? ''), message: String(entry.message ?? ''),
+      timestamp: String(entry.created_at ?? entry.timestamp ?? ''), read: Boolean(entry.read ?? false),
+    }));
+  }
+  if (Array.isArray(leaderboardRaw)) {
+    data.stats.totalContributors = leaderboardRaw.length;
+    const currentUser = (leaderboardRaw as Record<string, unknown>[]).find(
+      entry => String(entry.username ?? '').toLowerCase() === (userId ?? '').toLowerCase()
+    );
+    if (currentUser) {
+      data.stats.totalEarned = Number(currentUser.earningsFndry ?? 0);
+      data.stats.reputationRank = Number(currentUser.rank ?? 0);
+    }
+  }
+  data.stats.activeBounties = data.bounties.length;
+  return data;
 }
 
 // ============================================================================
@@ -562,19 +603,27 @@ export function ContributorDashboard({
   onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
-  
-  // Data states
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [earnings, setEarnings] = useState<EarningsData[]>([]);
-  const [linkedAccounts, setLinkedAccounts] = useState<{ type: string; username: string; connected: boolean }[]>([]);
-  
-  // UI states
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
+
+  // React Query handles fetching, caching, and retry for dashboard data
+  const { data: dashboardData, isLoading, isError, error: queryError, refetch } = useQuery({
+    queryKey: ['dashboard', userId],
+    queryFn: () => fetchDashboardData(userId),
+    staleTime: 30_000,
+  });
+
+  const stats = dashboardData?.stats ?? null;
+  const bounties = dashboardData?.bounties ?? [];
+  const activities = dashboardData?.activities ?? [];
+  const rawNotifications = dashboardData?.notifications ?? [];
+  const earnings = dashboardData?.earnings ?? [];
+  const linkedAccounts = dashboardData?.linkedAccounts ?? [];
+  const error = isError ? (queryError instanceof Error ? queryError.message : 'Failed to load dashboard data') : null;
+
+  // Local read-state overlay for notifications (mark-as-read without mutating query cache)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const notifications = rawNotifications.map(notification => readIds.has(notification.id) ? { ...notification, read: true } : notification);
+  const unreadNotifications = notifications.filter(notification => !notification.read).length;
+
   const [notificationPrefs, setNotificationPrefs] = useState([
     { type: 'Payout Alerts', enabled: true },
     { type: 'Review Updates', enabled: true },
@@ -582,77 +631,19 @@ export function ContributorDashboard({
     { type: 'New Bounties', enabled: false },
   ]);
 
-  // Fetch data on mount and when userId changes
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const data = await fetchDashboardData(userId);
-        
-        if (!isMounted) return;
-        
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-      } catch (err) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [userId]);
-
-  const unreadNotifications = notifications.filter(n => !n.read).length;
-
   const handleMarkAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setReadIds(prev => new Set(prev).add(id));
   }, []);
 
   const handleMarkAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    setReadIds(new Set(rawNotifications.map(notification => notification.id)));
+  }, [rawNotifications]);
 
   const handleToggleNotification = useCallback((type: string) => {
-    setNotificationPrefs(prev => prev.map(p => p.type === type ? { ...p, enabled: !p.enabled } : p));
+    setNotificationPrefs(prev => prev.map(pref => pref.type === type ? { ...pref, enabled: !pref.enabled } : pref));
   }, []);
 
-  const handleRetry = useCallback(() => {
-    // Trigger a re-render by clearing error and setting loading
-    setError(null);
-    setIsLoading(true);
-    
-    // Re-fetch data
-    fetchDashboardData(userId)
-      .then(data => {
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-        setIsLoading(false);
-      });
-  }, [userId]);
+  const handleRetry = useCallback(() => { refetch(); }, [refetch]);
 
   // Loading state UI
   if (isLoading) {
@@ -864,8 +855,8 @@ export function ContributorDashboard({
               <p className="text-gray-400 text-center py-4">No notifications</p>
             ) : (
               <div className="space-y-1">
-                {notifications.map((notification) => (
-                  <NotificationItem 
+                {displayNotifications.map((notification) => (
+                  <NotificationItem
                     key={notification.id} 
                     notification={notification} 
                     onMarkAsRead={handleMarkAsRead}

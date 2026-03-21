@@ -110,6 +110,7 @@ class SubmissionCreate(BaseModel):
     @field_validator("pr_url")
     @classmethod
     def validate_pr_url(cls, v: str) -> str:
+        """Validate pr url."""
         if not v.startswith(("https://github.com/", "http://github.com/")):
             raise ValueError("pr_url must be a valid GitHub URL")
         return v
@@ -213,11 +214,13 @@ class BountyBase(BaseModel):
     @field_validator("required_skills")
     @classmethod
     def normalise_skills(cls, v: list[str]) -> list[str]:
+        """Lowercase, deduplicate, and cap the skills list at MAX_SKILLS entries."""
         return _validate_skills(v)
 
     @field_validator("github_issue_url")
     @classmethod
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure the URL starts with a GitHub domain prefix, or allow None."""
         if v is not None and not v.startswith(
             ("https://github.com/", "http://github.com/")
         ):
@@ -247,6 +250,7 @@ class BountyUpdate(BaseModel):
     @field_validator("required_skills")
     @classmethod
     def normalise_skills(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Lowercase, deduplicate, and cap the skills list at MAX_SKILLS entries."""
         if v is None:
             return v
         return _validate_skills(v)
@@ -359,6 +363,7 @@ class BountySearchParams(BaseModel):
     @field_validator("sort")
     @classmethod
     def validate_sort(cls, v: str) -> str:
+        """Validate sort."""
         if v not in VALID_SORT_FIELDS:
             raise ValueError(f"Invalid sort. Must be one of: {VALID_SORT_FIELDS}")
         return v
@@ -366,6 +371,7 @@ class BountySearchParams(BaseModel):
     @field_validator("reward_max")
     @classmethod
     def validate_reward_range(cls, v: Optional[float], info) -> Optional[float]:
+        """Validate reward range."""
         reward_min = info.data.get("reward_min")
         if v is not None and reward_min is not None and v < reward_min:
             raise ValueError("reward_max must be >= reward_min")
@@ -374,6 +380,7 @@ class BountySearchParams(BaseModel):
     @field_validator("category")
     @classmethod
     def validate_category(cls, v: Optional[str]) -> Optional[str]:
+        """Validate category."""
         if v is not None and v not in VALID_CATEGORIES:
             raise ValueError(f"Invalid category. Must be one of: {VALID_CATEGORIES}")
         return v
