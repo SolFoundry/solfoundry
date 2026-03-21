@@ -30,6 +30,11 @@ from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
 from app.services.escrow_service import periodic_escrow_refund
+from app.core.redis import close_redis
+from app.core.config import ALLOWED_ORIGINS
+from app.middleware.security import SecurityMiddleware
+from app.middleware.ip_blocklist import IPBlocklistMiddleware
+from app.middleware.rate_limiter import RateLimiterMiddleware
 
 # Initialize logging
 setup_logging()
@@ -107,6 +112,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     await ws_manager.shutdown()
+    await close_redis()
     await close_db()
 
 
@@ -170,13 +176,9 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-ALLOWED_ORIGINS = [
-    "https://solfoundry.org",
-    "https://www.solfoundry.org",
-    "http://localhost:3000",  # Local dev only
-    "http://localhost:5173",  # Vite dev server
-]
-
+app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(IPBlocklistMiddleware)
+app.add_middleware(SecurityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
