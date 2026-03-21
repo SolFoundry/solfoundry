@@ -22,9 +22,11 @@ from app.models.dispute import (
     DisputeHistoryItem,
 )
 from app.models.submission import SubmissionStatus, SubmissionDB
+from app.models.bounty import BountyStatus
 from app.models.bounty_table import BountyTable
 from app.models.user import User, UserRole
-from app.services import review_service
+from app.models.payout import PayoutCreate
+from app.services import review_service, payout_service
 from app.services.notification_service import TelegramNotifier
 
 logger = logging.getLogger(__name__)
@@ -210,34 +212,37 @@ class DisputeService:
         return DisputeResponse.model_validate(dispute)
 
     async def _run_ai_mediation(self, db: AsyncSession, dispute: DisputeDB) -> DisputeResponse:
-        """Attempt auto-resolution via AI review scores."""
+        """Attempt auto-resolution via AI review scores with transactional safety."""
         try:
-            sub_stmt = select(SubmissionDB).where(
-                SubmissionDB.bounty_id == dispute.bounty_id,
-                SubmissionDB.contributor_id == dispute.submitter_id
-            )
-            sub_res = await db.execute(sub_stmt)
-            sub = sub_res.scalar_one_or_none()
-            
-            if not sub:
-                return DisputeResponse.model_validate(dispute)
-
-            from app.models.review import AI_REVIEW_SCORE_THRESHOLD
-            score_data = review_service.get_aggregated_score(str(sub.id), str(dispute.bounty_id))
-            
-            if score_data and score_data.overall_score >= AI_REVIEW_SCORE_THRESHOLD:
-                return await self.resolve_dispute(
-                    db,
-                    str(dispute.id),
-                    DisputeResolve(
-                        outcome=DisputeOutcome.RELEASE_TO_CONTRIBUTOR,
-                        review_notes=f"AI Auto-Resolve: Score {score_data.overall_score} meets threshold.",
-                        resolution_action="SYSTEM_AUTO_RESOLVE"
-                    ),
-                    actor_id="00000000-0000-0000-0000-000000000001"
+            # Create a savepoint for AI resolution attempts
+            async with db.begin_nested():
+                sub_stmt = select(SubmissionDB).where(
+                    SubmissionDB.bounty_id == dispute.bounty_id,
+                    SubmissionDB.contributor_id == dispute.submitter_id
                 )
+                sub_res = await db.execute(sub_stmt)
+                sub = sub_res.scalar_one_or_none()
+                
+                if not sub:
+                    return DisputeResponse.model_validate(dispute)
+
+                from app.models.review import AI_REVIEW_SCORE_THRESHOLD
+                score_data = review_service.get_aggregated_score(str(sub.id), str(dispute.bounty_id))
+                
+                if score_data and score_data.overall_score >= AI_REVIEW_SCORE_THRESHOLD:
+                    return await self.resolve_dispute(
+                        db,
+                        dispute.id,
+                        DisputeResolve(
+                            outcome=DisputeOutcome.RELEASE_TO_CONTRIBUTOR,
+                            review_notes=f"AI Auto-Resolve: Score {score_data.overall_score} meets threshold.",
+                            resolution_action="SYSTEM_AUTO_RESOLVE"
+                        ),
+                        actor_id="00000000-0000-0000-0000-000000000001"
+                    )
         except Exception as e:
-            logger.warning(f"AI Mediation failed: {e}")
+            logger.warning(f"AI Mediation logic had an error, falling back to manual: {e}")
+            # The nested transaction is automatically rolled back on exception exit
             
         # Fallback to manual mediation
         dispute.status = DisputeStatus.MEDIATION.value
@@ -254,16 +259,16 @@ class DisputeService:
         await db.refresh(dispute)
         return DisputeResponse.model_validate(dispute)
 
-    async def resolve_dispute(self, db: AsyncSession, dispute_id: str, resolve_data: DisputeResolve, actor_id: str) -> DisputeResponse:
-        """Resolve dispute and apply mandatory reputation impacts."""
-        stmt = select(DisputeDB).where(DisputeDB.id == UUID(dispute_id))
+    async def resolve_dispute(self, db: AsyncSession, dispute_id: UUID, resolve_data: DisputeResolve, actor_id: str) -> DisputeResponse:
+        """Resolve dispute, apply mandatory reputation impacts, and record payouts."""
+        stmt = select(DisputeDB).where(DisputeDB.id == dispute_id)
         result = await db.execute(stmt)
         dispute = result.scalar_one_or_none()
         
         if not dispute or dispute.status == DisputeStatus.RESOLVED.value:
             raise DisputeError("Dispute not found or already resolved.")
             
-        # Fetch bounty and submission for metadata/reputation
+        # Fetch bounty and submission for metadata/reputation/payouts
         b_stmt = select(BountyTable).where(BountyTable.id == dispute.bounty_id)
         b_res = await db.execute(b_stmt)
         bounty = b_res.scalar_one()
@@ -271,9 +276,12 @@ class DisputeService:
         sub_stmt = select(SubmissionDB).where(
             SubmissionDB.bounty_id == dispute.bounty_id,
             SubmissionDB.contributor_id == dispute.submitter_id
-        )
+        ).order_by(SubmissionDB.created_at.desc())
         sub_res = await db.execute(sub_stmt)
-        sub = sub_res.scalar_one()
+        sub = sub_res.scalars().first()
+
+        if not sub:
+            raise DisputeError("Matching submission for dispute not found.")
 
         prev_status = dispute.status
         dispute.status = DisputeStatus.RESOLVED.value
@@ -283,23 +291,48 @@ class DisputeService:
         dispute.resolution_action = resolve_data.resolution_action
         dispute.resolved_at = datetime.now(timezone.utc)
         
-        # IMPACT LOGIC
+        payout_amount = 0.0
+        
+        # 1. IMPACT & STATUS LOGIC
         if resolve_data.outcome == DisputeOutcome.RELEASE_TO_CONTRIBUTOR.value:
             sub.status = SubmissionStatus.APPROVED.value
-            # Penalty Creator: -50 logic for unfair rejection
-            creator_id = UUID(bounty.created_by) if len(bounty.created_by) == 36 else None
-            if creator_id:
-                await self._update_user_reputation(db, creator_id, -50.0, role="creator")
-            # Bonus Contributor: +25 for winning a dispute
+            bounty.status = BountyStatus.COMPLETED.value
+            payout_amount = bounty.reward_amount
+            
+            # Reputation: Penalty Creator (-50), Bonus Contributor (+25)
+            creator_id_str = bounty.created_by
+            if creator_id_str:
+                try:
+                    creator_uuid = UUID(creator_id_str)
+                    await self._update_user_reputation(db, creator_uuid, -50.0, role="creator")
+                except ValueError:
+                    pass
             await self._update_user_reputation(db, dispute.submitter_id, 25.0, role="contributor")
             
         elif resolve_data.outcome == DisputeOutcome.REFUND_TO_CREATOR.value:
             sub.status = SubmissionStatus.REJECTED.value
-            # Penalty Contributor: -20 for frivolous dispute
+            # Penalty Contributor (-20) for frivolous dispute
             await self._update_user_reputation(db, dispute.submitter_id, -20.0, role="contributor")
+            
+        elif resolve_data.outcome == DisputeOutcome.SPLIT.value:
+            sub.status = SubmissionStatus.APPROVED.value
+            split_pct = resolve_data.split_percent if resolve_data.split_percent is not None else 50.0
+            payout_amount = (bounty.reward_amount * split_pct) / 100.0
+            # No specific reputation impact defined for SPLIT in requirements
+            
+        # 2. Record Payout if amount > 0
+        if payout_amount > 0:
+            payout_service.create_payout(PayoutCreate(
+                recipient=str(dispute.submitter_id),
+                recipient_wallet=sub.contributor_wallet,
+                amount=payout_amount,
+                token="FNDRY", # Defaulting to FNDRY
+                bounty_id=str(bounty.id),
+                bounty_title=bounty.title
+            ))
         
         await self._create_history(
-            db, dispute.id, "DISPUTE_RESOLVED", actor_id, prev_status, dispute.status, f"Outcome: {resolve_data.outcome}"
+            db, dispute.id, "DISPUTE_RESOLVED", actor_id, prev_status, dispute.status, f"Outcome: {resolve_data.outcome}. Payout: {payout_amount}"
         )
         
         await db.commit()

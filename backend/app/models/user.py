@@ -1,10 +1,11 @@
 """User model for authentication."""
 
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import Column, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean, Float
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from pydantic import BaseModel, Field
 

@@ -2,7 +2,7 @@
 
 from typing import List, Any
 from uuid import UUID
-
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +50,7 @@ async def create_dispute(
     responses={404: {"model": ErrorResponse}},
 )
 async def get_dispute(
-    dispute_id: str,
+    dispute_id: UUID,
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -67,7 +67,7 @@ async def get_dispute(
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
 async def submit_evidence(
-    dispute_id: str,
+    dispute_id: UUID,
     evidence: List[EvidenceItem],
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
@@ -85,7 +85,7 @@ async def submit_evidence(
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
 )
 async def resolve_dispute(
-    dispute_id: str,
+    dispute_id: UUID,
     data: DisputeResolve,
     admin_id: str = Depends(get_admin_user_id),
     db: AsyncSession = Depends(get_db),

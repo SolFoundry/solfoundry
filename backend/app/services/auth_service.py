@@ -80,6 +80,9 @@ def _user_to_response(user: User) -> UserResponse:
         avatar_url=user.avatar_url,
         wallet_address=user.wallet_address,
         wallet_verified=user.wallet_verified,
+        role=user.role,
+        reputation_score=user.reputation_score,
+        creator_reputation_score=user.creator_reputation_score,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )

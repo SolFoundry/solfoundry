@@ -106,14 +106,8 @@ class DisputeBase(BaseModel):
 
 
 class DisputeCreate(DisputeBase):
-    bounty_id: str = Field(..., description="ID of the bounty being disputed")
+    bounty_id: uuid.UUID = Field(..., description="ID of the bounty being disputed")
 
-    @field_validator("bounty_id")
-    @classmethod
-    def validate_bounty_id(cls, v):
-        if isinstance(v, str):
-            return v
-        return str(v)
 
 
 class DisputeUpdate(BaseModel):
@@ -123,6 +117,7 @@ class DisputeUpdate(BaseModel):
 
 class DisputeResolve(BaseModel):
     outcome: str
+    split_percent: Optional[float] = Field(None, ge=0, le=100, description="Percentage of reward to contributor (only for SPLIT outcome)")
     review_notes: str = Field(..., min_length=1, max_length=5000)
     resolution_action: Optional[str] = Field(None, max_length=2000)
 
