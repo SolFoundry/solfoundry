@@ -5,17 +5,14 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.disputes import router
+from app.main import app
 from app.services import dispute_service
 from app.services.bounty_service import _bounty_store
 from app.models.bounty import BountyDB, BountyStatus, SubmissionRecord, SubmissionStatus
 
-_a = FastAPI()
-_a.include_router(router, prefix="/api")
-client = TestClient(_a)
+client = TestClient(app, raise_server_exceptions=False)
 
 SUBMITTER = "00000000-0000-0000-0000-000000000001"
 CREATOR = "00000000-0000-0000-0000-000000000002"
@@ -227,8 +224,11 @@ def test_evidence_max_items_exceeded():
          "description": f"Evidence item {i}"}
         for i in range(11)
     ]
-    resp = client.post(f'/api/disputes/{d['id']}/evidence',
-        json={"evidence_items": items}, headers=HEADERS_SUBMITTER)
+    dispute_id = d["id"]
+    resp = client.post(
+        f"/api/disputes/{dispute_id}/evidence",
+        json={"evidence_items": items}, headers=HEADERS_SUBMITTER,
+    )
     assert resp.status_code == 422
 
 def test_resolve_non_admin_forbidden():
@@ -251,11 +251,14 @@ def test_resolve_wrong_state():
     assert _resolve(d["id"]).status_code == 400
 
 def test_resolve_ai_auto_resolve():
-    """AI mediation auto-resolves when evidence score meets threshold."""
+    """AI mediation runs and admin resolves (MEDIATION is stable)."""
     d = _create_dispute()
     for _ in range(4): _add_evidence(d["id"])
     resp = _resolve(d["id"], outcome="split", user=ADMIN)
-    assert resp.json()["status"] == "resolved" and resp.json()["ai_review_score"] is not None
+    body = resp.json()
+    assert body["status"] == "resolved"
+    assert body["ai_review_score"] is not None
+    assert body["outcome"] == "split"
 
 def test_resolve_no_client_ai_score():
     """The /mediate endpoint no longer exists."""
@@ -310,3 +313,34 @@ def test_full_lifecycle():
     data = _resolve(d["id"], outcome="split").json()
     assert data["status"] == "resolved" and data["outcome"] == "split"
     assert len(client.get(f"/api/disputes/{d['id']}", headers=HEADERS_SUBMITTER).json()["history"]) >= 3
+
+def test_stats_scoped_to_participant():
+    """Non-admin users only see stats for their own disputes."""
+    _create_dispute("a")
+    d = client.get("/api/disputes/stats", headers={"X-User-ID": OUTSIDER}).json()
+    assert d["total_disputes"] == 0
+
+
+def test_evidence_links_max_length_on_create():
+    """Submitting more than 10 evidence links on create returns 422."""
+    _seed_bounty("b1")
+    p = _payload()
+    p["evidence_links"] = [
+        {"evidence_type": "link", "url": f"https://example.com/e{i}", "description": f"Ev {i}"}
+        for i in range(11)
+    ]
+    assert client.post("/api/disputes", json=p, headers=HEADERS_SUBMITTER).status_code == 422
+
+
+def test_mediation_is_stable_state():
+    """MEDIATION is a proper stable state that requires admin resolution."""
+    d = _create_dispute()
+    _add_evidence(d["id"])
+    with dispute_service._store_lock:
+        dispute = dispute_service._dispute_store[d["id"]]
+        dispute_service._run_ai_mediation(d["id"], dispute)
+    assert dispute["status"] == "mediation"
+    assert dispute["ai_recommendation"] is not None
+    resp = _resolve(d["id"], outcome="contributor_wins", user=ADMIN)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "resolved"

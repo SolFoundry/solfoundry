@@ -71,8 +71,12 @@ async def list_disputes(
 
 @router.get("/stats", response_model=DisputeStats)
 async def get_stats(user_id: str = Depends(get_current_user_id)):
-    """Get aggregate dispute statistics."""
-    return await asyncio.to_thread(dispute_service.get_dispute_stats)
+    """Get aggregate dispute statistics scoped to the current user.
+
+    Admins see platform-wide stats. Regular users see stats for disputes
+    they participate in (as submitter or creator).
+    """
+    return await asyncio.to_thread(dispute_service.get_dispute_stats, user_id)
 
 
 @router.get("/{dispute_id}", response_model=DisputeDetailResponse)

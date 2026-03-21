@@ -151,7 +151,7 @@ class DisputeBase(BaseModel):
     """Base schema with shared validation."""
     reason: str
     description: str = Field(..., min_length=10, max_length=5000)
-    evidence_links: List[EvidenceItem] = Field(default_factory=list)
+    evidence_links: List[EvidenceItem] = Field(default_factory=list, max_length=10)
 
     @field_validator("reason")
     @classmethod
