@@ -17,10 +17,14 @@ from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
 
 
+from backend.src.middleware.logging import setup_logging
+from backend.src.middleware.logging import StructuredLoggingMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     # Startup: Initialize database, seed data, and WebSocket manager
+    setup_logging(log_dir='logs', max_bytes=10485760, backup_count=5)
     await init_db()
     from app.seed_data import seed_bounties
     seed_bounties()
@@ -46,6 +50,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Local dev only
     "http://localhost:5173",  # Vite dev server
 ]
+
+app.add_middleware(StructuredLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,6 +87,38 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 app.include_router(websocket_router)
 
 
+
+from app.database import engine
+from sqlalchemy import text
+
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    health = {
+        "status": "ok",
+        "dependencies": {
+            "database": "unknown",
+            "websocket": "unknown"
+        }
+    }
+    
+    # Check DB
+    try:
+        if engine is not None:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            health["dependencies"]["database"] = "ok"
+    except Exception:
+        health["dependencies"]["database"] = "degraded"
+        health["status"] = "degraded"
+        
+    # Check WS
+    try:
+        from app.services.websocket_manager import manager as ws_manager
+        if hasattr(ws_manager, "active_connections"):
+            health["dependencies"]["websocket"] = "ok"
+    except Exception:
+        health["dependencies"]["websocket"] = "degraded"
+        health["status"] = "degraded"
+        
+    return health
+
