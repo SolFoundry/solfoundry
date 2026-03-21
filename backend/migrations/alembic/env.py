@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.database import Base
 
 # Import all models so metadata reflects every table
-from app.models.tables import PayoutTable, BuybackTable, ReputationHistoryTable  # noqa: F401
+from app.models.tables import PayoutTable, BuybackTable, ReputationHistoryTable, BountySubmissionTable  # noqa: F401
 from app.models.contributor import ContributorDB  # noqa: F401
 from app.models.bounty_table import BountyTable  # noqa: F401
 from app.models.submission import SubmissionDB  # noqa: F401

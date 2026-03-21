@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Seed script for initial database population (Issue #162).
 
-Seeds bounties, contributors, and leaderboard data into PostgreSQL.
-Safe to run multiple times — uses INSERT-or-skip logic to avoid
-duplicates.
+Seeds bounties, contributors, and leaderboard data directly into PostgreSQL.
+Safe to run multiple times -- uses INSERT-or-skip logic to avoid duplicates.
 
 Usage:
     python scripts/seed_database.py
@@ -26,14 +25,19 @@ logger = logging.getLogger("seed")
 async def seed_all() -> dict[str, int]:
     """Seed bounties, contributors, and leaderboard data into PostgreSQL.
 
+    Initializes the database schema first via create_all (idempotent),
+    then populates data using the pg_store persistence layer. Each
+    entity is persisted individually with error handling so a single
+    failure does not abort the entire seed.
+
     Returns:
-        A dict with counts of seeded entities.
+        A dict with counts of seeded entities by type.
     """
     from app.database import init_db
 
     await init_db()
 
-    # Seed bounties into in-memory store then persist to DB
+    # Seed bounties directly into PostgreSQL
     from app.seed_data import seed_bounties, LIVE_BOUNTIES
     from app.services.bounty_service import _bounty_store
     from app.services.pg_store import persist_bounty
@@ -47,10 +51,10 @@ async def seed_all() -> dict[str, int]:
         except Exception as exc:
             logger.warning("Bounty '%s' seed failed: %s", bounty.title, exc)
 
-    logger.info("Seeded %d bounties", bounty_count)
+    logger.info("Seeded %d bounties into PostgreSQL", bounty_count)
 
-    # Seed contributors
-    from app.seed_leaderboard import seed_leaderboard, REAL_CONTRIBUTORS
+    # Seed contributors directly into PostgreSQL
+    from app.seed_leaderboard import seed_leaderboard
     from app.services.contributor_service import _store
     from app.services.pg_store import persist_contributor
 
@@ -67,7 +71,7 @@ async def seed_all() -> dict[str, int]:
                 exc,
             )
 
-    logger.info("Seeded %d contributors", contributor_count)
+    logger.info("Seeded %d contributors into PostgreSQL", contributor_count)
 
     from app.database import close_db
 
@@ -80,7 +84,10 @@ async def seed_all() -> dict[str, int]:
 
 
 def main() -> None:
-    """Entry point for the seed script."""
+    """Entry point for the seed script.
+
+    Runs the async seed_all function and prints a summary.
+    """
     logger.info("Starting database seed...")
     result = asyncio.run(seed_all())
     logger.info(

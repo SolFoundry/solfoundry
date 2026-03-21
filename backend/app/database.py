@@ -32,7 +32,14 @@ POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 engine_kwargs = {
     "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
 }
-if not is_sqlite:
+if is_sqlite:
+    # Use StaticPool for in-memory SQLite so all connections share the same DB.
+    # This is critical for tests where multiple sessions must see the same data.
+    from sqlalchemy.pool import StaticPool
+
+    engine_kwargs["poolclass"] = StaticPool
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
     engine_kwargs.update(
         {
             "pool_pre_ping": True,
@@ -93,6 +100,7 @@ async def init_db() -> None:
             from app.models.submission import SubmissionDB  # noqa: F401
             from app.models.tables import (  # noqa: F401
                 PayoutTable, BuybackTable, ReputationHistoryTable,
+                BountySubmissionTable,
             )
 
             # NOTE: create_all is idempotent (skips existing tables). For

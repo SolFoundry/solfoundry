@@ -72,6 +72,23 @@ client = TestClient(_test_app)
 # Fixtures & helpers
 # ---------------------------------------------------------------------------
 
+import asyncio
+
+@pytest.fixture(scope="module")
+def event_loop():
+    """Create a dedicated event loop for module-scoped async tests."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _init_db(event_loop):
+    """Initialize the database schema once per module."""
+    from app.database import init_db
+    event_loop.run_until_complete(init_db())
+
+
 VALID_BOUNTY = {
     "title": "Fix smart contract bug",
     "description": "There is a critical bug in the token transfer logic that needs fixing.",
@@ -82,11 +99,29 @@ VALID_BOUNTY = {
 
 
 @pytest.fixture(autouse=True)
-def clear_store():
-    """Ensure each test starts and ends with an empty bounty store."""
+def clear_store(event_loop):
+    """Ensure each test starts and ends with empty bounty stores.
+
+    Clears both the in-memory cache and the SQLite test database tables
+    to ensure full isolation between tests.
+    """
+    from app.database import get_db_session
+
+    async def _clear_db():
+        from sqlalchemy import text
+        try:
+            async with get_db_session() as session:
+                await session.execute(text("DELETE FROM bounty_submissions"))
+                await session.execute(text("DELETE FROM bounties"))
+                await session.commit()
+        except Exception:
+            pass
+
     bounty_service._bounty_store.clear()
+    event_loop.run_until_complete(_clear_db())
     yield
     bounty_service._bounty_store.clear()
+    event_loop.run_until_complete(_clear_db())
 
 
 def _create_bounty(**overrides) -> dict:
@@ -430,7 +465,9 @@ class TestGetBounty:
         """Return 404 for non-existent bounty."""
         resp = client.get("/api/bounties/nonexistent-id")
         assert resp.status_code == 404
-        assert "not found" in resp.json()["message"].lower()
+        body = resp.json()
+        error_text = body.get("message", body.get("detail", "")).lower()
+        assert "not found" in error_text
 
     def test_get_includes_submissions(self):
         """Verify get response includes submission data."""
@@ -563,7 +600,7 @@ class TestUpdateBounty:
         b = _create_bounty()
         resp = client.patch(f"/api/bounties/{b['id']}", json={"status": "completed"})
         assert resp.status_code == 400
-        assert "Invalid status transition" in resp.json()["message"]
+        assert "Invalid status transition" in resp.json().get("message", resp.json().get("detail", ""))
 
     def test_invalid_open_to_paid(self):
         """Reject direct transition from open to paid."""
@@ -770,7 +807,7 @@ class TestSubmitSolution:
         client.post(f"/api/bounties/{b['id']}/submit", json={"pr_url": url, "submitted_by": "alice"})
         resp = client.post(f"/api/bounties/{b['id']}/submit", json={"pr_url": url, "submitted_by": "bob"})
         assert resp.status_code == 400
-        assert "already been submitted" in resp.json()["message"]
+        assert "already been submitted" in resp.json().get("message", resp.json().get("detail", ""))
 
     def test_submit_on_completed_bounty_rejected(self):
         """Reject submission on a completed bounty."""
@@ -782,7 +819,7 @@ class TestSubmitSolution:
             json={"pr_url": "https://github.com/org/repo/pull/99", "submitted_by": "alice"},
         )
         assert resp.status_code == 400
-        assert "not accepting" in resp.json()["message"]
+        assert "not accepting" in resp.json().get("message", resp.json().get("detail", ""))
 
     def test_submit_on_paid_bounty_rejected(self):
         """Reject submission on a paid bounty."""

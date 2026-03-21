@@ -1,7 +1,8 @@
 """Contributor service with PostgreSQL as primary source of truth (Issue #162).
 
-All write operations await the database commit before returning. The
-in-memory ``_store`` acts as a synchronized cache, not the authority.
+All read operations query the database first and fall back to the in-memory
+cache only when the DB is unreachable. All write operations await the
+database commit before returning.
 """
 
 import logging
@@ -21,7 +22,9 @@ from app.models.contributor import (
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache — kept in sync with PostgreSQL for fast reads.
+# In-memory cache -- populated during GitHub sync / startup hydration.
+# Kept in sync with PostgreSQL on every write. Used as a fast fallback
+# when the database connection is unavailable (e.g. in unit tests).
 _store: dict[str, ContributorDB] = {}
 
 
@@ -32,6 +35,9 @@ _store: dict[str, ContributorDB] = {}
 
 async def _persist_to_db(contributor: ContributorDB) -> None:
     """Await a write to PostgreSQL for the given contributor.
+
+    Logs errors but does not propagate them to allow graceful degradation
+    when the database is temporarily unavailable.
 
     Args:
         contributor: The ContributorDB ORM-compatible instance to persist.
@@ -107,8 +113,45 @@ def _db_to_list_item(contributor: ContributorDB) -> ContributorListItem:
     )
 
 
+async def _load_contributor_from_db(contributor_id: str) -> Optional[ContributorDB]:
+    """Load a contributor from PostgreSQL by ID.
+
+    Returns None on DB failure so callers can fall back to the cache.
+
+    Args:
+        contributor_id: The UUID string of the contributor.
+
+    Returns:
+        A ContributorDB ORM instance or None.
+    """
+    try:
+        from app.services.pg_store import get_contributor_by_id
+
+        return await get_contributor_by_id(contributor_id)
+    except Exception as exc:
+        logger.warning("DB read failed for contributor %s: %s", contributor_id, exc)
+        return None
+
+
+async def _load_all_contributors_from_db() -> Optional[list[ContributorDB]]:
+    """Load all contributors from PostgreSQL.
+
+    Returns None on DB failure so callers can fall back to the cache.
+
+    Returns:
+        A list of ContributorDB instances, or None on failure.
+    """
+    try:
+        from app.services.pg_store import load_contributors
+
+        return await load_contributors()
+    except Exception as exc:
+        logger.warning("DB read failed for contributor list: %s", exc)
+        return None
+
+
 # ---------------------------------------------------------------------------
-# Public API — async where DB writes are involved
+# Public API -- async where DB reads/writes are involved
 # ---------------------------------------------------------------------------
 
 
@@ -135,12 +178,12 @@ async def create_contributor(data: ContributorCreate) -> ContributorResponse:
         created_at=now,
         updated_at=now,
     )
-    _store[str(contributor.id)] = contributor
     await _persist_to_db(contributor)
+    _store[str(contributor.id)] = contributor
     return _db_to_response(contributor)
 
 
-def list_contributors(
+async def list_contributors(
     search: Optional[str] = None,
     skills: Optional[list[str]] = None,
     badges: Optional[list[str]] = None,
@@ -149,8 +192,8 @@ def list_contributors(
 ) -> ContributorListResponse:
     """List contributors with optional search, skill, and badge filters.
 
-    Results are served from the in-memory cache which is kept in sync
-    with PostgreSQL on every write operation.
+    Queries PostgreSQL first. Falls back to the in-memory cache when
+    the database is unreachable.
 
     Args:
         search: Case-insensitive substring to match against username
@@ -163,7 +206,13 @@ def list_contributors(
     Returns:
         A ContributorListResponse with paginated items and total count.
     """
+    db_results = await _load_all_contributors_from_db()
+    # Prefer DB results when available; fall back to cache when DB returns
+    # None (error) or an empty list while the cache has data.
     results = list(_store.values())
+    if db_results:
+        results = db_results
+
     if search:
         query = search.lower()
         results = [
@@ -186,8 +235,8 @@ def list_contributors(
     )
 
 
-def get_contributor(contributor_id: str) -> Optional[ContributorResponse]:
-    """Retrieve a contributor by ID from the in-memory cache.
+async def get_contributor(contributor_id: str) -> Optional[ContributorResponse]:
+    """Retrieve a contributor by ID, querying PostgreSQL first.
 
     Args:
         contributor_id: The UUID string of the contributor.
@@ -195,15 +244,20 @@ def get_contributor(contributor_id: str) -> Optional[ContributorResponse]:
     Returns:
         A ContributorResponse if found, None otherwise.
     """
-    contributor = _store.get(contributor_id)
-    return _db_to_response(contributor) if contributor else None
+    db_contributor = await _load_contributor_from_db(contributor_id)
+    if db_contributor is not None:
+        _store[contributor_id] = db_contributor
+        return _db_to_response(db_contributor)
+
+    cached = _store.get(contributor_id)
+    return _db_to_response(cached) if cached else None
 
 
-def get_contributor_by_username(username: str) -> Optional[ContributorResponse]:
+async def get_contributor_by_username(username: str) -> Optional[ContributorResponse]:
     """Look up a contributor by their unique username.
 
-    Performs a linear scan of the cache. For large datasets, consider
-    adding a username-keyed index.
+    Queries PostgreSQL first, then falls back to a linear scan
+    of the in-memory cache.
 
     Args:
         username: The username to search for.
@@ -211,6 +265,15 @@ def get_contributor_by_username(username: str) -> Optional[ContributorResponse]:
     Returns:
         A ContributorResponse if found, None otherwise.
     """
+    try:
+        from app.services.pg_store import get_contributor_by_username as db_lookup
+
+        db_result = await db_lookup(username)
+        if db_result is not None:
+            return _db_to_response(db_result)
+    except Exception as exc:
+        logger.warning("DB lookup by username failed: %s", exc)
+
     for contributor in _store.values():
         if contributor.username == username:
             return _db_to_response(contributor)
@@ -222,7 +285,8 @@ async def update_contributor(
 ) -> Optional[ContributorResponse]:
     """Partially update a contributor and persist the changes.
 
-    Only fields present in the update payload are modified.
+    Loads from the database first to ensure we are modifying the latest
+    state. Only fields present in the update payload are modified.
     The updated_at timestamp is refreshed automatically.
 
     Args:
@@ -232,13 +296,16 @@ async def update_contributor(
     Returns:
         The updated ContributorResponse, or None if not found.
     """
-    contributor = _store.get(contributor_id)
+    contributor = await _load_contributor_from_db(contributor_id)
+    if contributor is None:
+        contributor = _store.get(contributor_id)
     if not contributor:
         return None
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(contributor, key, value)
     contributor.updated_at = datetime.now(timezone.utc)
     await _persist_to_db(contributor)
+    _store[contributor_id] = contributor
     return _db_to_response(contributor)
 
 
@@ -254,19 +321,22 @@ async def delete_contributor(contributor_id: str) -> bool:
     Returns:
         True if the contributor was found and deleted, False otherwise.
     """
-    deleted = _store.pop(contributor_id, None) is not None
-    if deleted:
+    db_contributor = await _load_contributor_from_db(contributor_id)
+    cache_had = _store.pop(contributor_id, None) is not None
+    found = db_contributor is not None or cache_had
+
+    if found:
         try:
             from app.services.pg_store import delete_contributor_row
 
             await delete_contributor_row(contributor_id)
         except Exception as exc:
             logger.error("PostgreSQL contributor delete failed: %s", exc)
-    return deleted
+    return found
 
 
-def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:
-    """Return the raw ContributorDB record from the cache.
+async def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:
+    """Return the raw ContributorDB record, querying PostgreSQL first.
 
     Used by the reputation service to access internal fields that
     are not exposed in the API response.
@@ -277,29 +347,43 @@ def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:
     Returns:
         The ContributorDB instance or None.
     """
+    db_result = await _load_contributor_from_db(contributor_id)
+    if db_result is not None:
+        _store[contributor_id] = db_result
+        return db_result
     return _store.get(contributor_id)
 
 
-def update_reputation_score(contributor_id: str, score: float) -> None:
-    """Set the reputation_score on the contributor's cached record.
+async def update_reputation_score(contributor_id: str, score: float) -> None:
+    """Set the reputation_score on the contributor and persist to PostgreSQL.
 
-    This is the internal API that the reputation service calls after
-    computing a new aggregate score. The value will be persisted to
-    PostgreSQL on the next write-through cycle.
+    Called by the reputation service after computing a new aggregate score.
 
     Args:
         contributor_id: The UUID string of the contributor.
         score: The new reputation score value.
     """
-    contributor = _store.get(contributor_id)
+    contributor = await _load_contributor_from_db(contributor_id)
+    if contributor is None:
+        contributor = _store.get(contributor_id)
     if contributor is not None:
-        contributor.reputation_score = score
+        contributor.reputation_score = int(round(score))
+        _store[contributor_id] = contributor
+        await _persist_to_db(contributor)
 
 
-def list_contributor_ids() -> list[str]:
-    """Return all contributor IDs currently in the cache.
+async def list_contributor_ids() -> list[str]:
+    """Return all contributor IDs, querying PostgreSQL first.
+
+    Falls back to cache keys when the database is unavailable.
 
     Returns:
         A list of UUID strings.
     """
-    return list(_store.keys())
+    try:
+        from app.services.pg_store import list_contributor_ids as db_list_ids
+
+        return await db_list_ids()
+    except Exception as exc:
+        logger.warning("DB list_contributor_ids failed: %s", exc)
+        return list(_store.keys())

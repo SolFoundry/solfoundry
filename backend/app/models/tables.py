@@ -1,8 +1,8 @@
-"""ORM models for payouts, buybacks, and reputation_history tables.
+"""ORM models for payouts, buybacks, reputation_history, and bounty_submissions.
 
-These models represent the financial and reputation tracking tables in PostgreSQL.
-All monetary columns use sa.Numeric for precision. Boolean defaults use sa.false()
-for cross-database compatibility.
+These models represent the financial, reputation tracking, and submission
+tables in PostgreSQL. All monetary columns use sa.Numeric for precision.
+Boolean defaults use sa.false() for cross-database compatibility.
 """
 
 import uuid
@@ -99,5 +99,38 @@ class ReputationHistoryTable(Base):
     __table_args__ = (
         Index(
             "ix_rep_cid_bid", "contributor_id", "bounty_id", unique=True
+        ),
+    )
+
+
+class BountySubmissionTable(Base):
+    """Stores PR submissions for bounties as first-class database rows.
+
+    Each row tracks one PR submitted against a bounty, including its
+    review status and AI score. The (bounty_id, pr_url) pair is
+    unique to prevent duplicate submissions of the same PR.
+    """
+
+    __tablename__ = "bounty_submissions"
+
+    id = Column(String(36), primary_key=True)
+    bounty_id = Column(
+        String(36),
+        sa.ForeignKey("bounties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    pr_url = Column(String(512), nullable=False)
+    submitted_by = Column(String(100), nullable=False)
+    notes = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="pending")
+    ai_score = Column(sa.Numeric(precision=5, scale=2), nullable=False, server_default="0")
+    submitted_at = Column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_bsub_bounty_pr", "bounty_id", "pr_url", unique=True
         ),
     )

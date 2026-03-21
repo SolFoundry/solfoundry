@@ -1,7 +1,8 @@
 """Reputation service with PostgreSQL as primary source of truth (Issue #162).
 
-All write operations await the database commit before returning. The
-in-memory reputation store is a synchronized cache for fast reads.
+All read operations query the database. All write operations await the
+database commit before returning. The in-memory store is a synchronized
+cache for fast reads and test compatibility.
 """
 
 import logging
@@ -44,6 +45,20 @@ async def hydrate_from_database() -> None:
     if loaded:
         with _reputation_lock:
             _reputation_store.update(loaded)
+
+
+async def _load_reputation_from_db() -> Optional[dict[str, list[ReputationHistoryEntry]]]:
+    """Load all reputation data from PostgreSQL.
+
+    Returns None on DB failure so callers can fall back to the cache.
+    """
+    try:
+        from app.services.pg_store import load_reputation
+
+        return await load_reputation()
+    except Exception as exc:
+        logger.warning("DB read failed for reputation: %s", exc)
+        return None
 
 
 def calculate_earned_reputation(
@@ -219,7 +234,7 @@ async def record_reputation(
         TierNotUnlockedError: If the bounty tier is not yet unlocked.
     """
     with _reputation_lock:
-        contributor = contributor_service.get_contributor_db(data.contributor_id)
+        contributor = await contributor_service.get_contributor_db(data.contributor_id)
         if contributor is None:
             raise ContributorNotFoundError(
                 f"Contributor '{data.contributor_id}' not found"
@@ -227,12 +242,12 @@ async def record_reputation(
 
         history = _reputation_store.get(data.contributor_id, [])
 
-        # Idempotency — return existing entry on duplicate bounty_id
+        # Idempotency -- return existing entry on duplicate bounty_id
         for existing in history:
             if existing.bounty_id == data.bounty_id:
                 return existing
 
-        # Tier enforcement — contributor must have unlocked the tier
+        # Tier enforcement -- contributor must have unlocked the tier
         allowed_tier = _allowed_tier_for_contributor(history)
         if data.bounty_tier > allowed_tier:
             raise TierNotUnlockedError(
@@ -267,7 +282,7 @@ async def record_reputation(
             r.earned_reputation
             for r in _reputation_store[data.contributor_id]
         )
-        contributor_service.update_reputation_score(
+        await contributor_service.update_reputation_score(
             data.contributor_id, round(total, 2)
         )
 
@@ -282,10 +297,13 @@ async def record_reputation(
     return entry
 
 
-def get_reputation(
+async def get_reputation(
     contributor_id: str, include_history: bool = True
 ) -> Optional[ReputationSummary]:
     """Build the full reputation summary for a contributor.
+
+    Queries PostgreSQL for history data first, falling back to the
+    in-memory cache when the database is unavailable.
 
     Args:
         contributor_id: The contributor to look up.
@@ -296,11 +314,17 @@ def get_reputation(
     Returns:
         A ReputationSummary if the contributor exists, None otherwise.
     """
-    contributor = contributor_service.get_contributor_db(contributor_id)
+    contributor = await contributor_service.get_contributor_db(contributor_id)
     if contributor is None:
         return None
 
-    history = _reputation_store.get(contributor_id, [])
+    # Try DB first for history
+    db_reputation = await _load_reputation_from_db()
+    if db_reputation is not None:
+        history = db_reputation.get(contributor_id, [])
+    else:
+        history = _reputation_store.get(contributor_id, [])
+
     total = sum(e.earned_reputation for e in history)
     tier_counts = count_tier_completions(history)
     current_tier = determine_current_tier(tier_counts)
@@ -330,7 +354,7 @@ def get_reputation(
     )
 
 
-def get_reputation_leaderboard(
+async def get_reputation_leaderboard(
     limit: int = 20, offset: int = 0
 ) -> list[ReputationSummary]:
     """Get contributors ranked by reputation score in descending order.
@@ -344,18 +368,20 @@ def get_reputation_leaderboard(
     Returns:
         A sorted list of ReputationSummary objects.
     """
-    all_ids = contributor_service.list_contributor_ids()
-    summaries = [
-        s
-        for cid in all_ids
-        if (s := get_reputation(cid, include_history=False)) is not None
-    ]
+    all_ids = await contributor_service.list_contributor_ids()
+    summaries = []
+    for cid in all_ids:
+        summary = await get_reputation(cid, include_history=False)
+        if summary is not None:
+            summaries.append(summary)
     summaries.sort(key=lambda s: (-s.reputation_score, s.username))
     return summaries[offset : offset + limit]
 
 
-def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
+async def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
     """Get the full per-bounty reputation history sorted newest first.
+
+    Queries PostgreSQL first, falling back to the in-memory store.
 
     Args:
         contributor_id: The contributor to look up.
@@ -364,5 +390,9 @@ def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
         A list of ReputationHistoryEntry objects sorted by created_at
         in descending order.
     """
-    history = _reputation_store.get(contributor_id, [])
+    db_reputation = await _load_reputation_from_db()
+    if db_reputation is not None:
+        history = db_reputation.get(contributor_id, [])
+    else:
+        history = _reputation_store.get(contributor_id, [])
     return sorted(history, key=lambda e: e.created_at, reverse=True)

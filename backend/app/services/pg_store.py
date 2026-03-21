@@ -1,17 +1,20 @@
-"""PostgreSQL persistence layer — primary source of truth (Issue #162).
+"""PostgreSQL persistence layer -- primary source of truth (Issue #162).
 
 All CRUD operations go through this module. Uses INSERT ... ON CONFLICT
 for safe upserts and proper ORDER BY + pagination for reads. Every
 write is awaited (no fire-and-forget) so callers can trust that a 2xx
 response means the data has been committed to the database.
+
+Submission rows are first-class entities persisted alongside bounties.
 """
 
 import uuid as _uuid
 import logging
+from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import select, delete as sa_del, func
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy import select, delete as sa_del, func, and_
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
 
@@ -40,60 +43,43 @@ def _to_uuid(val: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-async def _upsert(model_cls: type, pk_value: Any, **columns: Any) -> None:
+async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
     """Insert or update a row using merge (session-level upsert).
 
-    Awaits the commit before returning so the caller can trust persistence.
+    Uses a SELECT-then-INSERT/UPDATE pattern within a single session to
+    avoid TOCTOU races. The caller must commit the session after calling.
 
     Args:
+        session: The active database session.
         model_cls: The SQLAlchemy model class.
         pk_value: The primary key value for the row.
         **columns: Column values to set on the row.
     """
     pk_value = _to_uuid(pk_value)
-    async with get_db_session() as session:
-        obj = await session.get(model_cls, pk_value)
-        if obj is None:
-            obj = model_cls(id=pk_value, **columns)
-            session.add(obj)
-        else:
-            for key, value in columns.items():
-                setattr(obj, key, value)
-        await session.commit()
+    obj = await session.get(model_cls, pk_value)
+    if obj is None:
+        obj = model_cls(id=pk_value, **columns)
+        session.add(obj)
+    else:
+        for key, value in columns.items():
+            setattr(obj, key, value)
 
 
-async def _insert_if_absent(model_cls: type, pk_value: Any, **columns: Any) -> None:
+async def _insert_if_absent(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
     """Insert a row only if its primary key does not already exist.
 
-    Uses a SELECT check then INSERT to avoid duplicates. The operation
-    is idempotent — calling with an existing PK is a no-op.
+    Idempotent -- calling with an existing PK is a no-op.
 
     Args:
+        session: The active database session.
         model_cls: The SQLAlchemy model class.
         pk_value: The primary key value for the row.
         **columns: Column values to set on the new row.
     """
     pk_value = _to_uuid(pk_value)
-    async with get_db_session() as session:
-        existing = await session.get(model_cls, pk_value)
-        if existing is None:
-            session.add(model_cls(id=pk_value, **columns))
-            await session.commit()
-
-
-async def _delete_by_pk(model_cls: type, column: Any, value: Any) -> None:
-    """Delete rows matching a column value.
-
-    Args:
-        model_cls: The SQLAlchemy model class.
-        column: The column object to filter on.
-        value: The value to match for deletion.
-    """
-    async with get_db_session() as session:
-        await session.execute(
-            sa_del(model_cls).where(column == _to_uuid(value))
-        )
-        await session.commit()
+    existing = await session.get(model_cls, pk_value)
+    if existing is None:
+        session.add(model_cls(id=pk_value, **columns))
 
 
 # ---------------------------------------------------------------------------
@@ -105,8 +91,8 @@ async def persist_bounty(bounty: Any) -> None:
     """Persist a bounty to PostgreSQL, inserting or updating as needed.
 
     Converts Pydantic enum values to their string/int representation
-    before writing. Submission count is derived from the in-memory
-    submissions list length.
+    before writing. Also persists all attached submissions as separate
+    rows in the submissions table.
 
     Args:
         bounty: A BountyDB Pydantic model instance.
@@ -115,33 +101,87 @@ async def persist_bounty(bounty: Any) -> None:
 
     tier = bounty.tier.value if hasattr(bounty.tier, "value") else bounty.tier
     status = bounty.status.value if hasattr(bounty.status, "value") else bounty.status
-    await _upsert(
-        BountyTable,
-        bounty.id,
-        title=bounty.title,
-        description=bounty.description or "",
-        tier=tier,
-        reward_amount=bounty.reward_amount,
-        status=status,
-        skills=bounty.required_skills,
-        github_issue_url=bounty.github_issue_url,
-        created_by=bounty.created_by,
-        deadline=bounty.deadline,
-        submission_count=len(getattr(bounty, "submissions", [])),
-        created_at=bounty.created_at,
-        updated_at=bounty.updated_at,
-    )
+    async with get_db_session() as session:
+        await _upsert(
+            session,
+            BountyTable,
+            bounty.id,
+            title=bounty.title,
+            description=bounty.description or "",
+            tier=tier,
+            reward_amount=bounty.reward_amount,
+            status=status,
+            skills=bounty.required_skills,
+            github_issue_url=bounty.github_issue_url,
+            created_by=bounty.created_by,
+            deadline=bounty.deadline,
+            submission_count=len(getattr(bounty, "submissions", [])),
+            created_at=bounty.created_at,
+            updated_at=bounty.updated_at,
+        )
+        # Persist attached submissions as first-class rows
+        for sub in getattr(bounty, "submissions", []):
+            await _persist_bounty_submission(session, bounty.id, sub)
+        await session.commit()
+
+
+async def _persist_bounty_submission(
+    session: AsyncSession, bounty_id: str, sub: Any
+) -> None:
+    """Persist a single bounty submission as a row in the bounty_submissions table.
+
+    Uses upsert semantics so re-persisting the same submission is idempotent.
+    The submission PK is a plain string (not UUID), so we skip _to_uuid.
+
+    Args:
+        session: The active database session.
+        bounty_id: The parent bounty UUID string.
+        sub: A SubmissionRecord Pydantic model.
+    """
+    from app.models.tables import BountySubmissionTable
+
+    sub_status = sub.status.value if hasattr(sub.status, "value") else sub.status
+    pk = str(sub.id)
+    existing = await session.get(BountySubmissionTable, pk)
+    if existing is None:
+        session.add(BountySubmissionTable(
+            id=pk,
+            bounty_id=str(bounty_id),
+            pr_url=sub.pr_url,
+            submitted_by=sub.submitted_by,
+            notes=sub.notes,
+            status=sub_status,
+            ai_score=sub.ai_score,
+            submitted_at=sub.submitted_at,
+        ))
+    else:
+        existing.status = sub_status
+        existing.ai_score = sub.ai_score
+        existing.notes = sub.notes
 
 
 async def delete_bounty_row(bounty_id: str) -> None:
-    """Delete a bounty row from the database by its ID.
+    """Delete a bounty row and its submissions from the database.
+
+    Uses cascading delete via the foreign key relationship.
 
     Args:
         bounty_id: The UUID string of the bounty to delete.
     """
     from app.models.bounty_table import BountyTable
+    from app.models.tables import BountySubmissionTable
 
-    await _delete_by_pk(BountyTable, BountyTable.id, bounty_id)
+    async with get_db_session() as session:
+        # Delete child submissions first
+        await session.execute(
+            sa_del(BountySubmissionTable).where(
+                BountySubmissionTable.bounty_id == bounty_id
+            )
+        )
+        await session.execute(
+            sa_del(BountyTable).where(BountyTable.id == _to_uuid(bounty_id))
+        )
+        await session.commit()
 
 
 async def load_bounties(
@@ -184,6 +224,29 @@ async def get_bounty_by_id(bounty_id: str) -> Optional[Any]:
         return await session.get(BountyTable, _to_uuid(bounty_id))
 
 
+async def load_submissions_for_bounty(bounty_id: str) -> list[Any]:
+    """Load all submissions for a specific bounty from PostgreSQL.
+
+    Results are ordered by submitted_at ascending (oldest first).
+
+    Args:
+        bounty_id: The UUID string of the parent bounty.
+
+    Returns:
+        List of BountySubmissionTable ORM instances.
+    """
+    from app.models.tables import BountySubmissionTable
+
+    async with get_db_session() as session:
+        stmt = (
+            select(BountySubmissionTable)
+            .where(BountySubmissionTable.bounty_id == bounty_id)
+            .order_by(BountySubmissionTable.submitted_at.asc())
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
 async def count_bounties(**filters: Any) -> int:
     """Count bounties matching optional filters.
 
@@ -213,30 +276,36 @@ async def count_bounties(**filters: Any) -> int:
 async def persist_contributor(contributor: Any) -> None:
     """Persist a contributor record to PostgreSQL.
 
+    Handles both SQLAlchemy ORM instances and Pydantic-like objects by
+    reading attributes directly. The session is committed before return.
+
     Args:
         contributor: A ContributorDB SQLAlchemy model instance or a Pydantic-like
             object with matching attributes.
     """
     from app.models.contributor import ContributorDB
 
-    await _upsert(
-        ContributorDB,
-        contributor.id,
-        username=contributor.username,
-        display_name=contributor.display_name,
-        email=contributor.email,
-        avatar_url=contributor.avatar_url,
-        bio=contributor.bio,
-        skills=contributor.skills or [],
-        badges=contributor.badges or [],
-        social_links=contributor.social_links or {},
-        total_contributions=contributor.total_contributions,
-        total_bounties_completed=contributor.total_bounties_completed,
-        total_earnings=contributor.total_earnings,
-        reputation_score=contributor.reputation_score,
-        created_at=contributor.created_at,
-        updated_at=contributor.updated_at,
-    )
+    async with get_db_session() as session:
+        await _upsert(
+            session,
+            ContributorDB,
+            contributor.id,
+            username=contributor.username,
+            display_name=contributor.display_name,
+            email=contributor.email,
+            avatar_url=contributor.avatar_url,
+            bio=contributor.bio,
+            skills=contributor.skills or [],
+            badges=contributor.badges or [],
+            social_links=contributor.social_links or {},
+            total_contributions=contributor.total_contributions,
+            total_bounties_completed=contributor.total_bounties_completed,
+            total_earnings=contributor.total_earnings,
+            reputation_score=contributor.reputation_score,
+            created_at=contributor.created_at,
+            updated_at=contributor.updated_at,
+        )
+        await session.commit()
 
 
 async def delete_contributor_row(contributor_id: str) -> None:
@@ -250,7 +319,11 @@ async def delete_contributor_row(contributor_id: str) -> None:
     """
     from app.models.contributor import ContributorDB
 
-    await _delete_by_pk(ContributorDB, ContributorDB.id, contributor_id)
+    async with get_db_session() as session:
+        await session.execute(
+            sa_del(ContributorDB).where(ContributorDB.id == _to_uuid(contributor_id))
+        )
+        await session.commit()
 
 
 async def load_contributors(
@@ -293,6 +366,51 @@ async def get_contributor_by_id(contributor_id: str) -> Optional[Any]:
         return await session.get(ContributorDB, _to_uuid(contributor_id))
 
 
+async def get_contributor_by_username(username: str) -> Optional[Any]:
+    """Retrieve a single contributor by their unique username.
+
+    Args:
+        username: The username to search for.
+
+    Returns:
+        A ContributorDB instance or None if not found.
+    """
+    from app.models.contributor import ContributorDB
+
+    async with get_db_session() as session:
+        stmt = select(ContributorDB).where(ContributorDB.username == username)
+        result = await session.execute(stmt)
+        return result.scalars().first()
+
+
+async def count_contributors() -> int:
+    """Count total contributors in the database.
+
+    Returns:
+        The integer count of contributor rows.
+    """
+    from app.models.contributor import ContributorDB
+
+    async with get_db_session() as session:
+        stmt = select(func.count(ContributorDB.id))
+        result = await session.execute(stmt)
+        return result.scalar() or 0
+
+
+async def list_contributor_ids() -> list[str]:
+    """Return all contributor ID strings from the database.
+
+    Returns:
+        A list of UUID strings for every contributor.
+    """
+    from app.models.contributor import ContributorDB
+
+    async with get_db_session() as session:
+        stmt = select(ContributorDB.id)
+        result = await session.execute(stmt)
+        return [str(row[0]) for row in result.all()]
+
+
 # ---------------------------------------------------------------------------
 # Payout persistence
 # ---------------------------------------------------------------------------
@@ -307,20 +425,23 @@ async def persist_payout(record: Any) -> None:
     from app.models.tables import PayoutTable
 
     status = record.status.value if hasattr(record.status, "value") else record.status
-    await _insert_if_absent(
-        PayoutTable,
-        record.id,
-        recipient=record.recipient,
-        recipient_wallet=record.recipient_wallet,
-        amount=record.amount,
-        token=record.token,
-        bounty_id=record.bounty_id,
-        bounty_title=record.bounty_title,
-        tx_hash=record.tx_hash,
-        status=status,
-        solscan_url=record.solscan_url,
-        created_at=record.created_at,
-    )
+    async with get_db_session() as session:
+        await _insert_if_absent(
+            session,
+            PayoutTable,
+            record.id,
+            recipient=record.recipient,
+            recipient_wallet=record.recipient_wallet,
+            amount=record.amount,
+            token=record.token,
+            bounty_id=record.bounty_id,
+            bounty_title=record.bounty_title,
+            tx_hash=record.tx_hash,
+            status=status,
+            solscan_url=record.solscan_url,
+            created_at=record.created_at,
+        )
+        await session.commit()
 
 
 async def load_payouts(
@@ -412,16 +533,19 @@ async def persist_buyback(record: Any) -> None:
     """
     from app.models.tables import BuybackTable
 
-    await _insert_if_absent(
-        BuybackTable,
-        record.id,
-        amount_sol=record.amount_sol,
-        amount_fndry=record.amount_fndry,
-        price_per_fndry=record.price_per_fndry,
-        tx_hash=record.tx_hash,
-        solscan_url=record.solscan_url,
-        created_at=record.created_at,
-    )
+    async with get_db_session() as session:
+        await _insert_if_absent(
+            session,
+            BuybackTable,
+            record.id,
+            amount_sol=record.amount_sol,
+            amount_fndry=record.amount_fndry,
+            price_per_fndry=record.price_per_fndry,
+            tx_hash=record.tx_hash,
+            solscan_url=record.solscan_url,
+            created_at=record.created_at,
+        )
+        await session.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -437,18 +561,21 @@ async def persist_reputation_entry(entry: Any) -> None:
     """
     from app.models.tables import ReputationHistoryTable
 
-    await _insert_if_absent(
-        ReputationHistoryTable,
-        entry.entry_id,
-        contributor_id=entry.contributor_id,
-        bounty_id=entry.bounty_id,
-        bounty_title=entry.bounty_title,
-        bounty_tier=entry.bounty_tier,
-        review_score=entry.review_score,
-        earned_reputation=entry.earned_reputation,
-        anti_farming_applied=entry.anti_farming_applied,
-        created_at=entry.created_at,
-    )
+    async with get_db_session() as session:
+        await _insert_if_absent(
+            session,
+            ReputationHistoryTable,
+            entry.entry_id,
+            contributor_id=entry.contributor_id,
+            bounty_id=entry.bounty_id,
+            bounty_title=entry.bounty_title,
+            bounty_tier=entry.bounty_tier,
+            review_score=entry.review_score,
+            earned_reputation=entry.earned_reputation,
+            anti_farming_applied=entry.anti_farming_applied,
+            created_at=entry.created_at,
+        )
+        await session.commit()
 
 
 async def load_reputation(

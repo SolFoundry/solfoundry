@@ -1,8 +1,8 @@
 """Payout service with PostgreSQL as primary source of truth (Issue #162).
 
-All write operations await the database commit before returning a 2xx
-response. The in-memory stores are synchronized caches that serve fast
-reads while PostgreSQL remains authoritative.
+All read operations query PostgreSQL first and fall back to the in-memory
+cache only when the database is unavailable. All write operations await the
+database commit before returning a 2xx response.
 """
 
 from __future__ import annotations
@@ -107,6 +107,34 @@ def _buyback_to_response(buyback: BuybackRecord) -> BuybackResponse:
     )
 
 
+async def _load_payouts_from_db() -> Optional[dict[str, PayoutRecord]]:
+    """Load all payouts from PostgreSQL.
+
+    Returns None on failure so callers can fall back to the cache.
+    """
+    try:
+        from app.services.pg_store import load_payouts
+
+        return await load_payouts()
+    except Exception as exc:
+        logger.warning("DB read failed for payouts: %s", exc)
+        return None
+
+
+async def _load_buybacks_from_db() -> Optional[dict[str, BuybackRecord]]:
+    """Load all buybacks from PostgreSQL.
+
+    Returns None on failure so callers can fall back to the cache.
+    """
+    try:
+        from app.services.pg_store import load_buybacks
+
+        return await load_buybacks()
+    except Exception as exc:
+        logger.warning("DB read failed for buybacks: %s", exc)
+        return None
+
+
 async def create_payout(data: PayoutCreate) -> PayoutResponse:
     """Create and persist a new payout record.
 
@@ -152,7 +180,7 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
         tx_hash=record.tx_hash,
     )
 
-    # Await DB write — no fire-and-forget
+    # Await DB write -- no fire-and-forget
     try:
         from app.services.pg_store import persist_payout
 
@@ -163,8 +191,8 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
     return _payout_to_response(record)
 
 
-def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
-    """Look up a single payout by its internal UUID.
+async def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
+    """Look up a single payout by its internal UUID, querying DB first.
 
     Args:
         payout_id: The UUID string of the payout.
@@ -172,13 +200,21 @@ def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
     Returns:
         A PayoutResponse if found, None otherwise.
     """
+    db_payouts = await _load_payouts_from_db()
+    if db_payouts is not None:
+        record = db_payouts.get(payout_id)
+        if record:
+            return _payout_to_response(record)
+
     with _lock:
         record = _payout_store.get(payout_id)
     return _payout_to_response(record) if record else None
 
 
-def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
+async def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
     """Look up a single payout by its on-chain transaction hash.
+
+    Queries PostgreSQL first for authoritative data.
 
     Args:
         tx_hash: The Solana transaction signature.
@@ -186,20 +222,24 @@ def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
     Returns:
         A PayoutResponse if found, None otherwise.
     """
-    with _lock:
-        for record in _payout_store.values():
-            if record.tx_hash == tx_hash:
-                return _payout_to_response(record)
+    db_payouts = await _load_payouts_from_db()
+    source = db_payouts if db_payouts is not None else _payout_store
+
+    for record in source.values():
+        if record.tx_hash == tx_hash:
+            return _payout_to_response(record)
     return None
 
 
-def list_payouts(
+async def list_payouts(
     recipient: Optional[str] = None,
     status: Optional[PayoutStatus] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> PayoutListResponse:
     """Return a filtered, paginated list of payouts sorted newest first.
+
+    Queries PostgreSQL as the primary source.
 
     Args:
         recipient: Filter by recipient identifier.
@@ -210,10 +250,10 @@ def list_payouts(
     Returns:
         A PayoutListResponse with paginated items and total count.
     """
-    with _lock:
-        results = sorted(
-            _payout_store.values(), key=lambda p: p.created_at, reverse=True
-        )
+    db_payouts = await _load_payouts_from_db()
+    source = db_payouts if db_payouts is not None else _payout_store
+
+    results = sorted(source.values(), key=lambda p: p.created_at, reverse=True)
     if recipient:
         results = [p for p in results if p.recipient == recipient]
     if status:
@@ -228,21 +268,23 @@ def list_payouts(
     )
 
 
-def get_total_paid_out() -> tuple[float, float]:
-    """Calculate total confirmed payouts by token type.
+async def get_total_paid_out() -> tuple[float, float]:
+    """Calculate total confirmed payouts by token type from PostgreSQL.
 
     Returns:
         A tuple of (total_fndry, total_sol) for CONFIRMED payouts only.
     """
+    db_payouts = await _load_payouts_from_db()
+    source = db_payouts if db_payouts is not None else _payout_store
+
     total_fndry = 0.0
     total_sol = 0.0
-    with _lock:
-        for payout in _payout_store.values():
-            if payout.status == PayoutStatus.CONFIRMED:
-                if payout.token == "FNDRY":
-                    total_fndry += payout.amount
-                elif payout.token == "SOL":
-                    total_sol += payout.amount
+    for payout in source.values():
+        if payout.status == PayoutStatus.CONFIRMED:
+            if payout.token == "FNDRY":
+                total_fndry += payout.amount
+            elif payout.token == "SOL":
+                total_sol += payout.amount
     return total_fndry, total_sol
 
 
@@ -295,8 +337,10 @@ async def create_buyback(data: BuybackCreate) -> BuybackResponse:
     return _buyback_to_response(record)
 
 
-def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
+async def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
     """Return a paginated list of buybacks sorted newest first.
+
+    Queries PostgreSQL as the primary source.
 
     Args:
         skip: Pagination offset.
@@ -305,10 +349,10 @@ def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
     Returns:
         A BuybackListResponse with paginated items and total count.
     """
-    with _lock:
-        results = sorted(
-            _buyback_store.values(), key=lambda b: b.created_at, reverse=True
-        )
+    db_buybacks = await _load_buybacks_from_db()
+    source = db_buybacks if db_buybacks is not None else _buyback_store
+
+    results = sorted(source.values(), key=lambda b: b.created_at, reverse=True)
     total = len(results)
     page = results[skip : skip + limit]
     return BuybackListResponse(
@@ -319,18 +363,20 @@ def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
     )
 
 
-def get_total_buybacks() -> tuple[float, float]:
-    """Calculate aggregate buyback totals.
+async def get_total_buybacks() -> tuple[float, float]:
+    """Calculate aggregate buyback totals from PostgreSQL.
 
     Returns:
         A tuple of (total_sol_spent, total_fndry_acquired).
     """
+    db_buybacks = await _load_buybacks_from_db()
+    source = db_buybacks if db_buybacks is not None else _buyback_store
+
     total_sol = 0.0
     total_fndry = 0.0
-    with _lock:
-        for buyback in _buyback_store.values():
-            total_sol += buyback.amount_sol
-            total_fndry += buyback.amount_fndry
+    for buyback in source.values():
+        total_sol += buyback.amount_sol
+        total_fndry += buyback.amount_fndry
     return total_sol, total_fndry
 
 

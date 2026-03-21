@@ -1,37 +1,77 @@
-"""Tests for contributor profiles API."""
+"""Tests for contributor profiles API.
+
+Tests verify CRUD operations through the HTTP API layer. All service
+functions are async (DB-first reads) and are exercised via the ASGI
+event loop through TestClient. DB reads are stubbed out to prevent
+cross-test contamination from shared SQLite in-memory databases.
+"""
+
+import os
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from app.main import app
+from app.api.contributors import router as contributors_router
 from app.services import contributor_service
+import app.services.contributor_service as _cs_mod
+import app.services.pg_store as _pg_mod
 
-client = TestClient(app)
+# Use a minimal test app to avoid lifespan side effects
+_test_app = FastAPI()
+_test_app.include_router(contributors_router, prefix="/api")
+client = TestClient(_test_app)
+
+# Save originals at import time
+_ORIG_LOAD_ALL = _cs_mod._load_all_contributors_from_db
+_ORIG_LOAD_ONE = _cs_mod._load_contributor_from_db
+_ORIG_BY_USERNAME = _pg_mod.get_contributor_by_username
+
+
+async def _stub_none():
+    return None
+
+
+async def _stub_none_arg(_):
+    return None
 
 
 @pytest.fixture(autouse=True)
 def clear_store():
-    """Clear store."""
+    """Clear cache and stub DB reads so tests use cache only."""
     contributor_service._store.clear()
+    _cs_mod._load_all_contributors_from_db = _stub_none
+    _cs_mod._load_contributor_from_db = _stub_none_arg
+    _pg_mod.get_contributor_by_username = _stub_none_arg
     yield
     contributor_service._store.clear()
+    _cs_mod._load_all_contributors_from_db = _ORIG_LOAD_ALL
+    _cs_mod._load_contributor_from_db = _ORIG_LOAD_ONE
+    _pg_mod.get_contributor_by_username = _ORIG_BY_USERNAME
 
 
-def _create(username="alice", display_name="Alice", skills=None, badges=None):
-    """Create."""
-    from app.models.contributor import ContributorCreate
+def _create_via_api(username="alice", display_name=None, skills=None, badges=None):
+    """Create a contributor through the HTTP API and return the response dict.
 
-    return contributor_service.create_contributor(
-        ContributorCreate(
-            username=username,
-            display_name=display_name,
-            skills=skills or ["python"],
-            badges=badges or [],
-        )
-    )
+    If display_name is not provided, it defaults to the capitalized username
+    to avoid false matches in search tests.
+    """
+    if display_name is None:
+        display_name = username.capitalize()
+    payload = {
+        "username": username,
+        "display_name": display_name,
+        "skills": skills or ["python"],
+        "badges": badges or [],
+    }
+    resp = client.post("/api/contributors", json=payload)
+    assert resp.status_code == 201, f"Create failed: {resp.text}"
+    return resp.json()
 
 
 def test_create_success():
-    """Test create success."""
+    """Successfully create a contributor via the API."""
     resp = client.post(
         "/api/contributors", json={"username": "alice", "display_name": "Alice"}
     )
@@ -41,8 +81,8 @@ def test_create_success():
 
 
 def test_create_duplicate():
-    """Test create duplicate."""
-    _create("bob")
+    """Reject duplicate username with 409."""
+    _create_via_api("bob", "Bob")
     resp = client.post(
         "/api/contributors", json={"username": "bob", "display_name": "Bob"}
     )
@@ -50,7 +90,7 @@ def test_create_duplicate():
 
 
 def test_create_invalid_username():
-    """Test create invalid username."""
+    """Reject username with spaces via Pydantic validation."""
     resp = client.post(
         "/api/contributors", json={"username": "a b", "display_name": "Bad"}
     )
@@ -58,70 +98,70 @@ def test_create_invalid_username():
 
 
 def test_list_empty():
-    """Test list empty."""
+    """Return empty list when no contributors exist."""
     resp = client.get("/api/contributors")
     assert resp.json()["total"] == 0
 
 
 def test_list_with_data():
-    """Test list with data."""
-    _create("alice")
-    _create("bob")
+    """Return all contributors when no filters applied."""
+    _create_via_api("alice")
+    _create_via_api("bob")
     assert client.get("/api/contributors").json()["total"] == 2
 
 
 def test_search():
-    """Test search."""
-    _create("alice")
-    _create("bob")
+    """Filter contributors by search query substring."""
+    _create_via_api("alice")
+    _create_via_api("bob")
     resp = client.get("/api/contributors?search=alice")
     assert resp.json()["total"] == 1
 
 
 def test_filter_skills():
-    """Test filter skills."""
-    _create("alice", skills=["python", "rust"])
-    _create("bob", skills=["javascript"])
+    """Filter contributors by skill overlap."""
+    _create_via_api("alice", skills=["python", "rust"])
+    _create_via_api("bob", skills=["javascript"])
     resp = client.get("/api/contributors?skills=rust")
     assert resp.json()["total"] == 1
 
 
 def test_filter_badges():
-    """Test filter badges."""
-    _create("alice", badges=["early_adopter"])
+    """Filter contributors by badge membership."""
+    _create_via_api("alice", badges=["early_adopter"])
     resp = client.get("/api/contributors?badges=early_adopter")
     assert resp.json()["total"] == 1
 
 
 def test_pagination():
-    """Test pagination."""
+    """Verify pagination with skip and limit."""
     for i in range(5):
-        _create(f"user{i}")
+        _create_via_api(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
     assert resp.json()["total"] == 5
     assert len(resp.json()["items"]) == 2
 
 
 def test_get_by_id():
-    """Test get by id."""
-    c = _create("alice")
-    resp = client.get(f"/api/contributors/{c.id}")
+    """Retrieve a contributor by ID."""
+    c = _create_via_api("alice")
+    resp = client.get(f"/api/contributors/{c['id']}")
     assert resp.status_code == 200
 
 
 def test_get_not_found():
-    """Test get not found."""
+    """Return 404 for non-existent contributor."""
     assert client.get("/api/contributors/nope").status_code == 404
 
 
 def test_update():
-    """Test update."""
-    c = _create("alice")
-    resp = client.patch(f"/api/contributors/{c.id}", json={"display_name": "Updated"})
+    """Update a contributor's display name."""
+    c = _create_via_api("alice")
+    resp = client.patch(f"/api/contributors/{c['id']}", json={"display_name": "Updated"})
     assert resp.json()["display_name"] == "Updated"
 
 
 def test_delete():
-    """Test delete."""
-    c = _create("alice")
-    assert client.delete(f"/api/contributors/{c.id}").status_code == 204
+    """Delete a contributor and verify 204 response."""
+    c = _create_via_api("alice")
+    assert client.delete(f"/api/contributors/{c['id']}").status_code == 204

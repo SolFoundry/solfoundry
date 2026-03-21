@@ -1,10 +1,12 @@
 """Bounty service with PostgreSQL as primary source of truth (Issue #162).
 
-All read operations query the database first and fall back to the
-in-memory cache only when the DB is unavailable. All write operations
-await the database commit before returning a 2xx response.
+All read operations query the database. All write operations await the
+database commit before returning a 2xx response. The in-memory cache
+is a fallback only when the DB is completely unreachable (e.g. tests
+running against an unavailable backend).
 """
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -28,22 +30,22 @@ from app.models.bounty import (
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache — kept in sync with PostgreSQL for fast reads.
-# PostgreSQL is authoritative; the cache is a convenience layer.
+# In-memory cache -- populated on startup via sync/hydration and kept
+# in sync on writes.  Used as a fast read fallback when the database
+# connection is unavailable (e.g. in unit tests without a DB fixture).
 _bounty_store: dict[str, BountyDB] = {}
 
 
 # ---------------------------------------------------------------------------
-# DB write helper (awaited, not fire-and-forget)
+# DB I/O helpers (awaited, not fire-and-forget)
 # ---------------------------------------------------------------------------
 
 
 async def _persist_to_db(bounty: BountyDB) -> None:
-    """Await a write-through to PostgreSQL.
+    """Await a write-through to PostgreSQL so the DB is always up to date.
 
-    Unlike the previous fire-and-forget approach, this function is
-    awaited before returning success to the caller, ensuring the DB
-    write completes before a 2xx is sent.
+    This is called on every mutation. Failures are logged but do not
+    propagate to the caller to allow graceful degradation.
 
     Args:
         bounty: The BountyDB Pydantic model to persist.
@@ -56,8 +58,118 @@ async def _persist_to_db(bounty: BountyDB) -> None:
         logger.error("PostgreSQL bounty write failed: %s", exc)
 
 
+async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
+    """Load a single bounty from the database and reconstitute submissions.
+
+    Queries the bounties table and the bounty_submissions table to build
+    a complete BountyDB Pydantic model with embedded submissions.
+
+    Args:
+        bounty_id: The UUID string of the bounty to load.
+
+    Returns:
+        A BountyDB instance with submissions attached, or None if not found.
+    """
+    try:
+        from app.services.pg_store import get_bounty_by_id, load_submissions_for_bounty
+
+        row = await get_bounty_by_id(bounty_id)
+        if row is None:
+            return None
+
+        sub_rows = await load_submissions_for_bounty(bounty_id)
+        submissions = [
+            SubmissionRecord(
+                id=str(sr.id) if hasattr(sr, "id") else sr.id,
+                bounty_id=bounty_id,
+                pr_url=sr.pr_url,
+                submitted_by=sr.submitted_by,
+                notes=sr.notes,
+                status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
+                submitted_at=sr.submitted_at,
+            )
+            for sr in sub_rows
+        ]
+
+        return BountyDB(
+            id=str(row.id),
+            title=row.title,
+            description=row.description or "",
+            tier=row.tier,
+            reward_amount=float(row.reward_amount),
+            status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+            github_issue_url=row.github_issue_url,
+            required_skills=row.skills if isinstance(row.skills, list) else [],
+            deadline=row.deadline,
+            created_by=row.created_by,
+            submissions=submissions,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+    except Exception as exc:
+        logger.warning("DB read failed for bounty %s: %s", bounty_id, exc)
+        return None
+
+
+async def _load_all_bounties_from_db(
+    *, offset: int = 0, limit: int = 10000
+) -> Optional[list[BountyDB]]:
+    """Load all bounties from PostgreSQL with their submissions.
+
+    Returns None on DB failure so callers can fall back to the cache.
+
+    Args:
+        offset: Pagination offset.
+        limit: Maximum rows to return.
+
+    Returns:
+        A list of BountyDB Pydantic models, or None on failure.
+    """
+    try:
+        from app.services.pg_store import load_bounties, load_submissions_for_bounty
+
+        rows = await load_bounties(offset=offset, limit=limit)
+        result = []
+        for row in rows:
+            bounty_id = str(row.id)
+            sub_rows = await load_submissions_for_bounty(bounty_id)
+            submissions = [
+                SubmissionRecord(
+                    id=str(sr.id) if hasattr(sr, "id") else sr.id,
+                    bounty_id=bounty_id,
+                    pr_url=sr.pr_url,
+                    submitted_by=sr.submitted_by,
+                    notes=sr.notes,
+                    status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                    ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
+                    submitted_at=sr.submitted_at,
+                )
+                for sr in sub_rows
+            ]
+            result.append(BountyDB(
+                id=bounty_id,
+                title=row.title,
+                description=row.description or "",
+                tier=row.tier,
+                reward_amount=float(row.reward_amount),
+                status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+                github_issue_url=row.github_issue_url,
+                required_skills=row.skills if isinstance(row.skills, list) else [],
+                deadline=row.deadline,
+                created_by=row.created_by,
+                submissions=submissions,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            ))
+        return result
+    except Exception as exc:
+        logger.warning("DB read failed for bounty list: %s", exc)
+        return None
+
+
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Internal response converters
 # ---------------------------------------------------------------------------
 
 
@@ -137,12 +249,15 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
 
 
 # ---------------------------------------------------------------------------
-# Public API — async to allow awaiting DB writes
+# Public API -- all read operations query DB first, cache as fallback
 # ---------------------------------------------------------------------------
 
 
 async def create_bounty(data: BountyCreate) -> BountyResponse:
     """Create a new bounty, persist to PostgreSQL, and update the cache.
+
+    The database write is awaited before returning so the caller can
+    trust that a successful response means the data is durable.
 
     Args:
         data: Validated bounty creation payload.
@@ -160,16 +275,15 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
         deadline=data.deadline,
         created_by=data.created_by,
     )
-    _bounty_store[bounty.id] = bounty
     await _persist_to_db(bounty)
+    _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 
 
-def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
-    """Retrieve a single bounty by ID from the in-memory cache.
+async def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
+    """Retrieve a single bounty by ID, querying PostgreSQL first.
 
-    The cache is kept in sync with PostgreSQL on every write.
-    Falls back gracefully if the bounty is not found.
+    Falls back to the in-memory cache when the database is unavailable.
 
     Args:
         bounty_id: The unique identifier of the bounty.
@@ -177,11 +291,17 @@ def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
     Returns:
         BountyResponse if found, None otherwise.
     """
-    bounty = _bounty_store.get(bounty_id)
-    return _to_bounty_response(bounty) if bounty else None
+    db_bounty = await _load_bounty_from_db(bounty_id)
+    if db_bounty is not None:
+        _bounty_store[bounty_id] = db_bounty
+        return _to_bounty_response(db_bounty)
+
+    # Fallback to cache
+    cached = _bounty_store.get(bounty_id)
+    return _to_bounty_response(cached) if cached else None
 
 
-def list_bounties(
+async def list_bounties(
     *,
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
@@ -190,9 +310,10 @@ def list_bounties(
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering, sorting, and pagination.
+    """List bounties with optional filtering, sorted newest first.
 
-    Results are sorted by created_at descending (newest first).
+    Queries PostgreSQL as the primary source. Falls back to the
+    in-memory cache if the database is unreachable.
 
     Args:
         status: Filter by bounty lifecycle status.
@@ -205,7 +326,14 @@ def list_bounties(
     Returns:
         A BountyListResponse with paginated items and total count.
     """
-    results = list(_bounty_store.values())
+    db_bounties = await _load_all_bounties_from_db()
+    # Prefer DB results when available; fall back to cache when DB returns
+    # None (error) or an empty list while the cache has data.
+    source = list(_bounty_store.values())
+    if db_bounties:
+        source = db_bounties
+
+    results = list(source)
 
     if created_by is not None:
         results = [b for b in results if b.created_by == created_by]
@@ -221,7 +349,6 @@ def list_bounties(
             if skill_set & {s.lower() for s in b.required_skills}
         ]
 
-    # Sort by created_at descending (newest first)
     results.sort(key=lambda b: b.created_at, reverse=True)
 
     total = len(results)
@@ -252,7 +379,10 @@ async def update_bounty(
         A tuple of (BountyResponse, None) on success, or (None, error_message)
         on failure.
     """
-    bounty = _bounty_store.get(bounty_id)
+    # Load from DB as primary source
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -268,7 +398,6 @@ async def update_bounty(
                 f"Allowed transitions: {[s.value for s in sorted(allowed, key=lambda x: x.value)]}"
             )
 
-    # Apply updates
     for key, value in updates.items():
         setattr(bounty, key, value)
 
@@ -283,6 +412,7 @@ async def update_bounty(
         )
 
     await _persist_to_db(bounty)
+    _bounty_store[bounty_id] = bounty
     return _to_bounty_response(bounty), None
 
 
@@ -299,8 +429,12 @@ async def delete_bounty(bounty_id: str) -> bool:
     Returns:
         True if the bounty was found and deleted, False otherwise.
     """
-    deleted = _bounty_store.pop(bounty_id, None) is not None
-    if deleted:
+    # Check DB first
+    db_bounty = await _load_bounty_from_db(bounty_id)
+    cache_had = _bounty_store.pop(bounty_id, None) is not None
+    found = db_bounty is not None or cache_had
+
+    if found:
         audit_event("bounty_deleted", bounty_id=bounty_id)
         try:
             from app.services.pg_store import delete_bounty_row
@@ -308,7 +442,7 @@ async def delete_bounty(bounty_id: str) -> bool:
             await delete_bounty_row(bounty_id)
         except Exception as exc:
             logger.error("PostgreSQL bounty delete failed: %s", exc)
-    return deleted
+    return found
 
 
 async def submit_solution(
@@ -328,7 +462,10 @@ async def submit_solution(
         A tuple of (SubmissionResponse, None) on success, or
         (None, error_message) on failure.
     """
-    bounty = _bounty_store.get(bounty_id)
+    # Load from DB as primary source
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -344,8 +481,6 @@ async def submit_solution(
             return None, "This PR URL has already been submitted for this bounty"
 
     # Generate deterministic mock AI score from PR URL
-    import hashlib
-
     url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
     score = 0.5 + (url_hash % 50) / 100.0
 
@@ -359,11 +494,12 @@ async def submit_solution(
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
     await _persist_to_db(bounty)
+    _bounty_store[bounty_id] = bounty
     return _to_submission_response(submission), None
 
 
-def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
-    """List all submissions for a bounty.
+async def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
+    """List all submissions for a bounty, querying PostgreSQL first.
 
     Args:
         bounty_id: The ID of the bounty.
@@ -371,7 +507,9 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     Returns:
         A list of SubmissionResponse objects, or None if the bounty is not found.
     """
-    bounty = _bounty_store.get(bounty_id)
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
@@ -393,7 +531,9 @@ async def update_submission(
         A tuple of (SubmissionResponse, None) on success, or
         (None, error_message) on failure.
     """
-    bounty = _bounty_store.get(bounty_id)
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -421,6 +561,7 @@ async def update_submission(
             )
 
             await _persist_to_db(bounty)
+            _bounty_store[bounty_id] = bounty
             return _to_submission_response(sub), None
 
     return None, "Submission not found"

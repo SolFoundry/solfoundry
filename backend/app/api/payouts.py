@@ -1,4 +1,8 @@
-"""Payout, treasury, and tokenomics API endpoints (in-memory MVP)."""
+"""Payout, treasury, and tokenomics API endpoints.
+
+All reads query PostgreSQL as the primary source of truth. Writes
+are awaited before returning to guarantee persistence.
+"""
 
 from __future__ import annotations
 
@@ -52,8 +56,8 @@ async def get_payouts(
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> PayoutListResponse:
-    """Return paginated payout history with optional filters."""
-    return list_payouts(recipient=recipient, status=status, skip=skip, limit=limit)
+    """Return paginated payout history with optional filters from PostgreSQL."""
+    return await list_payouts(recipient=recipient, status=status, skip=skip, limit=limit)
 
 
 @router.get(
@@ -73,7 +77,7 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
             status_code=400,
             detail="tx_hash must be a valid transaction signature (base-58 or hex)",
         )
-    payout = get_payout_by_tx_hash(tx_hash)
+    payout = await get_payout_by_tx_hash(tx_hash)
     if payout is None:
         raise HTTPException(
             status_code=404, detail=f"Payout with tx_hash '{tx_hash}' not found"
@@ -92,7 +96,7 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     },
 )
 async def record_payout(data: PayoutCreate) -> PayoutResponse:
-    """Record a new payout.  Invalidates the treasury cache on success."""
+    """Record a new payout. Invalidates the treasury cache on success."""
     try:
         result = await create_payout(data)
     except ValueError as exc:
@@ -117,13 +121,13 @@ async def treasury_buybacks(
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> BuybackListResponse:
-    """Return paginated buyback history."""
-    return list_buybacks(skip=skip, limit=limit)
+    """Return paginated buyback history from PostgreSQL."""
+    return await list_buybacks(skip=skip, limit=limit)
 
 
 @router.post("/treasury/buybacks", response_model=BuybackResponse, status_code=201)
 async def record_buyback(data: BuybackCreate) -> BuybackResponse:
-    """Record a new buyback event.  Invalidates the treasury cache on success."""
+    """Record a new buyback event. Invalidates the treasury cache on success."""
     try:
         result = await create_buyback(data)
     except ValueError as exc:

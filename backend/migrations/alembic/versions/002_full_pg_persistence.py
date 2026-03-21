@@ -172,6 +172,32 @@ def upgrade() -> None:
     )
     op.create_index("ix_buybacks_created_at", "buybacks", ["created_at"])
 
+    # --- bounty_submissions (first-class submission rows) ---
+    op.create_table(
+        "bounty_submissions",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column(
+            "bounty_id",
+            sa.String(36),
+            sa.ForeignKey("bounties.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("pr_url", sa.String(512), nullable=False),
+        sa.Column("submitted_by", sa.String(100), nullable=False),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
+        sa.Column("ai_score", sa.Numeric(precision=5, scale=2), server_default="0"),
+        sa.Column("submitted_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    op.create_index("ix_bsub_bounty", "bounty_submissions", ["bounty_id"])
+    op.create_index("ix_bsub_submitted_at", "bounty_submissions", ["submitted_at"])
+    op.create_index(
+        "ix_bsub_bounty_pr",
+        "bounty_submissions",
+        ["bounty_id", "pr_url"],
+        unique=True,
+    )
+
     # --- reputation_history ---
     op.create_table(
         "reputation_history",
@@ -211,6 +237,7 @@ def downgrade() -> None:
         "reputation_history",
         "buybacks",
         "payouts",
+        "bounty_submissions",
         "submissions",
         "contributors",
         "bounties",
