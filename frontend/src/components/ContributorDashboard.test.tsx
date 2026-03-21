@@ -1,7 +1,71 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ContributorDashboard } from './ContributorDashboard';
+import { vi, beforeEach } from 'vitest';
+
+// ============================================================================
+// Mock fetch for API calls made by ContributorDashboard (React Query)
+// ============================================================================
+
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
+/** Build a mock fetch Response for the given data. */
+function makeResponse(data: unknown): Response {
+  return {
+    ok: true, status: 200, statusText: 'OK',
+    json: () => Promise.resolve(data),
+    headers: new Headers(), redirected: false, type: 'basic' as ResponseType, url: '',
+    clone: function () { return this; }, body: null, bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(JSON.stringify(data)),
+    bytes: () => Promise.resolve(new Uint8Array()),
+  } as Response;
+}
+
+/** Mock bounties for dashboard tests. */
+const dashboardBounties = [
+  { id: 'b1', title: 'Fix escrow bug', reward_amount: 5000, deadline: '2026-04-15', status: 'in_progress', progress: 50 },
+  { id: 'b2', title: 'Build staking UI', reward_amount: 3000, deadline: '2026-04-20', status: 'claimed', progress: 20 },
+];
+/** Mock notifications for dashboard tests. */
+const dashboardNotifications = [
+  { id: 'n1', type: 'success', title: 'Bounty Completed', message: 'You completed a bounty!', created_at: new Date(Date.now() - 3600000).toISOString(), read: false },
+  { id: 'n2', type: 'info', title: 'New Review', message: 'Your PR was reviewed.', created_at: new Date(Date.now() - 7200000).toISOString(), read: true },
+];
+/** Mock leaderboard for dashboard tests. */
+const dashboardLeaderboard = [
+  { username: 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7', rank: 1, earningsFndry: 25000, bountiesCompleted: 10 },
+  { username: 'alice', rank: 2, earningsFndry: 15000, bountiesCompleted: 7 },
+];
+
+beforeEach(() => {
+  mockFetch.mockReset();
+  // Route-aware mock: return different data based on URL
+  mockFetch.mockImplementation((urlArg: unknown) => {
+    const url = String(urlArg ?? '');
+    if (url.includes('/bounties')) return Promise.resolve(makeResponse({ items: dashboardBounties }));
+    if (url.includes('/notifications')) return Promise.resolve(makeResponse({ items: dashboardNotifications }));
+    if (url.includes('/leaderboard')) return Promise.resolve(makeResponse(dashboardLeaderboard));
+    return Promise.resolve(makeResponse({ items: [] }));
+  });
+});
+
+/** Wrap component in QueryClientProvider for React Query hooks. */
+function renderWithQuery(element: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {element}
+    </QueryClientProvider>,
+  );
+}
 
 // ============================================================================
 // Mock Data
@@ -17,7 +81,7 @@ describe('ContributorDashboard', () => {
   // Basic Rendering Tests
   describe('Rendering', () => {
     it('renders the dashboard header after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Should show loading initially
       expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
@@ -31,7 +95,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders all summary cards after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByText('Total Earned')).toBeInTheDocument();
@@ -44,7 +108,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders tab navigation with correct accessibility', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
@@ -61,7 +125,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders quick action buttons after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Browse Bounties/ })).toBeInTheDocument();
@@ -72,7 +136,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders active bounties section after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Active Bounties' })).toBeInTheDocument();
@@ -83,7 +147,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders earnings chart with data after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /earnings/i })).toBeInTheDocument();
@@ -94,7 +158,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('renders recent activity section after loading', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Recent Activity' })).toBeInTheDocument();
@@ -107,7 +171,7 @@ describe('ContributorDashboard', () => {
   // Loading State Tests
   describe('Loading State', () => {
     it('shows loading spinner initially', () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Should show loading state
       expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
@@ -115,7 +179,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('hides loading spinner after data loads', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Wait for loading to complete
       await waitFor(() => {
@@ -130,7 +194,7 @@ describe('ContributorDashboard', () => {
   // Tab Navigation Tests - Verify behavior, not just existence
   describe('Tab Navigation', () => {
     it('switches to notifications tab and shows correct content', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Wait for loading
       await waitFor(() => {
@@ -149,7 +213,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('switches to settings tab and shows correct content', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -162,7 +226,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('switches back to overview tab from settings', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -181,7 +245,7 @@ describe('ContributorDashboard', () => {
   // Notification Tests - Verify behavior changes
   describe('Notifications', () => {
     it('marks notification as read when clicked', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Wait for loading and go to notifications tab
       await waitFor(() => {
@@ -202,7 +266,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('marks all notifications as read and hides mark all button', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
@@ -223,7 +287,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('shows unread notification badge on tab', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
@@ -239,7 +303,7 @@ describe('ContributorDashboard', () => {
   // Settings Tests - Verify toggle behavior
   describe('Settings', () => {
     it('displays linked accounts with correct status', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -255,7 +319,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('toggles notification preferences when clicked', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -278,7 +342,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('displays truncated wallet address', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -292,7 +356,7 @@ describe('ContributorDashboard', () => {
 
     it('calls onConnectAccount when Connect button is clicked', async () => {
       const mockConnect = jest.fn();
-      render(<ContributorDashboard walletAddress={mockWalletAddress} onConnectAccount={mockConnect} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} onConnectAccount={mockConnect} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -308,7 +372,7 @@ describe('ContributorDashboard', () => {
 
     it('calls onDisconnectAccount when Disconnect button is clicked', async () => {
       const mockDisconnect = jest.fn();
-      render(<ContributorDashboard walletAddress={mockWalletAddress} onDisconnectAccount={mockDisconnect} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} onDisconnectAccount={mockDisconnect} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -323,7 +387,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('connect/disconnect buttons have correct aria attributes', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -345,7 +409,7 @@ describe('ContributorDashboard', () => {
   describe('Quick Actions', () => {
     it('calls onBrowseBounties callback when Browse Bounties is clicked', async () => {
       const mockCallback = jest.fn();
-      render(<ContributorDashboard walletAddress={mockWalletAddress} onBrowseBounties={mockCallback} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} onBrowseBounties={mockCallback} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Browse Bounties/ })).toBeInTheDocument();
@@ -358,7 +422,7 @@ describe('ContributorDashboard', () => {
 
     it('calls onViewLeaderboard callback when View Leaderboard is clicked', async () => {
       const mockCallback = jest.fn();
-      render(<ContributorDashboard walletAddress={mockWalletAddress} onViewLeaderboard={mockCallback} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} onViewLeaderboard={mockCallback} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /View Leaderboard/ })).toBeInTheDocument();
@@ -371,7 +435,7 @@ describe('ContributorDashboard', () => {
 
     it('calls onCheckTreasury callback when Check Treasury is clicked', async () => {
       const mockCallback = jest.fn();
-      render(<ContributorDashboard walletAddress={mockWalletAddress} onCheckTreasury={mockCallback} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} onCheckTreasury={mockCallback} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Check Treasury/ })).toBeInTheDocument();
@@ -386,7 +450,7 @@ describe('ContributorDashboard', () => {
   // Bounty Card Tests - Verify deadline calculations
   describe('Bounty Cards', () => {
     it('displays bounty progress correctly', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByText('60%')).toBeInTheDocument();
@@ -397,7 +461,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('shows deadline countdown for each bounty', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Active Bounties' })).toBeInTheDocument();
@@ -409,7 +473,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('shows reward amount with correct formatting', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Active Bounties' })).toBeInTheDocument();
@@ -424,7 +488,7 @@ describe('ContributorDashboard', () => {
   // Activity Feed Tests - Verify data display
   describe('Activity Feed', () => {
     it('displays all activity types with correct icons', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByText('Payout Received')).toBeInTheDocument();
@@ -436,7 +500,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('shows positive amounts for payout activities', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByText('Payout Received')).toBeInTheDocument();
@@ -451,7 +515,7 @@ describe('ContributorDashboard', () => {
   // Accessibility Tests
   describe('Accessibility', () => {
     it('notification items are keyboard accessible', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
@@ -468,7 +532,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('notification items have correct aria labels', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
@@ -482,7 +546,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('loading state has correct aria attributes', () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       // Loading container should have role="status" and aria-live="polite"
       const loadingContainer = screen.getByRole('status');
@@ -493,7 +557,7 @@ describe('ContributorDashboard', () => {
   // Data Formatting Tests
   describe('Data Formatting', () => {
     it('formats large numbers with correct abbreviations', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByText(/2\.5M/i)).toBeInTheDocument();
@@ -504,7 +568,7 @@ describe('ContributorDashboard', () => {
     });
 
     it('shows relative time for activities', async () => {
-      render(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
       
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Recent Activity' })).toBeInTheDocument();
@@ -520,7 +584,7 @@ describe('ContributorDashboard', () => {
   describe('User ID Prop', () => {
     it('accepts userId prop for data fetching', async () => {
       const userId = 'test-user-123';
-      render(<ContributorDashboard userId={userId} walletAddress={mockWalletAddress} />);
+      renderWithQuery(<ContributorDashboard userId={userId} walletAddress={mockWalletAddress} />);
       
       // Wait for loading to complete
       await waitFor(() => {

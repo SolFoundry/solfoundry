@@ -10,14 +10,20 @@ import { AgentNotFound } from '../components/agents/AgentNotFound';
 import { apiClient, isApiError } from '../services/apiClient';
 import type { AgentProfile as AgentProfileType } from '../types/agent';
 
-const VALID_ROLES: readonly string[] = ['developer', 'reviewer', 'manager', 'auditor'];
-const VALID_STATUSES: readonly string[] = ['online', 'offline', 'busy', 'idle'];
+const VALID_ROLES: readonly string[] = ['auditor', 'developer', 'researcher', 'optimizer'];
+const API_STATUS_MAP: Record<string, 'available' | 'busy' | 'offline'> = {
+  online: 'available',
+  available: 'available',
+  busy: 'busy',
+  idle: 'offline',
+  offline: 'offline',
+};
 
 /** Map raw API response to AgentProfile with validated enum fields. */
 function mapAgentResponse(response: Record<string, unknown>): AgentProfileType {
   const completedBounties = Array.isArray(response.completed_bounties) ? response.completed_bounties as Record<string, unknown>[] : [];
   const role = VALID_ROLES.includes(String(response.role)) ? response.role as AgentProfileType['role'] : 'developer';
-  const status = VALID_STATUSES.includes(String(response.status)) ? response.status as AgentProfileType['status'] : 'offline';
+  const status = API_STATUS_MAP[String(response.status)] ?? 'offline';
   return {
     id: String(response.id ?? ''),
     name: String(response.name ?? ''),

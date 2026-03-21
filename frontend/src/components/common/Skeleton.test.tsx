@@ -46,8 +46,8 @@ describe('Skeleton Components', () => {
   describe('SkeletonText', () => {
     it('renders multiple lines', () => {
       const { container } = render(<SkeletonText lines={3} />);
-      const lines = container.querySelectorAll('div > div');
-      expect(lines.length).toBe(3);
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.children.length).toBe(3);
     });
 
     it('applies last line width', () => {
