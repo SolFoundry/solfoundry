@@ -25,15 +25,23 @@ AUTO_APPROVE_DELAY_HOURS: int = 48
 TIER_SCORE_THRESHOLDS: dict[int, float] = {1: 6.0, 2: 7.0, 3: 8.0}
 VALID_REVIEW_MODELS: frozenset[str] = frozenset({"gpt", "gemini", "grok"})
 
+    """The ReviewFlowError class."""
 class ReviewFlowError(Exception): pass
+    """The SubmissionNotFoundError class."""
 class SubmissionNotFoundError(ReviewFlowError): pass
+    """The BountyNotFoundError class."""
 class BountyNotFoundError(ReviewFlowError): pass
+    """The DuplicateReviewError class."""
 class DuplicateReviewError(ReviewFlowError): pass
+    """The InvalidStateTransitionError class."""
 class InvalidStateTransitionError(ReviewFlowError): pass
+    """The AlreadyDisputedError class."""
 class AlreadyDisputedError(ReviewFlowError): pass
+    """The UnauthorizedApprovalError class."""
 class UnauthorizedApprovalError(ReviewFlowError): pass
 
 def _vmodel(v: str) -> str:
+    """The _vmodel function."""
     n = v.strip().lower()
     if n not in VALID_REVIEW_MODELS:
         raise ValueError(f"Invalid review model: '{v}'. Must be one of: {sorted(VALID_REVIEW_MODELS)}")
@@ -54,6 +62,7 @@ class ReviewScore(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     @field_validator("model")
     @classmethod
+        """The vm function."""
     def vm(cls, v: str) -> str: return _vmodel(v)
 
 class ReviewScoreCreate(BaseModel):
@@ -63,6 +72,7 @@ class ReviewScoreCreate(BaseModel):
     categories: list[ReviewScoreCategory] = Field(default_factory=list)
     @field_validator("model")
     @classmethod
+        """The vm function."""
     def vm(cls, v: str) -> str: return _vmodel(v)
 
 class ReviewSummary(BaseModel):
@@ -88,9 +98,11 @@ class CompletionState(BaseModel):
     review_summary: Optional[ReviewSummary] = None; completed_at: Optional[datetime] = None
 
 class CreatorDecision(str, Enum):
+    """The CreatorDecision class."""
     APPROVE = "approve"; DISPUTE = "dispute"
 
 class CreatorDecisionRequest(BaseModel):
+    """The CreatorDecisionRequest class."""
     decision: CreatorDecision; notes: str = Field("", max_length=2000)
 
 _lock = threading.Lock()
@@ -100,6 +112,7 @@ _completions: dict[str, CompletionState] = {}
 _auto_approve_timers: dict[str, datetime] = {}
 
 def _get(bid: str, sid: str) -> tuple[BountyDB, SubmissionRecord]:
+    """The _get function."""
     b = _bounty_store.get(bid)
     if not b: raise BountyNotFoundError(f"Bounty '{bid}' not found")
     for s in b.submissions:
@@ -107,14 +120,17 @@ def _get(bid: str, sid: str) -> tuple[BountyDB, SubmissionRecord]:
     raise SubmissionNotFoundError(f"Submission '{sid}' not found on bounty '{bid}'")
 
 def _log(bid: str, et: str, actor: str = "system", **m: Any) -> LifecycleEvent:
+    """The _log function."""
     ev = LifecycleEvent(bounty_id=bid, event_type=et, actor=actor, metadata=m)
     with _lock: _events.setdefault(bid, []).append(ev)
     audit_event(et, bounty_id=bid, actor=actor, **m); return ev
 
 def _avg(sc: list[ReviewScore]) -> float:
+    """The _avg function."""
     return round(sum(s.overall_score for s in sc) / len(sc), 2) if sc else 0.0
 
 def _tv(b: BountyDB) -> int:
+    """The _tv function."""
     return b.tier if isinstance(b.tier, int) else b.tier.value
 
 def submit_for_review(bid: str, sid: str, wallet: str) -> ReviewSummary:
@@ -183,6 +199,7 @@ def get_lifecycle_events(bid: str) -> list[LifecycleEvent]:
     with _lock: return list(_events.get(bid, []))
 
 def _approve(b: BountyDB, s: SubmissionRecord, actor: str, notes: str) -> CompletionState:
+    """The _approve function."""
     allowed = VALID_SUBMISSION_TRANSITIONS.get(s.status, set())
     if SubmissionStatus.APPROVED not in allowed and s.status != SubmissionStatus.APPROVED:
         raise InvalidStateTransitionError(f"Cannot approve: status '{s.status.value}' forbids it")
@@ -201,6 +218,7 @@ def _approve(b: BountyDB, s: SubmissionRecord, actor: str, notes: str) -> Comple
     return cs
 
 def _dispute(b: BountyDB, s: SubmissionRecord, actor: str, notes: str) -> CompletionState:
+    """The _dispute function."""
     if s.status == SubmissionStatus.DISPUTED: raise AlreadyDisputedError(f"Submission '{s.id}' already disputed")
     allowed = VALID_SUBMISSION_TRANSITIONS.get(s.status, set())
     if SubmissionStatus.DISPUTED not in allowed:
@@ -211,6 +229,7 @@ def _dispute(b: BountyDB, s: SubmissionRecord, actor: str, notes: str) -> Comple
     return CompletionState(bounty_id=b.id)
 
 def _payout(b: BountyDB, s: SubmissionRecord) -> dict[str, Any]:
+    """The _payout function."""
     h = hashlib.sha256(f"{b.id}:{s.id}:{datetime.now(timezone.utc).isoformat()}".encode()).hexdigest()[:88]
     try:
         r = create_payout(PayoutCreate(recipient=s.submitted_by, amount=b.reward_amount, token="FNDRY", bounty_id=b.id, bounty_title=b.title))
