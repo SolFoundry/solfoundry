@@ -14,20 +14,34 @@ class TierNotUnlockedError(Exception):
 
 
 # Dispute resolution exceptions (Issue #192)
+
+
 class DisputeNotFoundError(Exception):
-    """Dispute ID not found."""
+    """Raised when a dispute ID does not exist in the database."""
+
+
 class DisputeWindowExpiredError(Exception):
-    """72h dispute window from rejection has passed."""
+    """Raised when the 72-hour dispute window from rejection has passed."""
+
+
 class InvalidDisputeTransitionError(Exception):
-    """Invalid state transition attempted."""
+    """Raised when an invalid dispute state transition is attempted."""
+
+
 class DuplicateDisputeError(Exception):
-    """Dispute already exists for this submission."""
+    """Raised when a dispute already exists for this submission."""
+
+
 class UnauthorizedDisputeAccessError(Exception):
-    """Non-admin attempted to resolve a dispute."""
+    """Raised when a non-authorized user attempts a restricted dispute action."""
+
+
 class BountyNotFoundError(Exception):
-    """Referenced bounty not found."""
+    """Raised when a referenced bounty does not exist in the database."""
+
+
 class SubmissionNotFoundError(Exception):
-    """Referenced submission not found."""
+    """Raised when a referenced submission does not exist in the database."""
 
 
 class PayoutError(Exception):

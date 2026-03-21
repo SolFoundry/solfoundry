@@ -24,6 +24,8 @@ const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
+const DisputeListPage = lazy(() => import('./pages/DisputeListPage'));
+const DisputePage = lazy(() => import('./pages/DisputePage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -70,6 +72,10 @@ function AppLayout() {
 
           {/* How It Works */}
           <Route path="/how-it-works" element={<HowItWorksPage />} />
+
+          {/* Disputes */}
+          <Route path="/disputes" element={<DisputeListPage />} />
+          <Route path="/disputes/:id" element={<DisputePage />} />
 
           {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />

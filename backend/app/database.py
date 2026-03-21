@@ -77,11 +77,31 @@ class GUID(TypeDecorator):
         return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
-        if value is None: return value
+        """Convert a Python value to a database-compatible format.
+
+        Args:
+            value: The Python value to convert.
+            dialect: The SQLAlchemy dialect in use.
+
+        Returns:
+            String representation of the value, or None.
+        """
+        if value is None:
+            return value
         return str(value)
 
     def process_result_value(self, value, dialect):
-        if value is None: return value
+        """Convert a database value back to a Python string.
+
+        Args:
+            value: The database value to convert.
+            dialect: The SQLAlchemy dialect in use.
+
+        Returns:
+            String representation of the value, or None.
+        """
+        if value is None:
+            return value
         return str(value)
 
 
