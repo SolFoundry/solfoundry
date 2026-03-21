@@ -33,6 +33,7 @@ async def hydrate_from_database() -> None:
         with _reputation_lock: _reputation_store.update(loaded)
 
 def _fire_rep(entry):
+    """The _fire_rep function."""
     import asyncio
     from app.services.pg_store import insert_reputation_entry
     try: asyncio.get_running_loop().create_task(insert_reputation_entry(entry))

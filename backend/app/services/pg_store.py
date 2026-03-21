@@ -5,12 +5,14 @@ from app.database import get_db_session
 log = logging.getLogger(__name__)
 
 async def _ex(sql, p):
+    """The _ex function."""
     try:
         async with get_db_session() as s:
             await s.execute(text(sql), p); await s.commit()
     except Exception: pass
 
 async def insert_payout(r):
+    """The insert_payout function."""
     await _ex("INSERT INTO payouts (id,recipient,recipient_wallet,amount,token,"
         "bounty_id,bounty_title,tx_hash,status,solscan_url) VALUES "
         "(:id,:r,:w,:a,:t,:bid,:bt,:tx,:s,:su) ON CONFLICT (id) DO NOTHING",
@@ -19,6 +21,7 @@ async def insert_payout(r):
          "s":r.status.value,"su":r.solscan_url})
 
 async def insert_buyback(r):
+    """The insert_buyback function."""
     await _ex("INSERT INTO buybacks (id,amount_sol,amount_fndry,price_per_fndry,"
         "tx_hash,solscan_url) VALUES (:id,:sol,:f,:p,:tx,:su) "
         "ON CONFLICT (id) DO NOTHING",
@@ -26,6 +29,7 @@ async def insert_buyback(r):
          "p":r.price_per_fndry,"tx":r.tx_hash,"su":r.solscan_url})
 
 async def insert_reputation_entry(e):
+    """The insert_reputation_entry function."""
     await _ex("INSERT INTO reputation_history (id,contributor_id,bounty_id,"
         "bounty_title,bounty_tier,review_score,earned_reputation,"
         "anti_farming_applied) VALUES (:id,:cid,:bid,:t,:tier,:s,:r,:a) "
@@ -35,6 +39,7 @@ async def insert_reputation_entry(e):
          "r":e.earned_reputation,"a":e.anti_farming_applied})
 
 async def persist_bounty(b):
+    """The persist_bounty function."""
     tier = b.tier.value if hasattr(b.tier,"value") else b.tier
     st = b.status.value if hasattr(b.status,"value") else b.status
     sc = len(b.submissions) if hasattr(b,"submissions") else 0
@@ -52,9 +57,11 @@ async def persist_bounty(b):
          "ca":b.created_at,"ua":b.updated_at,"dl":b.deadline})
 
 async def delete_bounty(bid):
+    """The delete_bounty function."""
     await _ex("DELETE FROM bounties WHERE id=:id::uuid",{"id":bid})
 
 async def load_payouts():
+    """The load_payouts function."""
     from app.models.payout import PayoutRecord, PayoutStatus
     out = {}
     try:
@@ -69,6 +76,7 @@ async def load_payouts():
     return out
 
 async def load_buybacks():
+    """The load_buybacks function."""
     from app.models.payout import BuybackRecord
     out = {}
     try:
@@ -81,6 +89,7 @@ async def load_buybacks():
     return out
 
 async def load_reputation():
+    """The load_reputation function."""
     from app.models.reputation import ReputationHistoryEntry
     out = {}
     try:

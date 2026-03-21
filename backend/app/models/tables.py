@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 
 class PayoutTable(Base):
+    """The PayoutTable class."""
     __tablename__ = "payouts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     recipient = Column(String(100), nullable=False, index=True)
@@ -21,6 +22,7 @@ class PayoutTable(Base):
                         default=lambda: datetime.now(timezone.utc), index=True)
 
 class BuybackTable(Base):
+    """The BuybackTable class."""
     __tablename__ = "buybacks"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     amount_sol = Column(Float, nullable=False)
@@ -32,6 +34,7 @@ class BuybackTable(Base):
                         default=lambda: datetime.now(timezone.utc), index=True)
 
 class ReputationHistoryTable(Base):
+    """The ReputationHistoryTable class."""
     __tablename__ = "reputation_history"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contributor_id = Column(String(64), nullable=False, index=True)
