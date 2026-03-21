@@ -81,6 +81,9 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         winner_wallet=b.winner_wallet,
         payout_tx_hash=b.payout_tx_hash,
         payout_at=b.payout_at,
+        claimed_by=b.claimed_by,
+        claimed_at=b.claimed_at,
+        claim_deadline=b.claim_deadline,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )

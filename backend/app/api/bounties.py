@@ -578,3 +578,139 @@ async def cancel_bounty(
     if error:
         raise HTTPException(status_code=400, detail=error)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle engine endpoints
+# ---------------------------------------------------------------------------
+
+from app.services.bounty_lifecycle_service import (
+    LifecycleError,
+    publish_bounty as _publish_bounty,
+    claim_bounty as _claim_bounty,
+    unclaim_bounty as _unclaim_bounty,
+    transition_status as _transition_status,
+)
+
+
+class ClaimRequest(BaseModel):
+    """Optional claim duration override."""
+    claim_duration_hours: int = PydanticField(
+        default=168,
+        ge=1,
+        le=720,
+        description="How many hours the claim lock lasts (default 168 = 7 days)",
+    )
+
+
+class TransitionRequest(BaseModel):
+    """Request body for a generic status transition."""
+    target_status: str = PydanticField(..., description="Target bounty status")
+
+
+@router.post(
+    "/{bounty_id}/publish",
+    response_model=BountyResponse,
+    summary="Publish a draft bounty",
+    description="Move a bounty from `draft` → `open`, making it visible in the marketplace.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Not in draft state or invalid transition"},
+        403: {"model": ErrorResponse, "description": "Not the bounty creator"},
+        404: {"model": ErrorResponse, "description": "Bounty not found"},
+    },
+)
+async def publish_bounty(
+    bounty_id: str,
+    user: UserResponse = Depends(get_current_user),
+) -> BountyResponse:
+    await _verify_bounty_ownership(bounty_id, user)
+    actor_id = user.wallet_address or str(user.id)
+    try:
+        return _publish_bounty(bounty_id, actor_id=actor_id)
+    except LifecycleError as exc:
+        code = 404 if exc.code == "NOT_FOUND" else 400
+        raise HTTPException(status_code=code, detail=exc.message)
+
+
+@router.post(
+    "/{bounty_id}/claim",
+    response_model=BountyResponse,
+    summary="Claim a T2/T3 bounty",
+    description="""
+    Lock a T2/T3 bounty for the requesting contributor. T1 bounties use
+    open-race and cannot be claimed. The bounty moves to `in_progress`
+    and a deadline timer starts.
+    """,
+    responses={
+        400: {"model": ErrorResponse, "description": "Cannot claim (wrong tier, state, or already claimed)"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+        404: {"model": ErrorResponse, "description": "Bounty not found"},
+    },
+)
+async def claim_bounty(
+    bounty_id: str,
+    body: Optional[ClaimRequest] = None,
+    user: UserResponse = Depends(get_current_user),
+) -> BountyResponse:
+    claimer_id = user.wallet_address or str(user.id)
+    duration = body.claim_duration_hours if body else 168
+    try:
+        return _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+    except LifecycleError as exc:
+        code = 404 if exc.code == "NOT_FOUND" else 400
+        raise HTTPException(status_code=code, detail=exc.message)
+
+
+@router.post(
+    "/{bounty_id}/unclaim",
+    response_model=BountyResponse,
+    summary="Release a bounty claim",
+    description="Release your claim on a bounty. The bounty returns to `open`.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Not claimed"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+        404: {"model": ErrorResponse, "description": "Bounty not found"},
+    },
+)
+async def unclaim_bounty(
+    bounty_id: str,
+    user: UserResponse = Depends(get_current_user),
+) -> BountyResponse:
+    actor_id = user.wallet_address or str(user.id)
+    try:
+        return _unclaim_bounty(bounty_id, actor_id=actor_id, reason="manual")
+    except LifecycleError as exc:
+        code = 404 if exc.code == "NOT_FOUND" else 400
+        raise HTTPException(status_code=code, detail=exc.message)
+
+
+@router.post(
+    "/{bounty_id}/transition",
+    response_model=BountyResponse,
+    summary="Perform a generic state transition",
+    description="Move a bounty to a new status if the transition is valid per the state machine.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid transition"},
+        403: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bounty not found"},
+    },
+)
+async def transition_bounty(
+    bounty_id: str,
+    body: TransitionRequest,
+    user: UserResponse = Depends(get_current_user),
+) -> BountyResponse:
+    await _verify_bounty_ownership(bounty_id, user)
+    actor_id = user.wallet_address or str(user.id)
+    try:
+        target = BountyStatus(body.target_status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {body.target_status}")
+    try:
+        return _transition_status(
+            bounty_id, target, actor_id=actor_id, actor_type="user"
+        )
+    except LifecycleError as exc:
+        code = 404 if exc.code == "NOT_FOUND" else 400
+        raise HTTPException(status_code=code, detail=exc.message)
+
