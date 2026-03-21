@@ -4,7 +4,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import traceback
+import time
+
 from app.database import engine
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,6 +96,43 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+from src.middleware.logging import _get_logger
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    try:
+        path = request.url.path
+        method = request.method
+    except Exception:
+        path = "unknown"
+        method = "unknown"
+        
+    error_data = {
+        "stream": "error",
+        "path": path,
+        "method": method,
+        "error_type": type(exc).__name__,
+        "stack_trace": traceback.format_exc(),
+        "duration_ms": 0.0 # Time calc here might not be accurate, handled in middleware
+    }
+    
+    _get_logger("error").error(
+        f"Unhandled exception: {str(exc)}", 
+        extra={"correlation_id": correlation_id, "extra_info": error_data},
+        exc_info=True
+    )
+    
+    return JSONResponse(
+        status_code=500,
+        headers={"X-Correlation-ID": correlation_id},
+        content={
+            "error": "Internal Server Error", 
+            "correlation_id": correlation_id,
+            "message": "An unexpected error occurred. Please contact support with the correlation ID."
+        }
+    )
+
 # ── Route Registration ──────────────────────────────────────────────────────
 # Auth: /auth/* (prefix defined in router)
 app.include_router(auth_router)
@@ -143,8 +184,8 @@ async def health_check():
     # Check DB
     try:
         if engine is not None:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
             health["dependencies"]["database"] = "ok"
     except Exception:
         health["dependencies"]["database"] = "degraded"

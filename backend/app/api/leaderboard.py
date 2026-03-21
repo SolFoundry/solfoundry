@@ -9,6 +9,7 @@ from app.models.leaderboard import (
     CategoryFilter,
     TierFilter,
     TimePeriod,
+    LeaderboardResponse
 )
 from app.services.leaderboard_service import get_leaderboard
 
@@ -25,7 +26,7 @@ _RANGE_MAP = {
 }
 
 
-@router.get("/leaderboard")
+@router.get("/leaderboard", response_model=LeaderboardResponse)
 async def leaderboard(
     period: Optional[TimePeriod] = Query(
         None, description="Time period: week, month, or all"
@@ -41,7 +42,7 @@ async def leaderboard(
     """Ranked list of contributors by $FNDRY earned.
 
     Supports both backend format (?period=all) and frontend format (?range=all).
-    Returns array of contributors in frontend-friendly camelCase format.
+    Returns structured leaderboard response.
     """
     # Resolve period from either param
     resolved_period = TimePeriod.all
@@ -50,41 +51,10 @@ async def leaderboard(
     elif range:
         resolved_period = _RANGE_MAP.get(range, TimePeriod.all)
 
-    result = get_leaderboard(
+    return get_leaderboard(
         period=resolved_period,
         tier=tier,
         category=category,
         limit=limit,
         offset=offset,
     )
-
-    # Return frontend-friendly format: array of Contributor objects
-    contributors = []
-    for entry in result.entries:
-        contributors.append(
-            {
-                "rank": entry.rank,
-                "username": entry.username,
-                "avatarUrl": entry.avatar_url
-                or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
-                "points": int(entry.reputation_score * 100)
-                if entry.reputation_score
-                else 0,
-                "bountiesCompleted": entry.bounties_completed,
-                "earningsFndry": entry.total_earned,
-                "earningsSol": 0,
-                "streak": max(1, entry.bounties_completed // 2),
-                "topSkills": [],
-            }
-        )
-
-    # Enrich with skills from contributor store
-    from app.services.contributor_service import _store
-
-    for c in contributors:
-        for db_contrib in _store.values():
-            if db_contrib.username == c["username"]:
-                c["topSkills"] = (db_contrib.skills or [])[:3]
-                break
-
-    return JSONResponse(content=contributors)

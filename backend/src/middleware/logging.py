@@ -11,7 +11,7 @@ import sys
 import traceback
 import re
 import os
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -33,8 +33,8 @@ class JSONFormatter(logging.Formatter):
             log_record["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_record)
 
-def setup_logging(log_dir="logs", max_bytes=10485760, backup_count=5):
-    """Initialize logging configuration with rotation and separate streams."""
+def setup_logging(log_dir="logs", backup_count=7):
+    """Initialize logging configuration with time-based rotation and separate streams."""
     if not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
         
@@ -47,10 +47,12 @@ def setup_logging(log_dir="logs", max_bytes=10485760, backup_count=5):
         if logger.hasHandlers():
             logger.handlers.clear()
             
-        file_handler = RotatingFileHandler(
+        file_handler = TimedRotatingFileHandler(
             os.path.join(log_dir, filename), 
-            maxBytes=max_bytes, 
-            backupCount=backup_count
+            when="midnight",
+            interval=1,
+            backupCount=backup_count,
+            encoding="utf-8"
         )
         file_handler.setFormatter(JSONFormatter())
         logger.addHandler(file_handler)
@@ -61,7 +63,7 @@ def setup_logging(log_dir="logs", max_bytes=10485760, backup_count=5):
             logger.addHandler(stream_handler)
         return logger
 
-    configure_stream("access", "access.log", to_stdout=True)
+    configure_stream("access", "access.log", to_stdout=False)
     configure_stream("application", "app.log", to_stdout=True)
     configure_stream("error", "error.log", to_stdout=True)
     configure_stream("audit", "audit.log", to_stdout=False)
@@ -76,7 +78,7 @@ def _get_logger(name):
     return logging.getLogger(name)
 
 def _validate_correlation_id(cid: str) -> str:
-    if cid and isinstance(cid, str) and re.match(r'^[a-zA-Z0-9-]{10,50}$', cid):
+    if cid and isinstance(cid, str) and len(cid) <= 50 and re.match(r'^[a-zA-Z0-9-]{10,50}$', cid):
         return cid
     return str(uuid.uuid4())
 
@@ -84,6 +86,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         raw_cid = request.headers.get("X-Correlation-ID")
         correlation_id = _validate_correlation_id(raw_cid)
+        request.state.correlation_id = correlation_id
         start_time = time.time()
         
         path = request.url.path
@@ -125,10 +128,6 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             process_time = (time.time() - start_time) * 1000
             
-            # Do not swallow framework HTTPExceptions (e.g. 404, 422)
-            if isinstance(e, StarletteHTTPException) or getattr(e, "status_code", None) is not None:
-                raise e
-
             # Format detailed error metrics for TRUE unhandled SERVER 500 EXCEPTIONS
             error_data = {
                 "stream": "error",
@@ -146,16 +145,9 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 exc_info=True
             )
             
-            # Mask internal errors from client
-            return JSONResponse(
-                status_code=500,
-                headers={"X-Correlation-ID": correlation_id},
-                content={
-                    "error": "Internal Server Error", 
-                    "correlation_id": correlation_id,
-                    "message": "An unexpected error occurred. Please contact support with the correlation ID."
-                }
-            )
+            # Non-intrusive exception routing: just raise it
+            # Let FastAPI and standard HTTP exception handlers do their job
+            raise e
 
 def handle_error(exception):
     """Fallback utility for other manual scopes"""

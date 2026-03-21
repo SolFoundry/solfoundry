@@ -30,7 +30,20 @@ async def payout_endpoint():
 async def http_exception_handler(request, exc):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
-client = TestClient(app)
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    return JSONResponse(
+        status_code=500,
+        headers={"X-Correlation-ID": correlation_id},
+        content={
+            "error": "Internal Server Error", 
+            "correlation_id": correlation_id,
+            "message": "An unexpected error occurred. Please contact support with the correlation ID."
+        }
+    )
+
+client = TestClient(app, raise_server_exceptions=False)
 
 def test_setup_logging_creates_dirs(tmp_path):
     log_dir = str(tmp_path / "custom_logs")
@@ -48,7 +61,7 @@ def test_success_logging():
 
 def test_client_none_logging():
     # Provide a fake scope without client
-    scope = {"type": "http", "method": "GET", "path": "/test", "headers": []}
+    scope = {"type": "http", "method": "GET", "path": "/test", "headers": [], "query_string": b""}
     async def receive():
         return {"type": "http.request"}
     async def send(message):
