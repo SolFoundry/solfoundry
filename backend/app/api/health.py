@@ -21,7 +21,10 @@ async def health_check():
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception:
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("app.api.health")
+        logger.error(f"Health check DB failure: {e}")
         db_status = "disconnected"
         
     # 2. Redis Connectivity Check
@@ -32,7 +35,10 @@ async def health_check():
         r = aioredis.from_url(redis_url, decode_responses=True)
         async with r:
             await r.ping()
-    except Exception:
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("app.api.health")
+        logger.error(f"Health check Redis failure: {e}")
         redis_status = "disconnected"
         
     # Aggregate status
