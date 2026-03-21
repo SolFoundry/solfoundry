@@ -10,6 +10,7 @@ This module tests:
 
 import pytest
 import base64
+import asyncio
 from datetime import datetime, timezone, timedelta
 
 from fastapi.testclient import TestClient
@@ -17,6 +18,7 @@ from solders.keypair import Keypair
 
 from app.main import app
 from app.services import auth_service
+from app.database import async_session_factory
 
 auth_service.GITHUB_CLIENT_ID = "test-client-id"
 
@@ -32,9 +34,6 @@ def test_keypair():
     """Create a test Solana keypair for wallet auth tests."""
     return Keypair()
 
-
-import asyncio
-from app.database import async_session_factory, Base, engine, get_db
 
 @pytest.fixture
 def auth_headers(client):
