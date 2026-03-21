@@ -1,6 +1,10 @@
 """
 API endpoint for bounty statistics - COMPLETE SOLUTION
 This is the solution for GitHub Bounty Issue #344
+
+File: backend/app/api/stats.py
+========================================
+Copy this entire content to: backend/app/api/stats.py
 """
 
 from datetime import datetime
@@ -17,6 +21,7 @@ from app.services.leaderboard_service import LeaderboardService
 
 router = APIRouter(prefix="/api", tags=["stats"])
 
+
 @dataclass
 class BountyStats:
     """Bounty statistics data model"""
@@ -29,11 +34,12 @@ class BountyStats:
     bounties_by_tier: Dict[str, Dict[str, int]]
     top_contributor: Dict[str, Any]
 
+
 def get_stats_service(
     bounty_service: BountyService = Depends(),
-  contributor_service: ContributorService = Depends(),
+    contributor_service: ContributorService = Depends(),
     leaderboard_service: LeaderboardService = Depends(),
-) -> Dict[str, Any]\:
+) -> Dict[str, Any]:
     """Aggregate statistics from various services"""
     
     # Get data from services
@@ -59,19 +65,19 @@ def get_stats_service(
             for tier, data in tier_data.items()
         },
         top_contributor={
-            "username": top_contributor.
-  username,
+            "username": top_contributor.username,
             "bounties_completed": top_contributor.bounties_completed
         }
     )
     
     return asdict(stats)
 
+
 @router.get("/stats", summary="Get bounty statistics")
 @cache(expire=300)  # 5 minutes cache
 async def get_stats(
     stats_data: Dict[str, Any] = Depends(get_stats_service)
-) -> Dict[str, Any]\:
+) -> Dict[str, Any]:
     """
     Returns aggregate statistics about the bounty program.
     
@@ -81,6 +87,7 @@ async def get_stats(
     Data is cached for 5 minutes to avoid recomputation on every request.
     """
     return stats_data
+
 
 # For testing - override dependency
 def override_get_stats_service():
@@ -97,8 +104,7 @@ def override_get_stats_service():
             "tier-2": {"open": 5, "completed": 8},
             "tier-3": {"open": 2, "completed": 2}
         },
-        "top_c
-  ontributor": {
+        "top_contributor": {
             "username": "HuiNeng6",
             "bounties_completed": 17
         }
