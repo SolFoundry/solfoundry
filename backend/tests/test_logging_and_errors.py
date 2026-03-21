@@ -1,4 +1,3 @@
-"""Tests for logging and errors functionality."""
 from fastapi.testclient import TestClient
 from app.main import app
 import os
@@ -33,7 +32,6 @@ def test_structured_error_401_auth_error():
     
     @app.get("/test-auth-error")
     async def trigger_auth_error():
-        """Handle trigger auth error operation."""
         raise AuthError("Unauthorized specifically")
     
     response = client.get("/test-auth-error")
@@ -46,7 +44,6 @@ def test_structured_error_400_value_error():
     """Verify ValueError follows structured JSON format."""
     @app.get("/test-value-error")
     async def trigger_value_error():
-        """Handle trigger value error operation."""
         raise ValueError("Invalid input data")
     
     response = client.get("/test-value-error")

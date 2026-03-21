@@ -10,58 +10,10 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.main import app
-from app.models.bounty import BountyDB
-from app.database import Base, get_db
-
-
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost/solfoundry_test",
-)
-
-WEBHOOK_SECRET = "test_secret"
-
-
+from app.models.bounty import BountyDB, BountyTier, BountyStatus, SubmissionRecord
 @pytest_asyncio.fixture
-async def db_engine():
-    """Create test database engine."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def db_session(db_engine):
-    """Create a test database session."""
-    async_session = async_sessionmaker(
-        db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    async with async_session() as session:
-        yield session
-
-
-@pytest_asyncio.fixture
-async def client(db_session):
+async def client():
     """Create a test client."""
-
-    async def override_get_db():
-        """Handle override get db operation."""
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -139,20 +91,17 @@ class TestGitHubWebhook:
         del os.environ["GITHUB_WEBHOOK_SECRET"]
 
     @pytest.mark.asyncio
-    async def test_pull_request_opened_updates_bounty(self, client, db_session):
+    async def test_pull_request_opened_updates_bounty(self, client):
         """Test PR opened with 'Closes #N' updates bounty status."""
         # Create a bounty first
         bounty = BountyDB(
             title="Test Bounty",
             description="Test",
-            tier=1,
-            category="backend",
-            status="open",
-            github_issue_number=123,
-            github_repo="test/repo",
+            tier=BountyTier.T1,
+            status=BountyStatus.OPEN,
+            github_issue_url="https://github.com/test/repo/issues/123",
         )
-        db_session.add(bounty)
-        await db_session.commit()
+        bounty_service._bounty_store[bounty.id] = bounty
 
         # Send PR opened event
         payload = {
@@ -189,20 +138,24 @@ class TestGitHubWebhook:
         assert data["new_status"] == "in_review"
 
     @pytest.mark.asyncio
-    async def test_pull_request_merged_completes_bounty(self, client, db_session):
+    async def test_pull_request_merged_completes_bounty(self, client):
         """Test PR merged updates bounty to completed."""
-        # Create a bounty
+        # Create a bounty with a submission
         bounty = BountyDB(
             title="Test Bounty",
             description="Test",
-            tier=1,
-            category="backend",
-            status="in_review",
-            github_issue_number=789,
-            github_repo="test/repo",
+            tier=BountyTier.T1,
+            status=BountyStatus.UNDER_REVIEW,
+            github_issue_url="https://github.com/test/repo/issues/789",
         )
-        db_session.add(bounty)
-        await db_session.commit()
+        # Add a mock submission matching the PR
+        bounty.submissions.append(SubmissionRecord(
+            bounty_id=bounty.id,
+            pr_url="https://github.com/test/repo/pull/999",
+            submitted_by="user_123",
+            contributor_wallet="wallet_123"
+        ))
+        bounty_service._bounty_store[bounty.id] = bounty
 
         # Send PR merged event
         payload = {
@@ -240,7 +193,7 @@ class TestGitHubWebhook:
         assert data["new_status"] == "completed"
 
     @pytest.mark.asyncio
-    async def test_issue_labeled_creates_bounty(self, client, db_session):
+    async def test_issue_labeled_creates_bounty(self, client):
         """Test issue labeled with 'bounty' creates bounty record."""
         payload = {
             "action": "labeled",
@@ -277,7 +230,7 @@ class TestGitHubWebhook:
         assert "bounty_created" in data
 
     @pytest.mark.asyncio
-    async def test_idempotency(self, client, db_session):
+    async def test_idempotency(self, client):
         """Test duplicate delivery is skipped."""
         # First request
         payload = {

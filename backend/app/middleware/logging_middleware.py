@@ -1,4 +1,3 @@
-"""Middleware for logging middleware."""
 import time
 import uuid
 import structlog
@@ -8,10 +7,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logger = structlog.get_logger(__name__)
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Logging middleware."""
     async def dispatch(self, request: Request, call_next):
         # 1. Generate or extract correlation ID
-        """Handle dispatch operation."""
         request_id = request.headers.get("X-Request-ID")
         if not request_id:
             request_id = str(uuid.uuid4())

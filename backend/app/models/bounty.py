@@ -29,6 +29,7 @@ class BountyTier(int, Enum):
 class BountyStatus(str, Enum):
     """Lifecycle status of a bounty."""
 
+    DRAFT = "draft"
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     UNDER_REVIEW = "under_review"
@@ -39,6 +40,7 @@ class BountyStatus(str, Enum):
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
+    BountyStatus.DRAFT: {BountyStatus.OPEN, BountyStatus.CANCELLED},
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
     BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
@@ -94,9 +96,21 @@ class SubmissionRecord(BaseModel):
     bounty_id: str
     pr_url: str
     submitted_by: str
+    contributor_wallet: Optional[str] = None
     notes: Optional[str] = None
     status: SubmissionStatus = SubmissionStatus.PENDING
     ai_score: float = 0.0
+    ai_scores_by_model: dict[str, float] = Field(default_factory=dict)
+    review_complete: bool = False
+    meets_threshold: bool = False
+    auto_approve_eligible: bool = False
+    auto_approve_after: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    payout_tx_hash: Optional[str] = None
+    payout_amount: Optional[float] = None
+    payout_at: Optional[datetime] = None
+    winner: bool = False
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -105,12 +119,12 @@ class SubmissionCreate(BaseModel):
 
     pr_url: str = Field(..., min_length=1)
     submitted_by: str = Field("system", min_length=1, max_length=100)
+    contributor_wallet: Optional[str] = Field(None, min_length=32, max_length=64)
     notes: Optional[str] = Field(None, max_length=1000)
 
     @field_validator("pr_url")
     @classmethod
     def validate_pr_url(cls, v: str) -> str:
-        """Validate pr url."""
         if not v.startswith(("https://github.com/", "http://github.com/")):
             raise ValueError("pr_url must be a valid GitHub URL")
         return v
@@ -123,9 +137,21 @@ class SubmissionResponse(BaseModel):
     bounty_id: str
     pr_url: str
     submitted_by: str
+    contributor_wallet: Optional[str] = None
     notes: Optional[str] = None
     status: SubmissionStatus = SubmissionStatus.PENDING
     ai_score: float = 0.0
+    ai_scores_by_model: dict[str, float] = Field(default_factory=dict)
+    review_complete: bool = False
+    meets_threshold: bool = False
+    auto_approve_eligible: bool = False
+    auto_approve_after: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    payout_tx_hash: Optional[str] = None
+    payout_amount: Optional[float] = None
+    payout_at: Optional[datetime] = None
+    winner: bool = False
     submitted_at: datetime
 
 
@@ -214,13 +240,11 @@ class BountyBase(BaseModel):
     @field_validator("required_skills")
     @classmethod
     def normalise_skills(cls, v: list[str]) -> list[str]:
-        """Lowercase, deduplicate, and cap the skills list at MAX_SKILLS entries."""
         return _validate_skills(v)
 
     @field_validator("github_issue_url")
     @classmethod
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
-        """Ensure the URL starts with a GitHub domain prefix, or allow None."""
         if v is not None and not v.startswith(
             ("https://github.com/", "http://github.com/")
         ):
@@ -250,7 +274,6 @@ class BountyUpdate(BaseModel):
     @field_validator("required_skills")
     @classmethod
     def normalise_skills(cls, v: Optional[list[str]]) -> Optional[list[str]]:
-        """Lowercase, deduplicate, and cap the skills list at MAX_SKILLS entries."""
         if v is None:
             return v
         return _validate_skills(v)
@@ -270,6 +293,14 @@ class BountyDB(BaseModel):
     deadline: Optional[datetime] = None
     created_by: str = "system"
     submissions: list[SubmissionRecord] = Field(default_factory=list)
+    winner_submission_id: Optional[str] = None
+    winner_wallet: Optional[str] = None
+    payout_tx_hash: Optional[str] = None
+    payout_at: Optional[datetime] = None
+    # Claim fields (T2/T3)
+    claimed_by: Optional[str] = None
+    claimed_at: Optional[datetime] = None
+    claim_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -283,6 +314,14 @@ class BountyResponse(BountyBase):
     updated_at: datetime = Field(..., description="Timestamp of the last update")
     github_issue_number: Optional[int] = Field(None, description="The GitHub issue number", examples=[123])
     github_repo: Optional[str] = Field(None, description="The full repository name (org/repo)", examples=["codebestia/solfoundry"])
+    winner_submission_id: Optional[str] = Field(None, description="ID of the winning submission")
+    winner_wallet: Optional[str] = Field(None, description="Wallet address of the winner")
+    payout_tx_hash: Optional[str] = Field(None, description="Solana transaction hash for the payout")
+    payout_at: Optional[datetime] = Field(None, description="When the payout was made")
+    # Claim fields
+    claimed_by: Optional[str] = Field(None, description="Who claimed this bounty (T2/T3)")
+    claimed_at: Optional[datetime] = Field(None, description="When the bounty was claimed")
+    claim_deadline: Optional[datetime] = Field(None, description="Deadline for the claim")
 
     model_config = {"from_attributes": True}
     submissions: list[SubmissionResponse] = Field(default_factory=list)
@@ -363,7 +402,6 @@ class BountySearchParams(BaseModel):
     @field_validator("sort")
     @classmethod
     def validate_sort(cls, v: str) -> str:
-        """Validate sort."""
         if v not in VALID_SORT_FIELDS:
             raise ValueError(f"Invalid sort. Must be one of: {VALID_SORT_FIELDS}")
         return v
@@ -371,7 +409,6 @@ class BountySearchParams(BaseModel):
     @field_validator("reward_max")
     @classmethod
     def validate_reward_range(cls, v: Optional[float], info) -> Optional[float]:
-        """Validate reward range."""
         reward_min = info.data.get("reward_min")
         if v is not None and reward_min is not None and v < reward_min:
             raise ValueError("reward_max must be >= reward_min")
@@ -380,7 +417,6 @@ class BountySearchParams(BaseModel):
     @field_validator("category")
     @classmethod
     def validate_category(cls, v: Optional[str]) -> Optional[str]:
-        """Validate category."""
         if v is not None and v not in VALID_CATEGORIES:
             raise ValueError(f"Invalid category. Must be one of: {VALID_CATEGORIES}")
         return v

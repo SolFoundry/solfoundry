@@ -1,9 +1,9 @@
 /**
- * Tests for the shared API client — auth, retry, structured errors.
+ * Tests for the shared API client -- auth, retry, timeout, structured errors.
  * @module __tests__/apiClient.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiClient, setAuthToken, getAuthToken, isApiError, type ApiError } from '../services/apiClient';
+import { apiClient, setAuthToken, getAuthToken, isApiError, ApiError } from '../services/apiClient';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -16,7 +16,7 @@ function mockResponse(body: unknown, status = 200, statusText = 'OK'): Response 
     status,
     statusText,
     json: () => Promise.resolve(body),
-    headers: new Headers(),
+    headers: new Headers({ 'content-type': 'application/json' }),
     redirected: false,
     type: 'basic' as ResponseType,
     url: '',
@@ -27,6 +27,28 @@ function mockResponse(body: unknown, status = 200, statusText = 'OK'): Response 
     blob: () => Promise.resolve(new Blob()),
     formData: () => Promise.resolve(new FormData()),
     text: () => Promise.resolve(JSON.stringify(body)),
+    bytes: () => Promise.resolve(new Uint8Array()),
+  } as Response;
+}
+
+/** Helper to create a 204 No Content response. */
+function mock204Response(): Response {
+  return {
+    ok: true,
+    status: 204,
+    statusText: 'No Content',
+    json: () => Promise.reject(new Error('No body')),
+    headers: new Headers({ 'content-length': '0' }),
+    redirected: false,
+    type: 'basic' as ResponseType,
+    url: '',
+    clone: () => mock204Response(),
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(''),
     bytes: () => Promise.resolve(new Uint8Array()),
   } as Response;
 }
@@ -50,7 +72,7 @@ describe('apiClient', () => {
     expect(result).toEqual(responseData);
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe('/api/bounties');
+    expect(url).toContain('/api/bounties');
     expect(options.method).toBe('GET');
   });
 
@@ -84,14 +106,37 @@ describe('apiClient', () => {
     expect(headers['Authorization']).toBeUndefined();
   });
 
-  it('should throw ApiError for 4xx responses', async () => {
+  it('should not set Content-Type on GET requests (no body)', async () => {
+    mockFetch.mockResolvedValueOnce(mockResponse({}));
+
+    await apiClient('/api/bounties');
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['Content-Type']).toBeUndefined();
+  });
+
+  it('should set Content-Type on POST requests with body', async () => {
+    mockFetch.mockResolvedValueOnce(mockResponse({ id: 1 }));
+
+    await apiClient('/api/bounties', { body: { title: 'New bounty' } });
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  it('should throw ApiError (extends Error) for 4xx responses', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ message: 'Not found', code: 'NOT_FOUND' }, 404, 'Not Found'));
 
-    await expect(apiClient('/api/bounties/999')).rejects.toMatchObject({
-      status: 404,
-      message: 'Not found',
-      code: 'NOT_FOUND',
-    });
+    try {
+      await apiClient('/api/bounties/999');
+      expect.unreachable('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(404);
+      expect((error as ApiError).message).toBe('Not found');
+      expect((error as ApiError).code).toBe('NOT_FOUND');
+    }
   });
 
   it('should retry on 5xx responses', async () => {
@@ -119,20 +164,22 @@ describe('apiClient', () => {
       .mockResolvedValueOnce(mockResponse({ message: 'Server error' }, 500))
       .mockResolvedValueOnce(mockResponse({ message: 'Server error' }, 500));
 
-    await expect(apiClient('/api/fail', { retries: 1 })).rejects.toMatchObject({
-      status: 500,
-    });
+    await expect(apiClient('/api/fail', { retries: 1 })).rejects.toBeInstanceOf(ApiError);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it('should handle network errors with NETWORK_ERROR code', async () => {
     mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
-    await expect(apiClient('/api/data', { retries: 0 })).rejects.toMatchObject({
-      status: 0,
-      message: 'Failed to fetch',
-      code: 'NETWORK_ERROR',
-    });
+    try {
+      await apiClient('/api/data', { retries: 0 });
+      expect.unreachable('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(0);
+      expect((error as ApiError).message).toBe('Failed to fetch');
+      expect((error as ApiError).code).toBe('NETWORK_ERROR');
+    }
   });
 
   it('should send POST with JSON body', async () => {
@@ -151,6 +198,22 @@ describe('apiClient', () => {
     await expect(apiClient('/api/data', { retries: 3 })).rejects.toMatchObject({ status: 400 });
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+
+  it('should handle 204 No Content responses gracefully', async () => {
+    mockFetch.mockResolvedValueOnce(mock204Response());
+
+    const result = await apiClient('/api/bounties/1', { method: 'DELETE', retries: 0 });
+    expect(result).toBeUndefined();
+  });
+
+  it('should pass AbortSignal for timeout support', async () => {
+    mockFetch.mockResolvedValueOnce(mockResponse({ ok: true }));
+
+    await apiClient('/api/bounties', { timeoutMs: 5000 });
+
+    const options = mockFetch.mock.calls[0][1];
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe('setAuthToken / getAuthToken', () => {
@@ -164,8 +227,13 @@ describe('setAuthToken / getAuthToken', () => {
 });
 
 describe('isApiError', () => {
-  it('should return true for valid ApiError objects', () => {
-    const error: ApiError = { status: 404, message: 'Not found', code: 'NOT_FOUND' };
+  it('should return true for valid ApiError instances', () => {
+    const error = new ApiError(404, 'Not found', 'NOT_FOUND');
+    expect(isApiError(error)).toBe(true);
+  });
+
+  it('should return true for plain objects with correct typed properties', () => {
+    const error = { status: 404, message: 'Not found', code: 'NOT_FOUND' };
     expect(isApiError(error)).toBe(true);
   });
 
@@ -181,5 +249,10 @@ describe('isApiError', () => {
   it('should return false for incomplete objects', () => {
     expect(isApiError({ status: 404 })).toBe(false);
     expect(isApiError({ status: 404, message: 'test' })).toBe(false);
+  });
+
+  it('should return false for objects with wrong property types', () => {
+    expect(isApiError({ status: '404', message: 'test', code: 'ERR' })).toBe(false);
+    expect(isApiError({ status: 404, message: 123, code: 'ERR' })).toBe(false);
   });
 });

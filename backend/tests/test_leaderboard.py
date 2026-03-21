@@ -57,7 +57,6 @@ def _clean():
 
 
 def test_empty_leaderboard():
-    """Test that empty leaderboard."""
     resp = client.get("/api/leaderboard")
     assert resp.status_code == 200
     data = resp.json()
@@ -67,7 +66,6 @@ def test_empty_leaderboard():
 
 
 def test_single_contributor():
-    """Test that single contributor."""
     _seed_contributor(
         "alice", "Alice A", total_earnings=500.0, bounties_completed=3, reputation=80
     )
@@ -83,7 +81,6 @@ def test_single_contributor():
 
 
 def test_ranking_order():
-    """Test that ranking order."""
     _seed_contributor("low", "Low Earner", total_earnings=100.0)
     _seed_contributor("mid", "Mid Earner", total_earnings=500.0)
     _seed_contributor("top", "Top Earner", total_earnings=1000.0)
@@ -98,7 +95,6 @@ def test_ranking_order():
 
 
 def test_top3_medals():
-    """Test that top3 medals."""
     _seed_contributor("gold", "Gold", total_earnings=1000.0)
     _seed_contributor("silver", "Silver", total_earnings=500.0)
     _seed_contributor("bronze", "Bronze", total_earnings=250.0)
@@ -112,7 +108,6 @@ def test_top3_medals():
 
 
 def test_top3_with_fewer_than_3():
-    """Test that top3 with fewer than 3."""
     _seed_contributor("solo", "Solo", total_earnings=100.0)
 
     resp = client.get("/api/leaderboard")
@@ -125,7 +120,6 @@ def test_top3_with_fewer_than_3():
 
 
 def test_filter_by_category():
-    """Test that filter by category."""
     _seed_contributor("fe_dev", "FE Dev", total_earnings=300.0, skills=["frontend"])
     _seed_contributor("be_dev", "BE Dev", total_earnings=600.0, skills=["backend"])
 
@@ -136,7 +130,6 @@ def test_filter_by_category():
 
 
 def test_filter_by_tier():
-    """Test that filter by tier."""
     _seed_contributor("t1_dev", "T1 Dev", total_earnings=200.0, badges=["tier-1"])
     _seed_contributor("t2_dev", "T2 Dev", total_earnings=800.0, badges=["tier-2"])
 
@@ -147,7 +140,6 @@ def test_filter_by_tier():
 
 
 def test_filter_by_period_all():
-    """Test that filter by period all."""
     _seed_contributor("old", "Old Timer", total_earnings=900.0)
 
     resp = client.get("/api/leaderboard?period=all")
@@ -160,7 +152,6 @@ def test_filter_by_period_all():
 
 
 def test_pagination_limit():
-    """Test that pagination limit."""
     for i in range(5):
         _seed_contributor(f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i)))
 
@@ -172,7 +163,6 @@ def test_pagination_limit():
 
 
 def test_pagination_offset():
-    """Test that pagination offset."""
     for i in range(5):
         _seed_contributor(f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i)))
 
@@ -183,7 +173,6 @@ def test_pagination_offset():
 
 
 def test_pagination_beyond_total():
-    """Test that pagination beyond total."""
     _seed_contributor("only", "Only One", total_earnings=100.0)
 
     resp = client.get("/api/leaderboard?limit=10&offset=5")
@@ -196,7 +185,6 @@ def test_pagination_beyond_total():
 
 
 def test_tiebreaker_reputation_then_username():
-    """Test that tiebreaker reputation then username."""
     _seed_contributor("bob", "Bob", total_earnings=500.0, reputation=90)
     _seed_contributor("alice", "Alice", total_earnings=500.0, reputation=100)
     _seed_contributor("charlie", "Charlie", total_earnings=500.0, reputation=90)
@@ -212,7 +200,6 @@ def test_tiebreaker_reputation_then_username():
 
 
 def test_cache_returns_same_result():
-    """Test that cache returns same result."""
     _seed_contributor("cached", "Cached", total_earnings=100.0)
 
     resp1 = client.get("/api/leaderboard")
@@ -221,7 +208,6 @@ def test_cache_returns_same_result():
 
 
 def test_cache_invalidation():
-    """Test that cache invalidation."""
     _seed_contributor("first", "First", total_earnings=100.0)
     resp1 = client.get("/api/leaderboard")
     assert resp1.json()["total"] == 1

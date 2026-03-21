@@ -24,7 +24,6 @@ class SolanaRPCError(Exception):
     """Raised when the Solana JSON-RPC returns an error payload."""
 
     def __init__(self, message: str, code: int | None = None) -> None:
-        """Initialize the instance."""
         super().__init__(message)
         self.code = code
 

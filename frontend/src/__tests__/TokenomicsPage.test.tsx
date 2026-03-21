@@ -85,7 +85,11 @@ describe('TokenomicsPage', () => {
   it('shows an alert with the error message when fetching fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
     renderWithQuery(<TokenomicsPage />);
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/failed to load treasury data/i));
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+      expect(alert).toHaveTextContent(/failed to load treasury data/i);
+    });
   });
 
   it('displays buyback and burn stats', async () => {

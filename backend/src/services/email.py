@@ -26,18 +26,14 @@ _EMAIL_QUEUE = asyncio.Queue()
 class EmailProvider:
     """Abstract interface for email providers."""
     async def send(self, to_address: str, subject: str, html_body: str) -> bool:
-        """Send an email; subclasses must implement this with their provider SDK."""
         raise NotImplementedError
 
 class ResendProvider(EmailProvider):
-    """ResendProvider implementation."""
     def __init__(self, api_key: str):
-        """Initialize the instance."""
         self.api_key = api_key
         self.base_url = "https://api.resend.com/emails"
 
     async def send(self, to_address: str, subject: str, html_body: str) -> bool:
-        """Handle send operation."""
         if not self.api_key:
             raise ValueError("Email provider API key is not configured.")
             
@@ -67,9 +63,7 @@ class ResendProvider(EmailProvider):
                 raise
 
 class EmailService:
-    """Email service layer."""
     def __init__(self, provider: EmailProvider = None):
-        """Initialize the instance."""
         api_key = os.environ.get("RESEND_API_KEY", "dummy_key_for_test")
         self.provider = provider or ResendProvider(api_key=api_key)
         
@@ -87,7 +81,6 @@ class EmailService:
         return True
 
     def _can_send(self, email: str, notification_type: str) -> bool:
-        """Handle  can send operation."""
         if _UNSUBSCRIBED.get(email, False):
             return False
         prefs = _USER_PREFERENCES.get(email, {})
@@ -127,7 +120,6 @@ class EmailService:
         return f"<html><body>{brand_header}<div style='padding: 20px;'>{body}</div>{brand_footer}</body></html>"
 
     async def _process_send(self, to_address: str, subject: str, template_name: str, context: Dict[str, Any], notification_type: str):
-        """Handle  process send operation."""
         if not self._can_send(to_address, notification_type):
             logger.info(f"Skipping email to {to_address} due to preferences.")
             return False
@@ -177,17 +169,14 @@ async def email_worker(service: EmailService):
             _EMAIL_QUEUE.task_done()
 
 def start_email_worker(app_loop: asyncio.AbstractEventLoop):
-    """Handle start email worker operation."""
     service = EmailService()
     app_loop.create_task(email_worker(service))
 
 # Helper to manage preferences
 def set_preference(email: str, notification_type: str, enabled: bool):
-    """Set preference."""
     if email not in _USER_PREFERENCES:
         _USER_PREFERENCES[email] = {}
     _USER_PREFERENCES[email][notification_type] = enabled
 
 def unsubscribe_all(email: str):
-    """Handle unsubscribe all operation."""
     _UNSUBSCRIBED[email] = True

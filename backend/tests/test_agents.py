@@ -36,7 +36,6 @@ _test_app.include_router(agents_router, prefix="/api")
 
 @_test_app.get("/health")
 async def health_check():
-    """Handle health check operation."""
     return {"status": "ok"}
 
 

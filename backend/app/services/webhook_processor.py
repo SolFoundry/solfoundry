@@ -13,7 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook_log import WebhookEventLogDB
-from app.models.bounty import BountyDB, VALID_STATUSES
+from app.models.bounty import BountyDB, VALID_STATUSES, BountyStatus, BountyTier
+from app.services import bounty_service
+from app.services import bounty_lifecycle_service
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,6 @@ class WebhookProcessor:
     }
 
     def __init__(self, db: AsyncSession):
-        """Initialize the instance."""
         self.db = db
 
     async def check_idempotency(self, delivery_id: str) -> bool:
@@ -126,14 +127,14 @@ class WebhookProcessor:
                     updated = await self._update_bounty_status(
                         github_issue_number=bounty_number,
                         github_repo=repository,
-                        new_status="in_review",
+                        new_status="under_review",
                     )
 
                     if updated:
                         result["bounty_updated"] = bounty_number
-                        result["new_status"] = "in_review"
+                        result["new_status"] = "under_review"
                         logger.info(
-                            "PR #%d opened, bounty #%d status -> in_review",
+                            "PR #%d opened, bounty #%d status -> under_review",
                             pr_number,
                             bounty_number,
                         )
@@ -152,11 +153,28 @@ class WebhookProcessor:
                     bounty_number = self._parse_closes_issue(pr_body)
 
                     if bounty_number:
-                        updated = await self._update_bounty_status(
-                            github_issue_number=bounty_number,
-                            github_repo=repository,
-                            new_status="completed",
-                        )
+                        b_id = self._find_bounty_id(bounty_number, repository)
+                        if b_id:
+                            bounty = bounty_service._bounty_store[b_id]
+                            pr_url = pr_data.get("html_url")
+                            
+                            try:
+                                if bounty.tier == BountyTier.T1 and pr_url:
+                                    # Find submission for this PR
+                                    sub_id = next((s.id for s in bounty.submissions if s.pr_url == pr_url), None)
+                                    if sub_id:
+                                        bounty_lifecycle_service.handle_t1_auto_win(b_id, sub_id)
+                                    else:
+                                        # No submission yet (maybe webhook came before job), fallback to just completing
+                                        bounty_lifecycle_service.transition_status(b_id, BountyStatus.COMPLETED, actor_id="github_webhook", actor_type="system")
+                                else:
+                                    bounty_lifecycle_service.transition_status(b_id, BountyStatus.COMPLETED, actor_id="github_webhook", actor_type="system")
+                                updated = True
+                            except bounty_lifecycle_service.LifecycleError as e:
+                                logger.warning("Could not transition bounty %s: %s", b_id, e)
+                                updated = False
+                        else:
+                            updated = False
 
                         if updated:
                             result["bounty_updated"] = bounty_number
@@ -313,6 +331,13 @@ class WebhookProcessor:
 
         return None
 
+    def _find_bounty_id(self, github_issue_number: int, github_repo: str) -> Optional[str]:
+        expected_url = f"https://github.com/{github_repo}/issues/{github_issue_number}"
+        for b_id, bounty in bounty_service._bounty_store.items():
+            if hasattr(bounty, "github_issue_url") and bounty.github_issue_url == expected_url:
+                return b_id
+        return None
+
     async def _update_bounty_status(
         self,
         github_issue_number: int,
@@ -320,37 +345,35 @@ class WebhookProcessor:
         new_status: str,
     ) -> bool:
         """
-        Update bounty status by GitHub issue reference.
+        Update bounty status by GitHub issue reference, using the lifecycle service.
 
         Returns True if updated, False if not found.
         """
-        if new_status not in VALID_STATUSES:
-            logger.warning("Invalid status: %s", new_status)
-            return False
-
-        query = select(BountyDB).where(
-            BountyDB.github_issue_number == github_issue_number,
-            BountyDB.github_repo == github_repo,
-        )
-
-        result = await self.db.execute(query)
-        bounty = result.scalar_one_or_none()
-
-        if not bounty:
+        b_id = self._find_bounty_id(github_issue_number, github_repo)
+        
+        if not b_id:
             logger.info(
                 "Bounty not found for issue #%d in %s", github_issue_number, github_repo
             )
             return False
 
-        bounty.status = new_status
-        logger.info(
-            "Bounty #%d status updated: %s -> %s",
-            bounty.github_issue_number,
-            bounty.status,
-            new_status,
-        )
-
-        return True
+        try:
+            target = BountyStatus(new_status)
+            bounty_lifecycle_service.transition_status(
+                b_id, target, actor_id="github_webhook", actor_type="system"
+            )
+            logger.info(
+                "Bounty #%d status updated to %s",
+                github_issue_number,
+                new_status,
+            )
+            return True
+        except ValueError:
+            logger.warning("Invalid status: %s", new_status)
+            return False
+        except bounty_lifecycle_service.LifecycleError as exc:
+            logger.warning("Bounty %s state transition failed: %s", b_id, exc)
+            return False
 
     async def _create_bounty_from_issue(
         self,

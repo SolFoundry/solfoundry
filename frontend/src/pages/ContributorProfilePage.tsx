@@ -53,7 +53,9 @@ export default function ContributorProfilePage() {
   if (isError) {
     const errorMessage = queryError instanceof Error
       ? queryError.message
-      : 'An unexpected error occurred';
+      : typeof queryError === 'object' && queryError !== null && 'message' in queryError
+        ? String((queryError as Record<string, unknown>).message)
+        : 'An unexpected error occurred';
     return (
       <div className="p-6 max-w-3xl mx-auto" role="alert">
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">

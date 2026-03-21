@@ -13,11 +13,53 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 
 /** Catches render errors with retry. */
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+/**
+ * Catches render errors in any descendant component tree.
+ * Displays error details with a retry button and a fallback link home.
+ */
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
   state = { error: null as Error | null };
-  static getDerivedStateFromError(e: Error) { return { error: e }; }
-  componentDidCatch(e: Error) { console.error('[ErrorBoundary]', e); }
-  render() { const err = this.state.error; if (!err) return this.props.children; return (<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 p-8" role="alert"><p className="text-lg font-semibold text-white">Something went wrong</p><p className="text-sm text-gray-400 text-center max-w-md">{err.message}</p><button onClick={() => this.setState({ error: null })} className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm">Try again</button></div>); }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info.componentStack);
+  }
+
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    return (
+      <div
+        className="flex flex-col items-center justify-center min-h-[40vh] gap-4 p-8"
+        role="alert"
+      >
+        <p className="text-lg font-semibold text-white">Something went wrong</p>
+        <p className="text-sm text-gray-400 text-center max-w-md">
+          {error.message}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => this.setState({ error: null })}
+            className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
+          >
+            Try again
+          </button>
+          <a
+            href="/bounties"
+            className="px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
+          >
+            Go home
+          </a>
+        </div>
+      </div>
+    );
+  }
 }
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────

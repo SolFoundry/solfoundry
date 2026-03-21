@@ -1,4 +1,3 @@
-"""Core utilities for logging config."""
 import logging
 import os
 import sys

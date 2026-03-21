@@ -98,7 +98,9 @@ export function useLeaderboard() {
     staleTime: 60_000,
   });
 
-  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load leaderboard') : null;
+  const error = queryError
+    ? (queryError instanceof Error ? queryError.message : 'Failed to load leaderboard')
+    : null;
 
   const sorted = useMemo(() => {
     let list = [...contributors];

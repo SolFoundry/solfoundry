@@ -110,6 +110,12 @@ body {
   animation: feed-in 0.3s ease-out forwards;
 }
 
+/* Toast progress bar animation */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* Tooltip fade-in animation */
 @keyframes fade-in {
   from {
@@ -153,4 +159,137 @@ body {
 :root:not(.dark) select option {
   background-color: #ffffff;
   color: #1a1a1a;
+}
+
+/* ============================================================================
+   Badge / Achievement system
+   ============================================================================ */
+
+/* Shine sweep that plays once on earned badges */
+@keyframes badge-shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-badge-shine {
+  background-size: 200% 100%;
+  background-image: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    transparent 80%
+  );
+  animation: badge-shine 2.5s ease-in-out;
+}
+
+/* Subtle glow pulse for earned badges on hover */
+@keyframes badge-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(153, 69, 255, 0.15), 0 0 12px rgba(20, 241, 149, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(153, 69, 255, 0.30), 0 0 24px rgba(20, 241, 149, 0.15);
+  }
+}
+
+.animate-badge-glow {
+  animation: badge-glow 2s ease-in-out infinite;
+}
+
+/* Badge pop-in entrance */
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-badge-pop {
+  animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Tooltip reveal */
+@keyframes tooltip-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tooltip-reveal {
+  animation: tooltip-reveal 0.18s ease-out forwards;
+}
+
+/* ============================================================================
+   Theme Transition Styles - Smooth transitions between light and dark mode
+   ============================================================================ */
+
+/* Smooth theme transition animation */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+
+/* Prevent transition on initial load to avoid flash */
+html:not(.theme-transitioning) {
+  transition: none;
+}
+
+/* ============================================================================
+   Loading Skeleton Animation
+   ============================================================================ */
+
+/* Shimmer effect for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Light mode shimmer */
+:root:not(.dark) .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 200% 100%;
 }

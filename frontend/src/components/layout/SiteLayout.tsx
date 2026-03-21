@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
+import { Breadcrumbs } from './Breadcrumbs';
 
 // ============================================================================
 // Types
@@ -28,6 +29,7 @@ export interface SiteLayoutProps {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Agents', href: '/agents' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
@@ -162,6 +164,10 @@ export function SiteLayout({
 
       {/* Main Content */}
       <main className="min-h-screen pt-16">
+        {/* Breadcrumbs — below top nav, above page content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-white/5">
+          <Breadcrumbs />
+        </div>
         {children}
       </main>
 

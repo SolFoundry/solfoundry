@@ -81,8 +81,8 @@ async function fetchDashboardData(userId: string | undefined): Promise<Dashboard
   const data: DashboardData = { stats: { ...EMPTY_STATS }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
   const encodedId = userId ? encodeURIComponent(userId) : '';
   const [bountiesRaw, notificationsRaw, leaderboardRaw] = await Promise.all([
-    userId ? safeFetch<{ items?: unknown[] }>(`/api/contributors/${encodedId}/bounties`, { limit: 10 }) : safeFetch<{ items?: unknown[] }>('/api/bounties', { limit: 10 }),
-    userId ? safeFetch<{ items?: unknown[] }>(`/api/contributors/${encodedId}/notifications`, { limit: 10 }) : safeFetch<{ items?: unknown[] }>('/api/notifications', { limit: 10 }),
+    safeFetch<{ items?: unknown[] }>('/api/bounties', { limit: 10, ...(userId ? { assignee: encodedId } : {}) }),
+    safeFetch<{ items?: unknown[] }>('/api/notifications', { limit: 10 }),
     safeFetch<unknown[]>('/api/leaderboard', { range: 'all', limit: 50 }),
   ]);
   if (bountiesRaw) {
@@ -616,7 +616,12 @@ export function ContributorDashboard({
   const activities = dashboardData?.activities ?? [];
   const rawNotifications = dashboardData?.notifications ?? [];
   const earnings = dashboardData?.earnings ?? [];
-  const linkedAccounts = dashboardData?.linkedAccounts ?? [];
+  const linkedAccounts = dashboardData?.linkedAccounts?.length
+    ? dashboardData.linkedAccounts
+    : [
+        { type: 'github', username: userId ?? walletAddress ?? '', connected: Boolean(userId || walletAddress) },
+        { type: 'twitter', username: '', connected: false },
+      ];
   const error = isError ? (queryError instanceof Error ? queryError.message : 'Failed to load dashboard data') : null;
 
   // Local read-state overlay for notifications (mark-as-read without mutating query cache)
@@ -855,7 +860,7 @@ export function ContributorDashboard({
               <p className="text-gray-400 text-center py-4">No notifications</p>
             ) : (
               <div className="space-y-1">
-                {displayNotifications.map((notification) => (
+                {notifications.map((notification) => (
                   <NotificationItem
                     key={notification.id} 
                     notification={notification} 

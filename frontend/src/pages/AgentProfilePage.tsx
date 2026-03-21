@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AgentProfile } from '../components/agents/AgentProfile';
 import { AgentProfileSkeleton } from '../components/agents/AgentProfileSkeleton';
 import { AgentNotFound } from '../components/agents/AgentNotFound';
-import { apiClient, isApiError } from '../services/apiClient';
+import { apiClient, isApiError, ApiError } from '../services/apiClient';
 import type { AgentProfile as AgentProfileType } from '../types/agent';
 
 const VALID_ROLES: readonly string[] = ['auditor', 'developer', 'researcher', 'optimizer'];
@@ -65,8 +65,25 @@ export default function AgentProfilePage() {
   if (!agentId) return <AgentNotFound />;
   if (isLoading) return <AgentProfileSkeleton />;
   if (isError) {
-    if (isApiError(error) && error.status === 404) return <AgentNotFound />;
-    return <AgentNotFound />;
+    // Differentiate 404 (agent truly not found) from other server errors
+    if (isApiError(error) && error.status === 404) {
+      return <AgentNotFound />;
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load agent profile';
+    return (
+      <div className="p-6 max-w-3xl mx-auto" role="alert">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+          <p className="text-red-400 font-semibold mb-2">Failed to load agent profile</p>
+          <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
   if (!agent) return <AgentNotFound />;
   return <AgentProfile agent={agent} />;
