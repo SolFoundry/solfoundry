@@ -145,6 +145,7 @@ class SubmissionUpdate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        """Validate status."""
         valid_statuses = {s.value for s in SubmissionStatus}
         if v is not None and v not in valid_statuses:
             raise ValueError(f"Invalid status: {v}. Must be one of: {valid_statuses}")

@@ -150,21 +150,25 @@ class AgentCreate(BaseModel):
     @field_validator("operator_wallet")
     @classmethod
     def validate_wallet(cls, v: str) -> str:
+        """Validate wallet."""
         return _validate_wallet_address(v)
 
     @field_validator("capabilities")
     @classmethod
     def validate_capabilities(cls, v: list[str]) -> list[str]:
+        """Validate capabilities."""
         return _validate_list_items(v, MAX_CAPABILITIES, "capabilities")
 
     @field_validator("languages")
     @classmethod
     def validate_languages(cls, v: list[str]) -> list[str]:
+        """Validate languages."""
         return _validate_list_items(v, MAX_LANGUAGES, "languages")
 
     @field_validator("apis")
     @classmethod
     def validate_apis(cls, v: list[str]) -> list[str]:
+        """Validate apis."""
         return _validate_list_items(v, MAX_APIS, "apis")
 
 
@@ -184,6 +188,7 @@ class AgentUpdate(BaseModel):
     @field_validator("capabilities")
     @classmethod
     def validate_capabilities(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate capabilities."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_CAPABILITIES, "capabilities")
@@ -191,6 +196,7 @@ class AgentUpdate(BaseModel):
     @field_validator("languages")
     @classmethod
     def validate_languages(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate languages."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_LANGUAGES, "languages")
@@ -198,6 +204,7 @@ class AgentUpdate(BaseModel):
     @field_validator("apis")
     @classmethod
     def validate_apis(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate apis."""
         if v is None:
             return v
         return _validate_list_items(v, MAX_APIS, "apis")

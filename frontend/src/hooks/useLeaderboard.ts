@@ -1,11 +1,13 @@
 /**
  * useLeaderboard - Data-fetching hook for the contributor leaderboard.
- * Tries GET /api/leaderboard, falls back to GitHub API for merged PRs,
+ * Tries GET /api/leaderboard via apiClient, falls back to GitHub API for merged PRs,
  * merges with known Phase 1 payout data.
  * @module hooks/useLeaderboard
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Contributor, TimeRange, SortField } from '../types/leaderboard';
+import { apiClient, isApiError } from '../services/apiClient';
 
 const REPO = 'SolFoundry/solfoundry';
 const GITHUB_API = 'https://api.github.com';
@@ -21,47 +23,47 @@ const KNOWN_PAYOUTS: Record<string, { bounties: number; fndry: number; skills: s
 /** Fetch merged PRs from GitHub to build contributor stats. */
 async function fetchGitHubContributors(): Promise<Contributor[]> {
   const url = `${GITHUB_API}/repos/${REPO}/pulls?state=closed&per_page=100&sort=updated&direction=desc`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
+  const response = await fetch(url);
+  if (!response.ok) return [];
 
-  const prs = await res.json();
-  if (!Array.isArray(prs)) return [];
+  const pullRequests = await response.json();
+  if (!Array.isArray(pullRequests)) return [];
 
   // Count merged PRs per author
-  const stats: Record<string, { prs: number; avatar: string }> = {};
-  for (const pr of prs) {
-    if (!pr.merged_at) continue;
-    const login = pr.user?.login;
+  const authorStats: Record<string, { prCount: number; avatar: string }> = {};
+  for (const pullRequest of pullRequests) {
+    if (!pullRequest.merged_at) continue;
+    const login = pullRequest.user?.login;
     if (!login || login.includes('[bot]')) continue;
-    if (!stats[login]) stats[login] = { prs: 0, avatar: pr.user.avatar_url || '' };
-    stats[login].prs++;
+    if (!authorStats[login]) authorStats[login] = { prCount: 0, avatar: pullRequest.user.avatar_url || '' };
+    authorStats[login].prCount++;
   }
 
   // Merge with known payout data
-  const allAuthors = new Set([...Object.keys(KNOWN_PAYOUTS), ...Object.keys(stats)]);
+  const allAuthors = new Set([...Object.keys(KNOWN_PAYOUTS), ...Object.keys(authorStats)]);
   const contributors: Contributor[] = [];
 
   for (const author of allAuthors) {
     const known = KNOWN_PAYOUTS[author];
-    const prData = stats[author];
-    const totalPrs = prData?.prs || 0;
+    const prData = authorStats[author];
+    const totalPrs = prData?.prCount || 0;
     const bounties = known?.bounties || totalPrs;
     const earnings = known?.fndry || 0;
     const skills = known?.skills || [];
     const avatar = prData?.avatar || `https://avatars.githubusercontent.com/${author}`;
 
     // Reputation score
-    let rep = 0;
-    rep += Math.min(totalPrs * 5, 40);
-    rep += Math.min(bounties * 5, 40);
-    rep += Math.min(skills.length * 3, 20);
-    rep = Math.min(rep, 100);
+    let reputation = 0;
+    reputation += Math.min(totalPrs * 5, 40);
+    reputation += Math.min(bounties * 5, 40);
+    reputation += Math.min(skills.length * 3, 20);
+    reputation = Math.min(reputation, 100);
 
     contributors.push({
       rank: 0,
       username: author,
       avatarUrl: avatar,
-      points: rep * 100 + bounties * 50,
+      points: reputation * 100 + bounties * 50,
       bountiesCompleted: bounties,
       earningsFndry: earnings,
       earningsSol: 0,
@@ -73,56 +75,40 @@ async function fetchGitHubContributors(): Promise<Contributor[]> {
   return contributors;
 }
 
+/** Try backend API via apiClient, fall back to GitHub. */
+async function fetchLeaderboard(timeRange: TimeRange): Promise<Contributor[]> {
+  try {
+    const data = await apiClient<Contributor[]>('/api/leaderboard', { params: { range: timeRange }, retries: 1 });
+    if (Array.isArray(data) && data.length > 0) return data;
+  } catch (error: unknown) {
+    if (isApiError(error) && error.status >= 400 && error.status < 500) throw error;
+  }
+  return fetchGitHubContributors();
+}
+
+/** Leaderboard hook with React Query caching. */
 export function useLeaderboard() {
-  const [contributors, setContributors] = useState<Contributor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [sortBy, setSortBy] = useState<SortField>('points');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    let c = false;
-    (async () => {
-      try {
-        // Try backend API first
-        const r = await fetch(`/api/leaderboard?range=${timeRange}`);
-        if (!c && r.ok) {
-          const data = await r.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setContributors(data);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // Backend unavailable — fall through to GitHub
-      }
+  const { data: contributors = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['leaderboard', timeRange],
+    queryFn: () => fetchLeaderboard(timeRange),
+    staleTime: 60_000,
+  });
 
-      try {
-        // Fallback: build from GitHub API + known payouts
-        const contribs = await fetchGitHubContributors();
-        if (!c && contribs.length > 0) {
-          setContributors(contribs);
-        }
-      } catch (e: unknown) {
-        if (!c) setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
-      } finally {
-        if (!c) setLoading(false);
-      }
-    })();
-    return () => { c = true; };
-  }, [timeRange]);
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load leaderboard') : null;
 
   const sorted = useMemo(() => {
     let list = [...contributors];
-    if (search) list = list.filter(c => c.username.toLowerCase().includes(search.toLowerCase()));
-    list.sort((a, b) => {
-      const aValue = sortBy === 'bounties' ? a.bountiesCompleted : sortBy === 'earnings' ? a.earningsFndry : a.points;
-      const bValue = sortBy === 'bounties' ? b.bountiesCompleted : sortBy === 'earnings' ? b.earningsFndry : b.points;
-      return bValue - aValue;
+    if (search) list = list.filter(contributor => contributor.username.toLowerCase().includes(search.toLowerCase()));
+    list.sort((left, right) => {
+      const leftValue = sortBy === 'bounties' ? left.bountiesCompleted : sortBy === 'earnings' ? left.earningsFndry : left.points;
+      const rightValue = sortBy === 'bounties' ? right.bountiesCompleted : sortBy === 'earnings' ? right.earningsFndry : right.points;
+      return rightValue - leftValue;
     });
-    return list.map((c, i) => ({ ...c, rank: i + 1 }));
+    return list.map((contributor, index) => ({ ...contributor, rank: index + 1 }));
   }, [contributors, sortBy, search]);
 
   return { contributors: sorted, loading, error, timeRange, setTimeRange, sortBy, setSortBy, search, setSearch };

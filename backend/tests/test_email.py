@@ -8,11 +8,14 @@ from src.services.email import (
 )
 
 class MockProvider(EmailProvider):
+    """MockProvider implementation."""
     def __init__(self):
+        """Initialize the instance."""
         self.calls = []
         self.should_fail = False
 
     async def send(self, to_address: str, subject: str, html_body: str) -> bool:
+        """Handle send operation."""
         if self.should_fail:
             raise Exception("Mock provider network error")
         self.calls.append({"to": to_address, "subject": subject, "body": html_body})
@@ -21,6 +24,7 @@ class MockProvider(EmailProvider):
 @pytest.fixture
 def service():
     # Reset globals
+    """Handle service operation."""
     _RATE_LIMIT_STORE.clear()
     _USER_PREFERENCES.clear()
     _UNSUBSCRIBED.clear()
@@ -32,6 +36,7 @@ def service():
 
 @pytest.mark.asyncio
 async def test_successful_email_delivery(service):
+    """Test that successful email delivery."""
     svc, provider = service
     
     # Direct send test
@@ -44,6 +49,7 @@ async def test_successful_email_delivery(service):
 
 @pytest.mark.asyncio
 async def test_bounty_event_template(service):
+    """Test that bounty event template."""
     svc, provider = service
     ctx = {
         "bounty_title": "Build AI MVP",
@@ -60,6 +66,7 @@ async def test_bounty_event_template(service):
 
 @pytest.mark.asyncio
 async def test_unsubscribe_and_preferences(service):
+    """Test that unsubscribe and preferences."""
     svc, provider = service
     
     # 1. Test basic unsuball
@@ -78,6 +85,7 @@ async def test_unsubscribe_and_preferences(service):
 
 @pytest.mark.asyncio
 async def test_rate_limiting(service):
+    """Test that rate limiting."""
     svc, provider = service
     
     # Send 10 emails quickly
@@ -92,6 +100,7 @@ async def test_rate_limiting(service):
 
 @pytest.mark.asyncio
 async def test_provider_failure_and_retries(service):
+    """Test that provider failure and retries."""
     svc, provider = service
     provider.should_fail = True
     
@@ -106,6 +115,7 @@ async def test_provider_failure_and_retries(service):
 
 @pytest.mark.asyncio
 async def test_async_queue_enqueuing():
+    """Test that async queue enqueuing."""
     svc = EmailService()
     # Puts it in the queue for the background worker
     res = await svc.send_email_async("queue@sol.com", "Subject", "welcome", {}, "general")

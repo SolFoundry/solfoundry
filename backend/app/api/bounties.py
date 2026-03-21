@@ -32,6 +32,7 @@ from app.services import bounty_service
 from app.services.bounty_search_service import BountySearchService
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
+    """Verify that the authenticated user owns the given bounty, raising 403/404 on failure."""
     bounty = bounty_service.get_bounty(bounty_id)
     if not bounty:
         raise HTTPException(status_code=404, detail="Bounty not found")
@@ -62,6 +63,7 @@ async def create_bounty(
     data: BountyCreate,
     user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
+    """Register a new bounty in the marketplace, setting created_by to the authenticated user."""
     data.created_by = user.wallet_address or str(user.id)
     return bounty_service.create_bounty(data)
 
@@ -85,6 +87,7 @@ async def list_bounties(
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of items to return"),
 ) -> BountyListResponse:
+    """Return a paginated list of bounties with optional status, tier, skill, and creator filters."""
     skill_list = (
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
@@ -101,6 +104,7 @@ async def list_bounties(
 async def _get_search_service(
     session: AsyncSession = Depends(get_db),
 ) -> BountySearchService:
+    """Dependency injection: create a BountySearchService from the active DB session."""
     return BountySearchService(session)
 
 
@@ -132,6 +136,7 @@ async def search_bounties(
     per_page: int = Query(20, ge=1, le=100),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> BountySearchResponse:
+    """Full-text search over bounties with multi-field filters, sorting, and pagination."""
     skill_list = (
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else []
     )
@@ -162,6 +167,7 @@ async def autocomplete(
     limit: int = Query(8, ge=1, le=20),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> AutocompleteResponse:
+    """Return typeahead suggestions for bounty titles and skills matching the query prefix."""
     return await svc.autocomplete(q, limit)
 
 
@@ -174,6 +180,7 @@ async def hot_bounties(
     limit: int = Query(6, ge=1, le=20),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> list[BountySearchResult]:
+    """Return the most active bounties from the last 24 hours, ranked by submission count."""
     return await svc.hot_bounties(limit)
 
 
@@ -190,6 +197,7 @@ async def recommended_bounties(
     limit: int = Query(6, ge=1, le=20),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> list[BountySearchResult]:
+    """Return bounties matching the caller's skill set, excluding already-seen bounties."""
     skill_list = [s.strip().lower() for s in skills.split(",") if s.strip()]
     excluded = [e.strip() for e in exclude.split(",") if e.strip()] if exclude else []
     return await svc.recommended(skill_list, excluded, limit)
@@ -204,6 +212,7 @@ async def recommended_bounties(
     summary="Get escrow stats for a creator",
 )
 async def get_creator_stats(wallet_address: str):
+    """Aggregate staked, paid, and refunded amounts across all bounties created by wallet_address."""
     bounties_resp = bounty_service.list_bounties(created_by=wallet_address, limit=1000)
     staked, paid, refunded = 0, 0, 0
     for b in bounties_resp.items:
@@ -226,6 +235,7 @@ async def get_creator_stats(wallet_address: str):
     },
 )
 async def get_bounty_detail(bounty_id: str) -> BountyResponse:
+    """Return the full details for a single bounty including status and submission count."""
     bounty = bounty_service.get_bounty(bounty_id)
     if not bounty:
         raise HTTPException(status_code=404, detail=f"Bounty '{bounty_id}' not found")
@@ -242,6 +252,7 @@ async def update_bounty(
     data: BountyUpdate,
     user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
+    """Apply a partial update to a bounty after verifying the caller owns it."""
     await _verify_bounty_ownership(bounty_id, user)
     result, error = bounty_service.update_bounty(bounty_id, data)
     if error:
@@ -259,6 +270,7 @@ async def delete_bounty(
     bounty_id: str,
     user: UserResponse = Depends(get_current_user)
 ) -> None:
+    """Permanently remove a bounty after verifying the caller owns it."""
     await _verify_bounty_ownership(bounty_id, user)
     if not bounty_service.delete_bounty(bounty_id):
         raise HTTPException(status_code=404, detail="Bounty not found")
@@ -286,6 +298,7 @@ async def submit_solution(
     data: SubmissionCreate,
     user: UserResponse = Depends(get_current_user)
 ) -> SubmissionResponse:
+    """Accept a PR link as a bounty solution and transition the bounty to under_review."""
     data.submitted_by = user.wallet_address or str(user.id)
     result, error = bounty_service.submit_solution(bounty_id, data)
     if error:
@@ -305,6 +318,7 @@ async def submit_solution(
     },
 )
 async def get_submissions(bounty_id: str) -> list[SubmissionResponse]:
+    """List all submitted solutions for a bounty, visible to the bounty creator."""
     result = bounty_service.get_submissions(bounty_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Bounty not found")
@@ -331,6 +345,7 @@ async def update_submission(
     data: SubmissionStatusUpdate,
     user: UserResponse = Depends(get_current_user)
 ) -> SubmissionResponse:
+    """Approve, reject, or request changes on a submission (triggers payout on approval)."""
     await _verify_bounty_ownership(bounty_id, user)
     result, error = bounty_service.update_submission(bounty_id, submission_id, data.status)
     if error:
@@ -353,6 +368,7 @@ async def cancel_bounty(
     bounty_id: str,
     user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
+    """Cancel a bounty and initiate escrow refund; only allowed before payout."""
     await _verify_bounty_ownership(bounty_id, user)
     result, error = bounty_service.update_bounty(
         bounty_id, BountyUpdate(status=BountyStatus.CANCELLED)

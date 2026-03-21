@@ -9,6 +9,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './services/queryClient';
 
 /** Catches render errors with retry. */
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -91,12 +93,14 @@ function AppLayout() {
 // ── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider defaultTheme="dark">
-        <WalletProvider defaultNetwork="mainnet-beta">
-          <AppLayout />
-        </WalletProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ThemeProvider defaultTheme="dark">
+          <WalletProvider defaultNetwork="mainnet-beta">
+            <AppLayout />
+          </WalletProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
