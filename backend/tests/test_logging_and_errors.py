@@ -1,5 +1,5 @@
 """Module test_logging_and_errors."""
-import pytest
+
 from fastapi.testclient import TestClient
 from app.main import app
 import os
@@ -31,12 +31,12 @@ def test_structured_error_401_auth_error():
     # or a mock endpoint that raises AuthError.
     # For now, let's assume we can trigger one or we mock it.
     from app.services.auth_service import AuthError
-    
+
     @app.get("/test-auth-error")
     async def trigger_auth_error():
         """Trigger auth error."""
         raise AuthError("Unauthorized specifically")
-    
+
     response = client.get("/test-auth-error")
     assert response.status_code == 401
     data = response.json()
@@ -49,7 +49,7 @@ def test_structured_error_400_value_error():
     async def trigger_value_error():
         """Trigger value error."""
         raise ValueError("Invalid input data")
-    
+
     response = client.get("/test-value-error")
     assert response.status_code == 400
     data = response.json()
@@ -71,7 +71,7 @@ def test_audit_log_creation():
     # We need to mock the DB or use the in-memory store if possible.
     from app.services.payout_service import create_payout
     from app.models.payout import PayoutCreate
-    
+
     data = PayoutCreate(
         recipient="test-user",
         recipient_wallet="C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS",  # Valid base58 address
@@ -80,14 +80,14 @@ def test_audit_log_creation():
         bounty_id="b1",
         bounty_title="Test Bounty"
     )
-    
+
     # Just call the service method
     create_payout(data)
-    
+
     # Check if logs/audit.log exists and has the entry
     audit_log_path = "logs/audit.log"
     assert os.path.exists(audit_log_path)
-    
+
     with open(audit_log_path, "r") as f:
         lines = f.readlines()
         last_line = json.loads(lines[-1])

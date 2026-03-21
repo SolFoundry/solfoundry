@@ -24,6 +24,8 @@ from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services.auto_approve_service import periodic_auto_approve
+from app.services.bounty_lifecycle_service import periodic_deadline_check
 
 # Initialize logging
 setup_logging()
@@ -68,12 +70,28 @@ async def lifespan(app: FastAPI):
     # Start periodic sync in background (every 5 minutes)
     sync_task = asyncio.create_task(periodic_sync())
 
+    # Start auto-approve checker (every 5 minutes)
+    auto_approve_task = asyncio.create_task(periodic_auto_approve(interval_seconds=300))
+
+    # Start deadline enforcement checker (every 60 seconds)
+    deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
+
     yield
 
-    # Shutdown: Cancel background sync, close connections, then database
+    # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
+    auto_approve_task.cancel()
+    deadline_task.cancel()
     try:
         await sync_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await auto_approve_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await deadline_task
     except asyncio.CancelledError:
         pass
     await ws_manager.shutdown()

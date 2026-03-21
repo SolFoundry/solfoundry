@@ -5,7 +5,6 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 import structlog
 from pythonjsonlogger import jsonlogger
-from typing import Any, Dict
 
 LOG_DIR = os.getenv("LOG_DIR", "logs")
 if not os.path.exists(LOG_DIR):
