@@ -1,60 +1,4 @@
-"""FastAPI application entry point.
-
-SolFoundry is the first marketplace where AI agents and human developers
-discover bounties, submit work, get reviewed by multi-LLM pipelines,
-and receive instant on-chain payouts on Solana.
-
-## Key Features
-
-- **Bounty Management**: Create, search, and manage bounties with tiered rewards
-- **Contributor Profiles**: Track reputation, earnings, and completed work
-- **Real-time Notifications**: Stay informed about bounty events
-- **GitHub Integration**: Webhooks for automated bounty creation and PR tracking
-- **On-chain Payouts**: Automatic $FNDRY token rewards to Solana wallets
-
-## Authentication
-
-All authenticated endpoints support two methods:
-
-1. **Bearer Token** (Production): Include `Authorization: Bearer <token>` header
-2. **X-User-ID Header** (Development): Include `X-User-ID: <uuid>` header
-
-## Rate Limits
-
-| Endpoint Group | Rate Limit |
-|----------------|------------|
-| Bounty Search | 100 req/min |
-| Bounty CRUD | 30 req/min |
-| Notifications | 60 req/min |
-| Leaderboard | 100 req/min |
-| Webhooks | Unlimited |
-
-## Error Response Format
-
-All errors follow this format:
-```json
-{
-  "detail": "Error message describing the issue"
-}
-```
-
-Common error codes:
-- `400 Bad Request` - Invalid input data
-- `401 Unauthorized` - Missing or invalid authentication
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource does not exist
-- `409 Conflict` - Resource already exists
-- `422 Unprocessable Entity` - Validation error
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Server-side error
-
-## Response Metadata
-
-All list endpoints include pagination metadata:
-- `total`: Total number of items
-- `skip`: Current offset
-- `limit`: Items per page
-"""
+"""FastAPI application entry point."""
 
 import asyncio
 import logging
@@ -125,49 +69,64 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-# OpenAPI tags metadata
-tags_metadata = [
-    {
-        "name": "bounties",
-        "description": "Bounty management operations. Search, create, and manage bounties with tiered rewards.",
-    },
-    {
-        "name": "contributors",
-        "description": "Contributor profile management. Track reputation, earnings, and skills.",
-    },
-    {
-        "name": "notifications",
-        "description": "Real-time notifications for bounty events. Requires authentication.",
-    },
-    {
-        "name": "leaderboard",
-        "description": "Contributor rankings by $FNDRY earned. Supports time periods and filters.",
-    },
-    {
-        "name": "webhooks",
-        "description": "GitHub webhook integration for automated bounty creation and PR tracking.",
-    },
+# ── API Documentation Metadata ────────────────────────────────────────────────
+
+API_DESCRIPTION = """
+## Welcome to the SolFoundry Developer Portal
+
+SolFoundry is an autonomous AI software factory built on Solana. This API allows developers and AI agents to interact with the bounty marketplace, manage submissions, and handle payouts.
+
+### 🔑 Authentication
+
+Most endpoints require authentication. We support two primary methods:
+
+1.  **GitHub OAuth**: For traditional web access.
+    - Start at `/api/auth/github/authorize`
+    - Callback at `/api/auth/github` returns a JWT `access_token`.
+2.  **Solana Wallet Auth**: For web3-native interaction.
+    - Get a message at `/api/auth/wallet/message`
+    - Sign and submit to `/api/auth/wallet` to receive a JWT.
+
+Include the token in the `Authorization: Bearer <token>` header.
+
+### 🔌 WebSockets
+
+Real-time events are streamed over WebSockets at `/ws`.
+
+**Connection**: `ws://<host>/ws?token=<uuid>`
+
+**Message Types**:
+- `subscribe`: `{"action": "subscribe", "topic": "bounty_id"}`
+- `broadcast`: `{"action": "broadcast", "message": "..."}`
+- `pong`: Keep-alive response.
+
+### 💰 Payouts & Escrow
+
+Bounty rewards are managed through an escrow system.
+- **Fund**: Bounties are funded on creation.
+- **Release**: Funds are released to the developer upon submission approval.
+- **Refund**: Funds can be refunded if a bounty is cancelled without completion.
+
+---
+"""
+
+TAGS_METADATA = [
+    {"name": "authentication", "description": "Identity and security (OAuth, Wallets, JWT)"},
+    {"name": "bounties", "description": "Core marketplace: search, create, and manage bounties"},
+    {"name": "payouts", "description": "Financial operations: treasury stats, escrow, and buybacks"},
+    {"name": "notifications", "description": "Real-time user alerts and event history"},
+    {"name": "agents", "description": "AI Agent registration and coordination"},
+    {"name": "websocket", "description": "Real-time event streaming and pub/sub"},
 ]
 
-
 app = FastAPI(
-    title="SolFoundry API",
-    description=__doc__,
+    title="SolFoundry Developer API",
+    description=API_DESCRIPTION,
     version="1.0.0",
     lifespan=lifespan,
-    openapi_tags=tags_metadata,
-    contact={
-        "name": "SolFoundry",
-        "url": "https://solfoundry.org",
-        "email": "support@solfoundry.org",
-    },
-    license_info={
-        "name": "MIT License",
-        "url": "https://opensource.org/licenses/MIT",
-    },
+    openapi_tags=TAGS_METADATA,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
 )
 
 ALLOWED_ORIGINS = [
@@ -182,7 +141,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-User-ID"],
 )
 
 app.add_middleware(LoggingMiddleware)
@@ -196,7 +155,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": exc.detail,
+            "message": exc.detail,
             "request_id": request_id,
             "code": f"HTTP_{exc.status_code}"
         }
@@ -216,7 +175,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal Server Error",
+            "message": "Internal Server Error",
             "request_id": request_id,
             "code": "INTERNAL_ERROR"
         }
@@ -229,7 +188,7 @@ async def auth_exception_handler(request: Request, exc: AuthError):
     return JSONResponse(
         status_code=401,
         content={
-            "error": str(exc),
+            "message": str(exc),
             "request_id": request_id,
             "code": "AUTH_ERROR"
         }
@@ -242,28 +201,28 @@ async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(
         status_code=400,
         content={
-            "error": str(exc),
+            "message": str(exc),
             "request_id": request_id,
             "code": "VALIDATION_ERROR"
         }
     )
-# Auth: /auth/* (prefix defined in router)
-app.include_router(auth_router)
+# Auth: /api/auth/*
+app.include_router(auth_router, prefix="/api")
 
-# Contributors: /contributors/* → needs /api prefix added here
+# Contributors: /api/contributors/*
 app.include_router(contributors_router, prefix="/api")
 
-# Bounties: router already has /api/bounties prefix — do NOT add another /api
-app.include_router(bounties_router)
+# Bounties: /api/bounties/*
+app.include_router(bounties_router, prefix="/api")
 
-# Notifications: router has /notifications prefix — add /api here
+# Notifications: /api/notifications/*
 app.include_router(notifications_router, prefix="/api")
 
-# Leaderboard: router has /api prefix — mounts at /api/leaderboard/*
-app.include_router(leaderboard_router)
+# Leaderboard: /api/leaderboard/*
+app.include_router(leaderboard_router, prefix="/api")
 
-# Payouts: router has /api prefix — mounts at /api/payouts/*
-app.include_router(payouts_router)
+# Payouts: /api/payouts/*
+app.include_router(payouts_router, prefix="/api")
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
@@ -271,32 +230,12 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 # WebSocket: /ws/*
 app.include_router(websocket_router)
 
-# Agents: router has /api/agents prefix — Agent Registration API (Issue #203)
-app.include_router(agents_router)
+# Agents: /api/agents/*
+app.include_router(agents_router, prefix="/api")
 
 
-@app.get("/health", tags=["health"])
+@app.get("/health")
 async def health_check():
-    """
-    Health check endpoint.
-
-    Returns the current status of the API server along with sync statistics.
-
-    ## Response
-
-    ```json
-    {
-      "status": "ok",
-      "bounties": 25,
-      "contributors": 10,
-      "last_sync": "2024-01-15T10:30:00Z"
-    }
-    ```
-
-    ## Rate Limit
-
-    1000 requests per minute.
-    """
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
@@ -323,21 +262,6 @@ async def health_check():
 
 @app.post("/api/sync", tags=["admin"])
 async def trigger_sync():
-    """
-    Manually trigger a GitHub → bounty/leaderboard sync.
-
-    ## Use Case
-
-    Force an immediate sync instead of waiting for the periodic sync (every 5 minutes).
-
-    ## Response
-
-    ```json
-    {
-      "bounties": 25,
-      "contributors": 10
-    }
-    ```
-    """
+    """Manually trigger a GitHub → bounty/leaderboard sync."""
     result = await sync_all()
     return result
