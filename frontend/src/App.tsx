@@ -23,6 +23,7 @@ const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -66,6 +67,9 @@ function AppLayout() {
 
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
+
+          {/* How It Works */}
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
 
           {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
