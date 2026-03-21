@@ -80,6 +80,7 @@ from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
+from app.api.disputes import router as disputes_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
@@ -248,6 +249,10 @@ tags_metadata = [
         "name": "payouts",
         "description": "Financial operations: treasury stats, escrow, and buybacks",
     },
+    {
+        "name": "disputes",
+        "description": "Dispute resolution system for rejected submissions. Supports AI-assisted and manual mediation.",
+    },
 ]
 
 
@@ -382,6 +387,9 @@ app.include_router(leaderboard_router, prefix="/api")
 
 # Payouts: /api/payouts/*
 app.include_router(payouts_router, prefix="/api")
+
+# Disputes: router has /api prefix — mounts at /api/disputes/*
+app.include_router(disputes_router)
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
