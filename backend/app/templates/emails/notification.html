@@ -1,0 +1,22 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 16px;">{{ title }}</h2>
+<p>{{ message }}</p>
+
+{% if bounty_id %}
+<div class="metadata">
+    <strong>Bounty ID:</strong> <span style="font-family: monospace;">{{ bounty_id }}</span><br>
+    {% if extra_data %}
+        {% if extra_data.pr_url %}
+            <strong>PR URL:</strong> <a href="{{ extra_data.pr_url }}" style="color: #9945FF;">{{ extra_data.pr_url }}</a><br>
+        {% endif %}
+        {% if extra_data.reward_amount %}
+            <strong>Reward:</strong> {{ extra_data.reward_amount }} $FNDRY<br>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+
+<a href="{{ dashboard_url }}" class="button">View in Dashboard</a>
+{% endblock %}

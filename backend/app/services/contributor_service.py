@@ -59,6 +59,9 @@ def _row_to_response(row: ContributorTable) -> ContributorResponse:
         skills=row.skills or [],
         badges=row.badges or [],
         social_links=row.social_links or {},
+        unsubscribe_token=row.unsubscribe_token,
+        email_notifications_enabled=row.email_notifications_enabled,
+        notification_preferences=row.notification_preferences or {},
         stats=ContributorStats(
             total_contributions=row.total_contributions,
             total_bounties_completed=row.total_bounties_completed,
@@ -296,6 +299,21 @@ async def get_contributor_by_username(
 
     async with async_session_factory() as auto_session:
         return await _run(auto_session)
+
+
+async def get_contributor_by_token(token: str) -> Optional[ContributorResponse]:
+    """Retrieve a contributor profile by unsubscribe token.
+    
+    Used for one-click unsubscribe links without authentication.
+    """
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ContributorTable).where(ContributorTable.unsubscribe_token == token)
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+        return _row_to_response(row)
 
 
 async def update_contributor(

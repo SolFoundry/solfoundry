@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from fastapi import BackgroundTasks
 from app.core.audit import audit_event
 from app.models.notification import NotificationType, NotificationCreate
 
@@ -24,6 +25,7 @@ async def _send_notification(
     message: str,
     bounty_id: Optional[str] = None,
     extra_data: Optional[dict] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Persist a notification. Falls back to audit log if DB is unavailable."""
     try:
@@ -40,7 +42,8 @@ async def _send_notification(
                     message=message,
                     bounty_id=bounty_id,
                     extra_data=extra_data,
-                )
+                ),
+                background_tasks=background_tasks,
             )
             await session.commit()
     except Exception as e:
@@ -60,6 +63,7 @@ async def notify_submission_received(
     bounty_title: str,
     pr_url: str,
     contributor: str,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Notify bounty creator that a new submission was received."""
     await _send_notification(
@@ -69,6 +73,7 @@ async def notify_submission_received(
         message=f"A new PR was submitted for '{bounty_title}' by {contributor}.",
         bounty_id=bounty_id,
         extra_data={"pr_url": pr_url, "contributor": contributor},
+        background_tasks=background_tasks,
     )
 
 
@@ -78,6 +83,7 @@ async def notify_submission_approved(
     bounty_title: str,
     reward_amount: float,
     approved_by: str,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Notify contributor that their submission was approved."""
     await _send_notification(
@@ -87,6 +93,7 @@ async def notify_submission_approved(
         message=f"Your submission for '{bounty_title}' was approved! {reward_amount:,.0f} FNDRY payout incoming.",
         bounty_id=bounty_id,
         extra_data={"reward_amount": reward_amount, "approved_by": approved_by},
+        background_tasks=background_tasks,
     )
 
 
@@ -95,6 +102,7 @@ async def notify_submission_disputed(
     bounty_id: str,
     bounty_title: str,
     reason: str,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Notify contributor that their submission was disputed."""
     await _send_notification(
@@ -104,6 +112,7 @@ async def notify_submission_disputed(
         message=f"Your submission for '{bounty_title}' has been disputed: {reason}",
         bounty_id=bounty_id,
         extra_data={"reason": reason},
+        background_tasks=background_tasks,
     )
 
 
@@ -114,6 +123,7 @@ async def notify_auto_approved(
     bounty_title: str,
     reward_amount: float,
     ai_score: float,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Notify both parties when auto-approve fires."""
     await _send_notification(
@@ -126,6 +136,7 @@ async def notify_auto_approved(
         ),
         bounty_id=bounty_id,
         extra_data={"ai_score": ai_score, "reward_amount": reward_amount},
+        background_tasks=background_tasks,
     )
     await _send_notification(
         user_id=creator_id,
@@ -137,6 +148,7 @@ async def notify_auto_approved(
         ),
         bounty_id=bounty_id,
         extra_data={"ai_score": ai_score},
+        background_tasks=background_tasks,
     )
 
 
@@ -146,6 +158,7 @@ async def notify_payout_confirmed(
     bounty_title: str,
     amount: float,
     tx_hash: str,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> None:
     """Notify contributor that payout was confirmed on-chain."""
     await _send_notification(
@@ -155,4 +168,5 @@ async def notify_payout_confirmed(
         message=f"{amount:,.0f} FNDRY sent for '{bounty_title}'. Tx: {tx_hash[:16]}...",
         bounty_id=bounty_id,
         extra_data={"amount": amount, "tx_hash": tx_hash},
+        background_tasks=background_tasks,
     )
