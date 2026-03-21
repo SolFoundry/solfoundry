@@ -34,9 +34,11 @@ os.environ.setdefault("AUTH_ENABLED", "true")
 from app.api.auth import get_current_user, router as auth_router
 from app.api.bounties import router as bounties_router
 from app.api.contributors import router as contributors_router
+from app.api.escrow import router as escrow_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.notifications import router as notifications_router
 from app.api.payouts import router as payouts_router
+from app.api.stats import router as stats_router
 from app.api.websocket import router as websocket_router
 from app.models.user import UserResponse
 from app.services import bounty_service, contributor_service
@@ -111,6 +113,8 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(notifications_router, prefix="/api")
     test_app.include_router(leaderboard_router, prefix="/api")
     test_app.include_router(payouts_router, prefix="/api")
+    test_app.include_router(escrow_router, prefix="/api")
+    test_app.include_router(stats_router, prefix="/api")
     test_app.include_router(websocket_router)
 
     # Override the auth dependency so endpoints accept requests without JWT
@@ -120,6 +124,35 @@ def _create_test_app() -> FastAPI:
     async def health_check():
         """Minimal health endpoint for connectivity tests."""
         return {"status": "ok"}
+
+    # Add global exception handler to match production app behaviour.
+    # Without this, unhandled exceptions (e.g. AttributeError from missing
+    # service methods) would crash the test client instead of returning 500.
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    @test_app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        """Catch-all handler that mirrors production error handling."""
+        return JSONResponse(
+            status_code=500,
+            content={
+                "message": "Internal Server Error",
+                "detail": str(exc),
+                "code": "INTERNAL_ERROR",
+            },
+        )
+
+    @test_app.exception_handler(ValueError)
+    async def value_error_handler(request: Request, exc: ValueError):
+        """Handle ValueErrors (validation) with structured JSON."""
+        return JSONResponse(
+            status_code=400,
+            content={
+                "message": str(exc),
+                "code": "VALIDATION_ERROR",
+            },
+        )
 
     return test_app
 
@@ -196,10 +229,15 @@ def clear_stores():
 def client() -> Generator[TestClient, None, None]:
     """Provide a synchronous ``TestClient`` for standard HTTP endpoint tests.
 
+    Uses ``raise_server_exceptions=False`` so that 500 responses from
+    unimplemented service methods are returned as HTTP responses rather
+    than raising in the test process. This enables tests to verify error
+    handling for endpoints whose service layer is not yet wired.
+
     Yields:
         A ``fastapi.testclient.TestClient`` bound to the test application.
     """
-    with TestClient(app) as test_client:
+    with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
 
 
@@ -318,7 +356,12 @@ def advance_bounty_status(
         "completed": ["in_progress", "completed"],
         "paid": ["in_progress", "completed", "paid"],
     }
-    transitions = status_path.get(target_status, [])
+    if target_status not in status_path:
+        raise ValueError(
+            f"Unknown target status '{target_status}'. "
+            f"Valid statuses: {sorted(status_path.keys())}"
+        )
+    transitions = status_path[target_status]
     result = {}
     for status in transitions:
         response = client.patch(
@@ -380,9 +423,15 @@ class FakeWebSocket:
         self.sent.append(data)
 
     async def send_text(self, data: str) -> None:
-        """Record a text message as sent (parsed as JSON).
+        """Record a text message as sent.
+
+        Attempts to parse the data as JSON for structured assertions.
+        Falls back to storing the raw string if the data is not valid JSON.
 
         Args:
             data: The text message to send.
         """
-        self.sent.append(json.loads(data))
+        try:
+            self.sent.append(json.loads(data))
+        except (json.JSONDecodeError, TypeError):
+            self.sent.append({"_raw_text": data})

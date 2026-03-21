@@ -23,6 +23,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
   DATABASE_URL: 'sqlite+aiosqlite:///:memory:'
   AUTH_ENABLED: 'true'
   SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-test-secret-key' }}
@@ -121,17 +122,66 @@ jobs:
           path: backend/reports/
           retention-days: 30
 
+  # ── Frontend Playwright E2E Tests ──────────────────────────────────────
+  frontend-e2e:
+    name: Frontend Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run Playwright E2E tests
+        working-directory: frontend
+        run: npx playwright test --reporter=html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: frontend/test-results/
+          retention-days: 14
+
   # ── Summary Gate ────────────────────────────────────────────────────────
   e2e-summary:
     name: E2E Gate
-    needs: [backend-e2e, backend-e2e-full]
+    needs: [backend-e2e, backend-e2e-full, frontend-e2e]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check results
         run: |
           if [ "${{ needs.backend-e2e-full.result }}" != "success" ]; then
-            echo "E2E tests failed"
+            echo "Backend E2E tests failed"
             exit 1
           fi
-          echo "All E2E tests passed"
+          if [ "${{ needs.frontend-e2e.result }}" != "success" ]; then
+            echo "Frontend Playwright tests failed"
+            exit 1
+          fi
+          echo "All E2E tests passed (backend + frontend)"
