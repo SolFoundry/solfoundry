@@ -1,0 +1,74 @@
+# Docker Compose for SolFoundry local development.
+# Usage: cp .env.example .env && docker compose up --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-solfoundry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solfoundry_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-solfoundry}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-solfoundry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

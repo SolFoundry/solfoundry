@@ -1,0 +1,42 @@
+# Multi-stage Dockerfile for SolFoundry React frontend.
+# Stage 1: Install deps and build the production bundle with Vite.
+# Stage 2: Serve the static assets via nginx.
+
+# ── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS build
+
+WORKDIR /build
+
+COPY frontend/package.json frontend/package-lock.json* ./
+
+RUN npm ci --ignore-scripts
+
+COPY frontend/ .
+
+ENV NODE_ENV=production
+
+RUN npm run build
+
+# ── Stage 2: Serve ───────────────────────────────────────────────────────────
+FROM nginx:1.27-alpine AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/SolFoundry/solfoundry"
+LABEL org.opencontainers.image.description="SolFoundry React frontend served by nginx"
+
+# Remove default config and add our own.
+# Note: nginx master runs as root (required to bind port 80); worker processes
+# drop to the default nginx user. For rootless operation, switch to port 8080
+# and add "user nginx;" to nginx.conf.
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY frontend/nginx.conf /etc/nginx/conf.d/solfoundry.conf
+
+# Copy built assets from the build stage
+COPY --from=build /build/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -qO- http://localhost:80/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
