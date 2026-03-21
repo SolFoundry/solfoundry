@@ -185,10 +185,15 @@ html.dark .animate-shimmer {
 .theme-transitioning *,
 .theme-transitioning *::before,
 .theme-transitioning *::after {
-  transition: background-color 0.3s ease,
-              border-color 0.3s ease,
-              color 0.3s ease,
-              box-shadow 0.3s ease !important;
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+
+/* Instant theme application on initial load to prevent flash */
+html:not(.theme-transitioning) {
+  transition: none;
 }
 
 /* ============================================================================
