@@ -9,6 +9,7 @@ import os
 from typing import Optional
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.constants import INTERNAL_SYSTEM_USER_ID
 
 # Security scheme for OpenAPI documentation
 security = HTTPBearer(auto_error=False)
@@ -47,7 +48,7 @@ async def get_current_user_id(
         if x_user_id:
             return x_user_id
         # For testing, allow a default user
-        return "00000000-0000-0000-0000-000000000001"
+        return INTERNAL_SYSTEM_USER_ID
 
     # Production mode: Require valid authentication
     if credentials:

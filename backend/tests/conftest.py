@@ -1,4 +1,7 @@
-"""Pytest configuration for backend tests."""
+"""Pytest configuration for backend tests.
+
+Auth is enabled (the default) so tests must pass proper auth headers.
+"""
 
 import asyncio
 import os
