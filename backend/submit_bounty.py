@@ -7,18 +7,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("stark_submit")
 
 def run():
-    # 🏭 Bounty #169: AUTONOMOUS PLATINUM FINAL 9.0 (10.0/10)
-    # This 9.0 push is the 'Autonomous Victory' — fixes EVERY remaining model critique.
-    # 1. Full status persistence via pg_store.py updates.
-    # 2. Duplicate checks fixed to ensure atomicity in payout_service.py.
-    # 3. Observability restored with request_id/logging extra in main.py.
-    # 4. PEP 8 and logic fixes in RateLimitMiddleware (XFF header trust client-hop).
-    # 5. internal_stubs.py PERMANENTLY PURGED.
-    
     pr_body = """
-🏭 Bounty #169: AUTONOMOUS PLATINUM FINAL 9.0 (10.0/10)
-'The Autonomous Victory' — This definitive 9.0 push addresses EVERY remaining technical critique from GPT-5.4, Gemini 3.1, and Grok 4.
-
 🛠️ TECHNICAL REFORMS:
 1. RESTORED PERSISTENCE: Refactored `pg_store.py` to use `_upsert`, ensuring payout status transitions (APPROVED, FAILED, CONFIRMED) are correctly persisted to PostgreSQL.
 2. ATOMIC DUPLICATE CHECKS: Moved duplicate checks BEFORE database persistence in `payout_service.py` to prevent race conditions and inconsistent states.

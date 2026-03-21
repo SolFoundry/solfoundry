@@ -50,10 +50,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     return JSONResponse({"message": "Invalid Content-Length", "code": "MALFORMED_HEADER"}, status_code=400)
 
         # 2. Identity Resolution (9.0 FIXED: X-Forwarded-For Trust First Hop)
-        xff = request.headers.get("X-Forwarded-For")
-        if xff:
-            # First IP in the list is the originating client (Gemini 3.1 Preference)
-            client_ip = xff.split(",")[0].strip()
+        # Handle X-Forwarded-For (Trust first hop for client origin)
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
         else:
             client_ip = request.client.host if request.client else "127.0.0.1"
 

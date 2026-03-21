@@ -83,14 +83,38 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
         solscan_url=solscan,
     )
     
-    # Persist to DB (Atomic Persistence Guarantee)
+    # 1. Duplicate Prevention (Memory-First per 11.0 Audit)
+    # Check for duplicate payout ID or bounty ID (if bounty_id is present)
+    with _lock:
+        if record.id in _payout_store or (record.bounty_id and any(p.bounty_id == record.bounty_id for p in _payout_store.values())):
+            logger.warning(f"Duplicate payout detected: {record.id} / bounty:{record.bounty_id}")
+            # Return a failed response for duplicate, as per 11.0 audit suggestion
+            return PayoutResponse(
+                id=record.id,
+                recipient=record.recipient,
+                recipient_wallet=record.recipient_wallet,
+                amount=record.amount,
+                token=record.token,
+                bounty_id=record.bounty_id,
+                bounty_title=record.bounty_title,
+                tx_hash=record.tx_hash,
+                solscan_url=record.solscan_url,
+                status=PayoutStatus.FAILED,
+                failure_reason="Duplicate payout",
+                created_at=record.created_at,
+                updated_at=record.updated_at
+            )
+
+    # 2. Database Persistence (DB-First for source-of-truth)
     try:
         from app.services.pg_store import persist_payout
         await persist_payout(record)
-    except Exception as exc:
-        logger.error(f"PostgreSQL payout write failed: {exc}")
+    except Exception as e:
+        logger.error(f"DB Persist Failed for payout {record.id}: {e}")
+        # In 11.0, we let this raise or return a failure response based on contract
         raise
 
+    # 3. Cache / Memory Update
     with _lock:
         _payout_store[record.id] = record
 
@@ -159,9 +183,28 @@ async def create_buyback(data: BuybackCreate) -> BuybackResponse:
         tx_hash=data.tx_hash,
         solscan_url=solscan,
     )
+    # 1. Duplicate check (Memory-First)
+    with _lock:
+        if record.id in _buyback_store:
+            logger.warning(f"Duplicate buyback detected: {record.id}")
+            return BuybackResponse(
+                id=record.id,
+                amount_sol=record.amount_sol,
+                amount_fndry=record.amount_fndry,
+                price_per_fndry=record.price_per_fndry,
+                tx_hash=record.tx_hash,
+                solscan_url=record.solscan_url,
+                created_at=record.created_at,
+                updated_at=record.updated_at
+            )
+
+    # 2. DB Persist
     from app.services.pg_store import persist_buyback
     await persist_buyback(record)
-    with _lock: _buyback_store[record.id] = record
+
+    # 3. Buffer update
+    with _lock:
+        _buyback_store[record.id] = record
     return _buyback_to_response(record)
 
 async def list_payouts(recipient=None, status=None, bounty_id=None, token=None, start_date=None, end_date=None, skip=0, limit=20) -> PayoutListResponse:
