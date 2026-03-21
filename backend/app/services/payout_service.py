@@ -1,213 +1,140 @@
-"""Payout service with PostgreSQL as primary source of truth (Issue #162)."""
+"""Payout and Buyback service layer -- business logic and persistence coordination."""
 
 import logging
-import threading
+from typing import Any, Optional, List, Tuple
 from datetime import datetime, timezone
-from typing import Optional, Tuple
 
-from app.core.audit import audit_event
-from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError
+from fastapi import HTTPException
 from app.models.payout import (
-    PayoutCreate,
-    PayoutRecord,
-    PayoutResponse,
-    PayoutListResponse,
-    PayoutStatus,
-    BuybackCreate,
-    BuybackRecord,
-    BuybackResponse,
-    BuybackListResponse,
-    AdminApprovalResponse,
+    PayoutRecord, PayoutStatus, PayoutCreate, PayoutResponse, PayoutListResponse,
+    BuybackRecord, BuybackCreate, BuybackResponse, BuybackListResponse
 )
+from app.services import pg_store
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
-_lock = threading.Lock()
-_payout_store: dict[str, PayoutRecord] = {}
-_buyback_store: dict[str, BuybackRecord] = {}
-
-SOLSCAN_TX_BASE = "https://solscan.io/tx"
-
-def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
-    if not tx_hash: return None
-    return f"{SOLSCAN_TX_BASE}/{tx_hash}"
-
-def _payout_to_response(payout: PayoutRecord) -> PayoutResponse:
-    # Ensure all required fields (created_at) are present in response mapping
+def _payout_to_response(record: PayoutRecord) -> PayoutResponse:
+    """Map internal PayoutRecord to API PayoutResponse."""
     return PayoutResponse(
-        id=payout.id,
-        recipient=payout.recipient,
-        recipient_wallet=payout.recipient_wallet,
-        amount=payout.amount,
-        token=payout.token,
-        bounty_id=payout.bounty_id,
-        bounty_title=payout.bounty_title,
-        tx_hash=payout.tx_hash,
-        status=payout.status,
-        solscan_url=payout.solscan_url,
-        created_at=payout.created_at,
-        updated_at=getattr(payout, 'updated_at', payout.created_at)
+        id=record.id,
+        recipient=record.recipient,
+        recipient_wallet=record.recipient_wallet,
+        amount=record.amount,
+        token=record.token,
+        bounty_id=record.bounty_id,
+        bounty_title=record.bounty_title,
+        tx_hash=record.tx_hash,
+        status=record.status,
+        solscan_url=record.solscan_url,
+        retry_count=record.retry_count,
+        failure_reason=record.failure_reason,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
     )
 
-async def hydrate_from_database() -> None:
-    """Load payouts and buybacks from PostgreSQL into in-memory caches."""
-    try:
-        from app.services.pg_store import load_payouts, load_buybacks
-        payouts = await load_payouts()
-        buybacks = await load_buybacks()
-        with _lock:
-            _payout_store.update(payouts)
-            _buyback_store.update(buybacks)
-    except Exception as exc:
-        logger.warning(f"PostgreSQL hydration failed: {exc}")
+def _buyback_to_response(record: BuybackRecord) -> BuybackResponse:
+    """Map internal BuybackRecord to API BuybackResponse."""
+    return BuybackResponse(
+        id=record.id,
+        amount_sol=record.amount_sol,
+        amount_fndry=record.amount_fndry,
+        price_per_fndry=record.price_per_fndry,
+        tx_hash=record.tx_hash,
+        solscan_url=record.solscan_url,
+        created_at=record.created_at,
+    )
 
-async def create_payout(data: PayoutCreate) -> PayoutResponse:
-    # 9.0 FIXED ATOMICITY: Check duplicates BEFORE persist
-    with _lock:
-        if data.tx_hash:
-            for existing in _payout_store.values():
-                if existing.tx_hash == data.tx_hash:
-                    raise ValueError("Payout with tx_hash already exists")
+async def create_payout(payout_in: PayoutCreate) -> PayoutResponse:
+    """Create a new payout record (Duplicate check before DB write)."""
+    # 1. Duplicate Check: Ensure bounty_id (if provided) isn't already paid
+    if payout_in.bounty_id:
+        existing_payouts = await pg_store.load_payouts(limit=1000)
+        for p in existing_payouts.values():
+            if str(p.bounty_id) == str(payout_in.bounty_id):
+                log.warning("Duplicate payout attempt for bounty_id: %s", payout_in.bounty_id)
+                raise HTTPException(status_code=400, detail=f"Bounty {payout_in.bounty_id} already has a payout.")
 
-    solscan = _solscan_url(data.tx_hash)
-    status = PayoutStatus.CONFIRMED if data.tx_hash else PayoutStatus.PENDING
+    # 2. Record Construction
     record = PayoutRecord(
-        recipient=data.recipient,
-        recipient_wallet=data.recipient_wallet,
-        amount=data.amount,
-        token=data.token,
-        bounty_id=data.bounty_id,
-        bounty_title=data.bounty_title,
-        tx_hash=data.tx_hash,
-        status=status,
-        solscan_url=solscan,
+        recipient=payout_in.recipient,
+        recipient_wallet=payout_in.recipient_wallet,
+        amount=payout_in.amount,
+        token=payout_in.token,
+        bounty_id=payout_in.bounty_id,
+        bounty_title=payout_in.bounty_title,
+        tx_hash=payout_in.tx_hash,
+        status=PayoutStatus.CONFIRMED if payout_in.tx_hash else PayoutStatus.PENDING,
+        solscan_url=f"https://solscan.io/tx/{payout_in.tx_hash}" if payout_in.tx_hash else None,
     )
-    
-    # 1. Duplicate Prevention (Memory-First per 11.0 Audit)
-    # Check for duplicate payout ID or bounty ID (if bounty_id is present)
-    with _lock:
-        if record.id in _payout_store or (record.bounty_id and any(p.bounty_id == record.bounty_id for p in _payout_store.values())):
-            logger.warning(f"Duplicate payout detected: {record.id} / bounty:{record.bounty_id}")
-            # Return a failed response for duplicate, as per 11.0 audit suggestion
-            return PayoutResponse(
-                id=record.id,
-                recipient=record.recipient,
-                recipient_wallet=record.recipient_wallet,
-                amount=record.amount,
-                token=record.token,
-                bounty_id=record.bounty_id,
-                bounty_title=record.bounty_title,
-                tx_hash=record.tx_hash,
-                solscan_url=record.solscan_url,
-                status=PayoutStatus.FAILED,
-                failure_reason="Duplicate payout",
-                created_at=record.created_at,
-                updated_at=record.updated_at
-            )
 
-    # 2. Database Persistence (DB-First for source-of-truth)
-    try:
-        from app.services.pg_store import persist_payout
-        await persist_payout(record)
-    except Exception as e:
-        logger.error(f"DB Persist Failed for payout {record.id}: {e}")
-        # In 11.0, we let this raise or return a failure response based on contract
-        raise
-
-    # 3. Cache / Memory Update
-    with _lock:
-        _payout_store[record.id] = record
-
-    audit_event("payout_created", payout_id=record.id, recipient=record.recipient, amount=record.amount)
+    # 3. Persistence
+    await pg_store.persist_payout(record)
+    log.info("Created payout: %s for %s", record.id, record.recipient)
     return _payout_to_response(record)
 
-async def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse:
-    with _lock:
-        record = _payout_store.get(payout_id)
-    if not record:
-        raise PayoutNotFoundError(f"Payout {payout_id} not found")
-    if record.status != PayoutStatus.PENDING:
-        raise InvalidPayoutTransitionError(f"Cannot approve payout in status {record.status}")
-    
-    record.status = PayoutStatus.APPROVED
-    record.updated_at = datetime.now(timezone.utc)
-    
-    # 9.0 FIXED: Persist status change
-    from app.services.pg_store import persist_payout
-    await persist_payout(record)
-    
-    return AdminApprovalResponse(payout_id=payout_id, status=record.status, admin_id=admin_id, message="Approved")
+async def list_payouts(
+    *, 
+    status: Optional[str] = None, 
+    recipient: Optional[str] = None, 
+    skip: int = 0, 
+    limit: int = 100
+) -> PayoutListResponse:
+    """List payouts with server-side filtering and pagination."""
+    # Note: In production, filtering should happen via SQL query in pg_store.
+    # For now, we load all and filter in-memory to maintain backward compatibility during migration.
+    all_records = await pg_store.load_payouts(limit=10000)
+    filtered = list(all_records.values())
 
-async def reject_payout(payout_id: str, admin_id: str, reason: Optional[str] = None) -> AdminApprovalResponse:
-    with _lock:
-        record = _payout_store.get(payout_id)
-    if not record:
-        raise PayoutNotFoundError(f"Payout {payout_id} not found")
-    if record.status != PayoutStatus.PENDING:
-        raise InvalidPayoutTransitionError(f"Cannot reject payout in status {record.status}")
-    
-    record.status = PayoutStatus.FAILED
-    record.failure_reason = reason
-    record.updated_at = datetime.now(timezone.utc)
-    
-    # 9.0 FIXED: Persist status change
-    from app.services.pg_store import persist_payout
-    await persist_payout(record)
-    
-    return AdminApprovalResponse(payout_id=payout_id, status=record.status, admin_id=admin_id, message=f"Rejected: {reason}")
+    if status:
+        filtered = [p for p in filtered if p.status.value.lower() == status.lower()]
+    if recipient:
+        filtered = [p for p in filtered if recipient.lower() in p.recipient.lower()]
 
-async def process_payout(payout_id: str) -> PayoutResponse:
-    with _lock:
-        record = _payout_store.get(payout_id)
-    if not record:
-        raise PayoutNotFoundError(f"Payout {payout_id} not found")
-    if record.status != PayoutStatus.APPROVED:
-        raise InvalidPayoutTransitionError(f"Payout {payout_id} is {record.status}, expected APPROVED")
+    total = len(filtered)
+    page = filtered[skip : skip + limit]
     
-    record.status = PayoutStatus.CONFIRMED
-    record.updated_at = datetime.now(timezone.utc)
-    
-    # 9.0 FIXED: Persist status change
-    from app.services.pg_store import persist_payout
-    await persist_payout(record)
-    
-    return _payout_to_response(record)
+    return PayoutListResponse(
+        items=[_payout_to_response(p) for p in page],
+        total=total,
+        skip=skip,
+        limit=limit
+    )
 
-# ... Remaining functions list_payouts, create_buyback (fixed atomicity) ...
-async def create_buyback(data: BuybackCreate) -> BuybackResponse:
-    solscan = _solscan_url(data.tx_hash)
+async def get_payout(payout_id: str) -> PayoutResponse:
+    """Retrieve a single payout by UUID."""
+    all_payouts = await pg_store.load_payouts(limit=10000)
+    if payout_id not in all_payouts:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    return _payout_to_response(all_payouts[payout_id])
+
+async def create_buyback(buyback_in: BuybackCreate) -> BuybackResponse:
+    """Record a manual buyback event (Duplicate check by tx_hash)."""
+    if buyback_in.tx_hash:
+        existing = await pg_store.load_buybacks(limit=1000)
+        for b in existing.values():
+            if b.tx_hash == buyback_in.tx_hash:
+                 raise HTTPException(status_code=400, detail="Buyback with this tx_hash already exists.")
+
     record = BuybackRecord(
-        amount_sol=data.amount_sol,
-        amount_fndry=data.amount_fndry,
-        price_per_fndry=data.price_per_fndry,
-        tx_hash=data.tx_hash,
-        solscan_url=solscan,
+        amount_sol=buyback_in.amount_sol,
+        amount_fndry=buyback_in.amount_fndry,
+        price_per_fndry=buyback_in.price_per_fndry,
+        tx_hash=buyback_in.tx_hash,
+        solscan_url=f"https://solscan.io/tx/{buyback_in.tx_hash}" if buyback_in.tx_hash else None,
     )
-    # 1. Duplicate check (Memory-First)
-    with _lock:
-        if record.id in _buyback_store:
-            logger.warning(f"Duplicate buyback detected: {record.id}")
-            return BuybackResponse(
-                id=record.id,
-                amount_sol=record.amount_sol,
-                amount_fndry=record.amount_fndry,
-                price_per_fndry=record.price_per_fndry,
-                tx_hash=record.tx_hash,
-                solscan_url=record.solscan_url,
-                created_at=record.created_at,
-                updated_at=record.updated_at
-            )
-
-    # 2. DB Persist
-    from app.services.pg_store import persist_buyback
-    await persist_buyback(record)
-
-    # 3. Buffer update
-    with _lock:
-        _buyback_store[record.id] = record
+    await pg_store.persist_buyback(record)
     return _buyback_to_response(record)
 
-async def list_payouts(recipient=None, status=None, bounty_id=None, token=None, start_date=None, end_date=None, skip=0, limit=20) -> PayoutListResponse:
-    with _lock: results = sorted(_payout_store.values(), key=lambda p: p.created_at, reverse=True)
-    if recipient: results = [p for p in results if p.recipient == recipient]
-    # Rest of filtering kept...
+async def list_buybacks(skip: int = 0, limit: int = 100) -> BuybackListResponse:
+    """List all buyback events."""
+    all_records = await pg_store.load_buybacks(limit=10000)
+    items = list(all_records.values())
+    total = len(items)
+    page = items[skip : skip + limit]
+    
+    return BuybackListResponse(
+        items=[_buyback_to_response(b) for b in page],
+        total=total,
+        skip=skip,
+        limit=limit
+    )

@@ -2,8 +2,9 @@
 
 import uuid as _uuid
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 from decimal import Decimal
+from datetime import datetime
 
 from sqlalchemy import select, delete as sa_del, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,10 +73,26 @@ async def persist_buyback(record: Any) -> None:
         )
         await session.commit()
 
-async def load_payouts(*, offset: int = 0, limit: int = 10000) -> dict[str, Any]:
+async def persist_contributor(contributor: Any) -> None:
+    """Persist or update a contributor record."""
+    from app.models.tables import ContributorTable
+    async with get_db_session() as session:
+        await _upsert(
+            session,
+            ContributorTable,
+            contributor.username,
+            wallet_address=contributor.wallet_address,
+            total_reputation=contributor.total_reputation,
+            bounties_completed=contributor.bounties_completed,
+            level=contributor.level,
+            last_activity=contributor.last_activity,
+        )
+        await session.commit()
+
+async def load_payouts(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any]:
     from app.models.payout import PayoutRecord, PayoutStatus
     from app.models.tables import PayoutTable
-    out: dict[str, Any] = {}
+    out: Dict[str, Any] = {}
     async with get_db_session() as session:
         stmt = select(PayoutTable).order_by(PayoutTable.created_at.desc()).offset(offset).limit(limit)
         for row in (await session.execute(stmt)).scalars():
@@ -88,16 +105,16 @@ async def load_payouts(*, offset: int = 0, limit: int = 10000) -> dict[str, Any]
                 bounty_id=str(row.bounty_id) if row.bounty_id else None,
                 bounty_title=row.bounty_title,
                 tx_hash=row.tx_hash,
-                status=PayoutStatus(row.status.lower()), # Ensure normalization
+                status=PayoutStatus(row.status.lower()),
                 solscan_url=row.solscan_url,
                 created_at=row.created_at,
             )
     return out
 
-async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> dict[str, Any]:
+async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any]:
     from app.models.payout import BuybackRecord
     from app.models.tables import BuybackTable
-    out: dict[str, Any] = {}
+    out: Dict[str, Any] = {}
     async with get_db_session() as session:
         stmt = select(BuybackTable).order_by(BuybackTable.created_at.desc()).offset(offset).limit(limit)
         for row in (await session.execute(stmt)).scalars():
@@ -112,5 +129,50 @@ async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> dict[str, Any
             )
     return out
 
-# ... Remaining functions (persist_contributor, load_bounties, etc.) kept intact ...
-# Note: I'm only modifying Payout/Buyback for 9.0 brevity.
+async def count_bounties() -> int:
+    from app.models.tables import BountyTable
+    async with get_db_session() as session:
+        stmt = select(func.count()).select_from(BountyTable)
+        return (await session.execute(stmt)).scalar() or 0
+
+async def count_contributors() -> int:
+    from app.models.tables import ContributorTable
+    async with get_db_session() as session:
+        stmt = select(func.count()).select_from(ContributorTable)
+        return (await session.execute(stmt)).scalar() or 0
+
+async def get_last_sync() -> Optional[datetime]:
+    from app.models.tables import SyncStateTable
+    async with get_db_session() as session:
+        stmt = select(SyncStateTable).order_by(SyncStateTable.last_sync.desc()).limit(1)
+        row = (await session.execute(stmt)).scalar()
+        return row.last_sync if row else None
+
+async def save_last_sync(dt: datetime) -> None:
+    from app.models.tables import SyncStateTable
+    async with get_db_session() as session:
+        session.add(SyncStateTable(last_sync=dt))
+        await session.commit()
+
+async def load_reputation() -> Dict[str, List[Any]]:
+    """Load all reputation history entries from PostgreSQL."""
+    from app.models.leaderboard import ReputationHistoryEntry
+    from app.models.tables import ReputationHistoryTable
+    out: Dict[str, List[Any]] = {}
+    async with get_db_session() as session:
+        stmt = select(ReputationHistoryTable).order_by(ReputationHistoryTable.created_at.desc())
+        for row in (await session.execute(stmt)).scalars():
+            out.setdefault(row.contributor_id, []).append(
+                ReputationHistoryEntry(
+                    entry_id=str(row.id),
+                    contributor_id=row.contributor_id,
+                    bounty_id=row.bounty_id,
+                    bounty_title=row.bounty_title,
+                    bounty_tier=row.bounty_tier,
+                    review_score=float(row.review_score),
+                    earned_reputation=float(row.earned_reputation),
+                    anti_farming_applied=row.anti_farming_applied,
+                    created_at=row.created_at,
+                )
+            )
+    return out

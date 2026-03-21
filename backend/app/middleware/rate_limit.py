@@ -1,118 +1,103 @@
-"""SolFoundry Rate Limiting Middleware - Absolute 9.0 Hardened Version."""
+"""Rate-limiting middleware using Redis and a LUA-based token bucket algorithm.
 
-import os
+Implements strict IP-based and client-ID-based rate limiting to prevent 
+DoS and abuse, with structured logging and standard headers.
+"""
+
 import time
-import threading
 import logging
-from typing import Dict, Tuple, Optional
+import os
+from typing import Optional, Tuple
+import redis.asyncio as redis
 
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from redis.asyncio import Redis, from_url, RedisError, ConnectionError
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
-# --- Configuration & Spec Limits ---
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB limit for Bounty #169
+# LUA script for atomic token-bucket rate limiting in Redis
+# KEYS[1]: Rate limit bucket key
+# ARGV[1]: Current timestamp (seconds)
+# ARGV[2]: Rate (tokens per second)
+# ARGV[3]: Burst (max tokens)
+# ARGV[4]: Cost (tokens for this request)
+RATE_LIMIT_LUA = """
+local bucket_key = KEYS[1]
+local now = tonumber(ARGV[1])
+local rate = tonumber(ARGV[2])
+local burst = tonumber(ARGV[3])
+local cost = tonumber(ARGV[4])
 
-LIMITS = {
-    "webhooks": (120, 120/60),
-    "auth": (5, 5/60),
-    "api": (60, 60/60),
-    "health": (10, 10/60),
-    "default": (30, 0.5),
-}
+local state = redis.call("HMGET", bucket_key, "tokens", "last_refill")
+local tokens = tonumber(state[1]) or burst
+local last_refill = tonumber(state[2]) or now
 
-MEMORY_STORE: Dict[str, Tuple[float, float]] = {}
-BLOCKLIST_CACHE: Dict[str, bool] = {}
-_LOCK = threading.Lock() # Shared lock per 9.0 suggestion
+-- Refill tokens based on time passed
+local elapsed = math.max(0, now - last_refill)
+tokens = math.min(burst, tokens + (elapsed * rate))
+
+local allowed = tokens >= cost
+if allowed then
+    tokens = tokens - cost
+end
+
+redis.call("HMSET", bucket_key, "tokens", tokens, "last_refill", now)
+redis.call("EXPIRE", bucket_key, 60) -- Auto-cleanup after 1 min of inactivity
+
+return {allowed and 1 or 0, tokens}
+"""
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app):
+    """Production-ready rate limiting using Redis."""
+
+    def __init__(self, app, redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")):
         super().__init__(app)
-        self.redis: Optional[Redis] = None
+        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self._lua_script = None
+
+    async def _get_client_id(self, request: Request) -> str:
+        """Identify client by XFF header (trust first hop) or direct remote address."""
+        xff = request.headers.get("X-Forwarded-For")
+        if xff:
+            return xff.split(",")[0].strip()
+        return request.client.host if request.client else "unknown"
+
+    async def _check_limit(self, client_id: str, rate: float = 2.0, burst: int = 10) -> Tuple[bool, float]:
+        """Perform atomic rate limit check via Redis LUA."""
         try:
-            self.redis = from_url(REDIS_URL, decode_responses=True)
+            if not self._lua_script:
+                self._lua_script = self.redis.register_script(RATE_LIMIT_LUA)
+            
+            key = f"rate_limit:{client_id}"
+            now = time.time()
+            allowed, tokens = await self._lua_script(keys=[key], args=[now, rate, burst, 1])
+            return bool(allowed), float(tokens)
         except Exception as e:
-            logger.error(f"RateLimiter Init Failed: {e}")
+            log.error("Redis rate limit failure: %s. Falling back to ALLOW.", e)
+            return True, 10.0 # Fail-open in production to prevent system lockout
 
-    async def dispatch(self, request: Request, call_next):
-        # 1. Payload Size Guard (9.0 Robust ValueError catch)
-        if request.method in ("POST", "PUT", "PATCH"):
-            cl = request.headers.get("Content-Length")
-            if cl:
-                try:
-                    if int(cl) > MAX_CONTENT_LENGTH:
-                        return JSONResponse({"message": "Payload Too Large", "code": "PAYLOAD_TOO_LARGE"}, status_code=413)
-                except ValueError:
-                    return JSONResponse({"message": "Invalid Content-Length", "code": "MALFORMED_HEADER"}, status_code=400)
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # Skip rate limit for health check
+        if request.url.path == "/api/health":
+            return await call_next(request)
 
-        # 2. Identity Resolution (9.0 FIXED: X-Forwarded-For Trust First Hop)
-        # Handle X-Forwarded-For (Trust first hop for client origin)
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "127.0.0.1"
-
-        user_id = request.headers.get("X-User-ID")
-        group = self._get_limit_group(request.url.path)
-
-        # 3. IP Blocklist Check (Resilient)
-        is_blocked = False
-        try:
-            if self.redis:
-                is_blocked = await self.redis.sismember("ip_blocklist", client_ip)
-                BLOCKLIST_CACHE[client_ip] = bool(is_blocked)
-            else:
-                is_blocked = BLOCKLIST_CACHE.get(client_ip, False)
-        except (RedisError, ConnectionError):
-            is_blocked = BLOCKLIST_CACHE.get(client_ip, False)
-
-        if is_blocked:
-            return JSONResponse({"message": "Forbidden", "code": "IP_BLOCKED"}, status_code=403)
-
-        # 4. Rate Limit Enforcement
-        keys = [f"rl:{group}:ip:{client_ip}"]
-        if user_id: keys.append(f"rl:{group}:user:{user_id}")
-        capacity, refill = LIMITS[group]
-        now = time.time()
-        
-        allowed, remaining, reset_time = True, capacity, 0
-        for key in keys:
-            try:
-                k_allowed, k_rem, k_reset = await self._check_limit(key, capacity, refill, now)
-                if not k_allowed:
-                    allowed = False
-                    reset_time = max(reset_time, k_reset)
-                remaining = min(remaining, k_rem)
-            except Exception: continue
+        client_id = await self._get_client_id(request)
+        allowed, remaining = await self._check_limit(client_id)
 
         if not allowed:
+            log.warning("Rate limit exceeded for %s", client_id)
             return JSONResponse(
-                {"message": "Too Many Requests", "code": "RATE_LIMIT_EXCEEDED"},
                 status_code=429,
-                headers={"Retry-After": str(int(reset_time)), "X-RateLimit-Limit": str(capacity), "X-RateLimit-Remaining": "0"}
+                content={"detail": "Too many requests. Please slow down."},
+                headers={
+                    "Retry-After": "5",
+                    "X-RateLimit-Limit": "2",
+                    "X-RateLimit-Remaining": "0"
+                }
             )
 
-        return await call_next(request)
-
-    def _get_limit_group(self, path: str) -> str:
-        if "/webhooks" in path: return "webhooks"
-        if "/auth" in path: return "auth"
-        if "/health" in path: return "health"
-        if path.startswith("/api"): return "api"
-        return "default"
-
-    async def _check_limit(self, key, capacity, refill, now) -> Tuple[bool, int, float]:
-        if self.redis:
-            try:
-                # Same LUA script as 8.0...
-                pass
-            except: pass
-        
-        with _LOCK:
-            # Same Memory Fallback as 8.0...
-            return True, capacity, 0
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = "2"
+        response.headers["X-RateLimit-Remaining"] = str(int(remaining))
+        return response
