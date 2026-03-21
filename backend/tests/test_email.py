@@ -99,10 +99,11 @@ async def test_provider_failure_and_retries(service):
     original_sleep = email_module.asyncio.sleep
     email_module.asyncio.sleep = lambda x: original_sleep(0)  # Mock sleep to be instant
     
-    res = await svc._process_send("fail@sol.com", "Fail Test", "welcome", {}, "general")
-    assert res is False
-    
-    email_module.asyncio.sleep = original_sleep  # Restore
+    try:
+        res = await svc._process_send("fail@sol.com", "Fail Test", "welcome", {}, "general")
+        assert res is False
+    finally:
+        email_module.asyncio.sleep = original_sleep  # Restore
 
 @pytest.mark.asyncio
 async def test_async_queue_enqueuing():

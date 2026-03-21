@@ -216,3 +216,12 @@ def test_cache_invalidation():
     _seed_contributor("second", "Second", total_earnings=200.0)
     resp2 = client.get("/api/leaderboard")
     assert resp2.json()["total"] == 2
+
+def test_pagination_invalid_limit():
+    resp = client.get("/api/leaderboard?limit=-1")
+    assert resp.status_code == 422 # FastAPI built-in validation for Query(ge=1)
+    
+def test_pagination_invalid_offset():
+    resp = client.get("/api/leaderboard?offset=-5")
+    assert resp.status_code == 422 # FastAPI built-in validation for Query(ge=0)
+

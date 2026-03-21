@@ -134,15 +134,13 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 "path": path,
                 "method": request.method,
                 "error_type": type(e).__name__,
-                "stack_trace": traceback.format_exc(),
                 "duration_ms": round(process_time, 2)
             }
             
             # Use error logger stream explicitly
             _get_logger("error").error(
-                f"Unhandled exception: {str(e)}", 
-                extra={"correlation_id": correlation_id, "extra_info": error_data},
-                exc_info=True
+                "Unhandled exception occurred", 
+                extra={"correlation_id": correlation_id, "extra_info": error_data}
             )
             
             # Non-intrusive exception routing: just raise it

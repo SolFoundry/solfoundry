@@ -113,14 +113,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         "path": path,
         "method": method,
         "error_type": type(exc).__name__,
-        "stack_trace": traceback.format_exc(),
         "duration_ms": 0.0 # Time calc here might not be accurate, handled in middleware
     }
     
     _get_logger("error").error(
-        f"Unhandled exception: {str(exc)}", 
-        extra={"correlation_id": correlation_id, "extra_info": error_data},
-        exc_info=True
+        "Unhandled exception occurred", 
+        extra={"correlation_id": correlation_id, "extra_info": error_data}
     )
     
     return JSONResponse(
@@ -171,7 +169,7 @@ async def health_check():
     last_sync = get_last_sync()
     
     health = {
-        "status": "ok",
+        "status": "unknown",
         "bounties": len(_bounty_store),
         "contributors": len(_store),
         "last_sync": last_sync.isoformat() if last_sync else None,
@@ -187,18 +185,25 @@ async def health_check():
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
             health["dependencies"]["database"] = "ok"
+        else:
+            health["dependencies"]["database"] = "error"
     except Exception:
-        health["dependencies"]["database"] = "degraded"
-        health["status"] = "degraded"
+        health["dependencies"]["database"] = "error"
         
     # Check WS
     try:
         from app.services.websocket_manager import manager as ws_manager
         if hasattr(ws_manager, "active_connections"):
             health["dependencies"]["websocket"] = "ok"
+        else:
+            health["dependencies"]["websocket"] = "error"
     except Exception:
-        health["dependencies"]["websocket"] = "degraded"
+        health["dependencies"]["websocket"] = "error"
+        
+    if any(v != "ok" for v in health["dependencies"].values()):
         health["status"] = "degraded"
+    else:
+        health["status"] = "ok"
         
     return health
 

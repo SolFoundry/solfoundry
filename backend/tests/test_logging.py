@@ -59,15 +59,17 @@ def test_success_logging():
     assert response.status_code == 200
     assert "X-Correlation-ID" in response.headers
 
-def test_client_none_logging():
+import pytest
+
+@pytest.mark.asyncio
+async def test_client_none_logging():
     # Provide a fake scope without client
     scope = {"type": "http", "method": "GET", "path": "/test", "headers": [], "query_string": b""}
     async def receive():
         return {"type": "http.request"}
     async def send(message):
         pass
-    import asyncio
-    asyncio.run(app(scope, receive, send))
+    await app(scope, receive, send)
 
 def test_exception_handler_masks_details():
     response = client.get("/crash")
