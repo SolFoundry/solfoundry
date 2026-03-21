@@ -71,9 +71,11 @@ from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
+from app.api.email_notifications import router as email_notifications_router
 from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services.email.service import get_email_service, shutdown_email_service
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,13 @@ async def lifespan(app: FastAPI):
     await init_db()
     await ws_manager.init()
 
+    # Start email notification service
+    try:
+        email_service = await get_email_service()
+        logger.info("Email notification service started")
+    except Exception as e:
+        logger.warning("Email service initialization failed: %s", e)
+
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
         result = await sync_all()
@@ -92,7 +101,7 @@ async def lifespan(app: FastAPI):
             result["bounties"], result["contributors"],
         )
     except Exception as e:
-        logger.error("GitHub sync failed on startup: %s — falling back to seeds", e)
+        logger.error("GitHub sync failed on startup: %s - falling back to seeds", e)
         # Fall back to static seed data if GitHub sync fails
         from app.seed_data import seed_bounties
         seed_bounties()
@@ -110,6 +119,7 @@ async def lifespan(app: FastAPI):
         await sync_task
     except asyncio.CancelledError:
         pass
+    await shutdown_email_service()
     await ws_manager.shutdown()
     await close_db()
 
@@ -198,6 +208,9 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 
 # WebSocket: /ws/*
 app.include_router(websocket_router)
+
+# Email Notifications: /api/email/*
+app.include_router(email_notifications_router, prefix="/api")
 
 
 @app.get("/health", tags=["health"])
