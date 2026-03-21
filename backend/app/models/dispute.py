@@ -20,6 +20,8 @@ class DisputeStatus(str, Enum):
     OPENED = "opened"
     EVIDENCE = "evidence"
     MEDIATION = "mediation"
+    PENDING = "pending"
+    UNDER_REVIEW = "under_review"
     RESOLVED = "resolved"
 
 
@@ -28,6 +30,9 @@ class DisputeOutcome(str, Enum):
     RELEASE_TO_CONTRIBUTOR = "release_to_contributor"
     REFUND_TO_CREATOR = "refund_to_creator"
     SPLIT = "split"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
 
 
 class DisputeReason(str, Enum):
@@ -90,6 +95,7 @@ class DisputeDB(Base):
 
 
 class DisputeHistoryDB(Base):
+    """DisputeHistoryDB."""
     __tablename__ = "dispute_history"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -115,13 +121,17 @@ class EvidenceItem(BaseModel):
     description: str = Field(..., min_length=1, max_length=500)
 
 
-class DisputeCreate(BaseModel):
-    """Schema for initiating a new dispute."""
-    bounty_id: str = Field(..., description="Bounty being disputed")
-    submission_id: str = Field(..., description="Rejected submission")
+class DisputeBase(BaseModel):
+    """Base schema for dispute creation and inheritance."""
     reason: str
     description: str = Field(..., min_length=10, max_length=5000)
     evidence_links: List[EvidenceItem] = Field(default_factory=list)
+
+
+class DisputeCreate(DisputeBase):
+    """Schema for initiating a new dispute."""
+    bounty_id: str = Field(..., description="Bounty being disputed")
+    submission_id: str = Field(..., description="Rejected submission")
 
     @field_validator("reason")
     @classmethod
@@ -133,10 +143,25 @@ class DisputeCreate(BaseModel):
         return v
 
 
+    @field_validator("bounty_id")
+    @classmethod
+    def validate_bounty_id(cls, v):
+        """Validate bounty id."""
+        if isinstance(v, str):
+            return v
+        return str(v)
+
+
 class DisputeEvidenceSubmit(BaseModel):
     """Schema for submitting additional evidence."""
     evidence_links: List[EvidenceItem] = Field(..., min_length=1)
     notes: Optional[str] = Field(None, max_length=2000)
+
+
+class DisputeUpdate(BaseModel):
+    """Schema for updating a dispute."""
+    description: Optional[str] = Field(None, min_length=10, max_length=5000)
+    evidence_links: Optional[List[EvidenceItem]] = None
 
 
 class DisputeResolve(BaseModel):
@@ -154,7 +179,7 @@ class DisputeResolve(BaseModel):
         return v
 
 
-class DisputeResponse(BaseModel):
+class DisputeResponse(DisputeBase):
     """Full dispute response schema."""
     id: str
     bounty_id: str
@@ -193,6 +218,7 @@ class DisputeListItem(BaseModel):
 
 
 class DisputeListResponse(BaseModel):
+    """DisputeListResponse."""
     items: List[DisputeListItem]
     total: int
     skip: int
@@ -200,6 +226,7 @@ class DisputeListResponse(BaseModel):
 
 
 class DisputeHistoryItem(BaseModel):
+    """DisputeHistoryItem."""
     id: str
     dispute_id: str
     action: str
@@ -212,6 +239,7 @@ class DisputeHistoryItem(BaseModel):
 
 
 class DisputeDetailResponse(DisputeResponse):
+    """DisputeDetailResponse."""
     history: List[DisputeHistoryItem] = []
 
 

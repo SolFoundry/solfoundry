@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -21,10 +22,20 @@ from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
 from app.api.disputes import router as disputes_router
+from app.api.stats import router as stats_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services.auto_approve_service import periodic_auto_approve
+from app.services.bounty_lifecycle_service import periodic_deadline_check
+from app.services.escrow_service import periodic_escrow_refund
+from app.core.redis import close_redis
+from app.core.config import ALLOWED_ORIGINS
+from app.middleware.security import SecurityMiddleware
+from app.middleware.ip_blocklist import IPBlocklistMiddleware
+from app.middleware.rate_limiter import RateLimiterMiddleware
 
 # Initialize logging
 setup_logging()
@@ -36,6 +47,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     await init_db()
     await ws_manager.init()
+
+    # Hydrate in-memory caches from PostgreSQL (source of truth)
+    try:
+        from app.services.payout_service import hydrate_from_database as hydrate_payouts
+        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+
+        await hydrate_payouts()
+        await hydrate_reputation()
+        logger.info("PostgreSQL hydration complete (payouts + reputation)")
+    except Exception as exc:
+        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
 
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
@@ -58,19 +80,44 @@ async def lifespan(app: FastAPI):
     # Start periodic sync in background (every 5 minutes)
     sync_task = asyncio.create_task(periodic_sync())
 
+    # Start auto-approve checker (every 5 minutes)
+    auto_approve_task = asyncio.create_task(periodic_auto_approve(interval_seconds=300))
+
+    # Start deadline enforcement checker (every 60 seconds)
+    deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
+
+    # Start escrow auto-refund checker (every 60 seconds)
+    escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
+
     yield
 
-    # Shutdown: Cancel background sync, close connections, then database
+    # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
+    auto_approve_task.cancel()
+    deadline_task.cancel()
+    escrow_refund_task.cancel()
     try:
         await sync_task
     except asyncio.CancelledError:
         pass
+    try:
+        await auto_approve_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await deadline_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await escrow_refund_task
+    except asyncio.CancelledError:
+        pass
     await ws_manager.shutdown()
+    await close_redis()
     await close_db()
 
 
-# ── API Documentation Metadata ────────────────────────────────────────────────
+# -- API Documentation Metadata ------------------------------------------------
 
 API_DESCRIPTION = """
 ## Welcome to the SolFoundry Developer Portal
@@ -131,13 +178,9 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-ALLOWED_ORIGINS = [
-    "https://solfoundry.org",
-    "https://www.solfoundry.org",
-    "http://localhost:3000",  # Local dev only
-    "http://localhost:5173",  # Vite dev server
-]
-
+app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(IPBlocklistMiddleware)
+app.add_middleware(SecurityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -148,7 +191,7 @@ app.add_middleware(
 
 app.add_middleware(LoggingMiddleware)
 
-# ── Global Exception Handlers ────────────────────────────────────────────────
+# -- Global Exception Handlers ------------------------------------------------
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -168,12 +211,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler for unexpected errors."""
     import structlog
     log = structlog.get_logger(__name__)
-    
+
     request_id = getattr(request.state, "request_id", None)
-    
+
     # Log the full traceback for unhandled exceptions
     log.error("unhandled_exception", exc_info=exc, request_id=request_id)
-    
+
     return JSONResponse(
         status_code=500,
         content={
@@ -238,31 +281,14 @@ app.include_router(agents_router, prefix="/api")
 # Disputes: /api/disputes/*
 app.include_router(disputes_router, prefix="/api")
 
+# Escrow: /api/escrow/*
+app.include_router(escrow_router, prefix="/api")
 
-@app.get("/health")
-async def health_check():
-    from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
-    from sqlalchemy import text
+# Stats: /api/stats (public endpoint)
+app.include_router(stats_router, prefix="/api")
 
-    db_status = "ok"
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.error("Health check DB failure: %s", e)
-        db_status = "error"
-
-    last_sync = get_last_sync()
-    return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
-        "bounties": len(_bounty_store),
-        "contributors": len(_store),
-        "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
-    }
+# System Health: /health
+app.include_router(health_router)
 
 
 @app.post("/api/sync", tags=["admin"])

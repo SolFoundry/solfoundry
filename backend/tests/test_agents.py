@@ -31,11 +31,12 @@ from app.database import Base, engine, async_session_factory
 # ---------------------------------------------------------------------------
 
 _test_app = FastAPI()
-_test_app.include_router(agents_router)
+_test_app.include_router(agents_router, prefix="/api")
 
 
 @_test_app.get("/health")
 async def health_check():
+    """Health check."""
     return {"status": "ok"}
 
 

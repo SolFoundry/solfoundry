@@ -6,8 +6,24 @@
     <title>SolFoundry — AI Software Factory on Solana</title>
     <meta name="description" content="Autonomous AI Software Factory on Solana. Post bounties, earn $FNDRY, build with AI agents." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Prevent theme flash by applying theme before React hydrates
+      (function() {
+        try {
+          var stored = localStorage.getItem('solfoundry-theme');
+          var theme = stored || 'system';
+          var isDark = theme === 'dark' || 
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#0a0a0a] text-white">
+  <body class="bg-white dark:bg-[#0a0a0a] text-gray-900 dark:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -36,6 +36,7 @@ NOW = datetime.now(timezone.utc)
 
 
 def _make_bounty(**overrides) -> BountyDB:
+    """Make bounty."""
     defaults = dict(
         title="Test Bounty",
         description="A test bounty description for searching",
@@ -127,37 +128,46 @@ def seed_store():
 
 
 class TestSearchParamsValidation:
+    """TestSearchParamsValidation."""
     def test_valid_sort_fields(self):
+        """Test valid sort fields."""
         for field in VALID_SORT_FIELDS:
             params = BountySearchParams(sort=field)
             assert params.sort == field
 
     def test_invalid_sort_raises(self):
+        """Test invalid sort raises."""
         with pytest.raises(ValueError, match="Invalid sort"):
             BountySearchParams(sort="bogus")
 
     def test_invalid_category_raises(self):
+        """Test invalid category raises."""
         with pytest.raises(ValueError, match="Invalid category"):
             BountySearchParams(category="nonexistent")
 
     def test_valid_categories(self):
+        """Test valid categories."""
         for cat in VALID_CATEGORIES:
             params = BountySearchParams(category=cat)
             assert params.category == cat
 
     def test_reward_max_less_than_min_raises(self):
+        """Test reward max less than min raises."""
         with pytest.raises(ValueError, match="reward_max must be >= reward_min"):
             BountySearchParams(reward_min=1000, reward_max=500)
 
     def test_negative_reward_min_raises(self):
+        """Test negative reward min raises."""
         with pytest.raises(ValueError):
             BountySearchParams(reward_min=-10)
 
     def test_tier_out_of_range_raises(self):
+        """Test tier out of range raises."""
         with pytest.raises(ValueError):
             BountySearchParams(tier=5)
 
     def test_defaults(self):
+        """Test defaults."""
         p = BountySearchParams()
         assert p.q == ""
         assert p.page == 1
@@ -171,16 +181,20 @@ class TestSearchParamsValidation:
 
 
 class TestSearchMemory:
+    """TestSearchMemory."""
     def test_returns_all_when_no_filters(self):
+        """Test returns all when no filters."""
         result = search_bounties_memory(BountySearchParams())
         assert result.total == 5
 
     def test_filter_by_status_open(self):
+        """Test filter by status open."""
         result = search_bounties_memory(BountySearchParams(status=BountyStatus.OPEN))
         assert all(b.status == BountyStatus.OPEN for b in result.items)
         assert result.total == 3
 
     def test_filter_by_status_completed(self):
+        """Test filter by status completed."""
         result = search_bounties_memory(
             BountySearchParams(status=BountyStatus.COMPLETED)
         )
@@ -188,69 +202,82 @@ class TestSearchMemory:
         assert result.items[0].title == "Lending Protocol v2 Security Audit"
 
     def test_filter_by_tier(self):
+        """Test filter by tier."""
         result = search_bounties_memory(BountySearchParams(tier=2))
         assert all(b.tier == BountyTier.T2 for b in result.items)
         assert result.total == 2
 
     def test_filter_by_skills(self):
+        """Test filter by skills."""
         result = search_bounties_memory(BountySearchParams(skills=["rust"]))
         assert result.total == 2
         for item in result.items:
             assert "rust" in [s.lower() for s in item.required_skills]
 
     def test_filter_by_reward_range(self):
+        """Test filter by reward range."""
         result = search_bounties_memory(
             BountySearchParams(reward_min=1000, reward_max=10000)
         )
         assert all(1000 <= b.reward_amount <= 10000 for b in result.items)
 
     def test_full_text_search_title(self):
+        """Test full text search title."""
         result = search_bounties_memory(BountySearchParams(q="security audit"))
         assert result.total >= 1
         titles = [b.title.lower() for b in result.items]
         assert any("security" in t for t in titles)
 
     def test_full_text_search_description(self):
+        """Test full text search description."""
         result = search_bounties_memory(BountySearchParams(q="escrow"))
         assert result.total >= 1
         assert any("escrow" in b.description.lower() for b in result.items)
 
     def test_full_text_no_match(self):
+        """Test full text no match."""
         result = search_bounties_memory(BountySearchParams(q="zzzznonexistent"))
         assert result.total == 0
         assert result.items == []
 
     def test_sort_reward_high(self):
+        """Test sort reward high."""
         result = search_bounties_memory(BountySearchParams(sort="reward_high"))
         amounts = [b.reward_amount for b in result.items]
         assert amounts == sorted(amounts, reverse=True)
 
     def test_sort_reward_low(self):
+        """Test sort reward low."""
         result = search_bounties_memory(BountySearchParams(sort="reward_low"))
         amounts = [b.reward_amount for b in result.items]
         assert amounts == sorted(amounts)
 
     def test_sort_newest(self):
+        """Test sort newest."""
         result = search_bounties_memory(BountySearchParams(sort="newest"))
         dates = [b.created_at for b in result.items]
         assert dates == sorted(dates, reverse=True)
 
     def test_pagination_page_1(self):
+        """Test pagination page 1."""
         result = search_bounties_memory(BountySearchParams(per_page=2, page=1))
         assert len(result.items) == 2
         assert result.total == 5
         assert result.page == 1
 
     def test_pagination_page_2(self):
+        """Test pagination page 2."""
         result = search_bounties_memory(BountySearchParams(per_page=2, page=2))
         assert len(result.items) == 2
         assert result.page == 2
 
     def test_pagination_last_page(self):
+        """Test pagination last page."""
         result = search_bounties_memory(BountySearchParams(per_page=2, page=3))
         assert len(result.items) == 1
 
     def test_combined_filters(self):
+        """Test combined filters."""
         result = search_bounties_memory(
             BountySearchParams(
                 status=BountyStatus.OPEN,
@@ -262,6 +289,7 @@ class TestSearchMemory:
         assert result.items[0].title == "Security Audit — Escrow Token Transfer"
 
     def test_skill_match_count(self):
+        """Test skill match count."""
         result = search_bounties_memory(
             BountySearchParams(skills=["react", "typescript"])
         )
@@ -272,6 +300,7 @@ class TestSearchMemory:
             assert item.skill_match_count == expected
 
     def test_deadline_filter(self):
+        """Test deadline filter."""
         cutoff = NOW + timedelta(days=10)
         result = search_bounties_memory(BountySearchParams(deadline_before=cutoff))
         for item in result.items:
@@ -285,7 +314,9 @@ class TestSearchMemory:
 
 
 class TestAutocompleteMemory:
+    """TestAutocompleteMemory."""
     def test_returns_title_matches(self):
+        """Test returns title matches."""
         result = autocomplete_memory("staking", limit=5)
         assert any(
             s.type == "title" and "staking" in s.text.lower()
@@ -293,18 +324,22 @@ class TestAutocompleteMemory:
         )
 
     def test_returns_skill_matches(self):
+        """Test returns skill matches."""
         result = autocomplete_memory("rust", limit=5)
         assert any(s.type == "skill" for s in result.suggestions)
 
     def test_short_query_returns_empty(self):
+        """Test short query returns empty."""
         result = autocomplete_memory("a", limit=5)
         assert result.suggestions == []
 
     def test_respects_limit(self):
+        """Test respects limit."""
         result = autocomplete_memory("s", limit=2)
         assert len(result.suggestions) <= 2
 
     def test_no_match_returns_empty(self):
+        """Test no match returns empty."""
         result = autocomplete_memory("zzzznonexistent", limit=5)
         assert result.suggestions == []
 
@@ -315,16 +350,20 @@ class TestAutocompleteMemory:
 
 
 class TestHotBountiesMemory:
+    """TestHotBountiesMemory."""
     def test_returns_recent_active(self):
+        """Test returns recent active."""
         results = get_hot_bounties_memory(limit=10)
         for b in results:
             assert b.status in (BountyStatus.OPEN, BountyStatus.IN_PROGRESS)
 
     def test_excludes_completed(self):
+        """Test excludes completed."""
         results = get_hot_bounties_memory(limit=10)
         assert all(b.status != BountyStatus.COMPLETED for b in results)
 
     def test_respects_limit(self):
+        """Test respects limit."""
         results = get_hot_bounties_memory(limit=2)
         assert len(results) <= 2
 
@@ -335,13 +374,16 @@ class TestHotBountiesMemory:
 
 
 class TestRecommendedMemory:
+    """TestRecommendedMemory."""
     def test_matches_user_skills(self):
+        """Test matches user skills."""
         results = get_recommended_memory(["react", "typescript"], [], limit=5)
         for b in results:
             overlap = {"react", "typescript"} & {s.lower() for s in b.required_skills}
             assert len(overlap) > 0
 
     def test_excludes_specified_ids(self):
+        """Test excludes specified ids."""
         all_results = get_recommended_memory(["react"], [], limit=10)
         if all_results:
             exclude_id = all_results[0].id
@@ -349,14 +391,17 @@ class TestRecommendedMemory:
             assert all(b.id != exclude_id for b in filtered)
 
     def test_empty_skills_returns_empty(self):
+        """Test empty skills returns empty."""
         results = get_recommended_memory([], [], limit=5)
         assert results == []
 
     def test_only_open_bounties(self):
+        """Test only open bounties."""
         results = get_recommended_memory(["rust", "anchor", "solana"], [], limit=10)
         assert all(b.status == BountyStatus.OPEN for b in results)
 
     def test_skill_match_count_populated(self):
+        """Test skill match count populated."""
         results = get_recommended_memory(["react", "typescript"], [], limit=5)
         for b in results:
             assert b.skill_match_count >= 1
@@ -368,32 +413,39 @@ class TestRecommendedMemory:
 
 
 class TestBountySearchService:
+    """Verifies the unified BountySearchService falls back to in-memory search."""
+
     @pytest.mark.asyncio
     async def test_search_falls_back_to_memory(self):
+        """Test search falls back to memory."""
         svc = BountySearchService(session=None)
         result = await svc.search(BountySearchParams())
         assert result.total == 5
 
     @pytest.mark.asyncio
     async def test_autocomplete_falls_back(self):
+        """Test autocomplete falls back."""
         svc = BountySearchService(session=None)
         result = await svc.autocomplete("staking")
         assert any("staking" in s.text.lower() for s in result.suggestions)
 
     @pytest.mark.asyncio
     async def test_hot_bounties_falls_back(self):
+        """Test hot bounties falls back."""
         svc = BountySearchService(session=None)
         results = await svc.hot_bounties(limit=3)
         assert isinstance(results, list)
 
     @pytest.mark.asyncio
     async def test_recommended_falls_back(self):
+        """Test recommended falls back."""
         svc = BountySearchService(session=None)
         results = await svc.recommended(["react"], [], limit=3)
         assert isinstance(results, list)
 
     @pytest.mark.asyncio
     async def test_search_with_filters(self):
+        """Test search with filters."""
         svc = BountySearchService(session=None)
         result = await svc.search(
             BountySearchParams(status=BountyStatus.OPEN, sort="reward_high")
