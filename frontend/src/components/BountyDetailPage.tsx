@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
+import { ReviewPanel } from './ReviewPanel';
 
 interface BountyDetail {
   id: string;
@@ -203,6 +204,18 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 </div>
               )}
             </div>
+
+            {/* Review Panel for first submission */}
+            {bounty.submissions.length > 0 && (
+              <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-300 mb-4">Review & Completion</h2>
+                <ReviewPanel
+                  bountyId={bounty.id}
+                  submissionId={bounty.submissions[0].id}
+                  isCreator={false}
+                />
+              </div>
+            )}
 
             {/* Activity Feed */}
             <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
