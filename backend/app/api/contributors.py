@@ -1,120 +1,28 @@
-"""Contributor profiles API router.
-
-## Overview
-
-Contributors are users who complete bounties on SolFoundry. Each contributor has:
-- **Profile**: Username, display name, bio, avatar
-- **Skills**: Technical skills they can contribute
-- **Badges**: Achievement badges earned
-- **Stats**: Contributions, earnings, reputation score
-
-## Profile Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Unique identifier (UUID) |
-| username | string | Unique username (3-50 chars) |
-| display_name | string | Display name (1-100 chars) |
-| email | string | Email address (optional) |
-| avatar_url | string | Profile picture URL |
-| bio | string | Biography text |
-| skills | array | Technical skills |
-| badges | array | Achievement badges |
-| social_links | object | Social media links |
-
-## Stats Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| total_contributions | integer | Total PR contributions |
-| total_bounties_completed | integer | Completed bounties |
-| total_earnings | float | Total $FNDRY earned |
-| reputation_score | integer | Reputation points |
-
-## Rate Limits
-
-- List/Search: 100 requests/minute
-- CRUD operations: 30 requests/minute
-"""
+"""Contributor profiles and reputation API router."""
 
 from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from app.auth import get_current_user_id
+from app.constants import INTERNAL_SYSTEM_USER_ID
+from app.exceptions import ContributorNotFoundError, TierNotUnlockedError
 from app.models.contributor import (
-    ContributorCreate,
-    ContributorResponse,
-    ContributorListResponse,
-    ContributorUpdate,
+    ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate,
 )
-from app.services import contributor_service
+from app.models.reputation import ReputationRecordCreate, ReputationSummary, ReputationHistoryEntry
+from app.services import contributor_service, reputation_service
 
-router = APIRouter(prefix="/api/contributors", tags=["contributors"])
+router = APIRouter(prefix="/contributors", tags=["contributors"])
 
 
-@router.get(
-    "",
-    response_model=ContributorListResponse,
-    summary="List contributors",
-    description="""
-Get a paginated list of contributors with optional filtering.
-
-## Filter Options
-
-- **search**: Search by username or display name
-- **skills**: Filter by skills (comma-separated)
-- **badges**: Filter by badges (comma-separated)
-
-## Example Requests
-
-```
-GET /api/contributors?search=john&skills=rust,solana
-GET /api/contributors?badges=tier-3-veteran&limit=50
-```
-
-## Rate Limit
-
-100 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "List of contributors",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "items": [
-                            {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "username": "soldev",
-                                "display_name": "Sol Developer",
-                                "avatar_url": "https://avatars.githubusercontent.com/u/12345",
-                                "skills": ["rust", "solana", "anchor"],
-                                "badges": ["tier-1-veteran", "early-contributor"],
-                                "stats": {
-                                    "total_contributions": 25,
-                                    "total_bounties_completed": 10,
-                                    "total_earnings": 5000.0,
-                                    "reputation_score": 850
-                                }
-                            }
-                        ],
-                        "total": 150,
-                        "skip": 0,
-                        "limit": 20
-                    }
-                }
-            }
-        }
-    }
-)
+@router.get("", response_model=ContributorListResponse)
 async def list_contributors(
-    search: Optional[str] = Query(
-        None, description="Search by username or display name"
-    ),
+    search: Optional[str] = Query(None, description="Search by username or display name"),
     skills: Optional[str] = Query(None, description="Comma-separated skill filter"),
     badges: Optional[str] = Query(None, description="Comma-separated badge filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
+    """List contributors with optional filtering and pagination."""
     skill_list = skills.split(",") if skills else None
     badge_list = badges.split(",") if badges else None
     return contributor_service.list_contributors(
@@ -122,192 +30,96 @@ async def list_contributors(
     )
 
 
-@router.post(
-    "",
-    response_model=ContributorResponse,
-    status_code=201,
-    summary="Create a contributor profile",
-    description="""
-Create a new contributor profile.
-
-## Request Body
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| username | string | Yes | Unique username (3-50 chars, alphanumeric + _ -) |
-| display_name | string | Yes | Display name (1-100 chars) |
-| email | string | No | Email address |
-| avatar_url | string | No | Profile picture URL |
-| bio | string | No | Biography text |
-| skills | array | No | Technical skills |
-| badges | array | No | Achievement badges |
-| social_links | object | No | Social media links |
-
-## Username Rules
-
-- 3-50 characters
-- Alphanumeric, underscore, and hyphen only
-- Must be unique
-
-## Rate Limit
-
-30 requests per minute.
-""",
-    responses={
-        201: {
-            "description": "Contributor created successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "username": "soldev",
-                        "display_name": "Sol Developer",
-                        "email": "sol@example.com",
-                        "avatar_url": None,
-                        "bio": "Building on Solana",
-                        "skills": ["rust", "solana"],
-                        "badges": [],
-                        "social_links": {"twitter": "@soldev"},
-                        "stats": {
-                            "total_contributions": 0,
-                            "total_bounties_completed": 0,
-                            "total_earnings": 0.0,
-                            "reputation_score": 0
-                        },
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-01T00:00:00Z"
-                    }
-                }
-            }
-        },
-        409: {"description": "Username already exists"},
-        422: {"description": "Validation error"}
-    }
-)
+@router.post("", response_model=ContributorResponse, status_code=201)
 async def create_contributor(data: ContributorCreate):
+    """Create a new contributor profile."""
     if contributor_service.get_contributor_by_username(data.username):
-        raise HTTPException(
-            status_code=409, detail=f"Username '{data.username}' already exists"
-        )
+        raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
     return contributor_service.create_contributor(data)
 
 
-@router.get(
-    "/{contributor_id}",
-    response_model=ContributorResponse,
-    summary="Get contributor by ID",
-    description="""
-Retrieve detailed information about a specific contributor.
+@router.get("/leaderboard/reputation", response_model=list[ReputationSummary])
+async def get_reputation_leaderboard(
+    limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
+):
+    """Return contributors ranked by reputation score."""
+    return reputation_service.get_reputation_leaderboard(limit=limit, offset=offset)
 
-## Response Fields
 
-Includes full profile information and contribution statistics.
-
-## Rate Limit
-
-100 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "Contributor details",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "username": "soldev",
-                        "display_name": "Sol Developer",
-                        "email": "sol@example.com",
-                        "avatar_url": "https://avatars.githubusercontent.com/u/12345",
-                        "bio": "Building the future on Solana",
-                        "skills": ["rust", "solana", "anchor", "typescript"],
-                        "badges": ["tier-1-veteran", "early-contributor", "first-pr"],
-                        "social_links": {"twitter": "@soldev", "github": "soldev"},
-                        "stats": {
-                            "total_contributions": 25,
-                            "total_bounties_completed": 10,
-                            "total_earnings": 5000.0,
-                            "reputation_score": 850
-                        },
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-15T00:00:00Z"
-                    }
-                }
-            }
-        },
-        404: {"description": "Contributor not found"}
-    }
-)
+@router.get("/{contributor_id}", response_model=ContributorResponse)
 async def get_contributor(contributor_id: str):
+    """Get a single contributor profile by ID."""
     c = contributor_service.get_contributor(contributor_id)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return c
 
 
-@router.patch(
-    "/{contributor_id}",
-    response_model=ContributorResponse,
-    summary="Update contributor profile",
-    description="""
-Update an existing contributor profile.
-
-## Updatable Fields
-
-All fields are optional. Only provided fields will be updated.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| display_name | string | Display name (1-100 chars) |
-| email | string | Email address |
-| avatar_url | string | Profile picture URL |
-| bio | string | Biography text |
-| skills | array | Technical skills |
-| badges | array | Achievement badges |
-| social_links | object | Social media links |
-
-## Note
-
-Username cannot be changed after creation.
-
-## Rate Limit
-
-30 requests per minute.
-""",
-    responses={
-        200: {
-            "description": "Contributor updated successfully"
-        },
-        404: {"description": "Contributor not found"},
-        422: {"description": "Validation error"}
-    }
-)
+@router.patch("/{contributor_id}", response_model=ContributorResponse)
 async def update_contributor(contributor_id: str, data: ContributorUpdate):
+    """Partially update a contributor profile."""
     c = contributor_service.update_contributor(contributor_id, data)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return c
 
 
-@router.delete(
-    "/{contributor_id}",
-    status_code=204,
-    summary="Delete contributor profile",
-    description="""
-Delete a contributor profile permanently.
-
-## Warning
-
-This action is irreversible. All profile data will be permanently deleted.
-
-## Rate Limit
-
-30 requests per minute.
-""",
-    responses={
-        204: {"description": "Contributor deleted successfully"},
-        404: {"description": "Contributor not found"}
-    }
-)
+@router.delete("/{contributor_id}", status_code=204)
 async def delete_contributor(contributor_id: str):
+    """Delete a contributor profile by ID."""
     if not contributor_service.delete_contributor(contributor_id):
         raise HTTPException(status_code=404, detail="Contributor not found")
+
+
+@router.get("/{contributor_id}/reputation", response_model=ReputationSummary)
+async def get_contributor_reputation(contributor_id: str):
+    """Return full reputation profile for a contributor."""
+    summary = reputation_service.get_reputation(contributor_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Contributor not found")
+    return summary
+
+
+@router.get("/{contributor_id}/reputation/history", response_model=list[ReputationHistoryEntry])
+async def get_contributor_reputation_history(contributor_id: str):
+    """Return per-bounty reputation history for a contributor."""
+    if contributor_service.get_contributor(contributor_id) is None:
+        raise HTTPException(status_code=404, detail="Contributor not found")
+    return reputation_service.get_history(contributor_id)
+
+
+@router.post("/{contributor_id}/reputation", response_model=ReputationHistoryEntry, status_code=201)
+async def record_contributor_reputation(
+    contributor_id: str,
+    data: ReputationRecordCreate,
+    caller_id: str = Depends(get_current_user_id),
+):
+    """Record reputation earned from a completed bounty.
+
+    Requires authentication. The caller must be the contributor themselves
+    or the internal system user (all-zeros UUID used by automated pipelines).
+
+    Args:
+        contributor_id: Path parameter — the contributor receiving reputation.
+        data: Reputation record payload.
+        caller_id: Authenticated user ID injected by the auth dependency.
+
+    Raises:
+        HTTPException 400: Path/body contributor_id mismatch.
+        HTTPException 401: Missing credentials (from auth dependency).
+        HTTPException 403: Caller is not authorized to record for this contributor.
+        HTTPException 404: Contributor not found.
+    """
+    if data.contributor_id != contributor_id:
+        raise HTTPException(status_code=400, detail="contributor_id in path must match body")
+
+    # Allow internal system user (automated review pipeline) or the contributor themselves
+    if caller_id != contributor_id and caller_id != INTERNAL_SYSTEM_USER_ID:
+        raise HTTPException(status_code=403, detail="Not authorized to record reputation for this contributor")
+
+    try:
+        return reputation_service.record_reputation(data)
+    except ContributorNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except TierNotUnlockedError as error:
+        raise HTTPException(status_code=400, detail=str(error))
