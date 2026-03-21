@@ -6,10 +6,13 @@ automatically by the session context manager.
 """
 
 import os
+import uuid
 import logging
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import TypeDecorator, CHAR
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import StaticPool
@@ -62,6 +65,66 @@ async_session_factory = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+
+class GUID(TypeDecorator):
+    """Cross-database UUID type.
+
+    Uses PostgreSQL's native UUID type when available, falls back to
+    CHAR(36) for SQLite and other databases.  Automatically converts
+    between Python ``uuid.UUID`` objects and string representations.
+
+    This ensures models using UUID primary/foreign keys work identically
+    in both production (PostgreSQL) and test (SQLite) environments.
+    """
+
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        """Select the concrete column type based on the database dialect.
+
+        Args:
+            dialect: The SQLAlchemy dialect in use.
+
+        Returns:
+            The dialect-specific column type.
+        """
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        """Convert a Python value to a database-compatible format.
+
+        Args:
+            value: The Python value to bind.
+            dialect: The SQLAlchemy dialect in use.
+
+        Returns:
+            The value formatted for the database.
+        """
+        if value is None:
+            return value
+        if dialect.name == "postgresql":
+            return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        """Convert a database value back to a Python UUID.
+
+        Args:
+            value: The raw value from the database.
+            dialect: The SQLAlchemy dialect in use.
+
+        Returns:
+            A Python ``uuid.UUID`` instance, or None.
+        """
+        if value is None:
+            return value
+        if isinstance(value, uuid.UUID):
+            return value
+        return uuid.UUID(str(value))
 
 
 class Base(DeclarativeBase):

@@ -84,6 +84,7 @@ def _payout_to_response(payout: PayoutRecord) -> PayoutResponse:
         status=payout.status,
         solscan_url=payout.solscan_url,
         created_at=payout.created_at,
+        updated_at=getattr(payout, "updated_at", payout.created_at),
     )
 
 
