@@ -13,3 +13,5 @@ export type { ToastProps } from './Toast';
 export { ToastContainer } from './ToastContainer';
 export { TierProgressBar } from './TierProgressBar';
 export type { TierProgressBarProps } from './TierProgressBar';
+export { MarkdownRenderer } from './MarkdownRenderer';
+export type { MarkdownRendererProps } from './MarkdownRenderer';

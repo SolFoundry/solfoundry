@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
+import { MarkdownRenderer } from './common/MarkdownRenderer';
 import { useBountySubmission } from '../hooks/useBountySubmission';
 import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
@@ -210,7 +211,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
             <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-300 mb-4">Description</h2>
               <div className="prose prose-invert prose-sm sm:prose-base max-w-none">
-                <p className="text-gray-400 whitespace-pre-wrap">{bounty.description}</p>
+                <MarkdownRenderer content={bounty.description} />
               </div>
             </div>
 
