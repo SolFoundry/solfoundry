@@ -65,18 +65,18 @@ class ContributorUpdate(BaseModel):
 
 
 class ContributorStats(BaseModel):
-    total_contributions: int = 0
-    total_bounties_completed: int = 0
-    total_earnings: float = 0.0
-    reputation_score: int = 0
+    total_contributions: int | None = 0
+    total_bounties_completed: int | None = 0
+    total_earnings: float | None = 0.0
+    reputation_score: int | None = 0
 
 
 class ContributorResponse(ContributorBase):
     id: str
     username: str
-    stats: ContributorStats
-    created_at: datetime
-    updated_at: datetime
+    stats: ContributorStats | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
@@ -87,7 +87,7 @@ class ContributorListItem(BaseModel):
     avatar_url: Optional[str] = None
     skills: list[str] = []
     badges: list[str] = []
-    stats: ContributorStats
+    stats: ContributorStats | None = None
     model_config = {"from_attributes": True}
 
 

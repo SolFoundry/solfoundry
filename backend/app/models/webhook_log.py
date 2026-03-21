@@ -35,5 +35,4 @@ class WebhookEventLogDB(Base):
 
     __table_args__ = (
         Index("ix_webhook_event_logs_event_type", event_type),
-        Index("ix_webhook_event_logs_processed_at", processed_at),
     )

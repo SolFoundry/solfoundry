@@ -60,9 +60,7 @@ def test_empty_leaderboard():
     resp = client.get("/api/leaderboard")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total"] == 0
-    assert data["entries"] == []
-    assert data["top3"] == []
+    assert len(data) == 0
 
 
 def test_single_contributor():
@@ -73,11 +71,10 @@ def test_single_contributor():
     resp = client.get("/api/leaderboard")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total"] == 1
-    assert len(data["entries"]) == 1
-    assert data["entries"][0]["rank"] == 1
-    assert data["entries"][0]["username"] == "alice"
-    assert data["entries"][0]["total_earned"] == 500.0
+    assert len(data) == 1
+    assert data[0]["rank"] == 1
+    assert data[0]["username"] == "alice"
+    assert data[0]["earningsFndry"] == 500.0
 
 
 def test_ranking_order():
@@ -87,11 +84,11 @@ def test_ranking_order():
 
     resp = client.get("/api/leaderboard")
     data = resp.json()
-    assert data["total"] == 3
-    usernames = [e["username"] for e in data["entries"]]
+    assert len(data) == 3
+    usernames = [e["username"] for e in data]
     assert usernames == ["top", "mid", "low"]
-    assert data["entries"][0]["rank"] == 1
-    assert data["entries"][2]["rank"] == 3
+    assert data[0]["rank"] == 1
+    assert data[2]["rank"] == 3
 
 
 def test_top3_medals():
@@ -101,10 +98,11 @@ def test_top3_medals():
 
     resp = client.get("/api/leaderboard")
     data = resp.json()
-    assert len(data["top3"]) == 3
-    assert data["top3"][0]["meta"]["medal"] == "🥇"
-    assert data["top3"][1]["meta"]["medal"] == "🥈"
-    assert data["top3"][2]["meta"]["medal"] == "🥉"
+    assert len(data) == 3
+    # Frontend handles medals, just check sort order
+    assert data[0]["username"] == "gold"
+    assert data[1]["username"] == "silver"
+    assert data[2]["username"] == "bronze"
 
 
 def test_top3_with_fewer_than_3():
@@ -112,8 +110,8 @@ def test_top3_with_fewer_than_3():
 
     resp = client.get("/api/leaderboard")
     data = resp.json()
-    assert len(data["top3"]) == 1
-    assert data["top3"][0]["meta"]["medal"] == "🥇"
+    assert len(data) == 1
+    assert data[0]["username"] == "solo"
 
 
 # ── Filter tests ─────────────────────────────────────────────────────────
@@ -125,8 +123,8 @@ def test_filter_by_category():
 
     resp = client.get("/api/leaderboard?category=frontend")
     data = resp.json()
-    assert data["total"] == 1
-    assert data["entries"][0]["username"] == "fe_dev"
+    assert len(data) == 1
+    assert data[0]["username"] == "fe_dev"
 
 
 def test_filter_by_tier():
@@ -135,8 +133,8 @@ def test_filter_by_tier():
 
     resp = client.get("/api/leaderboard?tier=1")
     data = resp.json()
-    assert data["total"] == 1
-    assert data["entries"][0]["username"] == "t1_dev"
+    assert len(data) == 1
+    assert data[0]["username"] == "t1_dev"
 
 
 def test_filter_by_period_all():
@@ -144,8 +142,7 @@ def test_filter_by_period_all():
 
     resp = client.get("/api/leaderboard?period=all")
     data = resp.json()
-    assert data["total"] == 1
-    assert data["period"] == "all"
+    assert len(data) == 1
 
 
 # ── Pagination tests ─────────────────────────────────────────────────────
@@ -157,9 +154,8 @@ def test_pagination_limit():
 
     resp = client.get("/api/leaderboard?limit=2&offset=0")
     data = resp.json()
-    assert data["total"] == 5
-    assert len(data["entries"]) == 2
-    assert data["entries"][0]["rank"] == 1
+    assert len(data) == 2
+    assert data[0]["rank"] == 1
 
 
 def test_pagination_offset():
@@ -168,8 +164,8 @@ def test_pagination_offset():
 
     resp = client.get("/api/leaderboard?limit=2&offset=2")
     data = resp.json()
-    assert len(data["entries"]) == 2
-    assert data["entries"][0]["rank"] == 3
+    assert len(data) == 2
+    assert data[0]["rank"] == 3
 
 
 def test_pagination_beyond_total():
@@ -177,8 +173,7 @@ def test_pagination_beyond_total():
 
     resp = client.get("/api/leaderboard?limit=10&offset=5")
     data = resp.json()
-    assert data["total"] == 1
-    assert len(data["entries"]) == 0
+    assert len(data) == 0
 
 
 # ── Tiebreaker test ─────────────────────────────────────────────────────
@@ -191,7 +186,7 @@ def test_tiebreaker_reputation_then_username():
 
     resp = client.get("/api/leaderboard")
     data = resp.json()
-    usernames = [e["username"] for e in data["entries"]]
+    usernames = [e["username"] for e in data]
     # alice has higher reputation, then bob < charlie alphabetically
     assert usernames == ["alice", "bob", "charlie"]
 
@@ -210,9 +205,9 @@ def test_cache_returns_same_result():
 def test_cache_invalidation():
     _seed_contributor("first", "First", total_earnings=100.0)
     resp1 = client.get("/api/leaderboard")
-    assert resp1.json()["total"] == 1
+    assert len(resp1.json()) == 1
 
     invalidate_cache()
     _seed_contributor("second", "Second", total_earnings=200.0)
     resp2 = client.get("/api/leaderboard")
-    assert resp2.json()["total"] == 2
+    assert len(resp2.json()) == 2

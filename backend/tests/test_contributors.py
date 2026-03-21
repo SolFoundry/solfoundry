@@ -15,7 +15,8 @@ def clear_store():
     contributor_service._store.clear()
 
 
-def _create(username="alice", display_name="Alice", skills=None, badges=None):
+def _create(username="alice", display_name=None, skills=None, badges=None):
+    if display_name is None: display_name = username.capitalize()
     from app.models.contributor import ContributorCreate
 
     return contributor_service.create_contributor(

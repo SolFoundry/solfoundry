@@ -5,6 +5,8 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from app.database import engine
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
@@ -20,8 +22,8 @@ from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 
-from backend.src.middleware.logging import setup_logging
-from backend.src.middleware.logging import StructuredLoggingMiddleware
+from src.middleware.logging import setup_logging
+from src.middleware.logging import StructuredLoggingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +120,6 @@ app.include_router(websocket_router)
 app.include_router(agents_router)
 
 
-from app.database import engine
-from sqlalchemy import text
 
 @app.get("/health")
 async def health_check():

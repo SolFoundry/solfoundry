@@ -1,12 +1,9 @@
 """Tests for logging functionality."""
-import json
-import pytest
 import os
-import uuid
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from starlette.responses import JSONResponse
-from backend.src.middleware.logging import StructuredLoggingMiddleware, handle_error, setup_logging, _validate_correlation_id
+from src.middleware.logging import StructuredLoggingMiddleware, handle_error, setup_logging, _validate_correlation_id
 
 app = FastAPI()
 app.add_middleware(StructuredLoggingMiddleware)

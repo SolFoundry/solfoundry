@@ -2,10 +2,9 @@
 
 import pytest
 import asyncio
-from typing import Dict, Any
-from backend.src.services.email import (
+from src.services.email import (
     EmailService, EmailProvider, _RATE_LIMIT_STORE, _USER_PREFERENCES,
-    _UNSUBSCRIBED, _EMAIL_QUEUE, email_worker, set_preference, unsubscribe_all
+    _UNSUBSCRIBED, _EMAIL_QUEUE, set_preference, unsubscribe_all
 )
 
 class MockProvider(EmailProvider):
@@ -96,9 +95,9 @@ async def test_provider_failure_and_retries(service):
     svc, provider = service
     provider.should_fail = True
     
-    import backend.src.services.email as email_module
+    import src.services.email as email_module
     original_sleep = email_module.asyncio.sleep
-    email_module.asyncio.sleep = lambda x: asyncio.sleep(0)  # Mock sleep to be instant
+    email_module.asyncio.sleep = lambda x: original_sleep(0)  # Mock sleep to be instant
     
     res = await svc._process_send("fail@sol.com", "Fail Test", "welcome", {}, "general")
     assert res is False

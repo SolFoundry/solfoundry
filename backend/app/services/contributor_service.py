@@ -66,7 +66,7 @@ def create_contributor(data: ContributorCreate) -> ContributorResponse:
         bio=data.bio,
         skills=data.skills,
         badges=data.badges,
-        social_links=data.social_links,
+        social_links=data.social_links, total_contributions=0, total_bounties_completed=0, total_earnings=0.0, reputation_score=0, created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
     )
     _store[str(db.id)] = db
     return _db_to_response(db)
