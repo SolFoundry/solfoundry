@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
 
@@ -42,9 +42,6 @@ function AppLayout() {
   const location = useLocation();
   const { publicKey, connect, disconnect } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
-  
-  // Theme management from ThemeContext
-  const { resolvedTheme, toggleTheme } = useTheme();
 
   return (
     <SiteLayout
@@ -52,8 +49,6 @@ function AppLayout() {
       walletAddress={walletAddress}
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
-      theme={resolvedTheme}
-      onToggleTheme={toggleTheme}
     >
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
