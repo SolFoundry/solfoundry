@@ -21,6 +21,7 @@ from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
 from app.api.disputes import router as disputes_router
+from app.api.telegram_webhook import router as telegram_webhook_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -183,6 +184,9 @@ app.include_router(agents_router)
 
 # Disputes: router has /api/disputes prefix — Dispute Resolution System
 app.include_router(disputes_router)
+
+# Telegram bot webhook for admin dispute resolution via Telegram
+app.include_router(telegram_webhook_router)
 
 
 @app.get("/health")

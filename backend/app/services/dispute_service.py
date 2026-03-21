@@ -481,6 +481,9 @@ class DisputeService:
 
         await self.db.commit()
         await self.db.refresh(dispute)
+
+        await self._notify_telegram_resolved(dispute)
+
         return DisputeResponse.model_validate(dispute)
 
     def _apply_reputation_impact(
@@ -606,7 +609,7 @@ class DisputeService:
         await self.db.flush()
 
     async def _notify_telegram_mediation_needed(self, dispute: DisputeDB) -> None:
-        """Notify admins that manual mediation is needed."""
+        """Notify admins with inline keyboard buttons for quick resolution."""
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_CHAT_ID:
             return
 
@@ -621,20 +624,66 @@ class DisputeService:
             f"⚖️ *Manual Mediation Required*\n\n"
             f"*Dispute ID:* `{dispute.id}`\n"
             f"*Bounty:* `{dispute.bounty_id}`\n"
-            f"{score_info}"
-            f"AI did not auto-resolve. Admin action needed.\n\n"
-            f"Resolve via: `POST /api/disputes/{dispute.id}/resolve`"
+            f"*Reason:* {dispute.reason}\n"
+            f"{score_info}\n"
+            f"_{dispute.description[:300]}_\n\n"
+            f"Reply with one of:\n"
+            f"`/resolve {dispute.id} contributor` — Release to contributor\n"
+            f"`/resolve {dispute.id} creator` — Refund to creator\n"
+            f"`/resolve {dispute.id} split 60` — Split (contributor gets 60%%)\n\n"
+            f"Or use the API:\n"
+            f"`POST /api/disputes/{dispute.id}/resolve`"
         )
+
+        inline_keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Release to Contributor", "callback_data": f"resolve:{dispute.id}:contributor"},
+                    {"text": "❌ Refund to Creator", "callback_data": f"resolve:{dispute.id}:creator"},
+                ],
+                [
+                    {"text": "⚖️ Split 50/50", "callback_data": f"resolve:{dispute.id}:split:50"},
+                ],
+            ]
+        }
+
+        await self._send_telegram(message, reply_markup=inline_keyboard)
+
+    async def _notify_telegram_resolved(self, dispute: DisputeDB) -> None:
+        """Notify admins when a dispute is resolved."""
+        if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_CHAT_ID:
+            return
+
+        outcome_emoji = {
+            DisputeOutcome.RELEASE_TO_CONTRIBUTOR.value: "✅",
+            DisputeOutcome.REFUND_TO_CREATOR.value: "❌",
+            DisputeOutcome.SPLIT.value: "⚖️",
+        }
+        emoji = outcome_emoji.get(dispute.outcome or "", "📋")
+
+        message = (
+            f"{emoji} *Dispute Resolved*\n\n"
+            f"*Dispute ID:* `{dispute.id}`\n"
+            f"*Outcome:* {dispute.outcome}\n"
+            f"*Mediation:* {dispute.mediation_type}\n"
+        )
+        if dispute.resolution_notes:
+            message += f"\n_{dispute.resolution_notes[:200]}_"
 
         await self._send_telegram(message)
 
-    async def _send_telegram(self, message: str) -> None:
+    async def _send_telegram(
+        self, message: str, reply_markup: dict | None = None
+    ) -> None:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {
+        payload: dict = {
             "chat_id": TELEGRAM_ADMIN_CHAT_ID,
             "text": message,
             "parse_mode": "Markdown",
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(url, json=payload)

@@ -819,3 +819,100 @@ class TestInitiationWindow:
             await dispute_service.create_dispute(
                 data, CONTRIBUTOR_ID, CREATOR_ID, past
             )
+
+
+# ===========================================================================
+# Telegram webhook parser tests (no DB needed)
+# ===========================================================================
+
+
+class TestTelegramParsers:
+    def test_parse_callback_contributor(self):
+        from app.api.telegram_webhook import _parse_callback
+        result = _parse_callback("resolve:abc-123:contributor")
+        assert result is not None
+        assert result["dispute_id"] == "abc-123"
+        assert result["outcome"] == "release_to_contributor"
+
+    def test_parse_callback_creator(self):
+        from app.api.telegram_webhook import _parse_callback
+        result = _parse_callback("resolve:abc-123:creator")
+        assert result["outcome"] == "refund_to_creator"
+
+    def test_parse_callback_split_with_pct(self):
+        from app.api.telegram_webhook import _parse_callback
+        result = _parse_callback("resolve:abc-123:split:70")
+        assert result["outcome"] == "split"
+        assert result["split_pct"] == 70.0
+
+    def test_parse_callback_split_default(self):
+        from app.api.telegram_webhook import _parse_callback
+        result = _parse_callback("resolve:abc-123:split")
+        assert result["outcome"] == "split"
+        assert result["split_pct"] == 50.0
+
+    def test_parse_callback_invalid(self):
+        from app.api.telegram_webhook import _parse_callback
+        assert _parse_callback("invalid:data") is None
+        assert _parse_callback("") is None
+
+    def test_parse_resolve_command(self):
+        from app.api.telegram_webhook import _parse_resolve_command
+        result = _parse_resolve_command("/resolve abc-123 contributor")
+        assert result is not None
+        assert result["dispute_id"] == "abc-123"
+        assert result["outcome"] == "release_to_contributor"
+
+    def test_parse_resolve_command_split(self):
+        from app.api.telegram_webhook import _parse_resolve_command
+        result = _parse_resolve_command("/resolve abc-123 split 60")
+        assert result["outcome"] == "split"
+        assert result["split_pct"] == 60.0
+
+    def test_parse_resolve_command_invalid(self):
+        from app.api.telegram_webhook import _parse_resolve_command
+        assert _parse_resolve_command("not a command") is None
+        assert _parse_resolve_command("/resolve") is None
+
+
+# ===========================================================================
+# UUID validation tests (no DB needed)
+# ===========================================================================
+
+
+class TestUUIDValidation:
+    def test_valid_uuid_accepted(self):
+        from app.api.disputes import _validate_uuid
+        result = _validate_uuid(str(uuid.uuid4()), "test_field")
+        assert result is not None
+
+    def test_invalid_uuid_rejected(self):
+        from app.api.disputes import _validate_uuid
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_uuid("not-a-uuid", "test_field")
+        assert exc_info.value.status_code == 400
+        assert "Invalid" in exc_info.value.detail
+
+    def test_empty_uuid_rejected(self):
+        from app.api.disputes import _validate_uuid
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException):
+            _validate_uuid("", "test_field")
+
+
+# ===========================================================================
+# Admin role check tests (no DB needed)
+# ===========================================================================
+
+
+class TestAdminCheck:
+    def test_is_admin_false_by_default(self):
+        from app.api.disputes import _is_admin
+        assert _is_admin(str(uuid.uuid4())) is False
+
+    def test_is_admin_with_env(self, monkeypatch):
+        test_id = str(uuid.uuid4())
+        monkeypatch.setattr("app.api.disputes.ADMIN_USER_IDS", {test_id})
+        from app.api.disputes import _is_admin
+        assert _is_admin(test_id) is True
