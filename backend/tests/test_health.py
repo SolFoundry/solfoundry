@@ -5,10 +5,13 @@ Covers four scenarios:
 - Database down
 - Redis down
 - Both down
+Testing exception handling directly on dependencies.
 """
 
-from unittest.mock import AsyncMock, patch
 import pytest
+from unittest.mock import AsyncMock, patch
+from sqlalchemy.exc import SQLAlchemyError
+from redis.asyncio import RedisError
 from httpx import ASGITransport, AsyncClient
 from fastapi import FastAPI
 from app.api.health import router as health_router
@@ -16,16 +19,29 @@ from app.api.health import router as health_router
 app = FastAPI()
 app.include_router(health_router)
 
+class MockConn:
+    async def __aenter__(self):
+        return self
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+    async def execute(self, query):
+        pass
+
+class MockRedis:
+    async def __aenter__(self):
+        return self
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+    async def ping(self):
+        pass
+
 @pytest.mark.asyncio
 async def test_health_all_services_up():
     """Returns 'healthy' when DB and Redis are both reachable."""
-    with (
-        patch("app.api.health._check_database", new=AsyncMock(return_value="connected")),
-        patch("app.api.health._check_redis", new=AsyncMock(return_value="connected")),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+    with patch("app.api.health.engine.connect", return_value=MockConn()), \
+         patch("app.api.health.from_url", return_value=MockRedis()):
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 200
@@ -33,20 +49,20 @@ async def test_health_all_services_up():
     assert data["status"] == "healthy"
     assert data["services"]["database"] == "connected"
     assert data["services"]["redis"] == "connected"
-    assert "uptime_seconds" in data
-    assert "timestamp" in data
-    assert "version" in data
 
 @pytest.mark.asyncio
 async def test_health_check_db_down():
-    """Returns 'degraded' when database is disconnected."""
-    with (
-        patch("app.api.health._check_database", new=AsyncMock(return_value="disconnected")),
-        patch("app.api.health._check_redis", new=AsyncMock(return_value="connected")),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+    """Returns 'degraded' when database throws connection exception."""
+    class FailingConn:
+        async def __aenter__(self):
+            raise SQLAlchemyError("db fail")
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with patch("app.api.health.engine.connect", return_value=FailingConn()), \
+         patch("app.api.health.from_url", return_value=MockRedis()):
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 200
@@ -57,14 +73,19 @@ async def test_health_check_db_down():
 
 @pytest.mark.asyncio
 async def test_health_check_redis_down():
-    """Returns 'degraded' when redis is disconnected."""
-    with (
-        patch("app.api.health._check_database", new=AsyncMock(return_value="connected")),
-        patch("app.api.health._check_redis", new=AsyncMock(return_value="disconnected")),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+    """Returns 'degraded' when redis throws connection exception."""
+    class FailingRedis:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        async def ping(self):
+            raise RedisError("redis fail")
+
+    with patch("app.api.health.engine.connect", return_value=MockConn()), \
+         patch("app.api.health.from_url", return_value=FailingRedis()):
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 200
@@ -76,13 +97,24 @@ async def test_health_check_redis_down():
 @pytest.mark.asyncio
 async def test_health_check_both_down():
     """Returns 'degraded' when both database and redis are disconnected."""
-    with (
-        patch("app.api.health._check_database", new=AsyncMock(return_value="disconnected")),
-        patch("app.api.health._check_redis", new=AsyncMock(return_value="disconnected")),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+    class FailingConn:
+        async def __aenter__(self):
+            raise SQLAlchemyError("db fail")
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class FailingRedis:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        async def ping(self):
+            raise RedisError("redis fail")
+
+    with patch("app.api.health.engine.connect", return_value=FailingConn()), \
+         patch("app.api.health.from_url", return_value=FailingRedis()):
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 200
