@@ -327,6 +327,15 @@ async def sync_bounties() -> int:
         _bounty_store.clear()
         _bounty_store.update(new_store)
 
+        # Persist synced bounties to PostgreSQL (write-through)
+        try:
+            from app.services.pg_store import persist_bounty
+
+            for bounty in new_store.values():
+                await persist_bounty(bounty)
+        except Exception as exc:
+            logger.warning("DB persistence during sync failed: %s", exc)
+
         _last_sync = datetime.now(timezone.utc)
         logger.info("Synced %d bounties from GitHub Issues", len(new_store))
         return len(new_store)

@@ -25,6 +25,7 @@ class FakeWebSocket:
     """Minimal WS double for unit tests."""
 
     def __init__(self):
+        """Initialize the instance."""
         from starlette.websockets import WebSocketState
 
         self.client_state = WebSocketState.CONNECTED
@@ -34,9 +35,11 @@ class FakeWebSocket:
         self.sent: list = []
 
     async def accept(self):
+        """Accept."""
         self.accepted = True
 
     async def close(self, code: int = 1000):
+        """Close the connection and release resources."""
         from starlette.websockets import WebSocketState
 
         self.closed = True
@@ -44,14 +47,17 @@ class FakeWebSocket:
         self.client_state = WebSocketState.DISCONNECTED
 
     async def send_json(self, data: dict):
+        """Send json."""
         self.sent.append(data)
 
     async def send_text(self, data: str):
+        """Send text."""
         self.sent.append(json.loads(data))
 
 
 @pytest.fixture
 def mgr():
+    """Mgr."""
     m = WebSocketManager()
     m._adapter = InMemoryPubSubAdapter(m)
     return m
@@ -59,6 +65,7 @@ def mgr():
 
 @pytest_asyncio.fixture
 async def connected(mgr):
+    """Connected."""
     ws = FakeWebSocket()
     cid = await mgr.connect(ws, VALID_TOKEN)
     assert cid is not None
@@ -69,41 +76,50 @@ async def connected(mgr):
 
 
 class TestAuthentication:
+    """WebSocket authentication and authorization tests."""
+
     @pytest.mark.asyncio
     async def test_connect_valid_token(self, mgr):
+        """Test connect valid token."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, VALID_TOKEN)
         assert cid is not None and ws.accepted
 
     @pytest.mark.asyncio
     async def test_connect_invalid_token_rejected(self, mgr):
+        """Test connect invalid token rejected."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, INVALID_TOKEN)
         assert cid is None and ws.close_code == 4001
 
     @pytest.mark.asyncio
     async def test_connect_missing_token_rejected(self, mgr):
+        """Test connect missing token rejected."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, None)
         assert cid is None and ws.close_code == 4001
 
     @pytest.mark.asyncio
     async def test_subscribe_reauth_wrong_token(self, connected):
+        """Test subscribe reauth wrong token."""
         mgr, cid, _ = connected
         assert not await mgr.subscribe(cid, "ch", token=OTHER_TOKEN)
 
     @pytest.mark.asyncio
     async def test_subscribe_reauth_invalid_token(self, connected):
+        """Test subscribe reauth invalid token."""
         mgr, cid, _ = connected
         assert not await mgr.subscribe(cid, "ch", token=INVALID_TOKEN)
 
     @pytest.mark.asyncio
     async def test_broadcast_reauth_invalid_token(self, connected):
+        """Test broadcast reauth invalid token."""
         mgr, cid, _ = connected
         assert await mgr.broadcast("ch", {"x": 1}, token=INVALID_TOKEN) == 0
 
     @pytest.mark.asyncio
     async def test_broadcast_requires_identity(self, mgr):
+        """Test broadcast requires identity."""
         assert await mgr.broadcast("ch", {"x": 1}) == 0
 
 
@@ -111,8 +127,11 @@ class TestAuthentication:
 
 
 class TestHeartbeat:
+    """WebSocket heartbeat ping/pong mechanism tests."""
+
     @pytest.mark.asyncio
     async def test_heartbeat_sends_ping(self, connected):
+        """Test heartbeat sends ping."""
         mgr, cid, ws = connected
         with patch("app.services.websocket_manager.HEARTBEAT_INTERVAL", 0.05):
             task = asyncio.create_task(mgr.heartbeat(cid))
@@ -127,6 +146,7 @@ class TestHeartbeat:
 
     @pytest.mark.asyncio
     async def test_heartbeat_stops_on_disconnect(self, mgr):
+        """Test heartbeat stops on disconnect."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, VALID_TOKEN)
         await mgr.disconnect(cid)
@@ -137,6 +157,7 @@ class TestHeartbeat:
 
     @pytest.mark.asyncio
     async def test_pong_handled(self, connected):
+        """Test pong handled."""
         mgr, cid, _ = connected
         assert await mgr.handle_message(cid, json.dumps({"type": "pong"})) is None
 
@@ -145,8 +166,11 @@ class TestHeartbeat:
 
 
 class TestBroadcast:
+    """TestBroadcast."""
+
     @pytest.mark.asyncio
     async def test_broadcast_delivers_to_subscribers(self, mgr):
+        """Test broadcast delivers to subscribers."""
         ws1, ws2 = FakeWebSocket(), FakeWebSocket()
         cid1 = await mgr.connect(ws1, VALID_TOKEN)
         cid2 = await mgr.connect(ws2, OTHER_TOKEN)
@@ -159,6 +183,7 @@ class TestBroadcast:
 
     @pytest.mark.asyncio
     async def test_concurrent_broadcast_20_clients(self, mgr):
+        """Test concurrent broadcast 20 clients."""
         sockets = []
         for _ in range(20):
             ws = FakeWebSocket()
@@ -172,6 +197,7 @@ class TestBroadcast:
 
     @pytest.mark.asyncio
     async def test_broadcast_skips_failed_connections(self, mgr):
+        """Test broadcast skips failed connections."""
         ws_good, ws_bad = FakeWebSocket(), FakeWebSocket()
         cid1 = await mgr.connect(ws_good, VALID_TOKEN)
         cid2 = await mgr.connect(ws_bad, OTHER_TOKEN)
@@ -187,8 +213,11 @@ class TestBroadcast:
 
 
 class TestRedisPubSubAdapter:
+    """TestRedisPubSubAdapter."""
+
     @pytest.mark.asyncio
     async def test_publish_calls_redis(self):
+        """Test publish calls redis."""
         mgr = WebSocketManager()
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
         adapter._redis = AsyncMock()
@@ -198,6 +227,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_subscribe_starts_listener(self):
+        """Test subscribe starts listener."""
         mgr = WebSocketManager()
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
         adapter._redis = AsyncMock()
@@ -210,6 +240,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_listener_dispatches_messages(self):
+        """Test listener dispatches messages."""
         mgr = WebSocketManager()
         mgr.dispatch_local = AsyncMock(return_value=1)
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
@@ -225,6 +256,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_init_falls_back_to_inmemory(self):
+        """Test init falls back to inmemory."""
         mgr = WebSocketManager()
         with patch("app.services.websocket_manager.REDIS_URL", "redis://bad:9999"):
             with patch.object(
@@ -238,8 +270,11 @@ class TestRedisPubSubAdapter:
 
 
 class TestRateLimiting:
+    """TestRateLimiting."""
+
     @pytest.mark.asyncio
     async def test_rate_limit_exceeded(self, connected):
+        """Test rate limit exceeded."""
         mgr, cid, _ = connected
         with patch("app.services.websocket_manager.RATE_LIMIT_MAX", 3):
             for _ in range(3):
@@ -252,8 +287,11 @@ class TestRateLimiting:
 
 
 class TestChannelLifecycle:
+    """TestChannelLifecycle."""
+
     @pytest.mark.asyncio
     async def test_subscribe_unsubscribe(self, connected):
+        """Test subscribe unsubscribe."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(
             cid, json.dumps({"type": "subscribe", "channel": "b:42"})
@@ -267,6 +305,7 @@ class TestChannelLifecycle:
 
     @pytest.mark.asyncio
     async def test_disconnect_cleans_subscriptions(self, connected):
+        """Test disconnect cleans subscriptions."""
         mgr, cid, _ = connected
         await mgr.subscribe(cid, "ch1")
         await mgr.subscribe(cid, "ch2")
@@ -275,12 +314,14 @@ class TestChannelLifecycle:
 
     @pytest.mark.asyncio
     async def test_invalid_json_error(self, connected):
+        """Test invalid json error."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(cid, "not json")
         assert resp["type"] == "error" and "invalid JSON" in resp["detail"]
 
     @pytest.mark.asyncio
     async def test_unknown_type_error(self, connected):
+        """Test unknown type error."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(cid, json.dumps({"type": "foobar"}))
         assert resp["type"] == "error" and "unknown" in resp["detail"]
@@ -290,8 +331,11 @@ class TestChannelLifecycle:
 
 
 class TestEndpoint:
+    """TestEndpoint."""
+
     @pytest.mark.asyncio
     async def test_connect_without_token_rejected(self):
+        """Test connect without token rejected."""
         from app.main import app
 
         transport = ASGITransport(app=app)
@@ -304,10 +348,12 @@ class TestEndpoint:
 
 
 async def _empty_aiter():
+    """Empty aiter."""
     return
     yield
 
 
 async def _async_iter(items):
+    """Async iter."""
     for item in items:
         yield item

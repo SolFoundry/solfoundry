@@ -1,4 +1,8 @@
-"""Treasury service -- cached RPC balance queries and aggregated stats (MVP)."""
+"""Treasury service -- cached RPC balance queries and aggregated stats (MVP).
+
+Queries PostgreSQL (via payout_service) for aggregate payout and buyback
+totals. Caches Solana RPC balance queries with a configurable TTL.
+"""
 
 from __future__ import annotations
 
@@ -63,8 +67,8 @@ async def _get_cached_balances(cache_key: str) -> tuple[float, float]:
 async def get_treasury_stats() -> TreasuryStats:
     """Build a live treasury snapshot (cached balances + aggregate totals)."""
     sol_balance, fndry_balance = await _get_cached_balances("treasury_stats")
-    total_fndry_paid, total_sol_paid = get_total_paid_out()
-    total_buyback_sol, _ = get_total_buybacks()
+    total_fndry_paid, total_sol_paid = await get_total_paid_out()
+    total_buyback_sol, _ = await get_total_buybacks()
 
     return TreasuryStats(
         sol_balance=sol_balance,
@@ -110,8 +114,8 @@ TOTAL_SUPPLY = 1_000_000_000.0
 async def get_tokenomics() -> TokenomicsResponse:
     """Build $FNDRY tokenomics; circulating = total_supply - treasury_holdings."""
     _, fndry_balance = await _get_cached_balances("treasury_stats")
-    total_fndry_paid, _ = get_total_paid_out()
-    total_sol_buyback, total_buyback_fndry = get_total_buybacks()
+    total_fndry_paid, _ = await get_total_paid_out()
+    total_sol_buyback, total_buyback_fndry = await get_total_buybacks()
 
     circulating = TOTAL_SUPPLY - fndry_balance
 
