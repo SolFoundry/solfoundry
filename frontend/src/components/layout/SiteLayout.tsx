@@ -1,5 +1,26 @@
+/**
+ * SiteLayout - Updated with Theme Toggle
+ * 
+ * Main layout component for SolFoundry public site with dark/light theme support.
+ * 
+ * Changes from original:
+ * - Added ThemeToggle component to header
+ * - Added dark: variant classes throughout for theme support
+ * - Smooth color transitions between themes
+ * 
+ * Features:
+ * - Responsive header with logo, navigation, wallet connect, and user menu
+ * - Theme toggle button in header (cycles: light → dark → system)
+ * - Mobile sidebar with hamburger menu
+ * - Footer with links and copyright
+ * - Dark/Light theme support with Tailwind CSS
+ * - Current navigation item highlighting
+ * - SF Mono monospace font
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
+import ThemeToggle from './ThemeToggle';
 
 // ============================================================================
 // Types
@@ -45,17 +66,6 @@ const WALLET_ADDRESS = 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7';
 // Components
 // ============================================================================
 
-/**
- * SiteLayout - Main layout component for SolFoundry public site
- * 
- * Features:
- * - Responsive header with logo, navigation, wallet connect, and user menu
- * - Mobile sidebar with hamburger menu
- * - Footer with links and copyright
- * - Dark theme with Solana-inspired colors
- * - Current navigation item highlighting
- * - SF Mono monospace font
- */
 export function SiteLayout({
   children,
   currentPath = '/',
@@ -115,7 +125,6 @@ export function SiteLayout({
 
   const handleNavClick = useCallback((href: string) => {
     setMobileMenuOpen(false);
-    // For Next.js, navigation would be handled by Link component
   }, []);
 
   const truncateAddress = (address: string) => {
@@ -123,7 +132,7 @@ export function SiteLayout({
   };
 
   return (
-    <div className="site-layout min-h-screen bg-[#0a0a0a] font-mono text-white">
+    <div className="site-layout min-h-screen bg-[#0a0a0a] dark:bg-[#f5f5f5] font-mono text-white dark:text-gray-900 transition-colors duration-200">
       {/* Header */}
       <Header
         currentPath={currentPath}
@@ -145,7 +154,7 @@ export function SiteLayout({
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 dark:bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -217,7 +226,9 @@ function Header({
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-16 transition-colors duration-200
-                  ${scrolled ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10' : 'bg-transparent'}`}
+                  ${scrolled 
+                    ? 'bg-[#0a0a0a]/95 dark:bg-[#f5f5f5]/95 backdrop-blur-md border-b border-white/10 dark:border-gray-200' 
+                    : 'bg-transparent'}`}
       role="banner"
     >
       <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -228,7 +239,7 @@ function Header({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
               <span className="text-white font-bold text-sm">SF</span>
             </div>
-            <span className="text-lg font-bold text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
+            <span className="text-lg font-bold text-white dark:text-gray-900 tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
               SolFoundry
             </span>
           </a>
@@ -244,8 +255,8 @@ function Header({
                 rel={link.external ? 'noopener noreferrer' : undefined}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
                   ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
-                    ? 'text-[#14F195] bg-[#14F195]/10'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'text-[#14F195] bg-[#14F195]/10 dark:bg-[#14F195]/20'
+                    : 'text-gray-300 dark:text-gray-700 hover:text-white dark:hover:text-gray-900 hover:bg-white/5 dark:hover:bg-gray-200'
                   }`}
                 aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
               >
@@ -254,7 +265,7 @@ function Header({
             ))}
             <button
               onClick={onShowOnboarding}
-              className="px-4 py-2 rounded-lg text-sm font-bold text-[#14F195] hover:bg-[#14F195]/10 bg-[#14F195]/5 transition-all ml-4 border border-[#14F195]/20"
+              className="px-4 py-2 rounded-lg text-sm font-bold text-[#14F195] hover:bg-[#14F195]/10 dark:hover:bg-[#14F195]/20 bg-[#14F195]/5 transition-all ml-4 border border-[#14F195]/20"
             >
               Get Started
             </button>
@@ -263,13 +274,16 @@ function Header({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle size="md" variant="button" />
+
           {/* Wallet Connect Button */}
           {walletAddress ? (
             <div className="relative">
               <button
                 onClick={onToggleUserMenu}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#14F195]/10 border border-[#14F195]/30
-                         text-[#14F195] text-sm font-medium hover:bg-[#14F195]/20 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#14F195]/10 dark:bg-[#14F195]/20 border border-[#14F195]/30
+                         text-[#14F195] text-sm font-medium hover:bg-[#14F195]/20 dark:hover:bg-[#14F195]/30 transition-colors"
                 aria-expanded={userMenuOpen}
                 aria-haspopup="true"
               >
@@ -288,26 +302,26 @@ function Header({
 
               {/* User Dropdown Menu */}
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl">
-                  <div className="px-4 py-2 border-b border-white/10">
-                    <p className="text-sm font-medium text-white">{userName || 'User'}</p>
-                    <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
+                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-[#1a1a1a] dark:bg-white border border-white/10 dark:border-gray-200 shadow-xl">
+                  <div className="px-4 py-2 border-b border-white/10 dark:border-gray-200">
+                    <p className="text-sm font-medium text-white dark:text-gray-900">{userName || 'User'}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-600 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
-                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 dark:hover:bg-gray-100 hover:text-[#14F195]">
                     Creator Dashboard
                   </a>
-                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 dark:text-gray-700 hover:bg-white/5 dark:hover:bg-gray-100 hover:text-white">
                     Contributor Dashboard
                   </a>
-                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 dark:text-gray-700 hover:bg-white/5 dark:hover:bg-gray-100 hover:text-white">
                     Profile
                   </a>
-                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-300 dark:text-gray-700 hover:bg-white/5 dark:hover:bg-gray-100 hover:text-white">
                     Settings
                   </a>
                   <button
                     onClick={onDisconnectWallet}
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 hover:text-red-300"
+                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 dark:hover:bg-gray-100 hover:text-red-300"
                   >
                     Disconnect
                   </button>
@@ -331,7 +345,7 @@ function Header({
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg
-                     text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                     text-gray-300 dark:text-gray-700 hover:text-white dark:hover:text-gray-900 hover:bg-white/5 dark:hover:bg-gray-200 transition-colors"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
           >
@@ -365,7 +379,7 @@ interface SidebarProps {
 function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
   return (
     <aside
-      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-[#0a0a0a] border-r border-white/10
+      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-[#0a0a0a] dark:bg-[#f5f5f5] border-r border-white/10 dark:border-gray-200
                 transform transition-transform duration-300 ease-in-out lg:hidden
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       role="navigation"
@@ -382,8 +396,8 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
             rel={link.external ? 'noopener noreferrer' : undefined}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
               ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
-                ? 'text-[#14F195] bg-[#14F195]/10'
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
+                ? 'text-[#14F195] bg-[#14F195]/10 dark:bg-[#14F195]/20'
+                : 'text-gray-300 dark:text-gray-700 hover:text-white dark:hover:text-gray-900 hover:bg-white/5 dark:hover:bg-gray-200'
               }`}
             aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
           >
@@ -393,8 +407,8 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
-        <p className="text-xs text-gray-500 text-center font-mono">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 dark:border-gray-200">
+        <p className="text-xs text-gray-500 dark:text-gray-500 text-center font-mono">
           SolFoundry v0.1.0
         </p>
       </div>
@@ -410,7 +424,7 @@ function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-white/10 bg-[#0a0a0a]" role="contentinfo">
+    <footer className="border-t border-white/10 dark:border-gray-200 bg-[#0a0a0a] dark:bg-[#f5f5f5]" role="contentinfo">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Logo + Copyright */}
@@ -418,7 +432,7 @@ function Footer() {
             <div className="w-6 h-6 rounded bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
               <span className="text-white font-bold text-xs">SF</span>
             </div>
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-gray-400 dark:text-gray-600">
               © {currentYear} SolFoundry. All rights reserved.
             </span>
           </div>
@@ -431,7 +445,7 @@ function Footer() {
                 href={link.href}
                 target={link.href.startsWith('http') ? '_blank' : undefined}
                 rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                className="text-sm text-gray-400 hover:text-[#9945FF] transition-colors"
+                className="text-sm text-gray-400 dark:text-gray-600 hover:text-[#9945FF] dark:hover:text-[#9945FF] transition-colors"
               >
                 {link.label}
               </a>
@@ -440,8 +454,8 @@ function Footer() {
 
           {/* Contract Address */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">CA:</span>
-            <code className="text-xs text-[#14F195] font-mono bg-[#14F195]/10 px-2 py-1 rounded">
+            <span className="text-xs text-gray-500 dark:text-gray-500">CA:</span>
+            <code className="text-xs text-[#14F195] font-mono bg-[#14F195]/10 dark:bg-[#14F195]/20 px-2 py-1 rounded">
               {WALLET_ADDRESS}
             </code>
           </div>
