@@ -227,7 +227,9 @@ function Header({
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-16 transition-colors duration-200
-                  ${scrolled ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10' : 'bg-transparent'}`}
+                  ${scrolled 
+                    ? 'bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10' 
+                    : 'bg-transparent'}`}
       role="banner"
     >
       <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -238,7 +240,7 @@ function Header({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
               <span className="text-white font-bold text-sm">SF</span>
             </div>
-            <span className="text-lg font-bold text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
+            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
               SolFoundry
             </span>
           </a>
@@ -255,7 +257,7 @@ function Header({
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
                   ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
                     ? 'text-[#14F195] bg-[#14F195]/10'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
                 aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
               >
@@ -341,7 +343,8 @@ function Header({
           <button
             onClick={onToggleTheme}
             className="inline-flex items-center justify-center w-10 h-10 rounded-lg
-                     text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                     text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white 
+                     hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
@@ -360,7 +363,8 @@ function Header({
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg
-                     text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                     text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white 
+                     hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
           >

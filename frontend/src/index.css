@@ -8,7 +8,7 @@
   --color-solana-green: #14F195;
   --color-solana-purple: #9945FF;
 
-  /* Surface colors (dark theme) */
+  /* Surface colors */
   --color-surface: #0a0a0a;
   --color-surface-50: #111111;
   --color-surface-100: #1a1a1a;
@@ -25,21 +25,22 @@
 }
 
 /* ============================================================================
-   Global styles
+   Global styles - Light theme by default, dark via html.dark
    ============================================================================ */
 html {
   scroll-behavior: smooth;
 }
 
+/* Light theme (default) */
 body {
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0a0a0a;
-  color: #e5e5e5;
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
 
-/* Light mode body override - using Tailwind dark mode strategy */
+/* Dark theme override */
 html.dark body {
   background-color: #0a0a0a;
   color: #e5e5e5;
@@ -50,18 +51,29 @@ html.dark body {
   background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
 }
 
-/* Custom scrollbar - dark mode */
+/* Custom scrollbar - light theme */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #f3f4f6;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: #d1d5db;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Dark theme scrollbar */
+html.dark ::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #333;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
@@ -82,12 +94,22 @@ html.dark body {
 .animate-shimmer {
   background: linear-gradient(
     90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+html.dark .animate-shimmer {
+  background: linear-gradient(
+    90deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(255, 255, 255, 0.08) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
 }
 
 /* Activity feed entry animation */
@@ -119,10 +141,6 @@ html.dark body {
 .animate-fade-in {
   animation: fade-in 0.15s ease-out forwards;
 }
-
-/* ============================================================================
-   Form element overrides - use Tailwind dark: in components instead
-   ============================================================================ */
 
 /* ============================================================================
    Theme Transition Styles - Smooth transitions between light and dark mode
