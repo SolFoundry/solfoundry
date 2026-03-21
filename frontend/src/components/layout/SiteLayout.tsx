@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollToTop } from '../common/ScrollToTop';
 
 // ============================================================================
 // Types
@@ -153,6 +154,9 @@ export function SiteLayout({
 
       {/* Footer */}
       <Footer />
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   );
 }
