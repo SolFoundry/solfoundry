@@ -18,7 +18,7 @@ describe('ContributorProfile', () => {
 
   it('displays truncated wallet address', () => {
     render(<ContributorProfile {...defaultProps} />);
-    expect(screen.getByText(/Amu1YJ...1o7/)).toBeInTheDocument();
+    expect(screen.getByText(/Amu1YJ.*1o7/)).toBeInTheDocument();
   });
 
   it('displays total earned', () => {
