@@ -5,6 +5,13 @@ Tokens are transferred via SPL token instructions through the existing
 transfer_service. Every state change is recorded in the escrow_ledger
 table for auditability.
 
+Security features (Issue #197):
+- Wallet address validation
+- Amount validation (positive, within limits)
+- Transaction signature verification
+- Double-spend protection
+- Audit logging
+
 All database operations use the async session factory. The service
 is the single source of truth for escrow state — no in-memory cache.
 """
@@ -20,6 +27,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import audit_event
+from app.core.input_sanitizer import validate_solana_wallet, validate_uuid
 from app.database import get_db_session
 from app.exceptions import (
     EscrowAlreadyExistsError,
@@ -42,6 +50,11 @@ from app.services.solana_client import TREASURY_WALLET
 from app.services.transfer_service import confirm_transaction, send_spl_transfer
 
 logger = logging.getLogger(__name__)
+
+# Security limits
+MIN_ESCROW_AMOUNT = 1.0  # Minimum escrow amount
+MAX_ESCROW_AMOUNT = 1_000_000_000.0  # Maximum escrow amount (1B $FNDRY)
+MAX_EXPIRY_DAYS = 365  # Maximum escrow duration
 
 
 # ---------------------------------------------------------------------------
@@ -136,11 +149,38 @@ async def create_escrow(
     Transfers $FNDRY from the creator's wallet to the treasury,
     verifies the transaction on-chain, then moves to FUNDED state.
 
+    Security validations:
+    - Wallet address format validation
+    - Amount range validation
+    - Expiry time validation
+
     Raises:
         EscrowAlreadyExistsError: If an escrow already exists for this bounty.
         EscrowFundingError: If the SPL transfer fails.
         EscrowDoubleSpendError: If the transaction cannot be confirmed.
+        ValueError: If input validation fails.
     """
+    # Security: Validate inputs
+    if not validate_uuid(bounty_id):
+        raise ValueError(f"Invalid bounty_id format: {bounty_id}")
+    
+    if not validate_solana_wallet(creator_wallet):
+        raise ValueError(f"Invalid creator_wallet address: {creator_wallet}")
+    
+    if amount < MIN_ESCROW_AMOUNT:
+        raise ValueError(f"Amount {amount} below minimum {MIN_ESCROW_AMOUNT}")
+    
+    if amount > MAX_ESCROW_AMOUNT:
+        raise ValueError(f"Amount {amount} exceeds maximum {MAX_ESCROW_AMOUNT}")
+    
+    # Validate expiry time
+    if expires_at:
+        max_expiry = datetime.now(timezone.utc).replace(
+            year=datetime.now(timezone.utc).year + MAX_EXPIRY_DAYS // 365
+        )
+        if expires_at > max_expiry:
+            raise ValueError(f"Expiry time exceeds maximum of {MAX_EXPIRY_DAYS} days")
+    
     async with get_db_session() as db:
         existing = await _get_escrow_by_bounty(db, bounty_id)
         if existing is not None:
@@ -295,11 +335,20 @@ async def release_escrow(
     Transitions: ACTIVE → RELEASING → COMPLETED (or back to ACTIVE on failure).
     Transfers tokens from treasury to the winner's wallet.
 
+    Security validations:
+    - Wallet address format validation
+    - Escrow state validation
+
     Raises:
         EscrowNotFoundError: No escrow for this bounty.
         InvalidEscrowTransitionError: Escrow not in ACTIVE state.
         EscrowFundingError: SPL transfer to winner failed.
+        ValueError: If wallet address is invalid.
     """
+    # Security: Validate winner wallet
+    if not validate_solana_wallet(winner_wallet):
+        raise ValueError(f"Invalid winner_wallet address: {winner_wallet}")
+    
     async with get_db_session() as db:
         escrow = await _get_escrow_by_bounty(db, bounty_id)
         if not escrow:

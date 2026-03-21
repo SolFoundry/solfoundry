@@ -35,6 +35,9 @@ from app.core.config import ALLOWED_ORIGINS
 from app.middleware.security import SecurityMiddleware
 from app.middleware.ip_blocklist import IPBlocklistMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.middleware.brute_force_protection import BruteForceProtectionMiddleware
+from app.middleware.https_redirect import HTTPSRedirectMiddleware
+from app.core.secrets_validator import check_secrets_on_startup, SecretValidationError
 
 # Initialize logging
 setup_logging()
@@ -44,6 +47,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
+    # Validate secrets on startup
+    try:
+        check_secrets_on_startup()
+    except SecretValidationError as e:
+        logger.error(f"Secret validation failed: {e}")
+        raise
+    
     await init_db()
     await ws_manager.init()
 
@@ -176,9 +186,23 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Security middleware (order matters - outermost first)
+# HTTPS redirect should be first to enforce HTTPS
+app.add_middleware(HTTPSRedirectMiddleware)
+
+# Rate limiting - protect against DDoS
 app.add_middleware(RateLimiterMiddleware)
+
+# IP blocklist - block known bad actors
 app.add_middleware(IPBlocklistMiddleware)
+
+# Brute force protection for auth endpoints
+app.add_middleware(BruteForceProtectionMiddleware)
+
+# Security headers - add protective headers
 app.add_middleware(SecurityMiddleware)
+
+# CORS - must be after security middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -187,6 +211,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-User-ID"],
 )
 
+# Logging - innermost for complete request tracking
 app.add_middleware(LoggingMiddleware)
 
 # -- Global Exception Handlers ------------------------------------------------

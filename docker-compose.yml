@@ -1,5 +1,11 @@
-# Docker Compose for SolFoundry local development.
+# Docker Compose for SolFoundry
+# 
 # Usage: cp .env.example .env && docker compose up --build
+# 
+# Security notes:
+# - All secrets should be set via environment variables
+# - Do not expose ports to 0.0.0.0 in production
+# - Use a reverse proxy (nginx/traefik) for TLS termination
 
 services:
   postgres:
@@ -18,6 +24,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Security: limit resources
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    # Backup configuration
+    labels:
+      - "backup.enabled=true"
+      - "backup.schedule=0 3 * * *"
 
   redis:
     image: redis:7-alpine
@@ -31,6 +48,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Security: disable dangerous commands
+    command: >
+      redis-server
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
+      --rename-command CONFIG ""
+      --rename-command DEBUG ""
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   backend:
     build:
@@ -40,12 +72,20 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
+      ENV: ${ENV:-development}
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://solfoundry.org,https://www.solfoundry.org}
+      MAX_PAYLOAD_SIZE: ${MAX_PAYLOAD_SIZE:-10485760}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-5}
+      RATE_LIMIT_API: ${RATE_LIMIT_API:-60}
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,6 +97,18 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+    # Security: run as non-root (requires Dockerfile changes)
+    # user: "1000:1000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    # Security: read-only root filesystem (requires tmpfs for /tmp)
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
 
   frontend:
     build:
@@ -65,10 +117,54 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     depends_on:
       backend:
         condition: service_healthy
+    # Security: nginx should serve with security headers
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Backup service (optional)
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-solfoundry/}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./scripts:/scripts:ro
+      - backup_data:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      apk add --no-cache aws-cli &&
+      while true; do
+        sleep 86400 &&
+        /scripts/backup-postgres.sh
+      done
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - backup
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   postgres_data:
   redis_data:
+  backup_data:
+
+# Security: use internal network for services
+networks:
+  default:
+    driver: bridge
