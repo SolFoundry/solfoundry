@@ -41,11 +41,19 @@ function getStoredTheme(): Theme | null {
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   
+  // Add transition class for smooth theme change
+  root.classList.add('theme-transitioning');
+  
   if (theme === 'dark') {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
   }
+  
+  // Remove transition class after animation completes
+  setTimeout(() => {
+    root.classList.remove('theme-transitioning');
+  }, 300);
 }
 
 /**

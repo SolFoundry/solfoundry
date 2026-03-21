@@ -123,3 +123,16 @@ html.dark body {
 /* ============================================================================
    Form element overrides - use Tailwind dark: in components instead
    ============================================================================ */
+
+/* ============================================================================
+   Theme Transition Styles - Smooth transitions between light and dark mode
+   ============================================================================ */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.3s ease,
+              border-color 0.3s ease,
+              color 0.3s ease,
+              box-shadow 0.3s ease !important;
+}
