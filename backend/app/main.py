@@ -180,6 +180,9 @@ app.include_router(websocket_router)
 # Agents: router has /api/agents prefix â€” Agent Registration API (Issue #203)
 app.include_router(agents_router)
 
+# Disputes: router has /disputes prefix — add /api here
+app.include_router(disputes_router, prefix="/api")
+
 
 @app.get("/health")
 async def health_check():
