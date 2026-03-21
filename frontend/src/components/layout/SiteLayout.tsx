@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
+import { Breadcrumbs } from './Breadcrumbs';
 
 // ============================================================================
 // Types
@@ -163,6 +164,10 @@ export function SiteLayout({
 
       {/* Main Content */}
       <main className="min-h-screen pt-16">
+        {/* Breadcrumbs — below top nav, above page content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-white/5">
+          <Breadcrumbs />
+        </div>
         {children}
       </main>
 
