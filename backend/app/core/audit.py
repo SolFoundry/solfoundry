@@ -184,7 +184,9 @@ class AuditLogger:
         )
 
         # Determine log level based on result
-        log_level = "info" if result == "success" else "warning"
+        # "success" and "pending" are normal states -> info
+        # failure states -> warning
+        log_level = "info" if result.lower() in ("success", "pending") else "warning"
 
         # Log with structured data
         getattr(self._logger, log_level)(
@@ -238,7 +240,12 @@ class AuditLogger:
         """Log a payout event.
 
         Convenience method for payout-related audit events.
+        
+        Note: Wallet address is redacted for privacy/security.
         """
+        # Redact wallet address for privacy - only keep last 4 characters
+        redacted_wallet = f"****{wallet_address[-4:]}" if len(wallet_address) > 4 else "****"
+        
         self.log(
             action=action,
             actor=actor,
@@ -249,7 +256,7 @@ class AuditLogger:
             metadata={
                 "amount": amount,
                 "token": token,
-                "wallet_address": wallet_address,
+                "wallet_address_redacted": redacted_wallet,
                 **(metadata or {}),
             },
         )

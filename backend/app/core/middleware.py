@@ -166,11 +166,7 @@ class ErrorHandlingMiddleware:
         )
 
         # Build response
-        import json
-
-        response_body = json.dumps(
-            error_response.model_dump(exclude_none=True)
-        ).encode()
+        response_body = error_response.model_dump_json(exclude_none=True).encode()
         response_headers = [
             [b"content-type", b"application/json"],
             [b"X-Correlation-ID".lower(), correlation_id.encode()],
@@ -240,9 +236,7 @@ class ErrorHandlingMiddleware:
             path=path,
         )
 
-        response_body = json.dumps(
-            error_response.model_dump(exclude_none=True)
-        ).encode()
+        response_body = error_response.model_dump_json(exclude_none=True).encode()
         response_headers = [
             [b"content-type", b"application/json"],
             [b"X-Correlation-ID".lower(), correlation_id.encode()],
@@ -313,9 +307,7 @@ class ErrorHandlingMiddleware:
             path=path,
         )
 
-        response_body = json.dumps(
-            error_response.model_dump(exclude_none=True)
-        ).encode()
+        response_body = error_response.model_dump_json(exclude_none=True).encode()
 
         await send(
             {
@@ -380,9 +372,7 @@ class ErrorHandlingMiddleware:
             path=path,
         )
 
-        response_body = json.dumps(
-            error_response.model_dump(exclude_none=True)
-        ).encode()
+        response_body = error_response.model_dump_json(exclude_none=True).encode()
 
         await send(
             {
@@ -432,9 +422,7 @@ class ErrorHandlingMiddleware:
             path=path,
         )
 
-        response_body = json.dumps(
-            error_response.model_dump(exclude_none=True)
-        ).encode()
+        response_body = error_response.model_dump_json(exclude_none=True).encode()
 
         await send(
             {

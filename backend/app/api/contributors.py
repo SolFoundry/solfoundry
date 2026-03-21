@@ -111,3 +111,11 @@ async def delete_contributor(contributor_id: str):
 
     if not contributor_service.delete_contributor(contributor_id):
         raise NotFoundException("Contributor", contributor_id)
+    
+    # Audit log
+    audit_log(
+        action=AuditAction.CONTRIBUTOR_BANNED,
+        actor="api",
+        resource="contributor",
+        resource_id=contributor_id,
+    )

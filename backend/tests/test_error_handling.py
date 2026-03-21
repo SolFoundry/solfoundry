@@ -17,6 +17,7 @@ from app.core.errors import (
 )
 from app.core.middleware import (
     CorrelationIdMiddleware,
+    ErrorHandlingMiddleware,
 )
 from app.core.logging_config import (
     setup_logging,
@@ -318,7 +319,10 @@ class TestFastAPIValidationErrors:
     def validation_app(self):
         """Create app with endpoints that trigger FastAPI validation."""
         from fastapi import FastAPI
+        from fastapi.exceptions import RequestValidationError
+        from fastapi.responses import JSONResponse
         from app.core.middleware import CorrelationIdMiddleware
+        from app.core.errors import ValidationException, ErrorDetail
 
         app = FastAPI()
         app.add_middleware(CorrelationIdMiddleware)
@@ -336,6 +340,31 @@ class TestFastAPIValidationErrors:
         async def get_item(item_id: int):
             return {"item_id": item_id}
 
+        # Add exception handler for RequestValidationError
+        @app.exception_handler(RequestValidationError)
+        async def validation_exception_handler(request, exc):
+            details = [
+                ErrorDetail(
+                    field=".".join(str(loc) for loc in error["loc"]),
+                    message=error["msg"],
+                    code=error["type"],
+                )
+                for error in exc.errors()
+            ]
+            validation_exc = ValidationException(
+                message="Validation failed",
+                details=details,
+            )
+            response = validation_exc.to_response(
+                correlation_id=get_correlation_id(),
+                path=request.url.path,
+            )
+            # Note: X-Correlation-ID header will be added by CorrelationIdMiddleware
+            return JSONResponse(
+                status_code=422,
+                content=response.model_dump(mode="json", exclude_none=True),
+            )
+
         return app
 
     @pytest.fixture
@@ -344,15 +373,20 @@ class TestFastAPIValidationErrors:
         return TestClient(validation_app, raise_server_exceptions=False)
 
     def test_fastapi_validation_error_missing_field(self, validation_client):
-        """Verify FastAPI validation errors return 422."""
+        """Verify FastAPI validation errors return ErrorResponse format."""
         response = validation_client.post("/items/", json={})
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        # Should have ErrorResponse format
+        assert "error" in data
+        assert "message" in data
+        assert "correlation_id" in data
+        assert "timestamp" in data
+        assert data["error"] == "VALIDATION_ERROR"
 
     def test_fastapi_validation_error_invalid_value(self, validation_client):
-        """Verify invalid values produce validation errors."""
+        """Verify invalid values produce validation errors in ErrorResponse format."""
         response = validation_client.post(
             "/items/",
             json={
@@ -364,13 +398,20 @@ class TestFastAPIValidationErrors:
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        # Should have ErrorResponse format
+        assert "error" in data
+        assert "message" in data
+        assert data["error"] == "VALIDATION_ERROR"
 
     def test_fastapi_path_validation_error(self, validation_client):
         """Verify path parameter validation errors are handled."""
         response = validation_client.get("/items/not-an-int")
 
         assert response.status_code == 422
+        data = response.json()
+        # Should have ErrorResponse format
+        assert "error" in data
+        assert "message" in data
 
     def test_validation_error_has_correlation_id(self, validation_client):
         """Verify validation errors include correlation ID."""
@@ -391,8 +432,8 @@ class TestLogRetention:
         """Verify cleanup removes old log files."""
         import time
 
-        # Create some test log files
-        old_file = tmp_path / "application.log.old"
+        # Create some test log files (matching our log patterns)
+        old_file = tmp_path / "application.log.1"  # Rotated log file
         new_file = tmp_path / "application.log"
 
         old_file.write_text("old log content")
@@ -475,7 +516,9 @@ class TestHTTPExceptionHandling:
     def exception_app(self):
         """Create app with various exception endpoints."""
         from fastapi import FastAPI
+        from fastapi.responses import JSONResponse
         from app.core.middleware import CorrelationIdMiddleware
+        from app.core.errors import ErrorCode, ErrorResponse
 
         app = FastAPI()
         app.add_middleware(CorrelationIdMiddleware)
@@ -492,6 +535,40 @@ class TestHTTPExceptionHandling:
         async def http_500():
             raise HTTPException(status_code=500, detail="Internal Error")
 
+        # Add exception handler for HTTPException
+        @app.exception_handler(HTTPException)
+        async def http_exception_handler(request, exc):
+            status_to_error_code = {
+                400: ErrorCode.VALIDATION_ERROR,
+                401: ErrorCode.UNAUTHORIZED,
+                403: ErrorCode.FORBIDDEN,
+                404: ErrorCode.NOT_FOUND,
+                409: ErrorCode.CONFLICT,
+                422: ErrorCode.VALIDATION_ERROR,
+                429: ErrorCode.RATE_LIMITED,
+                500: ErrorCode.INTERNAL_ERROR,
+                503: ErrorCode.SERVICE_UNAVAILABLE,
+            }
+            error_code = status_to_error_code.get(exc.status_code, ErrorCode.INTERNAL_ERROR)
+            
+            correlation_id = get_correlation_id() or "unknown"
+            
+            response = ErrorResponse(
+                error=error_code,
+                message=str(exc.detail),
+                correlation_id=correlation_id,
+                path=request.url.path,
+            )
+            # Note: X-Correlation-ID header will be added by CorrelationIdMiddleware
+            headers = {}
+            if exc.headers:
+                headers.update(exc.headers)
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=response.model_dump(mode="json", exclude_none=True),
+                headers=headers if headers else None,
+            )
+
         return app
 
     @pytest.fixture
@@ -500,21 +577,26 @@ class TestHTTPExceptionHandling:
         return TestClient(exception_app, raise_server_exceptions=False)
 
     def test_http_exception_403(self, exception_client):
-        """Verify HTTPException with 403 returns correct status."""
+        """Verify HTTPException with 403 returns ErrorResponse format."""
         response = exception_client.get("/http-403")
 
         assert response.status_code == 403
         data = response.json()
-        assert "detail" in data
-        assert data["detail"] == "Forbidden"
+        # Should have ErrorResponse format
+        assert "error" in data
+        assert "message" in data
+        assert data["message"] == "Forbidden"
+        assert data["error"] == "FORBIDDEN"
 
     def test_http_exception_500(self, exception_client):
-        """Verify HTTPException with 500 returns correct status."""
+        """Verify HTTPException with 500 returns ErrorResponse format."""
         response = exception_client.get("/http-500")
 
         assert response.status_code == 500
         data = response.json()
-        assert "detail" in data
+        # Should have ErrorResponse format
+        assert "error" in data
+        assert "message" in data
 
     def test_correlation_id_preserved_on_error(self, exception_client):
         """Verify correlation ID is preserved on error."""

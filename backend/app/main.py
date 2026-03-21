@@ -36,7 +36,7 @@ from app.core.middleware import (
     AccessLoggingMiddleware,
 )
 from app.core.errors import AppException
-from app.core.health import router as health_router
+from app.core.health import router as health_router, set_app_start_time
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 
@@ -73,6 +73,9 @@ async def lifespan(app: FastAPI):
     )
 
     try:
+        # Set app start time for uptime calculation
+        set_app_start_time()
+        
         # Initialize database
         await init_db()
         logger.info("Database initialized successfully")
@@ -153,11 +156,11 @@ app.add_middleware(
 )
 
 # Add custom middleware (order matters - last added runs first)
-# 1. Correlation ID middleware - adds request tracing
-app.add_middleware(CorrelationIdMiddleware)
-
-# 2. Access logging middleware - logs all requests
+# 1. Access logging middleware - logs all requests (needs correlation ID)
 app.add_middleware(AccessLoggingMiddleware)
+
+# 2. Correlation ID middleware - adds request tracing (must run first)
+app.add_middleware(CorrelationIdMiddleware)
 
 
 # ── Exception Handlers ──────────────────────────────────────────────────────

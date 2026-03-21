@@ -66,11 +66,26 @@ class HealthCheckResponse(BaseModel):
 
 
 # Application start time for uptime calculation
-_app_start_time = datetime.now(timezone.utc)
+# Initialize to None; will be set during startup
+_app_start_time: Optional[datetime] = None
+
+
+def set_app_start_time() -> None:
+    """Set the application start time during startup.
+    
+    This should be called from the FastAPI startup event.
+    """
+    global _app_start_time
+    _app_start_time = datetime.now(timezone.utc)
 
 
 def get_uptime_seconds() -> float:
-    """Get the application uptime in seconds."""
+    """Get the application uptime in seconds.
+    
+    Returns 0 if the app hasn't started yet.
+    """
+    if _app_start_time is None:
+        return 0.0
     return (datetime.now(timezone.utc) - _app_start_time).total_seconds()
 
 
@@ -98,13 +113,15 @@ async def check_database() -> DependencyStatus:
         )
     except Exception as exc:
         latency = (time.time() - start_time) * 1000
-        logger.error(f"Database health check failed: {exc}")
-
+        # Log full exception internally for debugging
+        logger.exception(f"Database health check failed")
+        
+        # Return sanitized error message (don't expose internal details)
         return DependencyStatus(
             name="database",
             status=HealthStatus.UNHEALTHY,
             latency_ms=round(latency, 2),
-            error=str(exc),
+            error="database connection failed",
         )
 
 
@@ -120,6 +137,7 @@ async def check_redis() -> Optional[DependencyStatus]:
     import time
 
     start_time = time.time()
+    client = None
 
     try:
         # Try to import redis and check connection
@@ -127,7 +145,6 @@ async def check_redis() -> Optional[DependencyStatus]:
 
         client = redis.from_url(redis_url)
         await client.ping()
-        await client.close()
 
         latency = (time.time() - start_time) * 1000
 
@@ -144,14 +161,23 @@ async def check_redis() -> Optional[DependencyStatus]:
         )
     except Exception as exc:
         latency = (time.time() - start_time) * 1000
+        # Log internally for debugging
         logger.warning(f"Redis health check failed: {exc}")
 
+        # Return sanitized error (don't expose connection details)
         return DependencyStatus(
             name="redis",
             status=HealthStatus.UNHEALTHY,
             latency_ms=round(latency, 2),
-            error=str(exc),
+            error="redis connection failed",
         )
+    finally:
+        # Always close the client
+        if client is not None:
+            try:
+                await client.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
 
 async def check_all_dependencies() -> List[DependencyStatus]:

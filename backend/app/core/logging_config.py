@@ -213,18 +213,40 @@ def get_log_directory() -> Path:
 
 
 def get_log_retention_days() -> int:
-    """Get log retention period in days from environment."""
-    return int(os.getenv("LOG_RETENTION_DAYS", "30"))
+    """Get log retention period in days from environment.
+    
+    Returns 30 (default) if the environment variable is not set or invalid.
+    """
+    try:
+        value = int(os.getenv("LOG_RETENTION_DAYS", "30"))
+        return max(1, value)  # Ensure at least 1 day
+    except (ValueError, TypeError):
+        return 30
 
 
 def get_log_max_bytes() -> int:
-    """Get max log file size in bytes from environment."""
-    return int(os.getenv("LOG_MAX_BYTES", str(10 * 1024 * 1024)))  # 10MB default
+    """Get max log file size in bytes from environment.
+    
+    Returns 10MB (default) if the environment variable is not set or invalid.
+    """
+    default = 10 * 1024 * 1024  # 10MB default
+    try:
+        value = int(os.getenv("LOG_MAX_BYTES", str(default)))
+        return max(1024, value)  # Ensure at least 1KB
+    except (ValueError, TypeError):
+        return default
 
 
 def get_log_backup_count() -> int:
-    """Get number of backup log files to keep."""
-    return int(os.getenv("LOG_BACKUP_COUNT", "5"))
+    """Get number of backup log files to keep.
+    
+    Returns 5 (default) if the environment variable is not set or invalid.
+    """
+    try:
+        value = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+        return max(1, value)  # Ensure at least 1 backup
+    except (ValueError, TypeError):
+        return 5
 
 
 def get_log_level() -> str:
@@ -274,6 +296,21 @@ def setup_logging() -> None:
             "stream": sys.stderr,
             "formatter": "error",
             "level": "ERROR",
+        }
+
+        # Console handlers for access/audit when file logging is disabled
+        handlers["console_access"] = {
+            "class": "logging.StreamHandler",
+            "stream": sys.stdout,
+            "formatter": "access",
+            "level": "INFO",
+        }
+
+        handlers["console_audit"] = {
+            "class": "logging.StreamHandler",
+            "stream": sys.stdout,
+            "formatter": "audit",
+            "level": "INFO",
         }
 
     # File handlers with rotation
@@ -365,7 +402,13 @@ def setup_logging() -> None:
             # Dedicated loggers for separate streams
             "access": {
                 "level": "INFO",
-                "handlers": ["file_access"] if should_log_to_file() else [],
+                "handlers": ["file_access", "console_access"]
+                if should_log_to_file() and should_log_to_stdout()
+                else ["file_access"]
+                if should_log_to_file()
+                else ["console_access"]
+                if should_log_to_stdout()
+                else [],
                 "propagate": False,
             },
             "error": {
@@ -377,7 +420,13 @@ def setup_logging() -> None:
             },
             "audit": {
                 "level": "INFO",
-                "handlers": ["file_audit"] if should_log_to_file() else [],
+                "handlers": ["file_audit", "console_audit"]
+                if should_log_to_file() and should_log_to_stdout()
+                else ["file_audit"]
+                if should_log_to_file()
+                else ["console_audit"]
+                if should_log_to_stdout()
+                else [],
                 "propagate": False,
             },
         },
@@ -437,6 +486,7 @@ def cleanup_old_logs(
         Number of files removed.
     """
     from datetime import datetime, timedelta
+    import re
 
     if log_dir is None:
         log_dir = get_log_directory()
@@ -450,26 +500,22 @@ def cleanup_old_logs(
     cutoff_time = datetime.now() - timedelta(days=retention_days)
     files_removed = 0
 
-    # Log file patterns to clean up
-    log_patterns = [
-        "application.log",
-        "access.log",
-        "error.log",
-        "audit.log",
-    ]
+    # Log file prefixes to clean up (without .log extension)
+    # Only match files that are explicitly our log files
+    log_prefixes = ["application", "access", "error", "audit"]
 
     for log_file in log_dir.iterdir():
         if not log_file.is_file():
             continue
 
-        # Check if it's a log file or rotated log file
-        is_log_file = (
-            any(
-                log_file.name.startswith(pattern.replace(".log", ""))
-                for pattern in log_patterns
-            )
-            or log_file.suffix == ".log"
-        )
+        # Check if it's one of our log files (e.g., application.log, application.log.1)
+        # Pattern: prefix.log or prefix.log.N where N is a number
+        is_log_file = False
+        for prefix in log_prefixes:
+            # Match: prefix.log or prefix.log.N (where N is a digit)
+            if re.match(rf"^{prefix}\.log(\.\d+)?$", log_file.name):
+                is_log_file = True
+                break
 
         if not is_log_file:
             continue

@@ -212,12 +212,13 @@ async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
             raise NotFoundException("Bounty", bounty_id)
         raise HTTPException(status_code=400, detail=error)
 
-    # Audit log
+    # Audit log - use BOUNTY_ESCALATED for status changes, not BOUNTY_COMPLETED
     audit_log(
-        action=AuditAction.BOUNTY_COMPLETED,
+        action=AuditAction.BOUNTY_ESCALATED,
         actor="api",
         resource="bounty",
         resource_id=bounty_id,
+        metadata={"update_fields": data.model_dump(exclude_unset=True)},
     )
 
     return result
