@@ -1,15 +1,17 @@
 """Health check endpoint for uptime monitoring and load balancers."""
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from redis.asyncio import RedisError, from_url
 
 from app.database import engine
 from app.constants import START_TIME
-from app.services.websocket_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +22,25 @@ async def _check_database() -> str:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return "connected"
-    except Exception as e:
-        logger.warning("Health check DB failure: %s", e)
+    except SQLAlchemyError:
+        logger.warning("Health check DB failure: connection error")
+        return "disconnected"
+    except Exception:
+        logger.warning("Health check DB failure: unexpected error")
         return "disconnected"
 
 async def _check_redis() -> str:
     try:
-        if hasattr(ws_manager._adapter, "_redis") and ws_manager._adapter._redis is not None:
-            await ws_manager._adapter._redis.ping()
-            return "connected"
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        client = from_url(redis_url, decode_responses=True)
+        async with client:
+            await client.ping()
+        return "connected"
+    except RedisError:
+        logger.warning("Health check Redis failure: connection error")
         return "disconnected"
-    except Exception as e:
-        logger.warning("Health check Redis failure: %s", e)
+    except Exception:
+        logger.warning("Health check Redis failure: unexpected error")
         return "disconnected"
 
 @router.get("/health", summary="Service health check")
