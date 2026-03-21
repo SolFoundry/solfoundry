@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests base58
+        run: pip install openai anthropic requests base58
 
       - name: Fetch review engine (private)
         env:
@@ -489,12 +489,14 @@ jobs:
               print("No CodeRabbit data available — LLMs will review without it")
           PYEOF
 
-      - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
+      - name: Multi-LLM Review (5 models — GPT-5.4 + Gemini + Grok + Sonnet + DeepSeek)
         if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
