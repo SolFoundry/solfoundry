@@ -60,7 +60,16 @@ export function BadgeGrid({
   const earnedCount = badges.filter(b => b.earned).length;
   const totalCount = badges.length;
 
+  // Handle empty states - earnedOnly-specific message must come before generic empty state
   if (displayBadges.length === 0) {
+    if (earnedOnly) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          <p className="text-lg">No badges earned yet</p>
+          <p className="text-sm mt-1">Keep contributing to unlock achievements!</p>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-8 text-gray-400">
         <p className="text-lg">No badges yet</p>
@@ -98,14 +107,6 @@ export function BadgeGrid({
           />
         ))}
       </div>
-
-      {/* Empty State for Earned Only */}
-      {earnedOnly && displayBadges.length === 0 && (
-        <div className="text-center py-8 text-gray-400">
-          <p className="text-lg">No badges earned yet</p>
-          <p className="text-sm mt-1">Keep contributing to unlock achievements!</p>
-        </div>
-      )}
     </div>
   );
 }

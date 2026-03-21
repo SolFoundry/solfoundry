@@ -93,9 +93,10 @@ describe('Badge', () => {
   it('shows lock overlay for unearned badges', () => {
     render(<Badge badge={mockBadge} earned={false} />);
     
-    // Check that the lock icon is present (using SVG path)
-    const lockIcon = document.querySelector('svg');
+    // Check that the lock icon is present using specific test id
+    const lockIcon = screen.getByTestId('badge-lock');
     expect(lockIcon).toBeInTheDocument();
+    expect(lockIcon).toHaveAttribute('aria-label', 'Locked');
   });
 
   it('applies different category styles in tooltip', async () => {

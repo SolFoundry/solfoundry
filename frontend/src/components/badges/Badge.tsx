@@ -25,6 +25,9 @@ export function Badge({
 }: BadgeProps): React.ReactElement {
   const [showTooltip, setShowTooltip] = useState(false);
 
+  // Clamp progress to [0, 100] range to prevent invalid visual rendering
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+
   // Size classes
   const sizeClasses = {
     sm: 'w-12 h-12 text-xl',
@@ -76,6 +79,8 @@ export function Badge({
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
+              aria-label="Locked"
+              data-testid="badge-lock"
             >
               <path
                 strokeLinecap="round"
@@ -87,7 +92,7 @@ export function Badge({
         )}
 
         {/* Progress Ring for Unearned Badges */}
-        {!earned && progress > 0 && (
+        {!earned && clampedProgress > 0 && (
           <svg
             className="absolute inset-0 w-full h-full -rotate-90"
             viewBox="0 0 64 64"
@@ -108,7 +113,7 @@ export function Badge({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              strokeDasharray={`${(progress / 100) * 188.5} 188.5`}
+              strokeDasharray={`${(clampedProgress / 100) * 188.5} 188.5`}
               className="text-[#14F195]"
             />
           </svg>
@@ -150,16 +155,16 @@ export function Badge({
           )}
 
           {/* Progress for Unearned */}
-          {!earned && progress > 0 && (
+          {!earned && clampedProgress > 0 && (
             <div className="mt-2">
               <div className="flex justify-between text-xs text-gray-400 mb-1">
                 <span>Progress</span>
-                <span>{Math.round(progress)}%</span>
+                <span>{Math.round(clampedProgress)}%</span>
               </div>
               <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${clampedProgress}%` }}
                 />
               </div>
             </div>

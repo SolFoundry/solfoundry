@@ -5,13 +5,14 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useBadges, useBadgeCount } from './useBadges';
+import { BADGE_DEFINITIONS } from '../config/badges';
 import type { ContributorStats } from '../types/badge';
 
 describe('useBadges', () => {
   it('returns all badges as unearned when stats is null', () => {
     const { result } = renderHook(() => useBadges(null));
     
-    expect(result.current).toHaveLength(7); // Total number of badges
+    expect(result.current).toHaveLength(BADGE_DEFINITIONS.length); // Use dynamic badge count
     result.current.forEach(badge => {
       expect(badge.earned).toBe(false);
       expect(badge.progress).toBe(0);

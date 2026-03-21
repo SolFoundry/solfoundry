@@ -73,7 +73,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
       </div>
 
       {/* Badge Grid Section */}
-      {badges.length > 0 && (
+      {contributorStats && (
         <div className="mb-6 pt-4 border-t border-gray-800">
           <BadgeGrid badges={badges} columns={4} />
         </div>
