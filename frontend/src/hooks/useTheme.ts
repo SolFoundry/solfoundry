@@ -4,8 +4,7 @@
  * Features:
  * - Persist theme preference in localStorage
  * - Respect system preference (prefers-color-scheme) as default
- * - Smooth transition between themes
- * - Apply dark class to document.documentElement
+ * - Apply dark class to document.documentElement (Tailwind standard)
  */
 import { useState, useEffect, useCallback } from 'react';
 
@@ -31,32 +30,22 @@ function getStoredTheme(): Theme | null {
     if (stored === 'light' || stored === 'dark') return stored;
     return null;
   } catch {
-    // localStorage may be unavailable in restricted environments
     return null;
   }
 }
 
 /**
- * Apply theme to the document
+ * Apply theme to the document using Tailwind's class strategy
+ * Only toggles the 'dark' class - absence means light mode
  */
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   
-  // Add transition class for smooth theme change
-  root.classList.add('theme-transition');
-  
   if (theme === 'dark') {
     root.classList.add('dark');
-    root.classList.remove('light');
   } else {
-    root.classList.add('light');
     root.classList.remove('dark');
   }
-  
-  // Remove transition class after animation
-  setTimeout(() => {
-    root.classList.remove('theme-transition');
-  }, 300);
 }
 
 /**
@@ -70,7 +59,6 @@ export function useTheme(): {
   setTheme: (theme: Theme) => void;
 } {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Priority: localStorage > system preference > default (dark)
     const stored = getStoredTheme();
     if (stored) return stored;
     return getSystemPreference();
@@ -86,7 +74,6 @@ export function useTheme(): {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const handleChange = (e: MediaQueryListEvent) => {
-      // Only update if user hasn't set a preference
       if (!getStoredTheme()) {
         setThemeState(e.matches ? 'dark' : 'light');
       }
@@ -104,7 +91,7 @@ export function useTheme(): {
     try {
       localStorage.setItem(STORAGE_KEY, newTheme);
     } catch {
-      // localStorage may be unavailable in restricted environments
+      // localStorage may be unavailable
     }
   }, []);
 
