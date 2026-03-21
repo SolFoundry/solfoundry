@@ -31,15 +31,39 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 async def _escrow_expiry_loop() -> None:
-    """Auto-refund expired escrows every 5 min via SPL transfers."""
+    """Auto-refund expired escrows every 5 minutes via SPL transfers.
+
+    Tracks consecutive sweep failures for monitoring.  Each escrow is
+    processed individually within ``process_expired_escrows`` so a single
+    failure does not block others.
+    """
     from app.database import get_db_session
+
+    consecutive_failures: int = 0
     while True:
         try:
-            async with get_db_session() as s:
-                r = await process_expired_escrows(s)
-                if r: logger.info("Auto-refunded %d expired escrows", len(r))
-        except Exception as e:
-            logger.error("Escrow expiry sweep failed: %s", e)
+            async with get_db_session() as session:
+                refunded = await process_expired_escrows(session)
+                if refunded:
+                    logger.info(
+                        "Auto-refunded %d expired escrows: %s",
+                        len(refunded),
+                        refunded,
+                    )
+            consecutive_failures = 0
+        except Exception as exc:
+            consecutive_failures += 1
+            logger.error(
+                "Escrow expiry sweep failed (consecutive: %d): %s",
+                consecutive_failures,
+                exc,
+            )
+            if consecutive_failures >= 5:
+                logger.critical(
+                    "Escrow expiry loop has failed %d consecutive times — "
+                    "manual intervention may be required",
+                    consecutive_failures,
+                )
         await asyncio.sleep(300)
 
 @asynccontextmanager
