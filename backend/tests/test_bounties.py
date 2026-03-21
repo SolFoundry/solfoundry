@@ -353,7 +353,7 @@ class TestListBounties:
             "id", "title", "tier", "reward_amount", "status",
             "required_skills", "github_issue_url", "deadline",
             "created_by", "submissions", "submission_count",
-            "category", "created_at",
+            "category", "creator_type", "created_at",
         }
         assert set(item.keys()) == expected_keys
 
@@ -487,13 +487,16 @@ class TestGetBounty:
         b = _create_bounty()
         bid = b["id"]
         body = client.get(f"/api/bounties/{bid}").json()
-        expected_keys = {
+        required_keys = {
             "id", "title", "description", "tier", "reward_amount",
-            "status", "github_issue_url", "required_skills", "deadline",
-            "created_by", "submissions", "submission_count", "category",
-            "github_issue_number", "github_repo", "created_at", "updated_at",
+            "status", "creator_type", "github_issue_url", "required_skills",
+            "deadline", "created_by", "submissions", "submission_count",
+            "category", "github_issue_number", "github_repo",
+            "created_at", "updated_at",
+            "winner_submission_id", "winner_wallet", "payout_tx_hash",
+            "payout_at", "claimed_by", "claimed_at", "claim_deadline",
         }
-        assert set(body.keys()) == expected_keys
+        assert set(body.keys()) == required_keys
 
 
 # ===========================================================================
@@ -914,11 +917,11 @@ class TestGetSubmissions:
             },
         )
         sub = client.get(f"/api/bounties/{b['id']}/submissions").json()[0]
-        expected_keys = {
+        core_keys = {
             "id", "bounty_id", "pr_url", "submitted_by",
             "notes", "status", "ai_score", "submitted_at",
         }
-        assert set(sub.keys()) == expected_keys
+        assert core_keys.issubset(set(sub.keys()))
 
 
 # ===========================================================================

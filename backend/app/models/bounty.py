@@ -290,8 +290,10 @@ class BountyDB(BaseModel):
     title: str
     description: str = ""
     tier: BountyTier = BountyTier.T2
+    category: Optional[str] = None
     reward_amount: float
     status: BountyStatus = BountyStatus.OPEN
+    creator_type: str = "platform"
     github_issue_url: Optional[str] = None
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
@@ -314,6 +316,7 @@ class BountyResponse(BountyBase):
 
     id: str = Field(..., description="Unique UUID for the bounty", examples=["550e8400-e29b-41d4-a716-446655440000"])
     status: BountyStatus = Field(..., description="Current state of the bounty", examples=[BountyStatus.OPEN])
+    creator_type: str = Field("platform", description="'platform' for official bounties, 'community' for user-created")
     created_at: datetime = Field(..., description="Timestamp when the bounty was created")
     updated_at: datetime = Field(..., description="Timestamp of the last update")
     github_issue_number: Optional[int] = Field(None, description="The GitHub issue number", examples=[123])
@@ -322,7 +325,6 @@ class BountyResponse(BountyBase):
     winner_wallet: Optional[str] = Field(None, description="Wallet address of the winner")
     payout_tx_hash: Optional[str] = Field(None, description="Solana transaction hash for the payout")
     payout_at: Optional[datetime] = Field(None, description="When the payout was made")
-    # Claim fields
     claimed_by: Optional[str] = Field(None, description="Who claimed this bounty (T2/T3)")
     claimed_at: Optional[datetime] = Field(None, description="When the bounty was claimed")
     claim_deadline: Optional[datetime] = Field(None, description="Deadline for the claim")
@@ -341,6 +343,7 @@ class BountyListItem(BaseModel):
     reward_amount: float
     status: BountyStatus
     category: Optional[str] = None
+    creator_type: str = "platform"
     required_skills: list[str] = Field(default_factory=list)
     github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
@@ -433,6 +436,7 @@ class BountySearchResult(BountyListItem):
     """A single search result with relevance metadata."""
 
     description: str = ""
+    creator_type: str = "platform"
     relevance_score: float = 0.0
     skill_match_count: int = 0
 

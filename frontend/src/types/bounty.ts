@@ -65,6 +65,8 @@ export interface LifecycleLogEntry {
   created_at: string;
 }
 
+export type CreatorType = 'platform' | 'community';
+
 export interface Bounty {
   id: string;
   title: string;
@@ -78,6 +80,7 @@ export interface Bounty {
   submissionCount: number;
   createdAt: string;
   projectName: string;
+  creatorType: CreatorType;
   githubIssueUrl?: string;
   relevanceScore?: number;
   skillMatchCount?: number;
