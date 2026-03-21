@@ -1,8 +1,9 @@
-"""In-memory payout service (MVP -- data lost on restart, DB coming later)."""
+"""In-memory payout service with pipeline transitions (MVP)."""
 
 from __future__ import annotations
 
 import threading
+from datetime import datetime, timezone
 from typing import Optional
 from app.core.audit import audit_event
 
@@ -16,11 +17,13 @@ from app.models.payout import (
     PayoutResponse,
     PayoutListResponse,
     PayoutStatus,
+    PipelineStatusResponse,
 )
 
 _lock = threading.Lock()
 _payout_store: dict[str, PayoutRecord] = {}
 _buyback_store: dict[str, BuybackRecord] = {}
+_payout_locks: set[str] = set()
 
 SOLSCAN_TX_BASE = "https://solscan.io/tx"
 
@@ -45,7 +48,12 @@ def _payout_to_response(p: PayoutRecord) -> PayoutResponse:
         tx_hash=p.tx_hash,
         status=p.status,
         solscan_url=p.solscan_url,
+        admin_approved=p.admin_approved,
+        approved_by=p.approved_by,
+        retry_count=p.retry_count,
+        failure_reason=p.failure_reason,
         created_at=p.created_at,
+        updated_at=p.updated_at,
     )
 
 
@@ -76,6 +84,7 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
         tx_hash=data.tx_hash,
         status=status,
         solscan_url=solscan,
+        admin_approved=bool(data.tx_hash),
     )
     with _lock:
         if data.tx_hash:
@@ -114,6 +123,7 @@ def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
 def list_payouts(
     recipient: Optional[str] = None,
     status: Optional[PayoutStatus] = None,
+    bounty_id: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> PayoutListResponse:
@@ -126,6 +136,8 @@ def list_payouts(
         results = [p for p in results if p.recipient == recipient]
     if status:
         results = [p for p in results if p.status == status]
+    if bounty_id:
+        results = [p for p in results if p.bounty_id == bounty_id]
     total = len(results)
     page = results[skip : skip + limit]
     return PayoutListResponse(
@@ -204,8 +216,117 @@ def get_total_buybacks() -> tuple[float, float]:
     return total_sol, total_fndry
 
 
+def _require(payout_id: str, expected: PayoutStatus) -> PayoutRecord:
+    """Get a payout record and verify its status, raising ValueError if invalid."""
+    r = _payout_store.get(payout_id)
+    if not r:
+        raise ValueError(f"Payout {payout_id} not found")
+    if r.status != expected:
+        raise ValueError(f"Payout {payout_id} is {r.status.value}, expected {expected.value}")
+    return r
+
+
+def approve_payout(payout_id: str, admin_id: str) -> PayoutResponse:
+    """Mark a pending payout as admin-approved."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.PENDING)
+        r.admin_approved = True
+        r.approved_by = admin_id
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def reject_payout(payout_id: str, admin_id: str, reason: str) -> PayoutResponse:
+    """Reject a pending payout, marking it as failed."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.PENDING)
+        r.status = PayoutStatus.FAILED
+        r.approved_by = admin_id
+        r.failure_reason = reason
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def acquire_payout_lock(bounty_id: str) -> bool:
+    """Acquire exclusive processing lock (double-pay prevention)."""
+    with _lock:
+        if bounty_id in _payout_locks:
+            return False
+        _payout_locks.add(bounty_id)
+        return True
+
+
+def release_payout_lock(bounty_id: str) -> None:
+    """Release the processing lock for a bounty payout."""
+    with _lock:
+        _payout_locks.discard(bounty_id)
+
+
+def transition_to_processing(payout_id: str) -> PayoutResponse:
+    """Move a payout from PENDING to PROCESSING."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.PENDING)
+        if not r.admin_approved:
+            raise ValueError(f"Payout {payout_id} not admin-approved")
+        r.status = PayoutStatus.PROCESSING
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def transition_to_confirmed(payout_id: str, tx_hash: str) -> PayoutResponse:
+    """Move a payout from PROCESSING to CONFIRMED with tx hash."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.PROCESSING)
+        r.status = PayoutStatus.CONFIRMED
+        r.tx_hash = tx_hash
+        r.solscan_url = _solscan_url(tx_hash)
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def transition_to_failed(payout_id: str, reason: str, increment_retry: bool = True) -> PayoutResponse:
+    """Move a payout from PROCESSING to FAILED."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.PROCESSING)
+        r.status = PayoutStatus.FAILED
+        r.failure_reason = reason
+        if increment_retry:
+            r.retry_count += 1
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def retry_failed_payout(payout_id: str) -> PayoutResponse:
+    """Reset a FAILED payout back to PENDING for retry."""
+    with _lock:
+        r = _require(payout_id, PayoutStatus.FAILED)
+        r.status = PayoutStatus.PENDING
+        r.failure_reason = None
+        r.updated_at = datetime.now(timezone.utc)
+    return _payout_to_response(r)
+
+
+def get_pipeline_status() -> PipelineStatusResponse:
+    """Return aggregate counts and amounts for each pipeline status."""
+    counts = {s: 0 for s in PayoutStatus}
+    pending_amt = confirmed_amt = 0.0
+    with _lock:
+        for p in _payout_store.values():
+            counts[p.status] += 1
+            if p.status == PayoutStatus.PENDING:
+                pending_amt += p.amount
+            elif p.status == PayoutStatus.CONFIRMED:
+                confirmed_amt += p.amount
+    return PipelineStatusResponse(
+        pending_count=counts[PayoutStatus.PENDING], processing_count=counts[PayoutStatus.PROCESSING],
+        confirmed_count=counts[PayoutStatus.CONFIRMED], failed_count=counts[PayoutStatus.FAILED],
+        total_pending_amount=pending_amt, total_confirmed_amount=confirmed_amt,
+    )
+
+
 def reset_stores() -> None:
     """Clear all in-memory data.  Used by tests and development resets."""
     with _lock:
         _payout_store.clear()
         _buyback_store.clear()
+        _payout_locks.clear()

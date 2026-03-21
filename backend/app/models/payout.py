@@ -1,7 +1,7 @@
 """Payout, treasury, and tokenomics Pydantic v2 models.
 
 Defines strict domain types for the bounty payout system including
-wallet-address and transaction-hash validation.
+wallet-address and transaction-hash validation, pipeline queue, and admin gate.
 """
 
 from __future__ import annotations
@@ -19,11 +19,17 @@ _BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 # Solana tx signature: 64-88 base-58 chars
 _TX_HASH_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
+KNOWN_PROGRAM_ADDRESSES: set[str] = {
+    "11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+}
+
 
 class PayoutStatus(str, Enum):
-    """Lifecycle states for a payout."""
+    """Lifecycle: pending -> processing -> confirmed | failed."""
 
     PENDING = "pending"
+    PROCESSING = "processing"
     CONFIRMED = "confirmed"
     FAILED = "failed"
 
@@ -41,7 +47,14 @@ class PayoutRecord(BaseModel):
     tx_hash: Optional[str] = None
     status: PayoutStatus = PayoutStatus.PENDING
     solscan_url: Optional[str] = None
+    admin_approved: bool = False
+    approved_by: Optional[str] = None
+    retry_count: int = Field(default=0, ge=0)
+    failure_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"from_attributes": True}
 
     @field_validator("recipient_wallet")
     @classmethod
@@ -101,7 +114,14 @@ class PayoutResponse(BaseModel):
     tx_hash: Optional[str] = None
     status: PayoutStatus
     solscan_url: Optional[str] = None
+    admin_approved: bool = False
+    approved_by: Optional[str] = None
+    retry_count: int = 0
+    failure_reason: Optional[str] = None
     created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class PayoutListResponse(BaseModel):
@@ -111,6 +131,35 @@ class PayoutListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class AdminApprovalRequest(BaseModel):
+    """Admin approval or rejection of a pending payout."""
+
+    payout_id: str = Field(..., min_length=1)
+    approved: bool
+    admin_id: str = Field(..., min_length=1, max_length=100)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class PipelineStatusResponse(BaseModel):
+    """Aggregate counts for each pipeline status."""
+
+    pending_count: int = 0
+    processing_count: int = 0
+    confirmed_count: int = 0
+    failed_count: int = 0
+    total_pending_amount: float = 0.0
+    total_confirmed_amount: float = 0.0
+
+
+class WalletValidationResponse(BaseModel):
+    """Result of validating a Solana wallet address."""
+
+    wallet_address: str
+    is_valid: bool
+    is_program_address: bool = False
+    rejection_reason: Optional[str] = None
 
 
 class TreasuryStats(BaseModel):

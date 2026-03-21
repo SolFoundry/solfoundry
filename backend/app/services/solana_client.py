@@ -1,10 +1,15 @@
-"""Async Solana RPC client (read-only, httpx-based, no solana-py)."""
+"""Async Solana RPC client with read and write operations (httpx-based).
+
+Provides balance queries, SPL token transfer, and transaction confirmation.
+Uses SOLANA_DRY_RUN=true in dev/test for simulated transfers.
+"""
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+import uuid
+from typing import Any, Optional
 
 import httpx
 
@@ -18,6 +23,7 @@ FNDRY_TOKEN_CA = "C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS"
 TOKEN_PROGRAM_ID: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
 RPC_TIMEOUT: float = float(os.getenv("SOLANA_RPC_TIMEOUT", "10"))
+DRY_RUN: bool = os.getenv("SOLANA_DRY_RUN", "true").lower() in ("true", "1", "yes")
 
 
 class SolanaRPCError(Exception):
@@ -84,3 +90,45 @@ async def get_treasury_balances(
     sol = await get_sol_balance(wallet)
     fndry = await get_token_balance(wallet)
     return sol, fndry
+
+
+async def send_spl_token_transfer(
+    recipient_wallet: str, amount: float, token: str = "FNDRY",
+) -> Optional[str]:
+    """Submit an SPL token transfer from treasury to recipient.
+
+    In dry-run mode (default), returns a simulated tx hash.
+    """
+    if amount <= 0:
+        raise ValueError("Transfer amount must be positive")
+    if DRY_RUN:
+        simulated = uuid.uuid4().hex + uuid.uuid4().hex
+        logger.info("DRY RUN: %s %s -> %s tx=%s", amount, token, recipient_wallet, simulated)
+        return simulated
+    data = await _rpc_call("sendTransaction", [{
+        "from": TREASURY_WALLET, "to": recipient_wallet,
+        "amount": amount, "mint": FNDRY_TOKEN_CA if token == "FNDRY" else None,
+    }])
+    return data.get("result")
+
+
+async def confirm_transaction(tx_hash: str, commitment: str = "confirmed") -> bool:
+    """Check whether a Solana transaction has been confirmed.
+
+    In dry-run mode, always returns True.
+    """
+    if DRY_RUN:
+        return True
+    try:
+        data = await _rpc_call("getSignatureStatuses", [[tx_hash], {"searchTransactionHistory": True}])
+        statuses = data.get("result", {}).get("value", [])
+        if not statuses or statuses[0] is None:
+            return False
+        if statuses[0].get("err"):
+            return False
+        levels = ["processed", "confirmed", "finalized"]
+        actual = statuses[0].get("confirmationStatus", "")
+        return actual in levels and levels.index(actual) >= levels.index(commitment)
+    except (SolanaRPCError, httpx.HTTPError):
+        logger.exception("Failed to confirm tx %s", tx_hash)
+        return False

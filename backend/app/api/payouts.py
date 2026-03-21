@@ -1,14 +1,14 @@
-"""Payout, treasury, and tokenomics API endpoints (in-memory MVP)."""
+"""Payout, treasury, tokenomics, and pipeline API endpoints."""
 
 from __future__ import annotations
 
 import re
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
-from app.models.errors import ErrorResponse
+from fastapi import APIRouter, HTTPException, Query
 
 from app.models.payout import (
+    AdminApprovalRequest,
     BuybackCreate,
     BuybackListResponse,
     BuybackResponse,
@@ -16,15 +16,27 @@ from app.models.payout import (
     PayoutListResponse,
     PayoutResponse,
     PayoutStatus,
+    PipelineStatusResponse,
     TokenomicsResponse,
     TreasuryStats,
+    WalletValidationResponse,
+)
+from app.services.payout_pipeline import (
+    process_approved_queue,
+    process_single_payout,
+    validate_wallet_address,
 )
 from app.services.payout_service import (
+    approve_payout,
     create_buyback,
     create_payout,
+    get_payout_by_id,
     get_payout_by_tx_hash,
+    get_pipeline_status,
     list_buybacks,
     list_payouts,
+    reject_payout,
+    retry_failed_payout,
 )
 from app.services.treasury_service import (
     get_tokenomics,
@@ -32,40 +44,39 @@ from app.services.treasury_service import (
     invalidate_cache,
 )
 
-router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
+router = APIRouter(prefix="/api", tags=["payouts", "treasury"])
 
 # Relaxed: accept base-58 (Solana) and hex (EVM) transaction hashes.
 _TX_HASH_RE = re.compile(r"^[0-9a-fA-F]{64}$|^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
 
-@router.get(
-    "/payouts",
-    response_model=PayoutListResponse,
-    summary="List payout history",
-    description="Retrieve a paginated history of all bounty payouts, filtered by recipient or status.",
-)
+@router.get("/payouts", response_model=PayoutListResponse)
 async def get_payouts(
     recipient: Optional[str] = Query(
         None, min_length=1, max_length=100, description="Filter by recipient username"
     ),
     status: Optional[PayoutStatus] = Query(None, description="Filter by payout status"),
+    bounty_id: Optional[str] = Query(None, min_length=1, max_length=100, description="Filter by bounty ID"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> PayoutListResponse:
     """Return paginated payout history with optional filters."""
-    return list_payouts(recipient=recipient, status=status, skip=skip, limit=limit)
+    return list_payouts(recipient=recipient, status=status, bounty_id=bounty_id, skip=skip, limit=limit)
 
 
-@router.get(
-    "/payouts/{tx_hash}",
-    response_model=PayoutResponse,
-    summary="Get payout by transaction",
-    description="Retrieve details for a specific payout using its Solana transaction signature.",
-    responses={
-        400: {"model": ErrorResponse, "description": "Invalid transaction hash format"},
-        404: {"model": ErrorResponse, "description": "Payout not found"},
-    },
-)
+@router.get("/payouts/pipeline/status", response_model=PipelineStatusResponse)
+async def pipeline_status() -> PipelineStatusResponse:
+    """Return aggregate counts and amounts for each pipeline status."""
+    return get_pipeline_status()
+
+
+@router.get("/payouts/validate-wallet/{wallet_address}", response_model=WalletValidationResponse)
+async def validate_wallet(wallet_address: str) -> WalletValidationResponse:
+    """Validate a Solana wallet address (format + program address check)."""
+    return validate_wallet_address(wallet_address)
+
+
+@router.get("/payouts/{tx_hash}", response_model=PayoutResponse)
 async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     """Single payout by tx hash; 400 for bad format, 404 if missing."""
     if not _TX_HASH_RE.match(tx_hash):
@@ -81,16 +92,7 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     return payout
 
 
-@router.post(
-    "/payouts",
-    response_model=PayoutResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Record a payout",
-    description="Manually record a successful bounty payout. Invalidates treasury cache.",
-    responses={
-        409: {"model": ErrorResponse, "description": "Duplicate transaction hash"},
-    },
-)
+@router.post("/payouts", response_model=PayoutResponse, status_code=201)
 async def record_payout(data: PayoutCreate) -> PayoutResponse:
     """Record a new payout.  Invalidates the treasury cache on success."""
     try:
@@ -101,12 +103,49 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
     return result
 
 
-@router.get(
-    "/treasury",
-    response_model=TreasuryStats,
-    summary="Get treasury statistics",
-    description="Returns live balances for SOL and FNDRY, along with cumulative distribution metrics.",
-)
+@router.post("/payouts/approve", response_model=PayoutResponse)
+async def admin_approve_payout(request: AdminApprovalRequest) -> PayoutResponse:
+    """Admin approval or rejection gate for a pending payout."""
+    try:
+        if request.approved:
+            return approve_payout(request.payout_id, request.admin_id)
+        return reject_payout(request.payout_id, request.admin_id, request.reason or "Rejected by admin")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/payouts/process-queue", response_model=list[PayoutResponse])
+async def trigger_process_queue() -> list[PayoutResponse]:
+    """Process all approved pending payouts in the queue."""
+    results = await process_approved_queue()
+    if results:
+        invalidate_cache()
+    return results
+
+
+@router.post("/payouts/{payout_id}/process", response_model=PayoutResponse)
+async def trigger_process_payout(payout_id: str) -> PayoutResponse:
+    """Trigger pipeline processing for a single approved payout."""
+    if get_payout_by_id(payout_id) is None:
+        raise HTTPException(status_code=404, detail=f"Payout {payout_id} not found")
+    try:
+        result = await process_single_payout(payout_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    invalidate_cache()
+    return result
+
+
+@router.post("/payouts/{payout_id}/retry", response_model=PayoutResponse)
+async def trigger_retry_payout(payout_id: str) -> PayoutResponse:
+    """Reset a FAILED payout back to PENDING for retry."""
+    try:
+        return retry_failed_payout(payout_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/treasury", response_model=TreasuryStats)
 async def treasury_stats() -> TreasuryStats:
     """Live treasury balance (SOL + $FNDRY), total paid out, total buybacks."""
     return await get_treasury_stats()
