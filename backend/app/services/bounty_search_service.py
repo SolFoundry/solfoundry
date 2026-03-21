@@ -303,6 +303,7 @@ def _match_text(query: str, *fields: str) -> float:
 
 
 def _sort_key(b: BountyDB, sort: str, query: str):
+    """Return a sort key tuple for the given sort mode."""
     if sort == "reward_high":
         return (-b.reward_amount,)
     if sort == "reward_low":
@@ -496,9 +497,11 @@ class BountySearchService:
     """Unified search interface. Uses PostgreSQL when available, memory otherwise."""
 
     def __init__(self, session: Optional[AsyncSession] = None):
+        """Initialize the instance."""
         self._session = session
 
     async def _has_db(self) -> bool:
+        """Check if a working PostgreSQL connection is available."""
         if self._session is None:
             return False
         try:
@@ -508,16 +511,19 @@ class BountySearchService:
             return False
 
     async def search(self, params: BountySearchParams) -> BountySearchResponse:
+        """Search bounties using DB when available, else memory."""
         if await self._has_db():
             return await search_bounties_db(self._session, params)
         return search_bounties_memory(params)
 
     async def autocomplete(self, q: str, limit: int = 8) -> AutocompleteResponse:
+        """Return autocomplete suggestions."""
         if await self._has_db():
             return await autocomplete_db(self._session, q, limit)
         return autocomplete_memory(q, limit)
 
     async def hot_bounties(self, limit: int = 6) -> list[BountySearchResult]:
+        """Return trending bounties from recent activity."""
         if await self._has_db():
             return await get_hot_bounties_db(self._session, limit)
         return get_hot_bounties_memory(limit)
@@ -528,6 +534,7 @@ class BountySearchService:
         completed_bounty_ids: Optional[list[str]] = None,
         limit: int = 6,
     ) -> list[BountySearchResult]:
+        """Return skill-matched bounty recommendations."""
         if await self._has_db():
             return await get_recommended_bounties_db(
                 self._session, user_skills, completed_bounty_ids or [], limit
