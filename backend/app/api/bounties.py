@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user_id
 from app.database import get_db
 from app.models.bounty import (
     AutocompleteResponse,
@@ -21,6 +22,7 @@ from app.models.bounty import (
     BountyStatus,
     BountyTier,
     BountyUpdate,
+    CreatorType,
     SubmissionCreate,
     SubmissionResponse,
 )
@@ -36,7 +38,8 @@ router = APIRouter(prefix="/api/bounties", tags=["bounties"])
     status_code=201,
     summary="Create a new bounty",
 )
-async def create_bounty(data: BountyCreate) -> BountyResponse:
+async def create_bounty(data: BountyCreate, _u: str = Depends(get_current_user_id)) -> BountyResponse:
+    """Create a new bounty (authenticated)."""
     return bounty_service.create_bounty(data)
 
 
@@ -51,14 +54,42 @@ async def list_bounties(
     skills: Optional[str] = Query(
         None, description="Comma-separated skill filter (case-insensitive)"
     ),
+    creator_type: Optional[str] = Query(
+        None,
+        pattern=r"^(platform|community)$",
+        description="Filter by creator type: platform or community",
+    ),
+    reward_min: Optional[float] = Query(
+        None, ge=0, description="Minimum reward amount"
+    ),
+    reward_max: Optional[float] = Query(
+        None, ge=0, description="Maximum reward amount"
+    ),
+    sort: str = Query(
+        "newest",
+        description="Sort order: newest, reward_high, reward_low, deadline, submissions",
+    ),
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(20, ge=1, le=100, description="Page size"),
 ) -> BountyListResponse:
+    """List bounties with filtering, sorting, and pagination.
+
+    Supports filtering by status, tier, skills, creator type, and reward range.
+    Sort by newest, highest/lowest reward, deadline soonest, or fewest submissions.
+    """
     skill_list = (
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
     return bounty_service.list_bounties(
-        status=status, tier=tier, skills=skill_list, skip=skip, limit=limit
+        status=status,
+        tier=tier,
+        skills=skill_list,
+        creator_type=creator_type,
+        reward_min=reward_min,
+        reward_max=reward_max,
+        sort=sort,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -179,7 +210,7 @@ async def get_bounty(bounty_id: str) -> BountyResponse:
     response_model=BountyResponse,
     summary="Partially update a bounty",
 )
-async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
+async def update_bounty(bounty_id: str, data: BountyUpdate, _u: str = Depends(get_current_user_id)) -> BountyResponse:
     result, error = bounty_service.update_bounty(bounty_id, data)
     if error:
         status_code = 404 if "not found" in error.lower() else 400
@@ -192,7 +223,8 @@ async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
     status_code=204,
     summary="Delete a bounty",
 )
-async def delete_bounty(bounty_id: str) -> None:
+async def delete_bounty(bounty_id: str, _u: str = Depends(get_current_user_id)) -> None:
+    """Delete a bounty by ID (authenticated)."""
     if not bounty_service.delete_bounty(bounty_id):
         raise HTTPException(status_code=404, detail="Bounty not found")
 
@@ -203,7 +235,7 @@ async def delete_bounty(bounty_id: str) -> None:
     status_code=201,
     summary="Submit a PR solution for a bounty",
 )
-async def submit_solution(bounty_id: str, data: SubmissionCreate) -> SubmissionResponse:
+async def submit_solution(bounty_id: str, data: SubmissionCreate, _u: str = Depends(get_current_user_id)) -> SubmissionResponse:
     result, error = bounty_service.submit_solution(bounty_id, data)
     if error:
         status_code = 404 if "not found" in error.lower() else 400

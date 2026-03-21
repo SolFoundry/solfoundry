@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useBountyBoard } from '../../hooks/useBountyBoard';
 import { BountyFilters } from './BountyFilters';
 import { BountySortBar } from './BountySortBar';
@@ -7,7 +8,26 @@ import { HotBounties } from './HotBounties';
 import { RecommendedBounties } from './RecommendedBounties';
 import { Pagination } from './Pagination';
 
+/** Grid icon for the layout toggle button. */
+function GridIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+  );
+}
+
+/** List icon for the layout toggle button. */
+function ListIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
 export function BountyBoard() {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const {
     bounties, total, filters, sortBy, loading, page, totalPages,
     hotBounties, recommendedBounties,
@@ -43,8 +63,30 @@ export function BountyBoard() {
         <RecommendedBounties bounties={recommendedBounties} />
       )}
 
-      <div className="mt-4 mb-3">
+      <div className="mt-4 mb-3 flex items-center justify-between">
         <BountySortBar sortBy={sortBy} onSortChange={setSortBy} />
+        <div className="flex items-center gap-1 ml-3" data-testid="view-toggle">
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={'rounded p-1.5 transition-colors ' + (viewMode === 'grid' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-500 hover:text-white')}
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
+            data-testid="view-grid"
+          >
+            <GridIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={'rounded p-1.5 transition-colors ' + (viewMode === 'list' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-500 hover:text-white')}
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
+            data-testid="view-list"
+          >
+            <ListIcon />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -56,7 +98,23 @@ export function BountyBoard() {
         </div>
       ) : bounties.length > 0 ? (
         <>
-          <BountyGrid bounties={bounties} onBountyClick={id => { window.location.href = '/bounties/' + id; }} />
+          {viewMode === 'grid' ? (
+            <BountyGrid bounties={bounties} onBountyClick={id => { window.location.href = '/bounties/' + id; }} />
+          ) : (
+            <div className="space-y-2" data-testid="bounty-list">
+              {bounties.map(b => (
+                <button key={b.id} type="button" onClick={() => { window.location.href = '/bounties/' + b.id; }}
+                  className="w-full text-left flex items-center gap-4 rounded-lg border border-surface-300 bg-surface-50 hover:border-solana-green/40 p-4 transition-all"
+                  data-testid={'bounty-list-item-' + b.id}>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-white truncate">{b.title}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{b.tier} | {b.rewardAmount.toLocaleString()} {b.currency} | {b.submissionCount} subs</p>
+                  </div>
+                  <span className="text-xs text-gray-500">{b.creatorType === 'platform' ? 'Platform' : 'Community'}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {totalPages > 1 && (
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           )}

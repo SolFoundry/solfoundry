@@ -1,5 +1,8 @@
+/** Bounty difficulty tier. */
 export type BountyTier = 'T1' | 'T2' | 'T3';
+/** Lifecycle status. */
 export type BountyStatus = 'open' | 'in-progress' | 'completed';
+/** Sort orders for the bounty board. */
 export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
 
 export interface Bounty {
@@ -16,6 +19,8 @@ export interface Bounty {
   createdAt: string;
   projectName: string;
   githubIssueUrl?: string;
+  creatorWallet?: string;
+  creatorType: 'platform' | 'community';
   relevanceScore?: number;
   skillMatchCount?: number;
 }

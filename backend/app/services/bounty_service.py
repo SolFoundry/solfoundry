@@ -1,9 +1,10 @@
-"""In-memory bounty service for MVP (Issue #3).
+"""In-memory bounty service (MVP). PostgreSQL migration: bounties/submissions tables with FK.
 
 Provides CRUD operations and solution submission.
 Claim lifecycle is out of scope (see Issue #16).
 """
 
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -15,17 +16,33 @@ from app.models.bounty import (
     BountyResponse,
     BountyStatus,
     BountyUpdate,
+    CreatorType,
     SubmissionCreate,
     SubmissionRecord,
     SubmissionResponse,
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
+# Typed service exceptions
+class BountyNotFoundError(Exception):
+    """Raised when a bounty lookup fails."""
+
+class InvalidStatusTransitionError(Exception):
+    """Raised on invalid status transition."""
+
+class DuplicateSubmissionError(Exception):
+    """Raised on duplicate PR URL submission."""
+
+class SubmissionNotAllowedError(Exception):
+    """Raised when submissions are closed."""
+
+ADMIN_WALLET_IDS: frozenset[str] = frozenset({"97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"})
+
+# In-memory store  (PostgreSQL migration: bounties/submissions tables with FK)
 # ---------------------------------------------------------------------------
 
 _bounty_store: dict[str, BountyDB] = {}
+_store_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +74,8 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         required_skills=b.required_skills,
         deadline=b.deadline,
         created_by=b.created_by,
+        creator_wallet=b.creator_wallet,
+        creator_type=b.creator_type.value,
         submissions=subs,
         submission_count=len(subs),
         created_at=b.created_at,
@@ -75,6 +94,8 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         github_issue_url=b.github_issue_url,
         deadline=b.deadline,
         created_by=b.created_by,
+        creator_wallet=b.creator_wallet,
+        creator_type=b.creator_type.value,
         submission_count=len(b.submissions),
         created_at=b.created_at,
     )
@@ -96,8 +117,11 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         required_skills=data.required_skills,
         deadline=data.deadline,
         created_by=data.created_by,
+        creator_wallet=data.creator_wallet,
+        creator_type=data.creator_type,
     )
-    _bounty_store[bounty.id] = bounty
+    with _store_lock:
+        _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 
 
@@ -112,10 +136,14 @@ def list_bounties(
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
+    creator_type: Optional[str] = None,
+    reward_min: Optional[float] = None,
+    reward_max: Optional[float] = None,
+    sort: str = "newest",
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering and pagination."""
+    """List bounties with optional filtering, sorting, and pagination."""
     results = list(_bounty_store.values())
 
     if status is not None:
@@ -127,9 +155,26 @@ def list_bounties(
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if creator_type is not None:
+        results = [b for b in results if b.creator_type.value == creator_type]
+    if reward_min is not None:
+        results = [b for b in results if b.reward_amount >= reward_min]
+    if reward_max is not None:
+        results = [b for b in results if b.reward_amount <= reward_max]
 
-    # Sort by created_at descending (newest first)
-    results.sort(key=lambda b: b.created_at, reverse=True)
+    # Apply sort order
+    if sort == "reward_high":
+        results.sort(key=lambda b: b.reward_amount, reverse=True)
+    elif sort == "reward_low":
+        results.sort(key=lambda b: b.reward_amount)
+    elif sort == "deadline":
+        results.sort(
+            key=lambda b: b.deadline or datetime.max.replace(tzinfo=timezone.utc)
+        )
+    elif sort == "submissions":
+        results.sort(key=lambda b: len(b.submissions))
+    else:
+        results.sort(key=lambda b: b.created_at, reverse=True)
 
     total = len(results)
     page = results[skip : skip + limit]
@@ -172,7 +217,8 @@ def update_bounty(
 
 def delete_bounty(bounty_id: str) -> bool:
     """Delete a bounty by ID. Returns True if deleted, False if not found."""
-    return _bounty_store.pop(bounty_id, None) is not None
+    with _store_lock:
+        return _bounty_store.pop(bounty_id, None) is not None
 
 
 def submit_solution(

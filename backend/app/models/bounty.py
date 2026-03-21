@@ -35,6 +35,13 @@ class BountyStatus(str, Enum):
     PAID = "paid"
 
 
+class CreatorType(str, Enum):
+    """Distinguishes platform-created bounties from community-created ones."""
+
+    PLATFORM = "platform"
+    COMMUNITY = "community"
+
+
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN},
@@ -57,6 +64,7 @@ REWARD_MIN = 0.01
 REWARD_MAX = 1_000_000.0
 MAX_SKILLS = 20
 SKILL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.+-]{0,49}$")
+WALLET_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +139,13 @@ class BountyCreate(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str = Field("system", min_length=1, max_length=100)
+    creator_wallet: Optional[str] = Field(
+        None, description="Solana wallet address of the bounty creator"
+    )
+    creator_type: CreatorType = Field(
+        CreatorType.COMMUNITY,
+        description="Whether this bounty was created by the platform or community",
+    )
 
     @field_validator("required_skills")
     @classmethod
@@ -144,6 +159,14 @@ class BountyCreate(BaseModel):
             ("https://github.com/", "http://github.com/")
         ):
             raise ValueError("github_issue_url must be a GitHub URL")
+        return v
+
+    @field_validator("creator_wallet")
+    @classmethod
+    def validate_wallet_address(cls, v: Optional[str]) -> Optional[str]:
+        """Validate Solana wallet address format (base58, 32-44 chars)."""
+        if v is not None and not WALLET_PATTERN.match(v):
+            raise ValueError("creator_wallet must be a valid Solana address (base58)")
         return v
 
 
@@ -180,6 +203,8 @@ class BountyDB(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str = "system"
+    creator_wallet: Optional[str] = None
+    creator_type: CreatorType = CreatorType.COMMUNITY
     submissions: list[SubmissionRecord] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -198,6 +223,8 @@ class BountyResponse(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str
+    creator_wallet: Optional[str] = None
+    creator_type: str = "community"
     submissions: list[SubmissionResponse] = Field(default_factory=list)
     submission_count: int = 0
     created_at: datetime
@@ -216,6 +243,8 @@ class BountyListItem(BaseModel):
     github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
     created_by: str
+    creator_wallet: Optional[str] = None
+    creator_type: str = "community"
     submission_count: int = 0
     created_at: datetime
 

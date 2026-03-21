@@ -4,6 +4,7 @@ Covers: create, list (pagination/filters), get, update (with status transitions)
 delete, submit solution, list submissions, and edge cases.
 """
 
+import os; os.environ.setdefault("AUTH_ENABLED", "false")  # noqa: E702
 from collections import deque
 
 import pytest
@@ -265,8 +266,11 @@ class TestListBounties:
             "reward_amount",
             "status",
             "required_skills",
+            "github_issue_url",
             "deadline",
             "created_by",
+            "creator_wallet",
+            "creator_type",
             "submission_count",
             "created_at",
         }
@@ -397,6 +401,8 @@ class TestGetBounty:
             "required_skills",
             "deadline",
             "created_by",
+            "creator_wallet",
+            "creator_type",
             "submissions",
             "submission_count",
             "created_at",

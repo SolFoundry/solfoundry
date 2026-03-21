@@ -29,6 +29,8 @@ function mapApiBounty(b: any): Bounty {
     createdAt: b.created_at ?? b.createdAt,
     projectName: b.created_by || b.projectName || 'SolFoundry',
     githubIssueUrl: b.github_issue_url || b.githubIssueUrl || undefined,
+    creatorWallet: b.creator_wallet || undefined,
+    creatorType: b.creator_type || 'platform',
     relevanceScore: b.relevance_score ?? 0,
     skillMatchCount: b.skill_match_count ?? 0,
   };
@@ -124,8 +126,8 @@ export function useBountyBoard() {
         if (!res.ok) throw new Error('search failed');
         const data: SearchResponse = await res.json();
         setApiResults({ items: data.items.map(mapApiBounty), total: data.total });
-      } catch (e: any) {
-        if (e.name === 'AbortError') return;
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
         useApiRef.current = false;
         setApiResults(null);
         // Fallback: fetch all bounties once from old list endpoint
