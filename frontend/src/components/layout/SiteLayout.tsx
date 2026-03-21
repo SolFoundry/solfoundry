@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
 import { Breadcrumbs } from './Breadcrumbs';
+import { ScrollToTop } from './ScrollToTop';
 
 // ============================================================================
 // Types
@@ -180,6 +181,9 @@ export function SiteLayout({
         onClose={() => setShowOnboarding(false)}
         onComplete={() => setShowOnboarding(false)}
       />
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   );
 }
