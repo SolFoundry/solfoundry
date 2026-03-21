@@ -105,7 +105,6 @@ app.include_router(payouts_router)
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
-
 # WebSocket: /ws/*
 app.include_router(websocket_router)
 
@@ -142,7 +141,6 @@ async def health_check_advanced():
 
 @app.get("/health")
 async def health_check():
-
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store

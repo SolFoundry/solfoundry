@@ -144,7 +144,9 @@ class WebSocketManager:
             self._adapter = adapter
             logger.info("WebSocket pub/sub: Redis (%s)", REDIS_URL)
         except Exception:
-            logger.warning("Redis unavailable at %s, using in-memory pub/sub", REDIS_URL)
+            logger.warning(
+                "Redis unavailable at %s, using in-memory pub/sub", REDIS_URL
+            )
             self._adapter = InMemoryPubSubAdapter(self)
 
     async def shutdown(self) -> None:
@@ -166,6 +168,7 @@ class WebSocketManager:
         if not token:
             return None
         import uuid as _uuid
+
         try:
             _uuid.UUID(token)
             return token
@@ -177,7 +180,9 @@ class WebSocketManager:
     def _check_rate_limit(self, user_id: str) -> bool:
         now = time.monotonic()
         bucket = self._rate_buckets.setdefault(user_id, _RateBucket())
-        bucket.timestamps = [t for t in bucket.timestamps if now - t < RATE_LIMIT_WINDOW]
+        bucket.timestamps = [
+            t for t in bucket.timestamps if now - t < RATE_LIMIT_WINDOW
+        ]
         if len(bucket.timestamps) >= RATE_LIMIT_MAX:
             return False
         bucket.timestamps.append(now)
@@ -212,6 +217,7 @@ class WebSocketManager:
             return None
         await ws.accept()
         import uuid as _uuid
+
         connection_id = str(_uuid.uuid4())
         self._connections[connection_id] = _Connection(ws=ws, user_id=user_id)
         logger.info("WS connected: user=%s cid=%s", user_id, connection_id)
@@ -233,7 +239,9 @@ class WebSocketManager:
 
     # -- subscribe / unsubscribe --
 
-    async def subscribe(self, connection_id: str, channel: str, token: Optional[str] = None) -> bool:
+    async def subscribe(
+        self, connection_id: str, channel: str, token: Optional[str] = None
+    ) -> bool:
         """Subscribe to channel. Re-authenticates token to enforce trust boundary."""
         conn = self._connections.get(connection_id)
         if conn is None:
@@ -263,8 +271,14 @@ class WebSocketManager:
 
     # -- broadcast --
 
-    async def broadcast(self, channel: str, data: dict, *, token: Optional[str] = None,
-                        sender_user_id: Optional[str] = None) -> int:
+    async def broadcast(
+        self,
+        channel: str,
+        data: dict,
+        *,
+        token: Optional[str] = None,
+        sender_user_id: Optional[str] = None,
+    ) -> int:
         """Publish data to channel subscribers. Auth enforced if token given."""
         if token is not None:
             uid = await self.authenticate(token)
@@ -295,7 +309,9 @@ class WebSocketManager:
                 await self.disconnect(cid)
                 return False
 
-        results = await asyncio.gather(*(_send(cid) for cid in list(subs)), return_exceptions=True)
+        results = await asyncio.gather(
+            *(_send(cid) for cid in list(subs)), return_exceptions=True
+        )
         return sum(1 for r in results if r is True)
 
     # -- message handler --
@@ -338,7 +354,9 @@ class WebSocketManager:
             data = msg.get("data", {})
             if not channel:
                 return {"type": "error", "detail": "channel required"}
-            n = await self.broadcast(channel, data, token=token, sender_user_id=conn.user_id)
+            n = await self.broadcast(
+                channel, data, token=token, sender_user_id=conn.user_id
+            )
             return {"type": "broadcasted", "channel": channel, "recipients": n}
 
         return {"type": "error", "detail": f"unknown message type: {msg_type}"}

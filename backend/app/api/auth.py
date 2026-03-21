@@ -12,6 +12,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
 
 from app.models.user import (
     GitHubOAuthRequest,
@@ -231,16 +233,13 @@ async def refresh_token(request: RefreshTokenRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(user_id: str = Depends(get_current_user_id)):
-    """
-    Get the current authenticated user.
-
-    Returns the user profile including wallet address if linked.
-    Requires authentication.
-    """
+async def get_current_user(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+) -> UserResponse:
+    """Dependency to get the full current user object."""
     try:
-        user = await auth_service.get_current_user(user_id)
-        return user
+        return await auth_service.get_current_user(db, user_id)
     except AuthError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -249,4 +248,4 @@ async def get_current_user(user_id: str = Depends(get_current_user_id)):
 
 
 # Export the dependency for use in other modules
-__all__ = ["router", "get_current_user_id"]
+__all__ = ["router", "get_current_user_id", "get_current_user"]
