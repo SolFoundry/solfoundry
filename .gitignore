@@ -1,2 +1,6 @@
 _config_dev.yml
 _config_dev.yml
+__pycache__/
+*.pyc
+files_list.txt
+walk_the_line.py
