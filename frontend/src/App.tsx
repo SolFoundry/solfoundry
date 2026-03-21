@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { useTheme } from './hooks/useTheme';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -38,6 +39,9 @@ function AppLayout() {
   const location = useLocation();
   const { publicKey, connect, disconnect } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
+  
+  // Theme management
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <SiteLayout
@@ -45,6 +49,8 @@ function AppLayout() {
       walletAddress={walletAddress}
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
+      theme={theme}
+      onToggleTheme={toggleTheme}
     >
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>

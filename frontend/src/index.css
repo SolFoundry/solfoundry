@@ -129,3 +129,98 @@ select option {
   background-color: #1a1a1a;
   color: #e5e5e5;
 }
+
+/* ============================================================================
+   Theme Transition Styles
+   ============================================================================ */
+
+/* Smooth transition between themes (no flash) */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, 
+              border-color 0.3s ease, 
+              color 0.3s ease,
+              box-shadow 0.3s ease !important;
+}
+
+/* ============================================================================
+   Light Theme Styles
+   ============================================================================ */
+
+/* Light mode body styles */
+html.light body {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+/* Light mode surface colors */
+html.light .bg-surface {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-surface-50 {
+  background-color: #f9fafb !important;
+}
+
+html.light .bg-surface-100 {
+  background-color: #f3f4f6 !important;
+}
+
+html.light .bg-surface-200 {
+  background-color: #e5e7eb !important;
+}
+
+/* Light mode text colors */
+html.light .text-gray-100 {
+  color: #1a1a1a !important;
+}
+
+html.light .text-gray-200 {
+  color: #374151 !important;
+}
+
+html.light .text-gray-300 {
+  color: #4b5563 !important;
+}
+
+html.light .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+/* Light mode border colors */
+html.light .border-gray-700 {
+  border-color: #e5e7eb !important;
+}
+
+html.light .border-gray-800 {
+  border-color: #d1d5db !important;
+}
+
+/* Light mode scrollbar */
+html.light ::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Light mode form elements */
+html.light select,
+html.light input[type="search"],
+html.light input[type="text"] {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border-color: #e5e7eb;
+}
+
+html.light select option {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
