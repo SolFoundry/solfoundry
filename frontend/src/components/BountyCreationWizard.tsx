@@ -840,10 +840,44 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
     if (onPublishBounty) {
       await onPublishBounty(formData);
     } else {
-      // Default publish behavior - would integrate with GitHub API
-      console.log('Publishing bounty:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const categoryMap: Record<string, string> = {
+        'Frontend': 'frontend',
+        'Backend': 'backend',
+        'Smart Contracts': 'smart-contract',
+        'DevOps': 'devops',
+        'Documentation': 'documentation',
+        'Design': 'design',
+        'Security': 'security',
+        'Testing': 'backend',
+      };
+      const tierMap: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
+      const requirementsBlock = formData.requirements
+        .filter(Boolean)
+        .map((r) => `- ${r}`)
+        .join('\n');
+      const fullDescription = formData.description +
+        (requirementsBlock ? `\n\n## Requirements\n${requirementsBlock}` : '');
+
+      const resp = await fetch('/api/bounties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: fullDescription,
+          tier: tierMap[formData.tier] ?? 2,
+          category: categoryMap[formData.category] ?? formData.category.toLowerCase(),
+          reward_amount: formData.rewardAmount,
+          required_skills: formData.skills.map((s) => s.toLowerCase()),
+          deadline: formData.deadline
+            ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
+            : undefined,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: 'Failed to create bounty' }));
+        throw new Error(err.detail || 'Failed to create bounty');
+      }
+      localStorage.removeItem(DRAFT_KEY);
     }
   };
   

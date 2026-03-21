@@ -97,8 +97,10 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
             title=row.title,
             description=row.description or "",
             tier=row.tier,
+            category=getattr(row, "category", None),
             reward_amount=float(row.reward_amount),
             status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+            creator_type=getattr(row, "creator_type", "platform"),
             github_issue_url=row.github_issue_url,
             required_skills=row.skills if isinstance(row.skills, list) else [],
             deadline=row.deadline,
@@ -156,8 +158,10 @@ async def _load_all_bounties_from_db(
                 title=row.title,
                 description=row.description or "",
                 tier=row.tier,
+                category=getattr(row, "category", None),
                 reward_amount=float(row.reward_amount),
                 status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+                creator_type=getattr(row, "creator_type", "platform"),
                 github_issue_url=row.github_issue_url,
                 required_skills=row.skills if isinstance(row.skills, list) else [],
                 deadline=row.deadline,
@@ -213,8 +217,10 @@ def _to_bounty_response(bounty: BountyDB) -> BountyResponse:
         title=bounty.title,
         description=bounty.description,
         tier=bounty.tier,
+        category=bounty.category,
         reward_amount=bounty.reward_amount,
         status=bounty.status,
+        creator_type=bounty.creator_type,
         github_issue_url=bounty.github_issue_url,
         required_skills=bounty.required_skills,
         deadline=bounty.deadline,
@@ -242,6 +248,8 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
         tier=bounty.tier,
         reward_amount=bounty.reward_amount,
         status=bounty.status,
+        category=bounty.category,
+        creator_type=bounty.creator_type,
         required_skills=bounty.required_skills,
         github_issue_url=bounty.github_issue_url,
         deadline=bounty.deadline,
@@ -255,6 +263,14 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
 # ---------------------------------------------------------------------------
 # Public API -- all read operations query DB first, cache as fallback
 # ---------------------------------------------------------------------------
+
+
+PLATFORM_CREATORS = {"system", "platform", "platform_admin", "SolFoundry"}
+
+
+def _resolve_creator_type(created_by: str) -> str:
+    """Determine whether a bounty is platform-official or community-created."""
+    return "platform" if created_by in PLATFORM_CREATORS else "community"
 
 
 async def create_bounty(data: BountyCreate) -> BountyResponse:
@@ -273,7 +289,9 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
         title=data.title,
         description=data.description,
         tier=data.tier,
+        category=data.category,
         reward_amount=data.reward_amount,
+        creator_type=_resolve_creator_type(data.created_by),
         github_issue_url=data.github_issue_url,
         required_skills=data.required_skills,
         deadline=data.deadline,
@@ -311,10 +329,14 @@ async def list_bounties(
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
     created_by: Optional[str] = None,
+    creator_type: Optional[str] = None,
+    reward_min: Optional[float] = None,
+    reward_max: Optional[float] = None,
+    sort: str = "newest",
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering, sorted newest first.
+    """List bounties with filtering and sorting.
 
     Queries PostgreSQL as the primary source. Falls back to the
     in-memory cache if the database is unreachable.
@@ -324,6 +346,10 @@ async def list_bounties(
         tier: Filter by bounty tier (1, 2, or 3).
         skills: Filter by required skills (case-insensitive match).
         created_by: Filter by creator identifier.
+        creator_type: Filter by 'platform' or 'community'.
+        reward_min: Minimum reward amount.
+        reward_max: Maximum reward amount.
+        sort: Sort order (newest, reward_high, reward_low, deadline, submissions).
         skip: Number of results to skip for pagination.
         limit: Maximum results per page.
 
@@ -331,8 +357,6 @@ async def list_bounties(
         A BountyListResponse with paginated items and total count.
     """
     db_bounties = await _load_all_bounties_from_db()
-    # Prefer DB results when available; fall back to cache when DB returns
-    # None (error) or an empty list while the cache has data.
     source = list(_bounty_store.values())
     if db_bounties:
         source = db_bounties
@@ -352,8 +376,25 @@ async def list_bounties(
             for b in results
             if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if creator_type is not None:
+        results = [b for b in results if b.creator_type == creator_type]
+    if reward_min is not None:
+        results = [b for b in results if b.reward_amount >= reward_min]
+    if reward_max is not None:
+        results = [b for b in results if b.reward_amount <= reward_max]
 
-    results.sort(key=lambda b: b.created_at, reverse=True)
+    if sort == "reward_high":
+        results.sort(key=lambda b: b.reward_amount, reverse=True)
+    elif sort == "reward_low":
+        results.sort(key=lambda b: b.reward_amount)
+    elif sort == "deadline":
+        results.sort(
+            key=lambda b: (b.deadline.timestamp() if b.deadline else float("inf"))
+        )
+    elif sort == "submissions":
+        results.sort(key=lambda b: len(b.submissions), reverse=True)
+    else:
+        results.sort(key=lambda b: b.created_at, reverse=True)
 
     total = len(results)
     page = results[skip : skip + limit]
