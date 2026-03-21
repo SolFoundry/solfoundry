@@ -224,12 +224,6 @@ function Header({
   theme = 'dark',
   onToggleTheme,
 }: HeaderProps) {
-  avatarUrl,
-  userName,
-  onNavClick,
-  truncateAddress,
-  onShowOnboarding,
-}: HeaderProps) {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-16 transition-colors duration-200

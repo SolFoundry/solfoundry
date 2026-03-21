@@ -26,9 +26,14 @@ function getSystemPreference(): Theme {
  */
 function getStoredTheme(): Theme | null {
   if (typeof window === 'undefined') return null;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark') return stored;
-  return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+    return null;
+  } catch {
+    // localStorage may be unavailable in restricted environments
+    return null;
+  }
 }
 
 /**
@@ -42,7 +47,9 @@ function applyTheme(theme: Theme): void {
   
   if (theme === 'dark') {
     root.classList.add('dark');
+    root.classList.remove('light');
   } else {
+    root.classList.add('light');
     root.classList.remove('dark');
   }
   
@@ -94,7 +101,11 @@ export function useTheme(): {
    */
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    try {
+      localStorage.setItem(STORAGE_KEY, newTheme);
+    } catch {
+      // localStorage may be unavailable in restricted environments
+    }
   }, []);
 
   /**
