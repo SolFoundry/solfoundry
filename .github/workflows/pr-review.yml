@@ -131,8 +131,8 @@ jobs:
 
           echo "Author $PR_AUTHOR has $ATTEMPTS submission(s) for issue #$ISSUE_NUM"
 
-          if [ "$ATTEMPTS" -gt 5 ]; then
-            echo "RATE LIMIT: $PR_AUTHOR exceeded max 5 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
+          if [ "$ATTEMPTS" -gt 50 ]; then
+            echo "RATE LIMIT: $PR_AUTHOR exceeded max 50 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
 
             python3 -c "
           import subprocess, sys
@@ -142,7 +142,7 @@ jobs:
           repo = '$REPO'
           body = (
               '⚠️ **Submission limit reached**\n\n'
-              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 5). '
+              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 50). '
               'Please make sure your code fully addresses the review feedback before submitting again.\n\n'
               'If you believe this is an error, reach out in our community.\n\n'
               '---\n*SolFoundry Review Bot*'
