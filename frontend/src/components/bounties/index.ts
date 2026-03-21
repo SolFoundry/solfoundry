@@ -1,4 +1,5 @@
 export { BountyBoard } from './BountyBoard';
+export { CountdownTimer } from './CountdownTimer';
 export { BountyCard } from './BountyCard';
 export { BountyFilters } from './BountyFilters';
 export { BountySortBar } from './BountySortBar';
