@@ -1,0 +1,54 @@
+# Multi-stage Dockerfile for SolFoundry FastAPI backend.
+# Stage 1: Install dependencies into a virtual environment.
+# Stage 2: Copy only the venv and app code into a slim runtime image.
+
+# ── Stage 1: Dependencies ────────────────────────────────────────────────────
+FROM python:3.11-slim AS dependencies
+
+WORKDIR /build
+
+# System packages required by asyncpg / psycopg2
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt .
+
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/SolFoundry/solfoundry"
+LABEL org.opencontainers.image.description="SolFoundry FastAPI backend"
+
+# libpq is needed at runtime by asyncpg / psycopg2
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libpq5 curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Non-root user for security
+RUN useradd --create-home --shell /bin/bash solfoundry
+USER solfoundry
+
+WORKDIR /home/solfoundry/app
+
+# Copy virtual-env from builder stage
+COPY --from=dependencies --chown=solfoundry:solfoundry /opt/venv /opt/venv
+
+# Copy application source
+COPY --chown=solfoundry:solfoundry backend/ .
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/home/solfoundry/app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
