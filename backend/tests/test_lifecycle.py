@@ -16,19 +16,23 @@ from app.services.lifecycle_service import (
 MU = UserResponse(id="u1", github_id="g1", username="tst", email="t@t.com",
     avatar_url="http://x/a.png", wallet_address="tw", wallet_verified=True,
     created_at="2026-03-20T00:00:00Z", updated_at="2026-03-20T00:00:00Z")
+    """The _mu function."""
 async def _mu(): return MU
 _app = FastAPI(); _app.include_router(router, prefix="/api")
 _app.dependency_overrides[get_current_user] = _mu; C = TestClient(_app)
 
 def _b(t=1):
+    """The _b function."""
     return BS.create_bounty(BountyCreate(title="Test bounty", description="Desc",
         tier=t, reward_amount=100.0, required_skills=["python"])).id
 @pytest.fixture(autouse=True)
 def _c():
+    """The _c function."""
     BS._bounty_store.clear(); LS.clear_stores(); yield
     BS._bounty_store.clear(); LS.clear_stores()
 
 def test_full_path():
+    """The test_full_path function."""
     b = _b(); assert LS.initialize_bounty(b).new_state == "draft"
     assert LS.open_bounty(b).new_state == "open"
     assert LS.claim_bounty(b, "c1").contributor_id == "c1"
@@ -37,10 +41,12 @@ def test_full_path():
     assert LS.pay_bounty(b).new_state == "paid"
 
 def test_t1_open_race():
+    """The test_t1_open_race function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     assert LS.submit_for_review(b, "x").new_state == "in_review"
 
 def test_cancel_and_releases():
+    """The test_cancel_and_releases function."""
     for s in [lambda b: None, lambda b: LS.open_bounty(b),
               lambda b: (LS.open_bounty(b), LS.claim_bounty(b, "c")),
               lambda b: (LS.open_bounty(b), LS.submit_for_review(b, "c"))]:
@@ -50,6 +56,7 @@ def test_cancel_and_releases():
     LS.claim_bounty(b, "c"); LS.cancel_bounty(b); assert LS.get_claim(b) is None
 
 def test_terminal():
+    """The test_terminal function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     LS.submit_for_review(b, "c"); LS.complete_bounty(b); LS.pay_bounty(b)
     with pytest.raises(TerminalStateError): LS.open_bounty(b)
@@ -63,16 +70,19 @@ def test_terminal():
 @pytest.mark.parametrize("a,s", [("claim", lambda b: None), ("pay", lambda b: LS.open_bounty(b)),
     ("complete", lambda b: LS.open_bounty(b)), ("review", lambda b: None)])
 def test_invalid(a, s):
+    """The test_invalid function."""
     b = _b(); LS.initialize_bounty(b); s(b)
     fn = {"claim": lambda: LS.claim_bounty(b, "c"), "pay": lambda: LS.pay_bounty(b),
           "complete": lambda: LS.complete_bounty(b), "review": lambda: LS.submit_for_review(b, "c")}
     with pytest.raises(InvalidTransitionError): fn[a]()
 
 def test_not_found():
+    """The test_not_found function."""
     with pytest.raises(BountyNotFoundError): LS.initialize_bounty("x")
     with pytest.raises(BountyNotFoundError): LS.get_lifecycle_state("x")
 
 def test_claims_and_gates():
+    """The test_claims_and_gates function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     assert LS.get_claim(b) is None
     assert LS.claim_bounty(b, "c1").deadline > datetime.now(timezone.utc)
@@ -85,6 +95,7 @@ def test_claims_and_gates():
         with pytest.raises(TierGateError): LS.claim_bounty(bt, "x", bounty_tier=t)
 
 def test_deadlines():
+    """The test_deadlines function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b); LS.claim_bounty(b, "c")
     with LS._state_lock:
         c = LS._claims[b]; c.claimed_at = datetime.now(timezone.utc) - timedelta(hours=100)
@@ -98,6 +109,7 @@ def test_deadlines():
     r = LS.enforce_deadlines(); assert r.warnings_issued >= 1 and r.claims_released == 0
 
 def test_webhooks():
+    """The test_webhooks function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     assert LS.handle_pr_event(b, "opened", "u", "d").new_state == "in_review"
     assert LS.handle_pr_event(b, "closed", "u", "d", merged=True).new_state == "completed"
@@ -111,6 +123,7 @@ def test_webhooks():
     assert LS.handle_pr_event(b4, "opened", "u", "c1").new_state == "in_review"
 
 def test_audit():
+    """The test_audit function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b); LS.cancel_bounty(b)
     log = LS.get_audit_log(bounty_id=b)
     assert len(log) >= 3 and {"initialize","open","cancel"} <= {e.event_type for e in log}
@@ -120,13 +133,16 @@ def test_audit():
     assert {b, b2} <= {e.bounty_id for e in LS.get_audit_log()}
 
 def test_idempotent():
+    """The test_idempotent function."""
     b = _b(); LS.initialize_bounty(b)
     assert LS.initialize_bounty(b).event_type == "initialize_idempotent"
 
 def test_thread_safety():
+    """The test_thread_safety function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     r = {"ok":0,"f":0}; lk = threading.Lock()
     def go(i):
+        """The go function."""
         try: LS.claim_bounty(b, f"c{i}"); lk.acquire(); r["ok"]+=1; lk.release()
         except (ClaimConflictError, InvalidTransitionError): lk.acquire(); r["f"]+=1; lk.release()
     ts = [threading.Thread(target=go, args=(i,)) for i in range(5)]
@@ -135,6 +151,7 @@ def test_thread_safety():
     assert r["ok"] == 1 and r["f"] == 4
 
 def test_api_flow():
+    """The test_api_flow function."""
     b = _b(); LS.initialize_bounty(b)
     assert C.post("/api/lifecycle/open", json={"bounty_id": b}).json()["new_state"] == "open"
     r = C.post("/api/lifecycle/claim", json={"bounty_id": b, "bounty_tier": 1})
@@ -145,6 +162,7 @@ def test_api_flow():
     assert C.post("/api/lifecycle/pay", json={"bounty_id": b}).json()["new_state"] == "paid"
 
 def test_api_state_audit_errors():
+    """The test_api_state_audit_errors function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     r = C.get(f"/api/lifecycle/{b}/state").json()
     assert r["state"] == "open" and not r["has_active_claim"]
@@ -163,6 +181,7 @@ def test_api_state_audit_errors():
     assert C.post("/api/lifecycle/claim", json={"bounty_id": b3, "bounty_tier": 1}).status_code == 409
 
 def test_api_wh_cron():
+    """The test_api_wh_cron function."""
     b = _b(); LS.initialize_bounty(b); LS.open_bounty(b)
     assert C.post("/api/lifecycle/webhook/pr", json={
         "bounty_id": b, "action": "opened", "pr_url": "u", "sender": "d", "merged": False}).status_code == 200

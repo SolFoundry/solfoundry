@@ -56,6 +56,7 @@ async def client(db_session):
     """Create a test client with database dependency override."""
 
     async def override_get_db():
+        """The override_get_db function."""
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
