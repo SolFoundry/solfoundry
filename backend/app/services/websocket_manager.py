@@ -1,12 +1,20 @@
-"""WebSocket manager with auth, heartbeat, rate limiting, and Redis-first pub/sub."""
+"""WebSocket manager with JWT auth, heartbeat, rate limiting, and Redis-first pub/sub.
+
+Adds JWT auth (UUID fallback), max-connection limits, typed event
+emission, and in-memory event buffer for the polling fallback endpoint.
+PostgreSQL migration path: websocket_connections table (connection_id PK,
+user_id FK, connected_at TIMESTAMPTZ, channels TEXT[]).
+"""
 
 import asyncio
+import collections
 import json
 import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Protocol, Set
+from datetime import datetime, timezone
+from typing import Any, Deque, Dict, List, Optional, Protocol, Set
 
 from fastapi import WebSocket
 from starlette.websockets import WebSocketState
@@ -16,7 +24,9 @@ logger = logging.getLogger(__name__)
 HEARTBEAT_INTERVAL = int(os.getenv("WS_HEARTBEAT_INTERVAL", "30"))
 RATE_LIMIT_WINDOW = int(os.getenv("WS_RATE_LIMIT_WINDOW", "60"))
 RATE_LIMIT_MAX = int(os.getenv("WS_RATE_LIMIT_MAX", "100"))
+MAX_CONNECTIONS = int(os.getenv("WS_MAX_CONNECTIONS", "1000"))
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+EVENT_BUFFER_SIZE = int(os.getenv("WS_EVENT_BUFFER_SIZE", "200"))
 
 
 class PubSubAdapter(Protocol):
@@ -131,6 +141,7 @@ class WebSocketManager:
         self._subscriptions: Dict[str, Set[str]] = {}
         self._rate_buckets: Dict[str, _RateBucket] = {}
         self._adapter = adapter
+        self._event_buffer: Dict[str, Deque[Dict[str, Any]]] = {}
 
     # -- lifecycle --
 
@@ -144,7 +155,9 @@ class WebSocketManager:
             self._adapter = adapter
             logger.info("WebSocket pub/sub: Redis (%s)", REDIS_URL)
         except Exception:
-            logger.warning("Redis unavailable at %s, using in-memory pub/sub", REDIS_URL)
+            logger.warning(
+                "Redis unavailable at %s, using in-memory pub/sub", REDIS_URL
+            )
             self._adapter = InMemoryPubSubAdapter(self)
 
     async def shutdown(self) -> None:
@@ -155,6 +168,7 @@ class WebSocketManager:
                 pass
         self._connections.clear()
         self._subscriptions.clear()
+        self._event_buffer.clear()
         if self._adapter:
             await self._adapter.close()
 
@@ -162,10 +176,22 @@ class WebSocketManager:
 
     @staticmethod
     async def authenticate(token: Optional[str]) -> Optional[str]:
-        """Validate bearer token (UUID), return user_id or None."""
+        """Validate bearer token (JWT or UUID), return user_id or None.
+
+        Tries JWT decoding first via auth_service, then falls back to
+        raw UUID acceptance for backward compatibility.
+        """
         if not token:
             return None
+        # Try JWT access token first
+        try:
+            from app.services.auth_service import decode_token
+            return decode_token(token, "access")
+        except Exception:
+            pass
+        # Fallback: accept raw UUID tokens
         import uuid as _uuid
+
         try:
             _uuid.UUID(token)
             return token
@@ -177,7 +203,9 @@ class WebSocketManager:
     def _check_rate_limit(self, user_id: str) -> bool:
         now = time.monotonic()
         bucket = self._rate_buckets.setdefault(user_id, _RateBucket())
-        bucket.timestamps = [t for t in bucket.timestamps if now - t < RATE_LIMIT_WINDOW]
+        bucket.timestamps = [
+            t for t in bucket.timestamps if now - t < RATE_LIMIT_WINDOW
+        ]
         if len(bucket.timestamps) >= RATE_LIMIT_MAX:
             return False
         bucket.timestamps.append(now)
@@ -205,13 +233,20 @@ class WebSocketManager:
     # -- connect / disconnect --
 
     async def connect(self, ws: WebSocket, token: Optional[str]) -> Optional[str]:
-        """Accept WS after auth. Returns connection_id or None."""
+        """Accept WS after auth. Returns connection_id or None.
+
+        Enforces MAX_CONNECTIONS limit (close code 4002 when full).
+        """
         user_id = await self.authenticate(token)
         if user_id is None:
             await ws.close(code=4001)
             return None
+        if len(self._connections) >= MAX_CONNECTIONS:
+            await ws.close(code=4002)
+            return None
         await ws.accept()
         import uuid as _uuid
+
         connection_id = str(_uuid.uuid4())
         self._connections[connection_id] = _Connection(ws=ws, user_id=user_id)
         logger.info("WS connected: user=%s cid=%s", user_id, connection_id)
@@ -233,7 +268,9 @@ class WebSocketManager:
 
     # -- subscribe / unsubscribe --
 
-    async def subscribe(self, connection_id: str, channel: str, token: Optional[str] = None) -> bool:
+    async def subscribe(
+        self, connection_id: str, channel: str, token: Optional[str] = None
+    ) -> bool:
         """Subscribe to channel. Re-authenticates token to enforce trust boundary."""
         conn = self._connections.get(connection_id)
         if conn is None:
@@ -263,8 +300,14 @@ class WebSocketManager:
 
     # -- broadcast --
 
-    async def broadcast(self, channel: str, data: dict, *, token: Optional[str] = None,
-                        sender_user_id: Optional[str] = None) -> int:
+    async def broadcast(
+        self,
+        channel: str,
+        data: dict,
+        *,
+        token: Optional[str] = None,
+        sender_user_id: Optional[str] = None,
+    ) -> int:
         """Publish data to channel subscribers. Auth enforced if token given."""
         if token is not None:
             uid = await self.authenticate(token)
@@ -295,7 +338,9 @@ class WebSocketManager:
                 await self.disconnect(cid)
                 return False
 
-        results = await asyncio.gather(*(_send(cid) for cid in list(subs)), return_exceptions=True)
+        results = await asyncio.gather(
+            *(_send(cid) for cid in list(subs)), return_exceptions=True
+        )
         return sum(1 for r in results if r is True)
 
     # -- message handler --
@@ -338,10 +383,81 @@ class WebSocketManager:
             data = msg.get("data", {})
             if not channel:
                 return {"type": "error", "detail": "channel required"}
-            n = await self.broadcast(channel, data, token=token, sender_user_id=conn.user_id)
+            n = await self.broadcast(
+                channel, data, token=token, sender_user_id=conn.user_id
+            )
             return {"type": "broadcasted", "channel": channel, "recipients": n}
 
         return {"type": "error", "detail": f"unknown message type: {msg_type}"}
+
+    # -- typed event emission --
+
+    async def emit_event(
+        self, event_type: str, channel: str, payload: Dict[str, Any],
+    ) -> int:
+        """Emit a validated typed event to a channel and buffer it.
+
+        Args:
+            event_type: One of the EventType enum values.
+            channel: Target pub/sub channel.
+            payload: Event-specific data dict.
+
+        Returns:
+            Number of local subscribers that received the event.
+        """
+        from app.models.event import EventType as ET, create_event
+
+        envelope = create_event(ET(event_type), channel, payload)
+        event_dict = envelope.model_dump(mode="json")
+
+        buffer = self._event_buffer.setdefault(
+            channel, collections.deque(maxlen=EVENT_BUFFER_SIZE)
+        )
+        buffer.append(event_dict)
+
+        return await self.broadcast(
+            channel, event_dict, sender_user_id="system"
+        )
+
+    def get_buffered_events(
+        self, channel: str, since: Optional[datetime] = None, limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve buffered events for polling fallback.
+
+        Args:
+            channel: The channel to read events from.
+            since: Optional UTC cutoff timestamp.
+            limit: Maximum number of events to return.
+
+        Returns:
+            List of event dicts, oldest first.
+        """
+        buffer = self._event_buffer.get(channel, collections.deque())
+        events = list(buffer)
+        if since is not None:
+            since_str = since.isoformat()
+            events = [e for e in events if e.get("timestamp", "") > since_str]
+        return events[-limit:]
+
+    def get_connection_count(self) -> int:
+        """Return total number of active WebSocket connections."""
+        return len(self._connections)
+
+    def get_channel_subscriber_count(self, channel: str) -> int:
+        """Return number of subscribers for a specific channel."""
+        return len(self._subscriptions.get(channel, set()))
+
+    def get_connection_info(self) -> Dict[str, Any]:
+        """Return summary statistics about current WebSocket state."""
+        channel_counts = {
+            channel: len(subs) for channel, subs in self._subscriptions.items()
+        }
+        return {
+            "active_connections": len(self._connections),
+            "max_connections": MAX_CONNECTIONS,
+            "total_channels": len(self._subscriptions),
+            "channels": channel_counts,
+        }
 
 
 manager = WebSocketManager()

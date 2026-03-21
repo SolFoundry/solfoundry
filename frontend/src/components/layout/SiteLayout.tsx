@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import OnboardingWizard from '../OnboardingWizard';
 
 // ============================================================================
 // Types
@@ -67,6 +68,17 @@ export function SiteLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    const onboarded = localStorage.getItem('sf_onboarded');
+    if (!onboarded) {
+      // Small delay to let the initial page load feel smooth
+      const timer = setTimeout(() => setShowOnboarding(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Handle scroll for header background
   useEffect(() => {
@@ -127,6 +139,7 @@ export function SiteLayout({
         userName={userName}
         onNavClick={handleNavClick}
         truncateAddress={truncateAddress}
+        onShowOnboarding={() => setShowOnboarding(true)}
       />
 
       {/* Mobile Sidebar Overlay */}
@@ -153,6 +166,13 @@ export function SiteLayout({
 
       {/* Footer */}
       <Footer />
+
+      {/* Onboarding Wizard */}
+      <OnboardingWizard
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={() => setShowOnboarding(false)}
+      />
     </div>
   );
 }
@@ -175,6 +195,7 @@ interface HeaderProps {
   userName?: string;
   onNavClick: (href: string) => void;
   truncateAddress: (address: string) => string;
+  onShowOnboarding?: () => void;
 }
 
 function Header({
@@ -191,6 +212,7 @@ function Header({
   userName,
   onNavClick,
   truncateAddress,
+  onShowOnboarding,
 }: HeaderProps) {
   return (
     <header
@@ -230,6 +252,12 @@ function Header({
                 {link.label}
               </a>
             ))}
+            <button
+              onClick={onShowOnboarding}
+              className="px-4 py-2 rounded-lg text-sm font-bold text-[#14F195] hover:bg-[#14F195]/10 bg-[#14F195]/5 transition-all ml-4 border border-[#14F195]/20"
+            >
+              Get Started
+            </button>
           </nav>
         </div>
 
@@ -265,6 +293,12 @@ function Header({
                     <p className="text-sm font-medium text-white">{userName || 'User'}</p>
                     <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
+                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                    Creator Dashboard
+                  </a>
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                    Contributor Dashboard
+                  </a>
                   <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
                     Profile
                   </a>

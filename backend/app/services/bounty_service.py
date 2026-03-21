@@ -6,6 +6,7 @@ Claim lifecycle is out of scope (see Issue #16).
 
 from datetime import datetime, timezone
 from typing import Optional
+from app.core.audit import audit_event
 
 from app.models.bounty import (
     BountyCreate,
@@ -18,6 +19,8 @@ from app.models.bounty import (
     SubmissionCreate,
     SubmissionRecord,
     SubmissionResponse,
+    SubmissionStatus,
+    VALID_SUBMISSION_TRANSITIONS,
     VALID_STATUS_TRANSITIONS,
 )
 
@@ -40,6 +43,8 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
         pr_url=s.pr_url,
         submitted_by=s.submitted_by,
         notes=s.notes,
+        status=s.status,
+        ai_score=s.ai_score,
         submitted_at=s.submitted_at,
     )
 
@@ -65,6 +70,7 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
+    subs = [_to_submission_response(s) for s in b.submissions]
     return BountyListItem(
         id=b.id,
         title=b.title,
@@ -75,6 +81,7 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         github_issue_url=b.github_issue_url,
         deadline=b.deadline,
         created_by=b.created_by,
+        submissions=subs,
         submission_count=len(b.submissions),
         created_at=b.created_at,
     )
@@ -112,12 +119,15 @@ def list_bounties(
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
+    created_by: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
     """List bounties with optional filtering and pagination."""
     results = list(_bounty_store.values())
 
+    if created_by is not None:
+        results = [b for b in results if b.created_by == created_by]
     if status is not None:
         results = [b for b in results if b.status == status]
     if tier is not None:
@@ -167,12 +177,24 @@ def update_bounty(
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
+    
+    if "status" in updates:
+        audit_event(
+            "bounty_status_updated",
+            bounty_id=bounty_id,
+            new_status=updates["status"],
+            updated_by=bounty.created_by # In a real app, this would be the current user
+        )
+
     return _to_bounty_response(bounty), None
 
 
 def delete_bounty(bounty_id: str) -> bool:
     """Delete a bounty by ID. Returns True if deleted, False if not found."""
-    return _bounty_store.pop(bounty_id, None) is not None
+    deleted = _bounty_store.pop(bounty_id, None) is not None
+    if deleted:
+        audit_event("bounty_deleted", bounty_id=bounty_id)
+    return deleted
 
 
 def submit_solution(
@@ -194,11 +216,17 @@ def submit_solution(
         if existing.pr_url == data.pr_url:
             return None, "This PR URL has already been submitted for this bounty"
 
+    # Generate deterministic mock AI score from PR URL
+    import hashlib
+    url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
+    score = 0.5 + (url_hash % 50) / 100.0
+
     submission = SubmissionRecord(
         bounty_id=bounty_id,
         pr_url=data.pr_url,
         submitted_by=data.submitted_by,
         notes=data.notes,
+        ai_score=score,
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
@@ -211,3 +239,39 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
+
+
+def update_submission(
+    bounty_id: str, submission_id: str, status: str
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Update a submission's status."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+
+    try:
+        new_status = SubmissionStatus(status)
+    except ValueError:
+        return None, f"Invalid submission status: {status}"
+
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            allowed = VALID_SUBMISSION_TRANSITIONS.get(sub.status, set())
+            if new_status not in allowed and new_status != sub.status:
+                return None, (
+                    f"Invalid status transition: {sub.status.value} -> {new_status.value}. "
+                    f"Allowed transitions: {[s.value for s in sorted(allowed, key=lambda x: x.value)]}"
+                )
+            sub.status = new_status
+            bounty.updated_at = datetime.now(timezone.utc)
+            
+            audit_event(
+                "submission_status_updated",
+                bounty_id=bounty_id,
+                submission_id=submission_id,
+                new_status=status
+            )
+            
+            return _to_submission_response(sub), None
+
+    return None, "Submission not found"

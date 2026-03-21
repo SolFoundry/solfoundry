@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from typing import Optional
+from app.core.audit import audit_event
 
 from app.models.payout import (
     BuybackCreate,
@@ -82,6 +83,15 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Payout with tx_hash already exists")
         _payout_store[record.id] = record
+    
+    audit_event(
+        "payout_created",
+        payout_id=record.id,
+        recipient=record.recipient,
+        amount=record.amount,
+        token=record.token,
+        tx_hash=record.tx_hash
+    )
     return _payout_to_response(record)
 
 
@@ -156,6 +166,14 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Buyback with tx_hash already exists")
         _buyback_store[record.id] = record
+    
+    audit_event(
+        "buyback_created",
+        buyback_id=record.id,
+        amount_sol=record.amount_sol,
+        amount_fndry=record.amount_fndry,
+        tx_hash=record.tx_hash
+    )
     return _buyback_to_response(record)
 
 
