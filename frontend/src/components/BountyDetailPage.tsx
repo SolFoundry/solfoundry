@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
+import { ReviewPanel } from './ReviewPanel';
 
 interface BountyDetail {
   id: string;
@@ -52,7 +53,7 @@ const statusColors = {
   expired: 'bg-red-500/20 text-red-400',
 };
 
-export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty }) => {
+export const BountyDetailPage: React.FC<{bounty:BountyDetail;currentUserWallet?:string;creatorWallet?:string}> = ({bounty,currentUserWallet,creatorWallet}) => {
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [showClaimModal, setShowClaimModal] = useState(false);
 
@@ -203,6 +204,12 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 </div>
               )}
             </div>
+
+            {bounty.submissions.map((sub) => (
+              <div key={sub.id} className="bg-gray-900 rounded-lg p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-300 mb-4">Review — PR #{sub.prNumber}</h2>
+                <ReviewPanel bountyId={bounty.id} submissionId={sub.id} isCreator={Boolean(currentUserWallet&&creatorWallet&&currentUserWallet===creatorWallet)}/>
+              </div>))}
 
             {/* Activity Feed */}
             <div className="bg-gray-900 rounded-lg p-4 sm:p-6">

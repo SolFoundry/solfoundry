@@ -20,10 +20,12 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.reviews import router as reviews_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services.review_flow_service import auto_approve_background_task
 
 # Initialize logging
 setup_logging()
@@ -56,13 +58,19 @@ async def lifespan(app: FastAPI):
 
     # Start periodic sync in background (every 5 minutes)
     sync_task = asyncio.create_task(periodic_sync())
+    auto_approve_task = asyncio.create_task(auto_approve_background_task())
 
     yield
 
-    # Shutdown: Cancel background sync, close connections, then database
+    # Shutdown
     sync_task.cancel()
+    auto_approve_task.cancel()
     try:
         await sync_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await auto_approve_task
     except asyncio.CancelledError:
         pass
     await ws_manager.shutdown()
@@ -233,9 +241,12 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
+app.include_router(reviews_router, prefix="/api")
+
 
 @app.get("/health")
 async def health_check():
+    """The health_check function."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
