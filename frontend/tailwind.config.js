@@ -21,6 +21,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(-8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'toast-progress': {
+          '0%': { width: '100%' },
+          '100%': { width: '0%' },
+        },
       },
     } 
   } 
