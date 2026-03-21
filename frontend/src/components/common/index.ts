@@ -11,3 +11,5 @@ export type { EmptyStateProps, EmptyStateVariant, NoBountiesProps, NoContributio
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
 export { ToastContainer } from './ToastContainer';
+export { TierProgressBar } from './TierProgressBar';
+export type { TierProgressBarProps } from './TierProgressBar';
