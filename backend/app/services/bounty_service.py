@@ -233,6 +233,17 @@ def submit_solution(
     return _to_submission_response(submission), None
 
 
+def get_submission(bounty_id: str, submission_id: str) -> Optional[SubmissionResponse]:
+    """Retrieve a single submission by bounty and submission ID."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None
+    for s in bounty.submissions:
+        if s.id == submission_id:
+            return _to_submission_response(s)
+    return None
+
+
 def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     """List all submissions for a bounty. Returns None if bounty not found."""
     bounty = _bounty_store.get(bounty_id)

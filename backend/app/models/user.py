@@ -28,6 +28,7 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     last_login_at = Column(DateTime, nullable=True)
+    role = Column(String(32), default="user", nullable=False)
 
 
 class UserDB(BaseModel):
@@ -52,6 +53,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     wallet_address: Optional[str] = None
     wallet_verified: bool = False
+    role: str = "user"
     created_at: datetime
     updated_at: datetime
 

@@ -1,12 +1,12 @@
 """Dispute resolution service.
 
 Implements the full dispute lifecycle:
-  OPENED → EVIDENCE → MEDIATION → RESOLVED
+  OPENED -> EVIDENCE -> MEDIATION -> RESOLVED
 
 Business rules:
   - Contributor can dispute a rejection within 72 hours
   - Both parties submit evidence (links, explanations)
-  - AI mediation auto-resolves if score ≥ threshold (7/10)
+  - AI mediation auto-resolves if score >= threshold (7/10)
   - Admin can manually mediate and resolve via Telegram notification
   - Resolution outcomes: release_to_contributor, refund_to_creator, split
   - Reputation impact: unfair rejections penalize creator, frivolous disputes penalize contributor
@@ -14,12 +14,13 @@ Business rules:
 
 from __future__ import annotations
 
+import abc
 import hashlib
 import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Protocol
 
 import httpx
 from sqlalchemy import select, func, and_
@@ -60,11 +61,90 @@ REPUTATION_VALID_DISPUTE_BONUS = 10
 REPUTATION_FAIR_CREATOR_BONUS = 5
 
 
+# ======================================================================
+# AI Mediation Provider — swappable interface
+# ======================================================================
+
+
+class AIMediationProvider(abc.ABC):
+    """Abstract interface for AI dispute mediation.
+
+    Production implementations should call the platform's review API.
+    The default implementation uses deterministic scoring for testability.
+    """
+
+    @abc.abstractmethod
+    async def score_dispute(
+        self,
+        dispute_id: str,
+        reason: str,
+        description: str,
+        evidence: list[dict],
+    ) -> Optional[dict]:
+        """Return {"score": float, "summary": str} or None on failure."""
+        ...
+
+
+class DeterministicMediationProvider(AIMediationProvider):
+    """Hash-based scorer for testing and development.
+
+    Produces repeatable scores in the 3.0-10.0 range derived from
+    dispute content, so automated tests can rely on specific outcomes.
+    """
+
+    async def score_dispute(
+        self,
+        dispute_id: str,
+        reason: str,
+        description: str,
+        evidence: list[dict],
+    ) -> Optional[dict]:
+        content = f"{reason}:{description}:{dispute_id}"
+        content_hash = int(hashlib.sha256(content.encode()).hexdigest(), 16)
+        score = 3.0 + (content_hash % 700) / 100.0
+
+        summary = (
+            f"AI analysis of dispute evidence. "
+            f"Submission quality indicators suggest a score of {score:.1f}/10."
+        )
+        return {"score": round(score, 2), "summary": summary}
+
+
+_default_ai_provider: AIMediationProvider = DeterministicMediationProvider()
+
+
+def set_ai_mediation_provider(provider: AIMediationProvider) -> None:
+    """Swap the global AI mediation implementation (e.g. for production)."""
+    global _default_ai_provider
+    _default_ai_provider = provider
+
+
+# ======================================================================
+# Service
+# ======================================================================
+
+
 class DisputeService:
     """Service for dispute lifecycle management."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+        ai_provider: AIMediationProvider | None = None,
+    ):
         self.db = db
+        self.ai_provider = ai_provider or _default_ai_provider
+
+    # ------------------------------------------------------------------
+    # Public: Dispute lookup (used by API layer for authorization)
+    # ------------------------------------------------------------------
+
+    async def get_dispute_by_id(self, dispute_id: str) -> Optional[DisputeDB]:
+        """Fetch a raw dispute row by ID. Returns None when not found."""
+        result = await self.db.execute(
+            select(DisputeDB).where(DisputeDB.id == uuid.UUID(dispute_id))
+        )
+        return result.scalar_one_or_none()
 
     # ------------------------------------------------------------------
     # Dispute initiation
@@ -173,9 +253,9 @@ class DisputeService:
         """
         Submit evidence for a dispute. Both contributor and creator may submit.
 
-        Only allowed during the EVIDENCE state.
+        Only allowed during the EVIDENCE state and before the evidence deadline.
         """
-        dispute = await self._get_dispute(dispute_id)
+        dispute = await self.get_dispute_by_id(dispute_id)
         if not dispute:
             raise ValueError("Dispute not found.")
 
@@ -184,6 +264,17 @@ class DisputeService:
                 f"Evidence can only be submitted during the EVIDENCE phase. "
                 f"Current state: {dispute.state}"
             )
+
+        if dispute.evidence_deadline:
+            now = datetime.now(timezone.utc)
+            deadline = dispute.evidence_deadline
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            if now > deadline:
+                raise ValueError(
+                    "Evidence submission deadline has passed. "
+                    "Advance the dispute to mediation."
+                )
 
         uid = uuid.UUID(user_id)
         if uid == dispute.contributor_id:
@@ -228,9 +319,10 @@ class DisputeService:
         """
         Advance a dispute from EVIDENCE to MEDIATION.
 
+        The actor must be the contributor, creator, or an admin.
         Triggers AI auto-mediation if applicable.
         """
-        dispute = await self._get_dispute(dispute_id)
+        dispute = await self.get_dispute_by_id(dispute_id)
         if not dispute:
             raise ValueError("Dispute not found.")
 
@@ -269,10 +361,8 @@ class DisputeService:
     async def resolve_dispute(
         self, dispute_id: str, data: DisputeResolve, admin_id: str
     ) -> DisputeResponse:
-        """
-        Admin manually resolves a dispute.
-        """
-        dispute = await self._get_dispute(dispute_id)
+        """Admin manually resolves a dispute."""
+        dispute = await self.get_dispute_by_id(dispute_id)
         if not dispute:
             raise ValueError("Dispute not found.")
 
@@ -286,7 +376,7 @@ class DisputeService:
     # ------------------------------------------------------------------
 
     async def get_dispute(self, dispute_id: str) -> Optional[DisputeDetailResponse]:
-        dispute = await self._get_dispute(dispute_id)
+        dispute = await self.get_dispute_by_id(dispute_id)
         if not dispute:
             return None
 
@@ -307,6 +397,13 @@ class DisputeService:
         skip: int = 0,
         limit: int = 20,
     ) -> DisputeListResponse:
+        valid_states = {s.value for s in DisputeState}
+        if state and state not in valid_states:
+            raise ValueError(
+                f"Invalid state filter '{state}'. "
+                f"Allowed: {sorted(valid_states)}"
+            )
+
         conditions = []
         if bounty_id:
             conditions.append(DisputeDB.bounty_id == uuid.UUID(bounty_id))
@@ -385,12 +482,6 @@ class DisputeService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _get_dispute(self, dispute_id: str) -> Optional[DisputeDB]:
-        result = await self.db.execute(
-            select(DisputeDB).where(DisputeDB.id == uuid.UUID(dispute_id))
-        )
-        return result.scalar_one_or_none()
-
     async def _get_evidence(self, dispute_id) -> list[DisputeEvidenceDB]:
         result = await self.db.execute(
             select(DisputeEvidenceDB)
@@ -414,7 +505,7 @@ class DisputeService:
         allowed = VALID_STATE_TRANSITIONS.get(current, set())
         if new_state not in allowed:
             raise ValueError(
-                f"Invalid state transition: {current.value} → {new_state.value}. "
+                f"Invalid state transition: {current.value} -> {new_state.value}. "
                 f"Allowed: {[s.value for s in allowed]}"
             )
 
@@ -454,6 +545,7 @@ class DisputeService:
             dispute.split_creator_pct = 100.0 - pct
 
         self._apply_reputation_impact(dispute, outcome)
+        self._sync_reputation_to_contributors(dispute)
 
         await self._transition_state(
             dispute, DisputeState.RESOLVED, uuid.UUID(actor_id)
@@ -489,7 +581,7 @@ class DisputeService:
     def _apply_reputation_impact(
         self, dispute: DisputeDB, outcome: DisputeOutcome
     ) -> None:
-        """Apply reputation deltas based on dispute outcome."""
+        """Record reputation deltas on the dispute row."""
         if dispute.reputation_impact_applied:
             return
 
@@ -504,6 +596,28 @@ class DisputeService:
             dispute.creator_reputation_delta = 0
 
         dispute.reputation_impact_applied = True
+
+    @staticmethod
+    def _sync_reputation_to_contributors(dispute: DisputeDB) -> None:
+        """Push reputation deltas to the contributor service.
+
+        Updates the in-memory contributor store so that leaderboard and
+        profile views reflect dispute outcomes immediately.
+        """
+        from app.services.contributor_service import _store as contributor_store
+
+        contributor_id = str(dispute.contributor_id)
+        creator_id = str(dispute.creator_id)
+
+        if contributor_id in contributor_store:
+            contributor_store[contributor_id].reputation_score += (
+                dispute.contributor_reputation_delta
+            )
+
+        if creator_id in contributor_store:
+            contributor_store[creator_id].reputation_score += (
+                dispute.creator_reputation_delta
+            )
 
     def _add_evidence_record(
         self,
@@ -546,40 +660,39 @@ class DisputeService:
         self.db.add(entry)
 
     # ------------------------------------------------------------------
-    # AI mediation
+    # AI mediation (delegates to provider)
     # ------------------------------------------------------------------
 
     async def _run_ai_mediation(self, dispute: DisputeDB) -> Optional[dict]:
-        """
-        Run AI review on the dispute to produce a mediation score.
-
-        In production, this calls the private review API.
-        For now, uses a deterministic score derived from the dispute content
-        so the system is fully testable.
-        """
+        """Run AI review via the configured AIMediationProvider."""
         try:
-            content = f"{dispute.reason}:{dispute.description}:{dispute.id}"
-            content_hash = int(hashlib.sha256(content.encode()).hexdigest(), 16)
-            score = 3.0 + (content_hash % 700) / 100.0  # Range: 3.0 – 10.0
+            evidence_rows = await self._get_evidence(dispute.id)
+            evidence_dicts = [
+                {"party": e.party, "type": e.evidence_type, "description": e.description}
+                for e in evidence_rows
+            ]
 
-            summary = (
-                f"AI analysis of dispute evidence. "
-                f"Submission quality indicators suggest a score of {score:.1f}/10."
+            result = await self.ai_provider.score_dispute(
+                dispute_id=str(dispute.id),
+                reason=dispute.reason,
+                description=dispute.description,
+                evidence=evidence_dicts,
             )
 
-            dispute.ai_review_score = round(score, 2)
-            dispute.ai_review_summary = summary
+            if result:
+                dispute.ai_review_score = round(result["score"], 2)
+                dispute.ai_review_summary = result["summary"]
 
-            await self._record_audit(
-                dispute_id=dispute.id,
-                action="ai_mediation_completed",
-                actor_id=dispute.contributor_id,
-                details={"score": score, "threshold": dispute.ai_mediation_threshold},
-                notes=summary,
-            )
-            await self.db.flush()
+                await self._record_audit(
+                    dispute_id=dispute.id,
+                    action="ai_mediation_completed",
+                    actor_id=dispute.contributor_id,
+                    details={"score": result["score"], "threshold": dispute.ai_mediation_threshold},
+                    notes=result["summary"],
+                )
+                await self.db.flush()
 
-            return {"score": score, "summary": summary}
+            return result
 
         except Exception as e:
             logger.error("AI mediation failed for dispute %s: %s", dispute.id, e)
@@ -596,7 +709,7 @@ class DisputeService:
             return
 
         message = (
-            f"🚨 *New Dispute Opened*\n\n"
+            f"*New Dispute Opened*\n\n"
             f"*Dispute ID:* `{dispute.id}`\n"
             f"*Bounty:* `{dispute.bounty_id}`\n"
             f"*Reason:* {dispute.reason}\n"
@@ -621,7 +734,7 @@ class DisputeService:
             )
 
         message = (
-            f"⚖️ *Manual Mediation Required*\n\n"
+            f"*Manual Mediation Required*\n\n"
             f"*Dispute ID:* `{dispute.id}`\n"
             f"*Bounty:* `{dispute.bounty_id}`\n"
             f"*Reason:* {dispute.reason}\n"
@@ -638,11 +751,11 @@ class DisputeService:
         inline_keyboard = {
             "inline_keyboard": [
                 [
-                    {"text": "✅ Release to Contributor", "callback_data": f"resolve:{dispute.id}:contributor"},
-                    {"text": "❌ Refund to Creator", "callback_data": f"resolve:{dispute.id}:creator"},
+                    {"text": "Release to Contributor", "callback_data": f"resolve:{dispute.id}:contributor"},
+                    {"text": "Refund to Creator", "callback_data": f"resolve:{dispute.id}:creator"},
                 ],
                 [
-                    {"text": "⚖️ Split 50/50", "callback_data": f"resolve:{dispute.id}:split:50"},
+                    {"text": "Split 50/50", "callback_data": f"resolve:{dispute.id}:split:50"},
                 ],
             ]
         }
@@ -655,16 +768,16 @@ class DisputeService:
             return
 
         outcome_emoji = {
-            DisputeOutcome.RELEASE_TO_CONTRIBUTOR.value: "✅",
-            DisputeOutcome.REFUND_TO_CREATOR.value: "❌",
-            DisputeOutcome.SPLIT.value: "⚖️",
+            DisputeOutcome.RELEASE_TO_CONTRIBUTOR.value: "released to contributor",
+            DisputeOutcome.REFUND_TO_CREATOR.value: "refunded to creator",
+            DisputeOutcome.SPLIT.value: "split between parties",
         }
-        emoji = outcome_emoji.get(dispute.outcome or "", "📋")
+        outcome_label = outcome_emoji.get(dispute.outcome or "", dispute.outcome or "")
 
         message = (
-            f"{emoji} *Dispute Resolved*\n\n"
+            f"*Dispute Resolved*\n\n"
             f"*Dispute ID:* `{dispute.id}`\n"
-            f"*Outcome:* {dispute.outcome}\n"
+            f"*Outcome:* {outcome_label}\n"
             f"*Mediation:* {dispute.mediation_type}\n"
         )
         if dispute.resolution_notes:

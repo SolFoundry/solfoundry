@@ -10,7 +10,6 @@ Endpoints:
     POST   /api/disputes/{dispute_id}/resolve   — Admin resolves the dispute
 """
 
-import os
 import uuid as _uuid
 from typing import Optional
 
@@ -35,13 +34,14 @@ from app.services import bounty_service
 
 router = APIRouter(prefix="/api/disputes", tags=["disputes"])
 
-ADMIN_USER_IDS: set[str] = set(
-    filter(None, os.getenv("ADMIN_USER_IDS", "").split(","))
-)
 
-
-def _is_admin(user_id: str) -> bool:
-    return user_id in ADMIN_USER_IDS
+def _require_admin(user: UserResponse) -> None:
+    """Raise 403 unless the user has an admin role on the platform."""
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
 
 
 def _validate_uuid(value: str, field_name: str = "ID") -> str:
@@ -57,6 +57,9 @@ def _validate_uuid(value: str, field_name: str = "ID") -> str:
 
 def _get_service(db: AsyncSession = Depends(get_db)) -> DisputeService:
     return DisputeService(db)
+
+
+# ── Create ────────────────────────────────────────────────────────────────
 
 
 @router.post("", response_model=DisputeResponse, status_code=201)
@@ -78,14 +81,7 @@ async def create_dispute(
     if not bounty:
         raise HTTPException(status_code=404, detail="Bounty not found")
 
-    submission = None
-    submissions = bounty_service.get_submissions(data.bounty_id)
-    if submissions:
-        for s in submissions:
-            if s.id == data.submission_id:
-                submission = s
-                break
-
+    submission = bounty_service.get_submission(data.bounty_id, data.submission_id)
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
@@ -97,14 +93,8 @@ async def create_dispute(
 
     submitter_identity = str(user.id)
     submitted_by = getattr(submission, "submitted_by", None)
-    contributor_wallet = getattr(submission, "contributor_wallet", None)
 
-    is_owner = (
-        submitted_by == submitter_identity
-        or submitted_by == user.wallet_address
-        or (contributor_wallet and contributor_wallet == user.wallet_address)
-    )
-    if not is_owner:
+    if submitted_by != submitter_identity:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the original submitter can dispute a rejection",
@@ -127,6 +117,9 @@ async def create_dispute(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ── List ──────────────────────────────────────────────────────────────────
+
+
 @router.get("", response_model=DisputeListResponse)
 async def list_disputes(
     bounty_id: Optional[str] = Query(None, description="Filter by bounty ID"),
@@ -145,6 +138,7 @@ async def list_disputes(
     Admins can see all disputes.
     """
     user_id = str(user.id)
+    is_admin = user.role == "admin"
 
     if bounty_id:
         _validate_uuid(bounty_id, "bounty_id")
@@ -153,18 +147,23 @@ async def list_disputes(
     if creator_id:
         _validate_uuid(creator_id, "creator_id")
 
-    if not _is_admin(user_id):
-        if not contributor_id and not creator_id:
-            contributor_id = user_id
+    if not is_admin and not contributor_id and not creator_id:
+        contributor_id = user_id
 
-    return await svc.list_disputes(
-        bounty_id=bounty_id,
-        contributor_id=contributor_id,
-        creator_id=creator_id,
-        state=state,
-        skip=skip,
-        limit=limit,
-    )
+    try:
+        return await svc.list_disputes(
+            bounty_id=bounty_id,
+            contributor_id=contributor_id,
+            creator_id=creator_id,
+            state=state,
+            skip=skip,
+            limit=limit,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Stats ─────────────────────────────────────────────────────────────────
 
 
 @router.get("/stats", response_model=DisputeStats)
@@ -173,12 +172,11 @@ async def dispute_stats(
     svc: DisputeService = Depends(_get_service),
 ) -> DisputeStats:
     """Aggregate statistics across all disputes. Admin only."""
-    if not _is_admin(str(user.id)):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can view dispute statistics",
-        )
+    _require_admin(user)
     return await svc.get_stats()
+
+
+# ── Detail ────────────────────────────────────────────────────────────────
 
 
 @router.get("/{dispute_id}", response_model=DisputeDetailResponse)
@@ -200,13 +198,16 @@ async def get_dispute(
 
     user_id = str(user.id)
     is_party = user_id in (result.contributor_id, result.creator_id)
-    if not is_party and not _is_admin(user_id):
+    if not is_party and user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this dispute",
         )
 
     return result
+
+
+# ── Evidence ──────────────────────────────────────────────────────────────
 
 
 @router.post(
@@ -238,6 +239,9 @@ async def submit_evidence(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ── Mediate ───────────────────────────────────────────────────────────────
+
+
 @router.post("/{dispute_id}/mediate", response_model=DisputeResponse)
 async def advance_to_mediation(
     dispute_id: str,
@@ -254,12 +258,12 @@ async def advance_to_mediation(
     _validate_uuid(dispute_id, "dispute_id")
 
     user_id = str(user.id)
-    dispute = await svc._get_dispute(dispute_id)
+    dispute = await svc.get_dispute_by_id(dispute_id)
     if not dispute:
         raise HTTPException(status_code=404, detail="Dispute not found")
 
     is_party = user_id in (str(dispute.contributor_id), str(dispute.creator_id))
-    if not is_party and not _is_admin(user_id):
+    if not is_party and user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only dispute parties or admins can advance to mediation",
@@ -269,6 +273,9 @@ async def advance_to_mediation(
         return await svc.advance_to_mediation(dispute_id, user_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Resolve ───────────────────────────────────────────────────────────────
 
 
 @router.post("/{dispute_id}/resolve", response_model=DisputeResponse)
@@ -281,24 +288,18 @@ async def resolve_dispute(
     """
     Admin resolves a dispute that is in MEDIATION state.
 
-    Requires admin privileges. Outcomes:
+    Requires admin role. Outcomes:
     - release_to_contributor: full payout to contributor
     - refund_to_creator: full refund to bounty creator
     - split: partial payout split between both parties
 
-    Reputation impact is applied automatically based on outcome.
-    A Telegram notification is sent to the admin channel.
+    Reputation impact is applied automatically based on outcome and
+    pushed to the contributor service for immediate profile updates.
     """
     _validate_uuid(dispute_id, "dispute_id")
-
-    user_id = str(user.id)
-    if not _is_admin(user_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can resolve disputes",
-        )
+    _require_admin(user)
 
     try:
-        return await svc.resolve_dispute(dispute_id, data, user_id)
+        return await svc.resolve_dispute(dispute_id, data, str(user.id))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

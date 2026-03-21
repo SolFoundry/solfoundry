@@ -49,6 +49,7 @@ from app.services.dispute_service import (
     REPUTATION_VALID_DISPUTE_BONUS,
     REPUTATION_FAIR_CREATOR_BONUS,
 )
+from app.services import bounty_service
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -68,6 +69,7 @@ MOCK_USER_CONTRIBUTOR = UserResponse(
     email="contributor@example.com",
     wallet_address="ContributorWallet1234567890123456789012345678",
     wallet_verified=True,
+    role="user",
     created_at=datetime.now(timezone.utc),
     updated_at=datetime.now(timezone.utc),
 )
@@ -79,6 +81,19 @@ MOCK_USER_CREATOR = UserResponse(
     email="creator@example.com",
     wallet_address="CreatorWallet12345678901234567890123456789012",
     wallet_verified=True,
+    role="user",
+    created_at=datetime.now(timezone.utc),
+    updated_at=datetime.now(timezone.utc),
+)
+
+MOCK_USER_ADMIN = UserResponse(
+    id=ADMIN_ID,
+    github_id="admin-gh",
+    username="admin",
+    email="admin@example.com",
+    wallet_address="AdminWallet123456789012345678901234567890123",
+    wallet_verified=True,
+    role="admin",
     created_at=datetime.now(timezone.utc),
     updated_at=datetime.now(timezone.utc),
 )
@@ -902,17 +917,206 @@ class TestUUIDValidation:
 
 
 # ===========================================================================
-# Admin role check tests (no DB needed)
+# Role-based admin check tests (no DB needed)
 # ===========================================================================
 
 
-class TestAdminCheck:
-    def test_is_admin_false_by_default(self):
-        from app.api.disputes import _is_admin
-        assert _is_admin(str(uuid.uuid4())) is False
+class TestAdminRoleCheck:
+    def test_require_admin_rejects_user_role(self):
+        from app.api.disputes import _require_admin
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            _require_admin(MOCK_USER_CONTRIBUTOR)
+        assert exc_info.value.status_code == 403
+        assert "Admin" in exc_info.value.detail
 
-    def test_is_admin_with_env(self, monkeypatch):
-        test_id = str(uuid.uuid4())
-        monkeypatch.setattr("app.api.disputes.ADMIN_USER_IDS", {test_id})
-        from app.api.disputes import _is_admin
-        assert _is_admin(test_id) is True
+    def test_require_admin_accepts_admin_role(self):
+        from app.api.disputes import _require_admin
+        _require_admin(MOCK_USER_ADMIN)
+
+
+# ===========================================================================
+# AI Mediation Provider interface tests
+# ===========================================================================
+
+
+class TestAIMediationProvider:
+    @pytest.mark.asyncio
+    async def test_deterministic_provider_returns_score(self):
+        from app.services.dispute_service import DeterministicMediationProvider
+        provider = DeterministicMediationProvider()
+        result = await provider.score_dispute(
+            dispute_id="test-123",
+            reason="unfair_rejection",
+            description="My code meets all requirements",
+            evidence=[{"party": "contributor", "type": "explanation", "description": "tests pass"}],
+        )
+        assert result is not None
+        assert "score" in result
+        assert "summary" in result
+        assert 3.0 <= result["score"] <= 10.0
+
+    @pytest.mark.asyncio
+    async def test_deterministic_provider_is_repeatable(self):
+        from app.services.dispute_service import DeterministicMediationProvider
+        provider = DeterministicMediationProvider()
+        result1 = await provider.score_dispute("id1", "reason", "desc", [])
+        result2 = await provider.score_dispute("id1", "reason", "desc", [])
+        assert result1["score"] == result2["score"]
+
+    @pytest.mark.asyncio
+    async def test_custom_provider_is_injectable(self):
+        from app.services.dispute_service import AIMediationProvider, DisputeService
+
+        class HighScoreProvider(AIMediationProvider):
+            async def score_dispute(self, dispute_id, reason, description, evidence):
+                return {"score": 9.5, "summary": "Always high score for testing"}
+
+        provider = HighScoreProvider()
+        result = await provider.score_dispute("test", "test", "test", [])
+        assert result["score"] == 9.5
+
+    @pytest.mark.asyncio
+    async def test_set_global_provider(self):
+        from app.services.dispute_service import (
+            AIMediationProvider,
+            DeterministicMediationProvider,
+            set_ai_mediation_provider,
+            _default_ai_provider,
+        )
+        original = _default_ai_provider
+
+        class CustomProvider(AIMediationProvider):
+            async def score_dispute(self, dispute_id, reason, description, evidence):
+                return {"score": 8.0, "summary": "custom"}
+
+        set_ai_mediation_provider(CustomProvider())
+        from app.services.dispute_service import _default_ai_provider as new_provider
+        assert isinstance(new_provider, CustomProvider)
+
+        set_ai_mediation_provider(original)
+
+
+# ===========================================================================
+# Public get_dispute_by_id tests
+# ===========================================================================
+
+
+class TestGetDisputeById:
+    @pytest.mark.asyncio
+    async def test_returns_none_for_missing(self, dispute_service):
+        result = await dispute_service.get_dispute_by_id(str(uuid.uuid4()))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_dispute_db_row(self, dispute_service):
+        data = DisputeCreate(**_make_create_payload())
+        ts = datetime.now(timezone.utc)
+        created = await dispute_service.create_dispute(data, CONTRIBUTOR_ID, CREATOR_ID, ts)
+
+        row = await dispute_service.get_dispute_by_id(created.id)
+        assert row is not None
+        assert str(row.id) == created.id
+
+
+# ===========================================================================
+# Evidence deadline enforcement tests
+# ===========================================================================
+
+
+class TestEvidenceDeadline:
+    @pytest.mark.asyncio
+    async def test_evidence_rejected_after_deadline(self, dispute_service):
+        data = DisputeCreate(**_make_create_payload())
+        ts = datetime.now(timezone.utc)
+        created = await dispute_service.create_dispute(data, CONTRIBUTOR_ID, CREATOR_ID, ts)
+
+        row = await dispute_service.get_dispute_by_id(created.id)
+        row.evidence_deadline = datetime.now(timezone.utc) - timedelta(hours=1)
+        await dispute_service.db.flush()
+
+        item = EvidenceItem(evidence_type="explanation", description="Late evidence")
+        with pytest.raises(ValueError, match="deadline has passed"):
+            await dispute_service.submit_evidence(
+                created.id, [item], CONTRIBUTOR_ID
+            )
+
+
+# ===========================================================================
+# State filter validation tests
+# ===========================================================================
+
+
+class TestStateFilterValidation:
+    @pytest.mark.asyncio
+    async def test_invalid_state_filter_rejected(self, dispute_service):
+        with pytest.raises(ValueError, match="Invalid state filter"):
+            await dispute_service.list_disputes(state="nonexistent_state")
+
+
+# ===========================================================================
+# Direct submission lookup tests (bounty_service)
+# ===========================================================================
+
+
+class TestDirectSubmissionLookup:
+    def test_get_submission_returns_none_for_missing_bounty(self):
+        result = bounty_service.get_submission("nonexistent", "nonexistent")
+        assert result is None
+
+    def test_get_submission_returns_none_for_missing_submission(self):
+        from app.models.bounty import BountyCreate
+        bounty = bounty_service.create_bounty(BountyCreate(
+            title="Test",
+            description="Test bounty",
+            tier=1,
+            reward_amount=1000,
+            github_issue_url="https://github.com/test/test/issues/1",
+            required_skills=["Python"],
+            deadline=datetime.now(timezone.utc).isoformat(),
+            created_by=CREATOR_ID,
+        ))
+        result = bounty_service.get_submission(bounty.id, "nonexistent")
+        assert result is None
+
+
+# ===========================================================================
+# Reputation sync integration tests
+# ===========================================================================
+
+
+class TestReputationSync:
+    @pytest.mark.asyncio
+    async def test_resolve_updates_contributor_store(self, dispute_service):
+        from app.services.contributor_service import _store as contributor_store
+        from app.models.contributor import ContributorDB as ContribDB
+
+        contributor_store[CONTRIBUTOR_ID] = ContribDB(
+            id=uuid.UUID(CONTRIBUTOR_ID),
+            username="test_contributor",
+            display_name="Test Contributor",
+            reputation_score=50,
+        )
+        contributor_store[CREATOR_ID] = ContribDB(
+            id=uuid.UUID(CREATOR_ID),
+            username="test_creator",
+            display_name="Test Creator",
+            reputation_score=50,
+        )
+
+        data = DisputeCreate(**_make_create_payload())
+        ts = datetime.now(timezone.utc)
+        created = await dispute_service.create_dispute(data, CONTRIBUTOR_ID, CREATOR_ID, ts)
+        await dispute_service.advance_to_mediation(created.id, CONTRIBUTOR_ID)
+
+        resolve = DisputeResolve(
+            outcome=DisputeOutcome.RELEASE_TO_CONTRIBUTOR.value,
+            resolution_notes="Contributor was right",
+        )
+        await dispute_service.resolve_dispute(created.id, resolve, ADMIN_ID)
+
+        assert contributor_store[CONTRIBUTOR_ID].reputation_score == 60  # 50 + 10
+        assert contributor_store[CREATOR_ID].reputation_score == 25  # 50 - 25
+
+        del contributor_store[CONTRIBUTOR_ID]
+        del contributor_store[CREATOR_ID]
