@@ -103,7 +103,11 @@ async def receive_github_webhook(
                 delivery_id,
             )
 
-            # Dispatch to lifecycle engine for state-machine transitions
+            # Dispatch to lifecycle engine for state-machine transitions.
+            # Errors are intentionally logged-and-swallowed here so that a
+            # lifecycle failure (e.g. invalid transition from the current
+            # state) does not cause the webhook delivery to return 500,
+            # which would trigger GitHub retries and duplicate processing.
             pr_action = action
             if action == "closed" and pr.get("merged", False):
                 pr_action = "merged"
@@ -114,7 +118,7 @@ async def receive_github_webhook(
                 try:
                     dispatch_pr_event(str(bounty_id), pr_action, pr_url, sender_login)
                 except Exception as exc:
-                    logger.warning("Lifecycle dispatch failed: %s", exc)
+                    logger.warning("Lifecycle dispatch failed (non-fatal): %s", exc)
 
             return JSONResponse(status_code=200, content=result)
 

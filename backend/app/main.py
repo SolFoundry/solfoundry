@@ -24,7 +24,7 @@ from app.api.lifecycle import router as lifecycle_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
-from app.services.github_sync import sync_all, periodic_sync
+from app.services.github_sync import sync_all
 from app.services import lifecycle_service
 
 # Initialize logging
