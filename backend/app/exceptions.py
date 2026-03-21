@@ -70,3 +70,35 @@ class InvalidPayoutTransitionError(PayoutError):
     For example, attempting to execute a payout that has not been
     admin-approved yet.  Maps to HTTP 409 in the API layer.
     """
+
+
+# ---------------------------------------------------------------------------
+# Escrow exceptions
+# ---------------------------------------------------------------------------
+
+class EscrowError(Exception):
+    """Base class for all escrow-related errors."""
+
+
+class EscrowNotFoundError(EscrowError):
+    """Raised when no escrow exists for the given bounty_id."""
+
+
+class EscrowAlreadyExistsError(EscrowError):
+    """Raised when an escrow already exists for the given bounty_id."""
+
+
+class InvalidEscrowTransitionError(EscrowError):
+    """Raised when a state transition is not allowed by the escrow state machine."""
+
+
+class EscrowFundingError(EscrowError):
+    """Raised when the on-chain funding transfer fails."""
+
+    def __init__(self, message: str, tx_hash: str | None = None) -> None:
+        super().__init__(message)
+        self.tx_hash = tx_hash
+
+
+class EscrowDoubleSpendError(EscrowError):
+    """Raised when a funding transaction could not be confirmed on-chain."""

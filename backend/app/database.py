@@ -104,6 +104,7 @@ async def init_db() -> None:
             )
             from app.models.review import AIReviewScoreDB  # noqa: F401
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
+            from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
 
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.

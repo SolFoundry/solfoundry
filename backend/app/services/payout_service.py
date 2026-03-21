@@ -191,46 +191,6 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
     return _payout_to_response(record)
 
 
-async def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
-    """Look up a single payout by its internal UUID, querying DB first.
-
-    Args:
-        payout_id: The UUID string of the payout.
-
-    Returns:
-        A PayoutResponse if found, None otherwise.
-    """
-    db_payouts = await _load_payouts_from_db()
-    if db_payouts is not None:
-        record = db_payouts.get(payout_id)
-        if record:
-            return _payout_to_response(record)
-
-    with _lock:
-        record = _payout_store.get(payout_id)
-    return _payout_to_response(record) if record else None
-
-
-async def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
-    """Look up a single payout by its on-chain transaction hash.
-
-    Queries PostgreSQL first for authoritative data.
-
-    Args:
-        tx_hash: The Solana transaction signature.
-
-    Returns:
-        A PayoutResponse if found, None otherwise.
-    """
-    db_payouts = await _load_payouts_from_db()
-    source = db_payouts if db_payouts is not None else _payout_store
-
-    for record in source.values():
-        if record.tx_hash == tx_hash:
-            return _payout_to_response(record)
-    return None
-
-
 async def list_payouts(
     recipient: Optional[str] = None,
     status: Optional[PayoutStatus] = None,
@@ -378,6 +338,166 @@ async def get_total_buybacks() -> tuple[float, float]:
         total_sol += buyback.amount_sol
         total_fndry += buyback.amount_fndry
     return total_sol, total_fndry
+
+
+async def approve_payout(payout_id: str, admin_id: str):
+    """Move a PENDING payout to APPROVED status.
+
+    Args:
+        payout_id: The UUID of the payout.
+        admin_id: The admin who approved it.
+
+    Returns:
+        An AdminApprovalResponse.
+
+    Raises:
+        PayoutNotFoundError: If the payout does not exist.
+        InvalidPayoutTransitionError: If the payout is not PENDING.
+    """
+    from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError
+    from app.models.payout import AdminApprovalResponse, ALLOWED_TRANSITIONS
+    from datetime import datetime, timezone
+
+    with _lock:
+        record = _payout_store.get(payout_id)
+    if record is None:
+        raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+    if record.status != PayoutStatus.PENDING:
+        raise InvalidPayoutTransitionError(
+            f"Cannot approve payout in '{record.status.value}' state"
+        )
+    record.status = PayoutStatus.APPROVED
+    record.admin_approved_by = admin_id
+    record.updated_at = datetime.now(timezone.utc)
+
+    audit_event("payout_approved", payout_id=payout_id, admin_id=admin_id)
+    return AdminApprovalResponse(
+        payout_id=payout_id,
+        status=record.status,
+        admin_id=admin_id,
+        message="Payout approved",
+    )
+
+
+def reject_payout(payout_id: str, admin_id: str, reason: Optional[str] = None):
+    """Move a PENDING payout to FAILED status (rejection).
+
+    Args:
+        payout_id: The UUID of the payout.
+        admin_id: The admin who rejected it.
+        reason: Optional rejection reason.
+
+    Returns:
+        An AdminApprovalResponse.
+
+    Raises:
+        PayoutNotFoundError: If the payout does not exist.
+        InvalidPayoutTransitionError: If the payout is not PENDING.
+    """
+    from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError
+    from app.models.payout import AdminApprovalResponse
+    from datetime import datetime, timezone
+
+    with _lock:
+        record = _payout_store.get(payout_id)
+    if record is None:
+        raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+    if record.status != PayoutStatus.PENDING:
+        raise InvalidPayoutTransitionError(
+            f"Cannot reject payout in '{record.status.value}' state"
+        )
+    record.status = PayoutStatus.FAILED
+    record.admin_approved_by = admin_id
+    record.failure_reason = reason
+    record.updated_at = datetime.now(timezone.utc)
+
+    audit_event("payout_rejected", payout_id=payout_id, admin_id=admin_id, reason=reason)
+    return AdminApprovalResponse(
+        payout_id=payout_id,
+        status=record.status,
+        admin_id=admin_id,
+        message="Payout rejected",
+    )
+
+
+async def process_payout(payout_id: str) -> PayoutResponse:
+    """Execute on-chain SPL transfer for an approved payout.
+
+    Args:
+        payout_id: The UUID of the payout.
+
+    Returns:
+        The updated PayoutResponse.
+
+    Raises:
+        PayoutNotFoundError: If the payout does not exist.
+        InvalidPayoutTransitionError: If the payout is not APPROVED.
+    """
+    from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError, TransferError
+    from app.services.transfer_service import send_spl_transfer, confirm_transaction
+    from datetime import datetime, timezone
+
+    with _lock:
+        record = _payout_store.get(payout_id)
+    if record is None:
+        raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+    if record.status != PayoutStatus.APPROVED:
+        raise InvalidPayoutTransitionError(
+            f"Cannot execute payout in '{record.status.value}' state (must be APPROVED)"
+        )
+
+    record.status = PayoutStatus.PROCESSING
+    record.updated_at = datetime.now(timezone.utc)
+
+    try:
+        tx_hash = await send_spl_transfer(
+            recipient_wallet=record.recipient_wallet or "",
+            amount=record.amount,
+        )
+        confirmed = await confirm_transaction(tx_hash)
+        if confirmed:
+            record.status = PayoutStatus.CONFIRMED
+            record.tx_hash = tx_hash
+            record.solscan_url = _solscan_url(tx_hash)
+        else:
+            record.status = PayoutStatus.FAILED
+            record.failure_reason = f"Transaction {tx_hash} not confirmed"
+    except TransferError as exc:
+        record.status = PayoutStatus.FAILED
+        record.failure_reason = str(exc)
+        record.retry_count = exc.attempts
+    except Exception as exc:
+        record.status = PayoutStatus.FAILED
+        record.failure_reason = str(exc)
+
+    record.updated_at = datetime.now(timezone.utc)
+
+    try:
+        from app.services.pg_store import persist_payout
+        await persist_payout(record)
+    except Exception as exc:
+        logger.error("PostgreSQL payout update failed: %s", exc)
+
+    return _payout_to_response(record)
+
+
+def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
+    """Synchronous lookup by payout ID (in-memory only).
+
+    Used by routes that need sync access. The async version queries DB first.
+    """
+    with _lock:
+        record = _payout_store.get(payout_id)
+    return _payout_to_response(record) if record else None
+
+
+def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
+    """Synchronous lookup by tx hash (in-memory only)."""
+    with _lock:
+        for record in _payout_store.values():
+            if record.tx_hash == tx_hash:
+                return _payout_to_response(record)
+    return None
 
 
 def reset_stores() -> None:
