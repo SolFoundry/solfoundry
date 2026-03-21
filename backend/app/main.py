@@ -35,6 +35,7 @@ from app.core.config import ALLOWED_ORIGINS
 from app.middleware.security import SecurityMiddleware
 from app.middleware.ip_blocklist import IPBlocklistMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.middleware.brute_force_protection import BruteForceMiddleware
 
 # Initialize logging
 setup_logging()
@@ -179,6 +180,7 @@ app = FastAPI(
 app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(IPBlocklistMiddleware)
 app.add_middleware(SecurityMiddleware)
+app.add_middleware(BruteForceMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
