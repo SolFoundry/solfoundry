@@ -80,6 +80,79 @@ jobs:
           # Write body to file to avoid shell escaping issues
           echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
 
+      - name: Check submission rate limit
+        id: ratelimit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+        run: |
+          PR_NUM="${{ steps.pr.outputs.number }}"
+          PR_AUTHOR="${{ steps.pr.outputs.author }}"
+          REPO="${{ github.repository }}"
+
+          # Extract linked issue number safely (avoid shell interpretation of PR body)
+          ISSUE_NUM=$(python3 -c "
+          import re, os
+          title = os.environ.get('PR_TITLE', '')
+          body = ''
+          if os.path.exists('/tmp/pr_body.txt'):
+              body = open('/tmp/pr_body.txt').read()
+          text = title + ' ' + body
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
+          ")
+
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "No linked issue — skipping rate limit check"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Count ALL PRs (open + closed + merged) by same author targeting same issue
+          ALL_AUTHOR_PRS=$(gh pr list --repo $REPO --state all --author "$PR_AUTHOR" --limit 100 --json number,title,body)
+          ATTEMPTS=$(echo "$ALL_AUTHOR_PRS" | python3 -c "
+          import sys, json, re
+          prs = json.loads(sys.stdin.read())
+          issue_num = '$ISSUE_NUM'
+          if not issue_num:
+              print(0)
+              sys.exit()
+          count = 0
+          for pr in prs:
+              text = (pr.get('title','') + ' ' + (pr.get('body','') or '')).lower()
+              if re.search(r'(?:closes|fixes|resolves)\s+#(?:\S+#)?' + issue_num + r'\b', text):
+                  count += 1
+          print(count)
+          ")
+
+          echo "Author $PR_AUTHOR has $ATTEMPTS submission(s) for issue #$ISSUE_NUM"
+
+          if [ "$ATTEMPTS" -gt 50 ]; then
+            echo "RATE LIMIT: $PR_AUTHOR exceeded max 50 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
+
+            python3 -c "
+          import subprocess, sys
+          author = '$PR_AUTHOR'
+          attempts = '$ATTEMPTS'
+          pr_num = '$PR_NUM'
+          repo = '$REPO'
+          body = (
+              '⚠️ **Submission limit reached**\n\n'
+              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 50). '
+              'Please make sure your code fully addresses the review feedback before submitting again.\n\n'
+              'If you believe this is an error, reach out in our community.\n\n'
+              '---\n*SolFoundry Review Bot*'
+          )
+          subprocess.run(['gh', 'pr', 'comment', pr_num, '--repo', repo, '--body', body], check=True)
+          subprocess.run(['gh', 'pr', 'close', pr_num, '--repo', repo], check=True)
+          "
+
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
       - name: Check for existing review (dedup)
         id: dedup
         env:
