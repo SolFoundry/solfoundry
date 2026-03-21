@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollToTop } from '../common/ScrollToTop';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
+import { Breadcrumbs } from './Breadcrumbs';
 
 // ============================================================================
 // Types
@@ -161,6 +162,9 @@ export function SiteLayout({
         onNavClick={handleNavClick}
         onClose={() => setMobileMenuOpen(false)}
       />
+
+      {/* Breadcrumbs */}
+      <Breadcrumbs />
 
       {/* Main Content */}
       <main className="min-h-screen pt-16">
