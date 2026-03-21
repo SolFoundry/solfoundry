@@ -76,8 +76,9 @@ async def connected(mgr):
 
 
 class TestAuthentication:
+    """WebSocket authentication and authorization tests."""
+
     @pytest.mark.asyncio
-    """TestAuthentication."""
     async def test_connect_valid_token(self, mgr):
         """Test connect valid token."""
         ws = FakeWebSocket()
@@ -126,8 +127,9 @@ class TestAuthentication:
 
 
 class TestHeartbeat:
+    """WebSocket heartbeat ping/pong mechanism tests."""
+
     @pytest.mark.asyncio
-    """TestHeartbeat."""
     async def test_heartbeat_sends_ping(self, connected):
         """Test heartbeat sends ping."""
         mgr, cid, ws = connected
@@ -164,8 +166,9 @@ class TestHeartbeat:
 
 
 class TestBroadcast:
-    @pytest.mark.asyncio
     """TestBroadcast."""
+
+    @pytest.mark.asyncio
     async def test_broadcast_delivers_to_subscribers(self, mgr):
         """Test broadcast delivers to subscribers."""
         ws1, ws2 = FakeWebSocket(), FakeWebSocket()
@@ -210,8 +213,9 @@ class TestBroadcast:
 
 
 class TestRedisPubSubAdapter:
-    @pytest.mark.asyncio
     """TestRedisPubSubAdapter."""
+
+    @pytest.mark.asyncio
     async def test_publish_calls_redis(self):
         """Test publish calls redis."""
         mgr = WebSocketManager()
@@ -266,8 +270,9 @@ class TestRedisPubSubAdapter:
 
 
 class TestRateLimiting:
-    @pytest.mark.asyncio
     """TestRateLimiting."""
+
+    @pytest.mark.asyncio
     async def test_rate_limit_exceeded(self, connected):
         """Test rate limit exceeded."""
         mgr, cid, _ = connected
@@ -282,8 +287,9 @@ class TestRateLimiting:
 
 
 class TestChannelLifecycle:
-    @pytest.mark.asyncio
     """TestChannelLifecycle."""
+
+    @pytest.mark.asyncio
     async def test_subscribe_unsubscribe(self, connected):
         """Test subscribe unsubscribe."""
         mgr, cid, _ = connected
@@ -325,8 +331,9 @@ class TestChannelLifecycle:
 
 
 class TestEndpoint:
-    @pytest.mark.asyncio
     """TestEndpoint."""
+
+    @pytest.mark.asyncio
     async def test_connect_without_token_rejected(self):
         """Test connect without token rejected."""
         from app.main import app

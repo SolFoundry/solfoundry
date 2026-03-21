@@ -30,13 +30,17 @@ class FakeWebSocket:
         """Accept."""
     async def accept(self): self.accepted = True
     async def close(self, code=1000):
-        """Close the connection and release resources."""
+        """Close the fake WebSocket connection."""
         self.closed = True; self.close_code = code
         self.client_state = WebSocketState.DISCONNECTED
-        """Send json."""
-    async def send_json(self, data): self.sent.append(data)
-        """Send text."""
-    async def send_text(self, data): self.sent.append(json.loads(data))
+
+    async def send_json(self, data):
+        """Send JSON data to the client."""
+        self.sent.append(data)
+
+    async def send_text(self, data):
+        """Send text data to the client."""
+        self.sent.append(json.loads(data))
 
 
 @pytest.fixture
@@ -127,8 +131,9 @@ class TestEventModels:
 
 
 class TestJWTAuth:
-    @pytest.mark.asyncio
     """TestJWTAuth."""
+
+    @pytest.mark.asyncio
     async def test_jwt_accepted(self, mgr):
         """Test jwt accepted."""
         with patch("app.services.websocket_manager.WebSocketManager.authenticate",
@@ -157,8 +162,9 @@ class TestJWTAuth:
 
 
 class TestMaxConnections:
-    @pytest.mark.asyncio
     """TestMaxConnections."""
+
+    @pytest.mark.asyncio
     async def test_limit_enforced(self, mgr):
         """Test limit enforced."""
         with patch("app.services.websocket_manager.MAX_CONNECTIONS", 2):
@@ -179,8 +185,9 @@ class TestMaxConnections:
 
 
 class TestEventEmission:
-    @pytest.mark.asyncio
     """TestEventEmission."""
+
+    @pytest.mark.asyncio
     async def test_delivers_to_subscribers(self, connected):
         """Test delivers to subscribers."""
         mgr, cid, ws = connected
@@ -204,8 +211,9 @@ class TestEventEmission:
 
 
 class TestPollingFallback:
-    @pytest.mark.asyncio
     """TestPollingFallback."""
+
+    @pytest.mark.asyncio
     async def test_empty_channel(self, mgr):
         """Test empty channel."""
         assert mgr.get_buffered_events("none") == []
@@ -228,8 +236,9 @@ class TestPollingFallback:
 
 
 class TestConnectionInfo:
-    @pytest.mark.asyncio
     """TestConnectionInfo."""
+
+    @pytest.mark.asyncio
     async def test_count(self, mgr):
         """Test count."""
         assert mgr.get_connection_count() == 0
