@@ -237,3 +237,59 @@ body {
 .animate-tooltip-reveal {
   animation: tooltip-reveal 0.18s ease-out forwards;
 }
+
+/* ============================================================================
+   Theme Transition Styles - Smooth transitions between light and dark mode
+   ============================================================================ */
+
+/* Smooth theme transition animation */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+
+/* Prevent transition on initial load to avoid flash */
+html:not(.theme-transitioning) {
+  transition: none;
+}
+
+/* ============================================================================
+   Loading Skeleton Animation
+   ============================================================================ */
+
+/* Shimmer effect for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Light mode shimmer */
+:root:not(.dark) .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 200% 100%;
+}
