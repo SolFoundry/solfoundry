@@ -135,7 +135,36 @@ def _get_cached_stats() -> dict:
     return data
 
 
-@router.get("/api/stats", response_model=StatsResponse)
+class TokenomicsData(BaseModel):
+    """Tokenomics data response."""
+    tokenName: str = "$FNDRY"
+    tokenCA: str = "Fndry...1H7"
+    totalSupply: int = 1_000_000_000
+    circulatingSupply: int = 420_000_000
+    treasuryHoldings: int = 250_000_000
+    totalDistributed: int = 150_000_000
+    totalBuybacks: int = 50_000_000
+    totalBurned: int = 30_000_000
+    feeRevenueSol: float = 1245.50
+    distributionBreakdown: Dict[str, int] = {
+        "Circulating": 420_000_000,
+        "Treasury": 250_000_000,
+        "Staking": 200_000_000,
+        "Team_Vested": 100_000_000,
+        "Burned": 30_000_000,
+    }
+    lastUpdated: str = datetime.now(timezone.utc).isoformat()
+
+
+class TreasuryStats(BaseModel):
+    """Treasury stats response."""
+    solBalance: float = 1245.50
+    fndryBalance: int = 250_000_000
+    totalPayouts: int = 1240
+    treasuryWallet: str = "6v...m7p"
+
+
+@router.get("/stats", response_model=StatsResponse)
 async def get_stats() -> StatsResponse:
     """Get bounty program statistics.
     
@@ -152,3 +181,17 @@ async def get_stats() -> StatsResponse:
     """
     data = _get_cached_stats()
     return StatsResponse(**data)
+
+
+@router.get("/stats/tokenomics", response_model=TokenomicsData)
+async def get_tokenomics() -> TokenomicsData:
+    """Get tokenomics statistics for $FNDRY."""
+    # In a real app, this would query the blockchain/indexers
+    return TokenomicsData()
+
+
+@router.get("/stats/treasury", response_model=TreasuryStats)
+async def get_treasury() -> TreasuryStats:
+    """Get treasury wallet statistics."""
+    # In a real app, this would query the treasury wallet address
+    return TreasuryStats()

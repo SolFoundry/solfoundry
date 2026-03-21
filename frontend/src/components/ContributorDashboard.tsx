@@ -1,6 +1,12 @@
+/**
+ * ContributorDashboard - Main workspace for contributors to track their
+ * active work, earnings, and system notifications.
+ */
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useContributorDashboard } from '../hooks/useContributor';
+import { Skeleton, SkeletonCard, SkeletonActivityFeed } from './common/Skeleton';
 
 // ============================================================================
 // Types
@@ -33,14 +39,6 @@ interface Notification {
   read: boolean;
 }
 
-interface DashboardStats {
-  totalEarned: number;
-  activeBounties: number;
-  pendingPayouts: number;
-  reputationRank: number;
-  totalContributors: number;
-}
-
 interface EarningsData {
   date: string;
   amount: number;
@@ -57,96 +55,12 @@ interface ContributorDashboardProps {
 }
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_STATS: DashboardStats = {
-  totalEarned: 2450000,
-  activeBounties: 3,
-  pendingPayouts: 500000,
-  reputationRank: 42,
-  totalContributors: 256,
-};
-
-const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub <-> Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
-  { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
-  { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
-];
-
-const MOCK_ACTIVITIES: Activity[] = [
-  { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
-  { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
-  { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub <-> Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
-  { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
-];
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', type: 'success', title: 'PR Merged', message: 'Your PR #109 has been merged!', timestamp: '2026-03-20T10:00:00Z', read: false },
-  { id: '2', type: 'info', title: 'New Bounty', message: 'A new T1 bounty is available: Twitter Post', timestamp: '2026-03-20T03:00:00Z', read: false },
-  { id: '3', type: 'warning', title: 'Deadline Approaching', message: 'WebSocket Server bounty deadline in 2 days', timestamp: '2026-03-20T02:00:00Z', read: true },
-];
-
-const MOCK_EARNINGS: EarningsData[] = [
-  { date: '2026-03-01', amount: 0 },
-  { date: '2026-03-05', amount: 0 },
-  { date: '2026-03-10', amount: 100000 },
-  { date: '2026-03-12', amount: 150000 },
-  { date: '2026-03-15', amount: 500000 },
-  { date: '2026-03-18', amount: 800000 },
-  { date: '2026-03-20', amount: 950000 },
-];
-
-const MOCK_LINKED_ACCOUNTS = [
-  { type: 'github', username: 'HuiNeng6', connected: true },
-  { type: 'twitter', username: '', connected: false },
-];
-
-// ============================================================================
-// Data Fetcher (Simulates API calls)
-// ============================================================================
-
-interface DashboardData {
-  stats: DashboardStats;
-  bounties: Bounty[];
-  activities: Activity[];
-  notifications: Notification[];
-  earnings: EarningsData[];
-  linkedAccounts: { type: string; username: string; connected: boolean }[];
-}
-
-async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  // Simulate network delay (100-300ms)
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-  
-  // In a real app, this would fetch from an API using userId
-  // For now, return mock data but log userId for future integration
-  if (process.env.NODE_ENV !== 'test') {
-    console.log('Fetching dashboard data for user:', userId || 'anonymous');
-  }
-  
-  return {
-    stats: MOCK_STATS,
-    bounties: MOCK_BOUNTIES,
-    activities: MOCK_ACTIVITIES,
-    notifications: MOCK_NOTIFICATIONS,
-    earnings: MOCK_EARNINGS,
-    linkedAccounts: MOCK_LINKED_ACCOUNTS,
-  };
-}
-
-// ============================================================================
 // Helper Functions
 // ============================================================================
 
 function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`;
-  }
-  if (num >= 1000) {
-    return `${(num / 1000).toFixed(0)}K`;
-  }
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
   return num.toString();
 }
 
@@ -156,7 +70,6 @@ function formatRelativeTime(timestamp: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
-  
   if (diffHours < 1) return 'Just now';
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
@@ -165,17 +78,9 @@ function formatRelativeTime(timestamp: string): string {
 
 function getDaysRemaining(deadline: string): number {
   const now = new Date();
-  // Parse deadline in local timezone to match user's perspective
-  const [year, month, day] = deadline.split('-').map(Number);
-  const deadlineDate = new Date(year, month - 1, day, 23, 59, 59);
+  const deadlineDate = new Date(deadline);
   const diffMs = deadlineDate.getTime() - now.getTime();
-  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  // Return 0 for past deadlines, actual days for future
-  return Math.max(0, daysRemaining);
-}
-
-function isDeadlineUrgent(daysRemaining: number): boolean {
-  return daysRemaining > 0 && daysRemaining <= 2;
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 function getStatusColor(status: Bounty['status']): string {
@@ -192,74 +97,11 @@ function formatStatus(status: Bounty['status']): string {
   return status.replace(/_/g, ' ').toUpperCase();
 }
 
-function getActivityIcon(type: Activity['type']): React.ReactNode {
-  switch (type) {
-    case 'payout':
-      return (
-        <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      );
-    case 'pr_submitted':
-      return (
-        <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-        </svg>
-      );
-    case 'review_received':
-      return (
-        <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-        </svg>
-      );
-    case 'bounty_claimed':
-      return (
-        <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
-    case 'bounty_completed':
-      return (
-        <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
-  }
-}
-
-function getNotificationIcon(type: Notification['type']): React.ReactNode {
-  switch (type) {
-    case 'success':
-      return <div className="w-2 h-2 rounded-full bg-green-400" />;
-    case 'warning':
-      return <div className="w-2 h-2 rounded-full bg-yellow-400" />;
-    case 'error':
-      return <div className="w-2 h-2 rounded-full bg-red-400" />;
-    default:
-      return <div className="w-2 h-2 rounded-full bg-blue-400" />;
-  }
-}
-
 // ============================================================================
 // Sub-Components
 // ============================================================================
 
-interface SummaryCardProps {
-  label: string;
-  value: string | number;
-  suffix?: string;
-  icon: React.ReactNode;
-  trend?: 'up' | 'down' | 'neutral';
-  trendValue?: string;
-}
-
-function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryCardProps) {
+function SummaryCard({ label, value, suffix, icon, trend, trendValue }: any) {
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors">
       <div className="flex items-center justify-between mb-3">
@@ -273,339 +115,35 @@ function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryC
         {suffix && <span className="text-sm text-gray-400 mb-1">{suffix}</span>}
       </div>
       {trend && trendValue && (
-        <div className={`mt-2 text-xs flex items-center gap-1 ${trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
-          {trend === 'up' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>}
-          {trend === 'down' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>}
-          {trendValue}
+        <div className={`mt-2 text-xs flex items-center gap-1 ${trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
+           {trendValue}
         </div>
       )}
     </div>
   );
 }
 
-interface BountyCardProps {
-  bounty: Bounty;
-}
-
-function BountyCard({ bounty }: BountyCardProps) {
+function BountyCard({ bounty }: { bounty: Bounty }) {
   const daysRemaining = getDaysRemaining(bounty.deadline);
-  const isUrgent = isDeadlineUrgent(daysRemaining);
-  
   return (
     <div className="bg-[#1a1a1a] rounded-lg p-4 border border-white/5 hover:border-[#9945FF]/30 transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-white font-medium truncate">{bounty.title}</h3>
           <p className="text-sm text-gray-400 mt-1">
-            <span className={`font-medium ${getStatusColor(bounty.status)}`}>
-              {formatStatus(bounty.status)}
-            </span>
-            {' • '}
-            <span className={isUrgent ? 'text-red-400' : ''}>
-              {daysRemaining} days left
-            </span>
+            <span className={`font-medium ${getStatusColor(bounty.status)}`}>{formatStatus(bounty.status)}</span>
+            {' • '}{daysRemaining} days left
           </p>
         </div>
         <div className="text-right ml-4">
           <span className="text-[#14F195] font-bold">{formatNumber(bounty.reward)}</span>
-          <span className="text-gray-400 text-sm ml-1">$FNDRY</span>
         </div>
       </div>
-      
-      {/* Progress Bar */}
       <div className="mt-3">
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-          <span>Progress</span>
-          <span>{bounty.progress}%</span>
-        </div>
         <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-300"
-            style={{ width: `${bounty.progress}%` }}
-          />
+          <div className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195]" style={{ width: `${bounty.progress}%` }} />
         </div>
       </div>
-    </div>
-  );
-}
-
-interface ActivityItemProps {
-  activity: Activity;
-}
-
-function ActivityItem({ activity }: ActivityItemProps) {
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
-      <div className="flex-shrink-0 mt-0.5">
-        {getActivityIcon(activity.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{activity.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{activity.description}</p>
-      </div>
-      <div className="flex-shrink-0 text-right">
-        {activity.amount && (
-          <p className="text-sm text-[#14F195] font-medium">+{formatNumber(activity.amount)}</p>
-        )}
-        <p className="text-xs text-gray-500 mt-0.5">{formatRelativeTime(activity.timestamp)}</p>
-      </div>
-    </div>
-  );
-}
-
-interface NotificationItemProps {
-  notification: Notification;
-  onMarkAsRead: (id: string) => void;
-}
-
-function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps) {
-  return (
-    <div 
-      className={`flex items-start gap-3 py-3 px-2 rounded-lg transition-colors cursor-pointer
-                  ${notification.read ? 'opacity-60' : 'bg-white/5 hover:bg-white/10'}`}
-      onClick={() => !notification.read && onMarkAsRead(notification.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          if (!notification.read) onMarkAsRead(notification.id);
-        }
-      }}
-      tabIndex={0}
-      role="button"
-      aria-label={`${notification.title}: ${notification.message}. ${notification.read ? 'Read' : 'Unread - click to mark as read'}`}
-      aria-pressed={notification.read}
-    >
-      <div className="flex-shrink-0 mt-1.5" aria-hidden="true">
-        {getNotificationIcon(notification.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{notification.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{notification.message}</p>
-      </div>
-      <span className="text-xs text-gray-500" aria-label={formatRelativeTime(notification.timestamp)}>
-        {formatRelativeTime(notification.timestamp)}
-      </span>
-    </div>
-  );
-}
-
-// Simple Line Chart Component
-interface SimpleLineChartProps {
-  data: EarningsData[];
-}
-
-function SimpleLineChart({ data }: SimpleLineChartProps) {
-  // Handle empty or insufficient data
-  if (!data || data.length === 0) {
-    return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-gray-400 text-lg">0 $FNDRY</span>
-        </div>
-        <div className="h-[120px] flex items-center justify-center text-gray-400">
-          No earnings data available
-        </div>
-      </div>
-    );
-  }
-
-  // For single data point, show a simple display
-  if (data.length === 1) {
-    return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
-        </div>
-        <div className="h-[120px] flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-[#14F195]" />
-        </div>
-      </div>
-    );
-  }
-
-  const maxAmount = Math.max(...data.map(d => d.amount), 1);
-  const chartHeight = 120;
-  const chartWidth = 300;
-  const padding = 20;
-  
-  const points = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1)) * (chartWidth - 2 * padding);
-    const y = chartHeight - padding - (d.amount / maxAmount) * (chartHeight - 2 * padding);
-    return { x, y, amount: d.amount, date: d.date };
-  });
-  
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${padding} ${chartHeight - padding} Z`;
-
-  return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-        <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
-      </div>
-      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
-        {/* Grid lines */}
-        <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
-        <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
-        
-        {/* Area fill */}
-        <path d={areaD} fill="url(#gradient)" opacity="0.3" />
-        
-        {/* Line */}
-        <path d={pathD} fill="none" stroke="url(#lineGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {/* Points */}
-        {points.map((p, i) => (
-          <circle 
-            key={i} 
-            cx={p.x} 
-            cy={p.y} 
-            r="4" 
-            fill="#14F195" 
-            stroke="#0a0a0a" 
-            strokeWidth="2"
-            className="hover:scale-125 transition-transform cursor-pointer"
-          >
-            <title>{`${formatNumber(p.amount)} $FNDRY - ${p.date}`}</title>
-          </circle>
-        ))}
-        
-        {/* Gradient definitions */}
-        <defs>
-          <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#14F195" />
-            <stop offset="100%" stopColor="#9945FF" />
-          </linearGradient>
-          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#9945FF" />
-            <stop offset="100%" stopColor="#14F195" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-  );
-}
-
-// Quick Actions Component
-interface QuickActionsProps {
-  onBrowseBounties?: () => void;
-  onViewLeaderboard?: () => void;
-  onCheckTreasury?: () => void;
-}
-
-function QuickActions({ onBrowseBounties, onViewLeaderboard, onCheckTreasury }: QuickActionsProps) {
-  const actions = [
-    { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-[#9945FF] to-[#9945FF]' },
-    { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-[#14F195] to-[#14F195]' },
-    { label: 'Check Treasury', icon: '💰', onClick: onCheckTreasury, color: 'from-yellow-500 to-yellow-500' },
-  ];
-
-  return (
-    <div className="flex flex-wrap gap-3">
-      {actions.map((action) => (
-        <button
-          key={action.label}
-          onClick={action.onClick}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r ${action.color} text-white text-sm font-medium hover:opacity-90 transition-opacity`}
-        >
-          <span>{action.icon}</span>
-          <span>{action.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Settings Section Component
-interface SettingsSectionProps {
-  linkedAccounts: { type: string; username: string; connected: boolean }[];
-  notificationPreferences: { type: string; enabled: boolean }[];
-  walletAddress?: string;
-  onToggleNotification: (type: string) => void;
-  onConnectAccount?: (accountType: string) => void;
-  onDisconnectAccount?: (accountType: string) => void;
-}
-
-function SettingsSection({ 
-  linkedAccounts, 
-  notificationPreferences, 
-  walletAddress, 
-  onToggleNotification,
-  onConnectAccount,
-  onDisconnectAccount 
-}: SettingsSectionProps) {
-  return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-      <h3 className="text-white font-medium mb-4">Settings</h3>
-      
-      {/* Linked Accounts */}
-      <div className="mb-6">
-        <h4 className="text-sm text-gray-400 mb-3">Linked Accounts</h4>
-        <div className="space-y-2">
-          {linkedAccounts.map((account) => (
-            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{account.type === 'github' ? '🐙' : account.type === 'twitter' ? '🐦' : '🔐'}</span>
-                <div>
-                  <p className="text-sm text-white">{account.type.charAt(0).toUpperCase() + account.type.slice(1)}</p>
-                  <p className="text-xs text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => account.connected 
-                  ? onDisconnectAccount?.(account.type) 
-                  : onConnectAccount?.(account.type)
-                }
-                aria-label={account.connected ? `Disconnect ${account.type}` : `Connect ${account.type}`}
-                aria-pressed={account.connected}
-                className={`text-xs px-3 py-1 rounded transition-colors ${
-                  account.connected 
-                    ? 'text-gray-400 bg-gray-700 hover:bg-gray-600' 
-                    : 'text-[#14F195] bg-[#14F195]/10 hover:bg-[#14F195]/20'
-                }`}
-              >
-                {account.connected ? 'Disconnect' : 'Connect'}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Notification Preferences */}
-      <div>
-        <h4 className="text-sm text-gray-400 mb-3">Notifications</h4>
-        <div className="space-y-2">
-          {notificationPreferences.map((pref) => (
-            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
-              <span className="text-sm text-white">{pref.type}</span>
-              <button 
-                onClick={() => onToggleNotification(pref.type)}
-                aria-label={`Toggle ${pref.type} notifications`}
-                aria-checked={pref.enabled}
-                role="switch"
-                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-700'}`}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${pref.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Wallet */}
-      {walletAddress && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <h4 className="text-sm text-gray-400 mb-3">Wallet</h4>
-          <div className="py-2 px-3 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-400">Connected Wallet</p>
-            <p className="text-sm text-[#14F195] font-mono mt-1">
-              {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -615,7 +153,6 @@ function SettingsSection({
 // ============================================================================
 
 export function ContributorDashboard({
-  userId,
   walletAddress,
   onBrowseBounties,
   onViewLeaderboard,
@@ -624,18 +161,7 @@ export function ContributorDashboard({
   onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
-  
-  // Data states
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [earnings, setEarnings] = useState<EarningsData[]>([]);
-  const [linkedAccounts, setLinkedAccounts] = useState<{ type: string; username: string; connected: boolean }[]>([]);
-  
-  // UI states
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error, refetch } = useContributorDashboard();
   
   const [notificationPrefs, setNotificationPrefs] = useState([
     { type: 'Payout Alerts', enabled: true },
@@ -644,127 +170,54 @@ export function ContributorDashboard({
     { type: 'New Bounties', enabled: false },
   ]);
 
-  // Fetch data on mount and when userId changes
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const data = await fetchDashboardData(userId);
-        
-        if (!isMounted) return;
-        
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-      } catch (err) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [userId]);
+  const stats = data?.stats;
+  const bounties = data?.bounties || [];
+  const activities = data?.activities || [];
+  const notifications = data?.notifications || [];
+  const earnings = data?.earnings || [];
+  const linkedAccounts = data?.linkedAccounts || [];
 
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+  const unreadNotifications = notifications.filter((n: any) => !n.read).length;
 
   const handleMarkAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    console.log('Mark as read:', id);
   }, []);
 
   const handleMarkAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    console.log('Mark all as read');
   }, []);
 
   const handleToggleNotification = useCallback((type: string) => {
     setNotificationPrefs(prev => prev.map(p => p.type === type ? { ...p, enabled: !p.enabled } : p));
   }, []);
 
-  const handleRetry = useCallback(() => {
-    // Trigger a re-render by clearing error and setting loading
-    setError(null);
-    setIsLoading(true);
-    
-    // Re-fetch data
-    fetchDashboardData(userId)
-      .then(data => {
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-        setIsLoading(false);
-      });
-  }, [userId]);
-
-  // Loading state UI
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
-          </div>
-          <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400">Loading dashboard...</p>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto space-y-8">
+           <Skeleton height="3rem" width="300px" />
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+             <Skeleton height="120px" count={4} />
+           </div>
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                 <Skeleton height="200px" />
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <SkeletonCard count={2} />
+                 </div>
+              </div>
+              <SkeletonActivityFeed count={5} />
+           </div>
         </div>
       </div>
     );
   }
 
-  // Error state UI
-  if (error) {
+  if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
-          </div>
-          <div className="flex items-center justify-center py-20" role="alert" aria-live="assertive">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-2">Failed to Load Dashboard</h2>
-                <p className="text-gray-400 mb-4">{error}</p>
-                <button 
-                  onClick={handleRetry}
-                  className="px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 text-white">
+        <p className="text-red-400 mb-4">Error loading dashboard data.</p>
+        <button onClick={() => refetch()} className="px-4 py-2 bg-solana-purple rounded-lg">Retry</button>
       </div>
     );
   }
@@ -772,185 +225,126 @@ export function ContributorDashboard({
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
           <p className="text-gray-400">Track your progress, earnings, and active work</p>
         </div>
 
-        {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 bg-[#1a1a1a] rounded-lg p-1 w-fit">
-          {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'notifications', label: 'Notifications', badge: unreadNotifications },
-            { id: 'settings', label: 'Settings' },
-          ].map((tab) => (
+          {['overview', 'notifications', 'settings'].map((tab) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors relative
-                ${activeTab === tab.id 
-                  ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === tab ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white' : 'text-gray-400 hover:text-white'
+              }`}
             >
-              {tab.label}
-              {tab.badge && tab.badge > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs bg-red-500 text-white rounded-full">
-                  {tab.badge}
-                </span>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'notifications' && unreadNotifications > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unreadNotifications}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        {activeTab === 'overview' && stats && (
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <SummaryCard
-                label="Total Earned"
-                value={formatNumber(stats.totalEarned)}
-                suffix="$FNDRY"
-                trend="up"
-                trendValue="+15% this month"
-                icon={
-                  <svg className="w-5 h-5 text-[#14F195]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                  </svg>
-                }
-              />
-              <SummaryCard
-                label="Active Bounties"
-                value={stats.activeBounties}
-                icon={
-                  <svg className="w-5 h-5 text-[#9945FF]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-                  </svg>
-                }
-              />
-              <SummaryCard
-                label="Pending Payouts"
-                value={formatNumber(stats.pendingPayouts)}
-                suffix="$FNDRY"
-                icon={
-                  <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                }
-              />
-              <SummaryCard
-                label="Reputation Rank"
-                value={`#${stats.reputationRank}`}
-                suffix={`of ${stats.totalContributors}`}
-                trend="up"
-                trendValue="Top 20%"
-                icon={
-                  <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
-                  </svg>
-                }
-              />
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <SummaryCard label="Total Earned" value={formatNumber(stats.totalEarned)} suffix="$FNDRY" icon="💰" />
+              <SummaryCard label="Active Bounties" value={stats.activeBounties} icon="🛠️" />
+              <SummaryCard label="Pending Payouts" value={formatNumber(stats.pendingPayouts)} suffix="$FNDRY" icon="⏳" />
+              <SummaryCard label="Reputation Rank" value={`#${stats.reputationRank}`} suffix={`of ${stats.totalContributors}`} icon="🏆" />
             </div>
 
-            {/* Quick Actions */}
-            <QuickActions
-              onBrowseBounties={onBrowseBounties}
-              onViewLeaderboard={onViewLeaderboard}
-              onCheckTreasury={onCheckTreasury}
-            />
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
-              <div className="space-y-6">
-                {/* Active Bounties */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Active Bounties</h3>
-                    <span className="text-xs text-gray-400">{bounties.length} active</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+               <div className="lg:col-span-2 space-y-8">
+                  <div className="flex flex-wrap gap-3">
+                    <button onClick={onBrowseBounties} className="px-4 py-2 bg-[#9945FF] rounded-lg text-sm font-medium">Browse Bounties</button>
+                    <button onClick={onViewLeaderboard} className="px-4 py-2 bg-[#14F195] rounded-lg text-sm font-medium text-black">Leaderboard</button>
+                    <button onClick={onCheckTreasury} className="px-4 py-2 bg-surface-100 border border-gray-700 rounded-lg text-sm font-medium">Treasury</button>
                   </div>
-                  {bounties.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No active bounties</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {bounties.map((bounty) => (
-                        <BountyCard key={bounty.id} bounty={bounty} />
-                      ))}
+                  
+                  <div>
+                    <h3 className="text-lg font-bold mb-4">Active Bounties</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {bounties.map((b: any) => <BountyCard key={b.id} bounty={b} />)}
+                      {bounties.length === 0 && <p className="text-gray-500 italic">No active bounties. Go claim some!</p>}
                     </div>
-                  )}
-                </div>
-
-                {/* Earnings Chart */}
-                <SimpleLineChart data={earnings} />
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-6">
-                {/* Recent Activity */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Recent Activity</h3>
-                    <button className="text-xs text-[#14F195] hover:text-[#14F195]/80">View All</button>
                   </div>
-                  {activities.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No recent activity</p>
-                  ) : (
-                    <div className="divide-y divide-white/5">
-                      {activities.map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+               </div>
+
+               <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5 h-fit">
+                  <h3 className="text-lg font-bold mb-4">Recent Activity</h3>
+                  <div className="space-y-4">
+                    {activities.map((a: any) => (
+                      <div key={a.id} className="flex gap-3 py-2 border-b border-white/5 last:border-0">
+                        <div className="text-xl">{'✨'}</div>
+                        <div>
+                          <p className="text-sm font-medium">{a.title}</p>
+                          <p className="text-xs text-gray-400">{a.description}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">{formatRelativeTime(a.timestamp)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'notifications' && (
-          <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium">Notifications</h3>
-              {unreadNotifications > 0 && (
-                <button 
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs text-[#14F195] hover:text-[#14F195]/80"
-                >
-                  Mark all as read
-                </button>
-              )}
+          <div className="bg-[#1a1a1a] rounded-xl border border-white/5 overflow-hidden">
+            <div className="p-4 border-b border-white/5 flex justify-between items-center">
+              <h3 className="font-bold">Notifications</h3>
+              <button onClick={handleMarkAllAsRead} className="text-xs text-[#14F195] hover:underline">Mark all as read</button>
             </div>
-            {notifications.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">No notifications</p>
-            ) : (
-              <div className="space-y-1">
-                {notifications.map((notification) => (
-                  <NotificationItem 
-                    key={notification.id} 
-                    notification={notification} 
-                    onMarkAsRead={handleMarkAsRead}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="divide-y divide-white/5">
+               {notifications.map((n: any) => (
+                 <div key={n.id} className={`p-4 flex gap-3 ${n.read ? 'opacity-50' : 'bg-white/5'}`} onClick={() => handleMarkAsRead(n.id)}>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 ${n.type === 'success' ? 'bg-green-400' : 'bg-blue-400'}`} />
+                    <div>
+                      <p className="text-sm font-medium">{n.title}</p>
+                      <p className="text-xs text-gray-400">{n.message}</p>
+                      <p className="text-[10px] text-gray-500 mt-1">{formatRelativeTime(n.timestamp)}</p>
+                    </div>
+                 </div>
+               ))}
+               {notifications.length === 0 && <div className="p-8 text-center text-gray-500">No notifications.</div>}
+            </div>
           </div>
         )}
 
         {activeTab === 'settings' && (
-          <SettingsSection
-            linkedAccounts={linkedAccounts}
-            notificationPreferences={notificationPrefs}
-            walletAddress={walletAddress}
-            onToggleNotification={handleToggleNotification}
-            onConnectAccount={onConnectAccount}
-            onDisconnectAccount={onDisconnectAccount}
-          />
+          <div className="max-w-2xl space-y-6">
+            <div className="bg-[#1a1a1a] rounded-xl p-6 border border-white/5">
+              <h3 className="font-bold mb-4">Linked Accounts</h3>
+              <div className="space-y-3">
+                {linkedAccounts.map((account: any) => (
+                  <div key={account.type} className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{account.type === 'github' ? '🐙' : '🐦'}</span>
+                      <div>
+                         <p className="text-sm font-medium capitalize">{account.type}</p>
+                         <p className="text-xs text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
+                      </div>
+                    </div>
+                    <button className="text-xs text-gray-400 hover:text-white underline">
+                      {account.connected ? 'Disconnect' : 'Connect'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {walletAddress && (
+              <div className="bg-[#1a1a1a] rounded-xl p-6 border border-white/5">
+                <h3 className="font-bold mb-2">Connected Wallet</h3>
+                <code className="text-xs text-[#14F195]">{walletAddress}</code>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
-
-export default ContributorDashboard;

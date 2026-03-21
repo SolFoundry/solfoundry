@@ -1,4 +1,5 @@
 import { useTreasuryStats } from '../../hooks/useTreasuryStats';
+import { Skeleton } from '../common/Skeleton';
 
 /** Format a number for display: 1B / 200M / 10K / locale string. */
 const fmt = (n: number) => n >= 1e9 ? `${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `${(n/1e3).toFixed(1)}K` : n.toLocaleString();
@@ -42,18 +43,28 @@ function DistributionBar({ data, total }: { data: Record<string, number>; total:
 
 /**
  * $FNDRY Tokenomics dashboard page.
- *
- * Displays live supply metrics, treasury balances, distribution chart, and
- * buyback/burn stats. Data is fetched via {@link useTreasuryStats} with
- * graceful fallback to mock data when the API is unavailable.
- *
- * Integrated into the app via Sidebar nav link at `/tokenomics` and
- * re-exported through `pages/TokenomicsPage.tsx` for the router.
  */
 export function TokenomicsPage() {
   const { tokenomics: t, treasury: tr, loading, error } = useTreasuryStats();
 
-  if (loading) return <div className="p-8 text-center text-gray-400" role="status">Loading tokenomics...</div>;
+  if (loading || !t || !tr) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <Skeleton height="2rem" width="300px" />
+          <Skeleton height="1rem" width="450px" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Skeleton height="100px" variant="default" count={4} />
+        </div>
+        <Skeleton height="120px" variant="default" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton height="100px" variant="default" count={3} />
+        </div>
+      </div>
+    );
+  }
+
   if (error) return <div className="p-8 text-center text-red-400" role="alert">Error: {error}</div>;
 
   return (

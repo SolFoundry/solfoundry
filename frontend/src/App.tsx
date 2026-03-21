@@ -11,6 +11,18 @@ import { SiteLayout } from './components/layout/SiteLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  },
+});
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -87,15 +99,18 @@ function AppLayout() {
 // ── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider defaultTheme="dark">
-        <ToastProvider>
-          <WalletProvider defaultNetwork="mainnet-beta">
-            <AppLayout />
-          </WalletProvider>
-          <ToastContainer />
-        </ToastProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ThemeProvider defaultTheme="dark">
+          <ToastProvider>
+            <WalletProvider defaultNetwork="mainnet-beta">
+              <AppLayout />
+            </WalletProvider>
+            <ToastContainer />
+          </ToastProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }

@@ -254,5 +254,59 @@ async def record_contributor_reputation(
         return await reputation_service.record_reputation(data)
     except ContributorNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error))
-    except TierNotUnlockedError as error:
-        raise HTTPException(status_code=400, detail=str(error))
+class DashboardData(BaseModel):
+    """Payload for the contributor dashboard."""
+    stats: dict
+    bounties: list
+    activities: list
+    notifications: list = []
+    earnings: list = []
+    linkedAccounts: list = []
+
+
+@router.get("/me/dashboard", response_model=DashboardData)
+async def get_my_dashboard(
+    user_id: str = Depends(get_current_user_id)
+) -> DashboardData:
+    """Get metrics and state for the authenticated contributor's dashboard.
+
+    Args:
+        user_id: Authenticated user (contributor) ID.
+
+    Returns:
+        Structured dashboard data with stats, bounties, and activity history.
+
+    Raises:
+        HTTPException 404: Contributor profile not found.
+    """
+    contributor = await contributor_service.get_contributor(user_id)
+    if not contributor:
+        raise HTTPException(status_code=404, detail="Contributor profile not found")
+
+    # In a real app, query database/indexers for these lists
+    stats = {
+        "totalEarned": contributor.total_earnings,
+        "activeBounties": 2, # Mocked count
+        "pendingPayouts": 0,
+        "reputationRank": 15,
+        "totalContributors": 120,
+    }
+
+    bounties = [
+        {"id": "b1", "title": "Implement API Rate Limiting", "reward": 500, "deadline": "2026-03-30", "status": "in_progress", "progress": 75},
+        {"id": "b2", "title": "Refactor Frontend Hooks", "reward": 300, "deadline": "2026-03-29", "status": "claimed", "progress": 10},
+    ]
+
+    activities = [
+        {"id": "a1", "type": "payout", "title": "Payout Received", "description": "Earned 500 $FNDRY for rate limiter", "timestamp": "2026-03-21T10:00:00Z", "amount": 500},
+        {"id": "a2", "type": "pr_submitted", "title": "PR Submitted", "description": "Submitted PR for security middleware", "timestamp": "2026-03-21T09:00:00Z"},
+    ]
+
+    return DashboardData(
+        stats=stats,
+        bounties=bounties,
+        activities=activities,
+        notifications=[],
+        earnings=[],
+        linkedAccounts=[{"type": "github", "username": contributor.username, "connected": True}],
+    )
