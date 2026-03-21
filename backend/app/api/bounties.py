@@ -92,10 +92,12 @@ async def create_bounty(
 @router.get(
     "",
     response_model=BountyListResponse,
-    summary="List bounties (Basic Filtering)",
+    summary="List bounties with filters and sorting",
     description="""
-    Retrieve a paginated list of bounties with optional simple filters.
-    For complex queries, use the `/search` endpoint.
+    Retrieve a paginated list of bounties with optional filters and sort.
+    Supports filtering by status, tier, skills, creator, creator_type,
+    and reward range. Sort by newest, highest/lowest reward, deadline, or submissions.
+    For full-text search, use the `/search` endpoint.
     """,
 )
 async def list_bounties(
@@ -105,15 +107,31 @@ async def list_bounties(
         None, description="Comma-separated list of skills (e.g., 'python,rust')"
     ),
     created_by: Optional[str] = Query(None, description="Filter by creator's username or wallet"),
+    creator_type: Optional[str] = Query(
+        None, pattern=r"^(platform|community)$",
+        description="Filter by 'platform' (official) or 'community' (user-created)",
+    ),
+    reward_min: Optional[float] = Query(None, ge=0, description="Minimum reward amount"),
+    reward_max: Optional[float] = Query(None, ge=0, description="Maximum reward amount"),
+    sort: str = Query("newest", description="Sort order: newest, reward_high, reward_low, deadline, submissions"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of items to return"),
 ) -> BountyListResponse:
-    """Return a filtered paginated list of bounties from the database."""
+    """Return a filtered, sorted, paginated list of bounties from the database."""
     skill_list = (
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
     return await bounty_service.list_bounties(
-        status=status, tier=tier, skills=skill_list, created_by=created_by, skip=skip, limit=limit
+        status=status,
+        tier=tier,
+        skills=skill_list,
+        created_by=created_by,
+        creator_type=creator_type,
+        reward_min=reward_min,
+        reward_max=reward_max,
+        sort=sort,
+        skip=skip,
+        limit=limit,
     )
 
 

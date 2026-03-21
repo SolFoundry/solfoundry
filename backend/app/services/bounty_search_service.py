@@ -99,7 +99,8 @@ async def search_bounties_db(
     select_sql = f"""
         SELECT
             b.id::text, b.title, b.description, b.tier, b.reward_amount,
-            b.status, b.skills, b.github_issue_url, b.deadline,
+            b.status, b.category, b.creator_type, b.skills,
+            b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at,
             {rank_expr} AS rank
         FROM bounties b
@@ -126,8 +127,10 @@ async def search_bounties_db(
                 title=row.title,
                 description=row.description or "",
                 tier=row.tier,
+                category=getattr(row, "category", None),
                 reward_amount=row.reward_amount,
                 status=BountyStatus(row.status),
+                creator_type=getattr(row, "creator_type", "platform"),
                 required_skills=bounty_skills,
                 github_issue_url=row.github_issue_url,
                 deadline=row.deadline,
@@ -331,6 +334,8 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if params.creator_type:
+        results = [b for b in results if b.creator_type == params.creator_type]
     if params.creator_id:
         results = [b for b in results if b.created_by == params.creator_id]
     if params.reward_min is not None:
@@ -370,8 +375,10 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
                 title=b.title,
                 description=b.description,
                 tier=b.tier,
+                category=b.category,
                 reward_amount=b.reward_amount,
                 status=b.status,
+                creator_type=b.creator_type,
                 required_skills=b.required_skills,
                 github_issue_url=b.github_issue_url,
                 deadline=b.deadline,
