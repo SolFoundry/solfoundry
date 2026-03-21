@@ -18,8 +18,14 @@ from app.database import Base
 
 class LifecycleEventType(str, Enum):
     BOUNTY_CREATED = "bounty_created"
+    BOUNTY_PUBLISHED = "bounty_published"
     BOUNTY_STATUS_CHANGED = "bounty_status_changed"
     BOUNTY_CANCELLED = "bounty_cancelled"
+    BOUNTY_CLAIMED = "bounty_claimed"
+    BOUNTY_UNCLAIMED = "bounty_unclaimed"
+    BOUNTY_CLAIM_DEADLINE_WARNING = "bounty_claim_deadline_warning"
+    BOUNTY_CLAIM_AUTO_RELEASED = "bounty_claim_auto_released"
+    BOUNTY_T1_AUTO_WON = "bounty_t1_auto_won"
     SUBMISSION_CREATED = "submission_created"
     SUBMISSION_STATUS_CHANGED = "submission_status_changed"
     AI_REVIEW_STARTED = "ai_review_started"

@@ -29,6 +29,7 @@ class BountyTier(int, Enum):
 class BountyStatus(str, Enum):
     """Lifecycle status of a bounty."""
 
+    DRAFT = "draft"
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     UNDER_REVIEW = "under_review"
@@ -39,6 +40,7 @@ class BountyStatus(str, Enum):
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
+    BountyStatus.DRAFT: {BountyStatus.OPEN, BountyStatus.CANCELLED},
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
     BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
@@ -295,6 +297,10 @@ class BountyDB(BaseModel):
     winner_wallet: Optional[str] = None
     payout_tx_hash: Optional[str] = None
     payout_at: Optional[datetime] = None
+    # Claim fields (T2/T3)
+    claimed_by: Optional[str] = None
+    claimed_at: Optional[datetime] = None
+    claim_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -312,6 +318,10 @@ class BountyResponse(BountyBase):
     winner_wallet: Optional[str] = Field(None, description="Wallet address of the winner")
     payout_tx_hash: Optional[str] = Field(None, description="Solana transaction hash for the payout")
     payout_at: Optional[datetime] = Field(None, description="When the payout was made")
+    # Claim fields
+    claimed_by: Optional[str] = Field(None, description="Who claimed this bounty (T2/T3)")
+    claimed_at: Optional[datetime] = Field(None, description="When the bounty was claimed")
+    claim_deadline: Optional[datetime] = Field(None, description="Deadline for the claim")
 
     model_config = {"from_attributes": True}
     submissions: list[SubmissionResponse] = Field(default_factory=list)
