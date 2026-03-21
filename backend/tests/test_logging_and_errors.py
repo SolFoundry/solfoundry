@@ -1,4 +1,3 @@
-"""Module test_logging_and_errors."""
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -34,7 +33,6 @@ def test_structured_error_401_auth_error():
     
     @app.get("/test-auth-error")
     async def trigger_auth_error():
-        """The trigger_auth_error function."""
         raise AuthError("Unauthorized specifically")
     
     response = client.get("/test-auth-error")
@@ -47,7 +45,6 @@ def test_structured_error_400_value_error():
     """Verify ValueError follows structured JSON format."""
     @app.get("/test-value-error")
     async def trigger_value_error():
-        """The trigger_value_error function."""
         raise ValueError("Invalid input data")
     
     response = client.get("/test-value-error")

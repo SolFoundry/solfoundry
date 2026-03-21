@@ -44,42 +44,34 @@ _auth_challenges: Dict[str, Dict] = {}
 
 
 class AuthError(Exception):
-    """The AuthError class."""
     pass
 
 
 class GitHubOAuthError(AuthError):
-    """The GitHubOAuthError class."""
     pass
 
 
 class WalletVerificationError(AuthError):
-    """The WalletVerificationError class."""
     pass
 
 
 class TokenExpiredError(AuthError):
-    """The TokenExpiredError class."""
     pass
 
 
 class InvalidTokenError(AuthError):
-    """The InvalidTokenError class."""
     pass
 
 
 class InvalidStateError(AuthError):
-    """The InvalidStateError class."""
     pass
 
 
 class InvalidNonceError(AuthError):
-    """The InvalidNonceError class."""
     pass
 
 
 def _user_to_response(user: User) -> UserResponse:
-    """The _user_to_response function."""
     return UserResponse(
         id=str(user.id),
         github_id=user.github_id,
@@ -94,7 +86,6 @@ def _user_to_response(user: User) -> UserResponse:
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """The create_access_token function."""
     expires_delta = expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     now = datetime.now(timezone.utc)
     payload = {
@@ -110,7 +101,6 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
 def create_refresh_token(
     user_id: str, expires_delta: Optional[timedelta] = None
 ) -> str:
-    """The create_refresh_token function."""
     expires_delta = expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     now = datetime.now(timezone.utc)
     payload = {
@@ -124,7 +114,6 @@ def create_refresh_token(
 
 
 def decode_token(token: str, token_type: str = "access") -> str:
-    """The decode_token function."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != token_type:
@@ -140,7 +129,6 @@ def decode_token(token: str, token_type: str = "access") -> str:
 
 
 def get_github_authorize_url(state: Optional[str] = None) -> tuple:
-    """The get_github_authorize_url function."""
     if not GITHUB_CLIENT_ID:
         raise GitHubOAuthError("GITHUB_CLIENT_ID not configured")
     state = state or secrets.token_urlsafe(32)
@@ -162,7 +150,6 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
 
 
 def verify_oauth_state(state: str) -> bool:
-    """The verify_oauth_state function."""
     if not state:
         raise InvalidStateError("Missing state")
     data = _oauth_states.get(state)
@@ -176,7 +163,6 @@ def verify_oauth_state(state: str) -> bool:
 
 
 async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
-    """The exchange_github_code function."""
     if state:
         verify_oauth_state(state)
     if not GITHUB_CLIENT_SECRET:
@@ -233,7 +219,6 @@ async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
 async def github_oauth_login(
     db: AsyncSession, code: str, state: Optional[str] = None
 ) -> Dict:
-    """The github_oauth_login function."""
     github_user = await exchange_github_code(code, state)
     github_id = str(github_user["id"])
 
@@ -270,7 +255,6 @@ async def github_oauth_login(
 
 
 def generate_auth_message(wallet_address: str) -> Dict:
-    """The generate_auth_message function."""
     nonce = secrets.token_urlsafe(32)
     expires = datetime.now(timezone.utc) + timedelta(minutes=5)
     message = f"""SolFoundry Authentication
@@ -290,7 +274,6 @@ Sign to prove wallet ownership."""
 
 
 def verify_auth_challenge(nonce: str, wallet: str, message: str) -> bool:
-    """The verify_auth_challenge function."""
     if not nonce:
         raise InvalidNonceError("Missing nonce")
     challenge = _auth_challenges.get(nonce)
@@ -308,7 +291,6 @@ def verify_auth_challenge(nonce: str, wallet: str, message: str) -> bool:
 
 
 def verify_wallet_signature(wallet_address: str, message: str, signature: str) -> bool:
-    """The verify_wallet_signature function."""
     try:
         if not wallet_address or len(wallet_address) < 32 or len(wallet_address) > 48:
             raise WalletVerificationError("Invalid wallet format")
@@ -332,7 +314,6 @@ async def wallet_authenticate(
     message: str,
     nonce: Optional[str] = None,
 ) -> Dict:
-    """The wallet_authenticate function."""
     if nonce:
         verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
@@ -374,7 +355,6 @@ async def link_wallet_to_user(
     message: str,
     nonce: Optional[str] = None,
 ) -> Dict:
-    """The link_wallet_to_user function."""
     if nonce:
         verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
@@ -410,7 +390,6 @@ async def link_wallet_to_user(
 
 
 async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
-    """The refresh_access_token function."""
     user_id = decode_token(refresh_token, "refresh")
     result = await db.execute(select(User).where(User.id == user_id))
     if not result.scalar_one_or_none():
@@ -423,7 +402,6 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
 
 
 async def get_current_user(db: AsyncSession, user_id: str) -> UserResponse:
-    """The get_current_user function."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

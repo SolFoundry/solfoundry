@@ -11,7 +11,6 @@ from starlette.responses import JSONResponse
 import time
 
 class RateLimitAndSecurityMiddleware(BaseHTTPMiddleware):
-    """The RateLimitAndSecurityMiddleware class."""
     def __init__(
         self,
         app,
@@ -20,7 +19,6 @@ class RateLimitAndSecurityMiddleware(BaseHTTPMiddleware):
         blocked_ips=None,
         max_payload_size=1048576  # 1MB default
     ):
-        """The __init__ function."""
         super().__init__(app)
         self.redis = redis_client
         self.endpoints_config = endpoints_config or {
@@ -33,14 +31,12 @@ class RateLimitAndSecurityMiddleware(BaseHTTPMiddleware):
         self._local_store = {}
 
     def _get_config_for_path(self, path: str):
-        """The _get_config_for_path function."""
         for route, config in self.endpoints_config.items():
             if path.startswith(route):
                 return config
         return {"limit": 60, "window": 60}
 
     def _check_rate_limit(self, identifier: str, config: dict):
-        """The _check_rate_limit function."""
         limit = config["limit"]
         window = config["window"]
         now = time.time()
@@ -76,7 +72,6 @@ class RateLimitAndSecurityMiddleware(BaseHTTPMiddleware):
             return True, int(store["expires"] - now)
 
     async def dispatch(self, request: Request, call_next):
-        """The dispatch function."""
         client_ip = request.client.host if request.client else "unknown"
         
         # 1. IP Blocklist
