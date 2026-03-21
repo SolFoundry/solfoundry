@@ -77,6 +77,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const DisputePage = lazy(() => import('./pages/DisputePage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -129,6 +130,9 @@ function AppLayout() {
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
+
+{/* Disputes */}
+          <Route path="/disputes/:disputeId" element={<DisputePage />} />
 
           {/* 404 Not Found */}
           <Route path="*" element={<NotFoundPage />} />
