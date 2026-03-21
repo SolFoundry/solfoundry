@@ -1,12 +1,28 @@
-"""In-memory payout service (MVP -- data lost on restart, DB coming later)."""
+"""Payout service with queue, locks, admin approval, and transfer execution.
+
+In-memory MVP — data lost on restart.
+PostgreSQL migration: CREATE TABLE payouts (id UUID PK, recipient VARCHAR(100),
+recipient_wallet VARCHAR(44), amount NUMERIC, token VARCHAR(10), bounty_id UUID,
+tx_hash TEXT UNIQUE, status VARCHAR(20), solscan_url TEXT, admin_approved_by VARCHAR(100),
+retry_count INT DEFAULT 0, failure_reason TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ);
+"""
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from typing import Optional
 from app.core.audit import audit_event
+from app.exceptions import (
+    DoublePayError,
+    InvalidPayoutTransitionError,
+    PayoutLockError,
+    PayoutNotFoundError,
+)
 
 from app.models.payout import (
+    ALLOWED_TRANSITIONS,
+    AdminApprovalResponse,
     BuybackCreate,
     BuybackRecord,
     BuybackResponse,
@@ -17,10 +33,12 @@ from app.models.payout import (
     PayoutListResponse,
     PayoutStatus,
 )
+from app.services.transfer_service import confirm_transaction, send_spl_transfer
 
 _lock = threading.Lock()
 _payout_store: dict[str, PayoutRecord] = {}
 _buyback_store: dict[str, BuybackRecord] = {}
+_bounty_locks: dict[str, threading.Lock] = {}
 
 SOLSCAN_TX_BASE = "https://solscan.io/tx"
 
@@ -63,7 +81,10 @@ def _buyback_to_response(b: BuybackRecord) -> BuybackResponse:
 
 
 def create_payout(data: PayoutCreate) -> PayoutResponse:
-    """Persist a new payout; CONFIRMED if tx_hash given, else PENDING."""
+    """Persist a new payout; CONFIRMED if tx_hash given, else PENDING.
+
+    Acquires a per-bounty lock and checks for double-pay when bounty_id is set.
+    """
     solscan = _solscan_url(data.tx_hash)
     status = PayoutStatus.CONFIRMED if data.tx_hash else PayoutStatus.PENDING
     record = PayoutRecord(
@@ -77,21 +98,36 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
         status=status,
         solscan_url=solscan,
     )
-    with _lock:
+
+    def _insert() -> None:
+        """Check duplicates and insert under lock."""
         if data.tx_hash:
             for existing in _payout_store.values():
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Payout with tx_hash already exists")
+        if data.bounty_id:
+            for existing in _payout_store.values():
+                if existing.bounty_id == data.bounty_id and existing.status != PayoutStatus.FAILED:
+                    raise DoublePayError(f"Bounty '{data.bounty_id}' already has an active payout (id={existing.id}, status={existing.status.value})")
         _payout_store[record.id] = record
-    
-    audit_event(
-        "payout_created",
-        payout_id=record.id,
-        recipient=record.recipient,
-        amount=record.amount,
-        token=record.token,
-        tx_hash=record.tx_hash
-    )
+
+    if data.bounty_id:
+        with _lock:
+            if data.bounty_id not in _bounty_locks:
+                _bounty_locks[data.bounty_id] = threading.Lock()
+            bounty_lock = _bounty_locks[data.bounty_id]
+        if not bounty_lock.acquire(timeout=5):
+            raise PayoutLockError(f"Could not acquire lock for bounty '{data.bounty_id}'")
+        try:
+            with _lock:
+                _insert()
+        finally:
+            bounty_lock.release()
+    else:
+        with _lock:
+            _insert()
+
+    audit_event("payout_created", payout_id=record.id, recipient=record.recipient, amount=record.amount, token=record.token, tx_hash=record.tx_hash)
     return _payout_to_response(record)
 
 
@@ -114,6 +150,8 @@ def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
 def list_payouts(
     recipient: Optional[str] = None,
     status: Optional[PayoutStatus] = None,
+    bounty_id: Optional[str] = None,
+    token: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> PayoutListResponse:
@@ -126,6 +164,10 @@ def list_payouts(
         results = [p for p in results if p.recipient == recipient]
     if status:
         results = [p for p in results if p.status == status]
+    if bounty_id:
+        results = [p for p in results if p.bounty_id == bounty_id]
+    if token:
+        results = [p for p in results if p.token == token]
     total = len(results)
     page = results[skip : skip + limit]
     return PayoutListResponse(
@@ -204,8 +246,73 @@ def get_total_buybacks() -> tuple[float, float]:
     return total_sol, total_fndry
 
 
+def _transition_status(record: PayoutRecord, new_status: PayoutStatus) -> None:
+    """Apply a state-machine transition; raises on illegal moves."""
+    allowed = ALLOWED_TRANSITIONS.get(record.status, frozenset())
+    if new_status not in allowed:
+        raise InvalidPayoutTransitionError(f"Cannot transition from '{record.status.value}' to '{new_status.value}'")
+    record.status = new_status
+
+
+def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse:
+    """Admin-approve a pending payout, advancing to APPROVED."""
+    with _lock:
+        record = _payout_store.get(payout_id)
+        if record is None:
+            raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+        _transition_status(record, PayoutStatus.APPROVED)
+        record.admin_approved_by = admin_id
+    audit_event("payout_approved", payout_id=payout_id, admin_id=admin_id)
+    return AdminApprovalResponse(payout_id=payout_id, status=PayoutStatus.APPROVED, admin_id=admin_id, message=f"Payout approved by {admin_id}")
+
+
+def reject_payout(payout_id: str, admin_id: str, reason: Optional[str] = None) -> AdminApprovalResponse:
+    """Admin-reject a pending payout, moving to FAILED."""
+    with _lock:
+        record = _payout_store.get(payout_id)
+        if record is None:
+            raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+        _transition_status(record, PayoutStatus.FAILED)
+        record.admin_approved_by = admin_id
+    audit_event("payout_rejected", payout_id=payout_id, admin_id=admin_id, reason=reason)
+    return AdminApprovalResponse(payout_id=payout_id, status=PayoutStatus.FAILED, admin_id=admin_id, message=f"Payout rejected by {admin_id}")
+
+
+async def process_payout(payout_id: str) -> PayoutResponse:
+    """Execute on-chain transfer for an APPROVED payout (uses asyncio.to_thread for locks)."""
+    def _start() -> PayoutRecord:
+        with _lock:
+            record = _payout_store.get(payout_id)
+            if record is None:
+                raise PayoutNotFoundError(f"Payout '{payout_id}' not found")
+            _transition_status(record, PayoutStatus.PROCESSING)
+            return record
+
+    record = await asyncio.to_thread(_start)
+    try:
+        tx_sig = await send_spl_transfer(record.recipient_wallet or "", record.amount, "FNDRY")
+        await confirm_transaction(tx_sig)
+
+        def _ok() -> None:
+            with _lock:
+                record.tx_hash = tx_sig
+                record.solscan_url = _solscan_url(tx_sig)
+                record.status = PayoutStatus.CONFIRMED
+        await asyncio.to_thread(_ok)
+        audit_event("payout_confirmed", payout_id=payout_id, tx_hash=tx_sig)
+    except Exception as err:
+        def _fail() -> None:
+            with _lock:
+                record.status = PayoutStatus.FAILED
+                record.failure_reason = str(err)
+        await asyncio.to_thread(_fail)
+        audit_event("payout_failed", payout_id=payout_id, error=str(err))
+    return _payout_to_response(record)
+
+
 def reset_stores() -> None:
     """Clear all in-memory data.  Used by tests and development resets."""
     with _lock:
         _payout_store.clear()
         _buyback_store.clear()
+        _bounty_locks.clear()

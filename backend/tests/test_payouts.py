@@ -182,7 +182,7 @@ def test_treasury_stats(mock_bal):
         json={"recipient": "c", "amount": 2.0, "token": "SOL", "tx_hash": TX3},
     )
     client.post(
-        "/api/treasury/buybacks",
+        "/api/payouts/treasury/buybacks",
         json={
             "amount_sol": 5.0,
             "amount_fndry": 10000.0,
@@ -190,7 +190,7 @@ def test_treasury_stats(mock_bal):
             "tx_hash": TX4,
         },
     )
-    d = client.get("/api/treasury").json()
+    d = client.get("/api/payouts/treasury").json()
     assert d["sol_balance"] == 12.5 and d["fndry_balance"] == 500000.0
     assert d["total_paid_out_fndry"] == 1500.0
     assert d["total_payouts"] == 3
@@ -200,7 +200,7 @@ def test_treasury_stats(mock_bal):
 def test_treasury_rpc_fail(mock_bal):
     """Treasury endpoint returns zero balances when RPC is unreachable."""
     mock_bal.side_effect = Exception("timeout")
-    d = client.get("/api/treasury").json()
+    d = client.get("/api/payouts/treasury").json()
     assert d["sol_balance"] == 0.0 and d["fndry_balance"] == 0.0
 
 
@@ -208,8 +208,8 @@ def test_treasury_rpc_fail(mock_bal):
 def test_treasury_cache(mock_bal):
     """Repeated treasury requests within TTL hit the cache, not RPC."""
     mock_bal.return_value = (10.0, 100000.0)
-    client.get("/api/treasury")
-    client.get("/api/treasury")
+    client.get("/api/payouts/treasury")
+    client.get("/api/payouts/treasury")
     assert mock_bal.call_count == 1
 
 
@@ -218,9 +218,9 @@ def test_treasury_cache(mock_bal):
 
 def test_buybacks_crud():
     """POST/GET buyback CRUD round-trip with solscan_url."""
-    assert client.get("/api/treasury/buybacks").json()["total"] == 0
+    assert client.get("/api/payouts/treasury/buybacks").json()["total"] == 0
     r = client.post(
-        "/api/treasury/buybacks",
+        "/api/payouts/treasury/buybacks",
         json={
             "amount_sol": 10.0,
             "amount_fndry": 20000.0,
@@ -235,7 +235,7 @@ def test_buybacks_crud():
 def test_buyback_without_tx():
     """Buyback without tx_hash still succeeds (off-chain record)."""
     r = client.post(
-        "/api/treasury/buybacks",
+        "/api/payouts/treasury/buybacks",
         json={
             "amount_sol": 1.0,
             "amount_fndry": 2000.0,
@@ -254,8 +254,8 @@ def test_buyback_dup_tx():
         "price_per_fndry": 0.0005,
         "tx_hash": TX1,
     }
-    assert client.post("/api/treasury/buybacks", json=payload).status_code == 201
-    assert client.post("/api/treasury/buybacks", json=payload).status_code == 409
+    assert client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 201
+    assert client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 409
 
 
 # --- tokenomics ---
@@ -270,14 +270,14 @@ def test_tokenomics(mock_bal):
         json={"recipient": "a", "amount": 5000.0, "token": "FNDRY", "tx_hash": TX1},
     )
     client.post(
-        "/api/treasury/buybacks",
+        "/api/payouts/treasury/buybacks",
         json={
             "amount_sol": 2.0,
             "amount_fndry": 4000.0,
             "price_per_fndry": 0.0005,
         },
     )
-    d = client.get("/api/tokenomics").json()
+    d = client.get("/api/payouts/tokenomics").json()
     assert d["token_name"] == "FNDRY"
     assert d["total_supply"] == 1_000_000_000.0
     assert d["circulating_supply"] == 1_000_000_000.0 - 250000.0
@@ -294,7 +294,7 @@ def test_tokenomics_circulating_not_paid_out(mock_bal):
         "/api/payouts",
         json={"recipient": "x", "amount": 100.0, "token": "FNDRY", "tx_hash": TX1},
     )
-    d = client.get("/api/tokenomics").json()
+    d = client.get("/api/payouts/tokenomics").json()
     # Circulating should be 100M (1B - 900M treasury), NOT 100 (paid out).
     assert d["circulating_supply"] == 100_000_000.0
     assert d["total_distributed"] == 100.0
@@ -304,7 +304,7 @@ def test_tokenomics_circulating_not_paid_out(mock_bal):
 def test_tokenomics_empty(mock_bal):
     """When treasury holds nothing, all supply is circulating."""
     mock_bal.return_value = (0.0, 0.0)
-    d = client.get("/api/tokenomics").json()
+    d = client.get("/api/payouts/tokenomics").json()
     assert d["circulating_supply"] == 1_000_000_000.0
 
 
@@ -315,7 +315,7 @@ def test_tokenomics_distribution_breakdown(mock_bal):
     client.post(
         "/api/payouts", json={"recipient": "a", "amount": 1000.0, "tx_hash": TX1}
     )
-    d = client.get("/api/tokenomics").json()
+    d = client.get("/api/payouts/tokenomics").json()
     bd = d["distribution_breakdown"]
     assert set(bd.keys()) == {
         "contributor_rewards",
@@ -426,7 +426,7 @@ class TestPendingNotCounted:
         client.post(
             "/api/payouts", json={"recipient": "b", "amount": 300.0, "token": "FNDRY"}
         )
-        d = client.get("/api/treasury").json()
+        d = client.get("/api/payouts/treasury").json()
         assert d["total_paid_out_fndry"] == 500.0
         assert d["total_payouts"] == 1
 
@@ -443,5 +443,147 @@ class TestPendingNotCounted:
         client.post(
             "/api/payouts", json={"recipient": "b", "amount": 2000.0, "token": "FNDRY"}
         )
-        d = client.get("/api/tokenomics").json()
+        d = client.get("/api/payouts/tokenomics").json()
         assert d["total_distributed"] == 1000.0  # only the confirmed one
+
+
+# --- double-pay prevention ---
+
+
+class TestDoublePay:
+    """Per-bounty lock mechanism prevents paying the same bounty twice."""
+
+    def test_double_pay_blocked(self):
+        """Second payout for the same bounty_id returns 409."""
+        assert client.post("/api/payouts", json={"recipient": "a", "amount": 500.0, "bounty_id": "b-42", "tx_hash": TX1}).status_code == 201
+        r = client.post("/api/payouts", json={"recipient": "b", "amount": 500.0, "bounty_id": "b-42", "tx_hash": TX2})
+        assert r.status_code == 409
+        assert "already has an active payout" in r.json()["message"]
+
+    def test_different_bounties_ok(self):
+        """Payouts to different bounty_ids are independent."""
+        assert client.post("/api/payouts", json={"recipient": "a", "amount": 500.0, "bounty_id": "b-1", "tx_hash": TX1}).status_code == 201
+        assert client.post("/api/payouts", json={"recipient": "b", "amount": 300.0, "bounty_id": "b-2", "tx_hash": TX2}).status_code == 201
+
+
+# --- admin approval gate ---
+
+
+class TestAdminApproval:
+    """Admin approval and rejection of pending payouts."""
+
+    def test_approve(self):
+        """Approving a pending payout transitions to 'approved'."""
+        pid = client.post("/api/payouts", json={"recipient": "a", "amount": 500.0}).json()["id"]
+        r = client.post(f"/api/payouts/{pid}/approve", json={"approved": True, "admin_id": "admin-1"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "approved"
+
+    def test_reject(self):
+        """Rejecting a pending payout transitions to 'failed'."""
+        pid = client.post("/api/payouts", json={"recipient": "b", "amount": 300.0}).json()["id"]
+        r = client.post(f"/api/payouts/{pid}/approve", json={"approved": False, "admin_id": "admin-1", "reason": "Bad work"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "failed"
+
+    def test_approve_non_pending_fails(self):
+        """Approving an already-confirmed payout returns 409."""
+        pid = client.post("/api/payouts", json={"recipient": "c", "amount": 100.0, "tx_hash": TX1}).json()["id"]
+        assert client.post(f"/api/payouts/{pid}/approve", json={"approved": True, "admin_id": "a"}).status_code == 409
+
+    def test_approve_nonexistent(self):
+        """Approving a non-existent payout returns 404."""
+        assert client.post("/api/payouts/bad-id/approve", json={"approved": True, "admin_id": "a"}).status_code == 404
+
+
+# --- payout queue lifecycle ---
+
+
+class TestPayoutExecution:
+    """End-to-end: pending -> approved -> confirmed/failed."""
+
+    @patch("app.services.payout_service.confirm_transaction", new_callable=AsyncMock)
+    @patch("app.services.payout_service.send_spl_transfer", new_callable=AsyncMock)
+    def test_full_lifecycle(self, mock_xfer, mock_conf):
+        """Payout goes pending -> approved -> confirmed."""
+        mock_xfer.return_value = "a" * 64
+        mock_conf.return_value = True
+        pid = client.post("/api/payouts", json={"recipient": "a", "amount": 500.0, "recipient_wallet": WALLET}).json()["id"]
+        client.post(f"/api/payouts/{pid}/approve", json={"approved": True, "admin_id": "admin-1"})
+        r = client.post(f"/api/payouts/{pid}/execute")
+        assert r.status_code == 200
+        assert r.json()["status"] == "confirmed"
+        assert r.json()["solscan_url"] == f"https://solscan.io/tx/{'a' * 64}"
+
+    @patch("app.services.payout_service.send_spl_transfer", new_callable=AsyncMock)
+    def test_transfer_failure(self, mock_xfer):
+        """When transfer raises, payout moves to 'failed'."""
+        mock_xfer.side_effect = Exception("RPC down")
+        pid = client.post("/api/payouts", json={"recipient": "b", "amount": 300.0, "recipient_wallet": WALLET}).json()["id"]
+        client.post(f"/api/payouts/{pid}/approve", json={"approved": True, "admin_id": "admin-1"})
+        r = client.post(f"/api/payouts/{pid}/execute")
+        assert r.json()["status"] == "failed"
+
+    def test_execute_unapproved(self):
+        """Executing a pending payout returns 409."""
+        pid = client.post("/api/payouts", json={"recipient": "c", "amount": 100.0}).json()["id"]
+        assert client.post(f"/api/payouts/{pid}/execute").status_code == 409
+
+
+# --- wallet validation ---
+
+
+class TestWalletValidation:
+    """Wallet validation including program address rejection."""
+
+    def test_valid(self):
+        """Normal base-58 address passes."""
+        r = client.post("/api/payouts/validate-wallet", json={"wallet_address": WALLET})
+        assert r.json()["valid"] is True
+
+    def test_invalid_format(self):
+        """Non-base58 string is flagged invalid."""
+        r = client.post("/api/payouts/validate-wallet", json={"wallet_address": "0xinvalid"})
+        assert r.json()["valid"] is False
+
+    def test_program_address_rejected(self):
+        """Known program addresses are flagged."""
+        r = client.post("/api/payouts/validate-wallet", json={"wallet_address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"})
+        assert r.json()["valid"] is False
+        assert r.json()["is_program_address"] is True
+
+    def test_payout_rejects_program_wallet(self):
+        """Creating payout with program address wallet returns 422."""
+        r = client.post("/api/payouts", json={"recipient": "a", "amount": 100.0, "recipient_wallet": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"})
+        assert r.status_code == 422
+
+
+# --- filter by bounty_id and token ---
+
+
+def test_filter_by_bounty_id():
+    """Filter by bounty_id returns only matching payouts."""
+    client.post("/api/payouts", json={"recipient": "a", "amount": 100.0, "bounty_id": "b-1", "tx_hash": TX1})
+    client.post("/api/payouts", json={"recipient": "b", "amount": 200.0, "bounty_id": "b-2", "tx_hash": TX2})
+    assert client.get("/api/payouts?bounty_id=b-1").json()["total"] == 1
+
+
+def test_filter_by_token():
+    """Filter by token returns only matching payouts."""
+    client.post("/api/payouts", json={"recipient": "a", "amount": 100.0, "token": "FNDRY", "tx_hash": TX1})
+    client.post("/api/payouts", json={"recipient": "b", "amount": 1.0, "token": "SOL", "tx_hash": TX2})
+    assert client.get("/api/payouts?token=FNDRY").json()["total"] == 1
+
+
+# --- payout lookup by ID ---
+
+
+def test_get_by_id():
+    """GET /payouts/id/{payout_id} returns the matching payout."""
+    pid = client.post("/api/payouts", json={"recipient": "a", "amount": 500.0, "tx_hash": TX1}).json()["id"]
+    assert client.get(f"/api/payouts/id/{pid}").status_code == 200
+
+
+def test_get_by_id_not_found():
+    """GET /payouts/id/{unknown} returns 404."""
+    assert client.get("/api/payouts/id/nonexistent").status_code == 404
