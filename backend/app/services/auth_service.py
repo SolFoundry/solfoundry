@@ -22,6 +22,7 @@ from solders.signature import Signature
 from solders.pubkey import Pubkey
 
 from app.models.user import User, UserResponse
+from app.core.audit import audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +375,13 @@ async def link_wallet_to_user(
 
     await db.commit()
     await db.refresh(user)
+    
+    audit_event(
+        "auth_wallet_linked",
+        user_id=str(user.id),
+        wallet_address=user.wallet_address
+    )
+    
     return {
         "success": True,
         "message": "Wallet linked",
