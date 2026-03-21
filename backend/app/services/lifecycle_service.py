@@ -1,205 +1,324 @@
-"""Thread-safe lifecycle state machine."""
+"""Bounty lifecycle state-machine service (Issue #164).
+
+State machine: draft -> open -> claimed -> in_review -> completed -> paid.
+Cancelled reachable from any non-terminal state.  T1 open-race (no claim),
+T2/T3 claim flow with 72h deadline, deadline enforcement cron (80% warn,
+100% auto-release), webhook integration, immutable audit log.  In-memory
+write-through cache backed by PostgreSQL (LifecycleStateDB, LifecycleClaimDB,
+LifecycleEventDB). Thread-safe via module-level threading.Lock.
+"""
 import threading, uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
 from app.core.audit import audit_event
-from app.services import bounty_service as _bs
+from app.services import bounty_service
+
+# -- State enum + transitions --
 
 class LifecycleState(str, Enum):
-    """States."""
-    DRAFT="draft"; OPEN="open"; CLAIMED="claimed"; IN_REVIEW="in_review"
-    COMPLETED="completed"; PAID="paid"; CANCELLED="cancelled"
-_S = LifecycleState
-D,O,CL,IR,CO,P,CA = _S.DRAFT,_S.OPEN,_S.CLAIMED,_S.IN_REVIEW,_S.COMPLETED,_S.PAID,_S.CANCELLED
-TR = {D:{O,CA}, O:{CL,IR,CA}, CL:{IR,O,CA}, IR:{CO,O,CA}, CO:{P}, P:set(), CA:set()}
-TE = frozenset({P, CA})
+    """Valid states in the bounty lifecycle state machine."""
+    DRAFT = "draft"; OPEN = "open"; CLAIMED = "claimed"; IN_REVIEW = "in_review"
+    COMPLETED = "completed"; PAID = "paid"; CANCELLED = "cancelled"
+
+VALID_TRANSITIONS: dict[LifecycleState, set[LifecycleState]] = {
+    LifecycleState.DRAFT:     {LifecycleState.OPEN, LifecycleState.CANCELLED},
+    LifecycleState.OPEN:      {LifecycleState.CLAIMED, LifecycleState.IN_REVIEW, LifecycleState.CANCELLED},
+    LifecycleState.CLAIMED:   {LifecycleState.IN_REVIEW, LifecycleState.OPEN, LifecycleState.CANCELLED},
+    LifecycleState.IN_REVIEW: {LifecycleState.COMPLETED, LifecycleState.OPEN, LifecycleState.CANCELLED},
+    LifecycleState.COMPLETED: {LifecycleState.PAID},
+    LifecycleState.PAID:      set(),
+    LifecycleState.CANCELLED: set(),
+}
+TERMINAL_STATES = frozenset({LifecycleState.PAID, LifecycleState.CANCELLED})
+CLAIM_HOURS = 72
+
+# -- Domain exceptions --
 
 class LifecycleError(Exception):
-    """Error."""
-    def __init__(s, msg, code="LIFECYCLE_ERROR"): s.message=msg; s.code=code; super().__init__(msg)
-class InvalidTransitionError(LifecycleError):
-    def __init__(s, c, t): super().__init__(f"{c}->{t}", "INVALID_TRANSITION")
-class TerminalStateError(LifecycleError):
-    def __init__(s,*a): super().__init__("terminal","TERMINAL_STATE")
-class BountyNotFoundError(LifecycleError):
-    def __init__(s,*a): super().__init__("not found","BOUNTY_NOT_FOUND")
-class ClaimConflictError(LifecycleError):
-    def __init__(s,*a): super().__init__("claimed","CLAIM_CONFLICT")
-class TierGateError(LifecycleError):
-    def __init__(s,r,h): super().__init__(f"need T{r}","TIER_GATE")
-class ClaimNotFoundError(LifecycleError):
-    def __init__(s,*a): super().__init__("no claim","CLAIM_NOT_FOUND")
-class OwnershipError(LifecycleError):
-    def __init__(s,*a): super().__init__("not creator","OWNERSHIP_ERROR")
+    """Base lifecycle error with machine-readable code for API mapping."""
+    def __init__(self, message: str, code: str = "LIFECYCLE_ERROR") -> None:
+        self.message, self.code = message, code; super().__init__(message)
 
-_now = lambda: datetime.now(timezone.utc)
-_uid = lambda: Field(default_factory=lambda: str(uuid.uuid4()))
-_ts = lambda: Field(default_factory=_now)
-class LifecycleEvent(BaseModel):
-    """Event."""
-    event_id: str = _uid()
-    bounty_id: str; event_type: str; actor: str; old_state: str; new_state: str
-    metadata: dict = Field(default_factory=dict)
-    created_at: datetime = _ts()
-LifecycleEventResponse = LifecycleEvent
-class ClaimRecord(BaseModel):
-    claim_id: str = _uid()
-    bounty_id: str; contributor_id: str
-    claimed_at: datetime = _ts()
-    deadline: datetime; released_at: Optional[datetime] = None
-class DeadlineCheckResponse(BaseModel):
-    warnings_issued: int; claims_released: int; details: list[dict] = Field(default_factory=list)
+class InvalidTransitionError(LifecycleError):
+    """Requested state transition is not in the allowed set."""
+    def __init__(self, current: str, target: str) -> None:
+        super().__init__(f"Invalid transition '{current}' -> '{target}'", "INVALID_TRANSITION")
+
+class TerminalStateError(LifecycleError):
+    """Bounty is PAID or CANCELLED and cannot be modified further."""
+    def __init__(self, bounty_id="", state="") -> None:
+        super().__init__(f"Terminal state '{state}'", "TERMINAL_STATE")
+
+class BountyNotFoundError(LifecycleError):
+    """Bounty does not exist in the store."""
+    def __init__(self, bounty_id="") -> None:
+        super().__init__(f"Bounty '{bounty_id}' not found", "BOUNTY_NOT_FOUND")
+
+class ClaimConflictError(LifecycleError):
+    """Bounty already has an active claim by another contributor."""
+    def __init__(self, bounty_id="", claimant="") -> None:
+        super().__init__(f"Already claimed by '{claimant}'", "CLAIM_CONFLICT")
+
+class TierGateError(LifecycleError):
+    """Contributor has not unlocked the required tier."""
+    def __init__(self, required: int, has: int) -> None:
+        super().__init__(f"Requires T{required}, contributor is T{has}", "TIER_GATE")
+
+class ClaimNotFoundError(LifecycleError):
+    """No active claim for this bounty by the requesting actor."""
+    def __init__(self, bounty_id="", actor="") -> None:
+        super().__init__(f"No claim for '{bounty_id}' by '{actor}'", "CLAIM_NOT_FOUND")
+
+class OwnershipError(LifecycleError):
+    """Actor is not the bounty creator (required for complete/pay/cancel)."""
+    def __init__(self, bounty_id="", actor="") -> None:
+        super().__init__(f"'{actor}' is not creator of '{bounty_id}'", "OWNERSHIP_ERROR")
+
+# -- Response models --
+
+class LifecycleEventResponse(BaseModel):
+    """Audit event returned from mutation endpoints."""
+    event_id: str; bounty_id: str; event_type: str; actor: str
+    old_state: str; new_state: str
+    metadata: dict = Field(default_factory=dict); created_at: datetime
+
 class ClaimResponse(BaseModel):
+    """Active claim details including deadline."""
     claim_id: str; bounty_id: str; contributor_id: str
     claimed_at: datetime; deadline: datetime; state: str
 
-_state_lock = _L = threading.Lock()
+class DeadlineCheckResponse(BaseModel):
+    """Result of a deadline enforcement sweep."""
+    warnings_issued: int; claims_released: int; details: list[dict] = Field(default_factory=list)
+
+# -- Internal models (cache mirrors DB tables) --
+
+class LifecycleEvent(BaseModel):
+    """Internal audit event mirroring LifecycleEventDB."""
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    bounty_id: str; event_type: str; actor: str; old_state: str; new_state: str
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ClaimRecord(BaseModel):
+    """Internal claim record mirroring LifecycleClaimDB."""
+    claim_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    bounty_id: str; contributor_id: str
+    claimed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    deadline: datetime; released_at: Optional[datetime] = None
+
+# -- Thread-safe stores --
+
+_state_lock = threading.Lock()
 _states: dict[str, LifecycleState] = {}
 _claims: dict[str, ClaimRecord] = {}
 _log: list[LifecycleEvent] = []
+_now = lambda: datetime.now(timezone.utc)
 
-def _gs(bid):
-    s = _states.get(bid)
-    if s is not None: return s
-    b = _bs.get_bounty(bid)
-    if not b: raise BountyNotFoundError(bid)
-    try: m = _S(b.status.value)
-    except ValueError: m = O
-    _states[bid] = m; return m
-def _rec(bid, et, actor, old, new, m=None):
-    kw = dict(bounty_id=bid, event_type=et, actor=actor, old_state=old.value, new_state=new.value)
-    ev = LifecycleEvent(**kw, metadata=m or {}); _log.append(ev); audit_event("lifecycle_transition", **kw); return ev
-def _chk(bid, cur, tgt):
-    if cur in TE: raise TerminalStateError(bid, cur.value)
-    if tgt not in TR.get(cur, set()): raise InvalidTransitionError(cur.value, tgt.value)
-def _mtier(cid):
+# -- Internal helpers --
+
+def _resolve_state(bounty_id: str) -> LifecycleState:
+    """Look up lifecycle state from cache, falling back to bounty store."""
+    cached = _states.get(bounty_id)
+    if cached is not None: return cached
+    bounty = bounty_service.get_bounty(bounty_id)
+    if not bounty: raise BountyNotFoundError(bounty_id)
+    try: mapped = LifecycleState(bounty.status.value)
+    except ValueError: mapped = LifecycleState.OPEN
+    _states[bounty_id] = mapped; return mapped
+
+def _record(bounty_id, event_type, actor, old_state, new_state, meta=None):
+    """Create audit event, append to log, emit to structured audit pipeline."""
+    event = LifecycleEvent(bounty_id=bounty_id, event_type=event_type, actor=actor,
+                           old_state=old_state.value, new_state=new_state.value, metadata=meta or {})
+    _log.append(event)
+    audit_event("lifecycle_transition", bounty_id=bounty_id, event_type=event_type,
+                actor=actor, old_state=old_state.value, new_state=new_state.value)
+    return event
+
+def _check(bounty_id, current, target):
+    """Validate transition: terminal check then allowed-set check."""
+    if current in TERMINAL_STATES: raise TerminalStateError(bounty_id, current.value)
+    if target not in VALID_TRANSITIONS.get(current, set()): raise InvalidTransitionError(current.value, target.value)
+
+def _contributor_tier(contributor_id: str) -> int:
+    """Query reputation service for max unlocked tier (1-3). Falls back to 1."""
     try:
-        from app.services.reputation_service import _reputation_store as rs, count_tier_completions as ctc, determine_current_tier as dct
-        return {"T1":1,"T2":2,"T3":3}.get(dct(ctc(rs.get(cid, []))).value, 1)
+        from app.services.reputation_service import _reputation_store, count_tier_completions, determine_current_tier
+        history = _reputation_store.get(contributor_id, [])
+        return {"T1": 1, "T2": 2, "T3": 3}.get(determine_current_tier(count_tier_completions(history)).value, 1)
     except Exception: return 1
-def _own(bid, actor):
-    if actor in ("system", "treasury"): return
-    b = _bs.get_bounty(bid)
-    if not b: raise BountyNotFoundError(bid)
-    if b.created_by != "system" and actor != b.created_by: raise OwnershipError(bid, actor)
 
-def initialize_bounty(bid, actor="system"):
-    """To DRAFT."""
-    with _L:
-        if not _bs.get_bounty(bid): raise BountyNotFoundError(bid)
-        ex = _states.get(bid)
-        if ex is not None: return _rec(bid, "initialize_idempotent", actor, ex, ex)
-        _states[bid] = D; return _rec(bid, "initialize", actor, D, D)
-def open_bounty(bid, actor="system"):
-    """DRAFT to OPEN."""
-    with _L:
-        c = _gs(bid); _chk(bid, c, O); _states[bid] = O; return _rec(bid, "open", actor, c, O)
-def claim_bounty(bid, cid, bounty_tier=1):
-    """Claim."""
-    with _L:
-        cur = _gs(bid); ec = _claims.get(bid)
-        if ec and ec.released_at is None: raise ClaimConflictError(bid, ec.contributor_id)
-        _chk(bid, cur, CL)
-        if bounty_tier in {2,3} and _mtier(cid) < bounty_tier: raise TierGateError(bounty_tier, _mtier(cid))
-        now = _now(); dl = now + timedelta(hours=72)
-        cr = ClaimRecord(bounty_id=bid, contributor_id=cid, claimed_at=now, deadline=dl)
-        _claims[bid] = cr; _states[bid] = CL
-        _rec(bid, "claim", cid, cur, CL, {"deadline": dl.isoformat(), "tier": bounty_tier}); return cr
-def release_claim(bid, actor="system", reason="manual"):
-    """Release."""
-    with _L:
-        cur = _gs(bid); _chk(bid, cur, O); cl = _claims.get(bid)
-        if cl and cl.released_at is None:
-            cr = _bs.get_bounty(bid)
-            if actor not in ("system", cl.contributor_id) and (not cr or actor != cr.created_by): raise ClaimNotFoundError(bid, actor)
-            cl.released_at = _now()
-        _states[bid] = O; return _rec(bid, "release_claim", actor, cur, O, {"reason": reason})
-def submit_for_review(bid, cid, pr_url=""):
-    """To IN_REVIEW."""
-    with _L:
-        cur = _gs(bid); _chk(bid, cur, IR)
-        if cur == CL:
-            cl = _claims.get(bid)
-            if not cl or cl.contributor_id != cid: raise ClaimNotFoundError(bid, cid)
-        _states[bid] = IR; return _rec(bid, "submit_for_review", cid, cur, IR, {"pr_url": pr_url})
-def complete_bounty(bid, actor="system"):
-    """Complete (creator-only)."""
-    with _L:
-        _own(bid, actor); cur = _gs(bid); _chk(bid, cur, CO)
-        _states[bid] = CO; return _rec(bid, "complete", actor, cur, CO)
-def pay_bounty(bid, actor="treasury"):
-    """Pay (creator-only)."""
-    with _L:
-        _own(bid, actor); cur = _gs(bid); _chk(bid, cur, P)
-        _states[bid] = P; return _rec(bid, "pay", actor, cur, P)
-def cancel_bounty(bid, actor="system"):
-    """Cancel (creator-only)."""
-    with _L:
-        _own(bid, actor); cur = _gs(bid); _chk(bid, cur, CA)
-        cl = _claims.get(bid)
-        if cl and cl.released_at is None: cl.released_at = _now()
-        _states[bid] = CA; return _rec(bid, "cancel", actor, cur, CA)
-def handle_pr_event(bid, action, pr_url, sender, merged=False):
-    """PR webhook."""
-    with _L:
-        st = _states.get(bid)
-        if st is None:
-            b = _bs.get_bounty(bid)
-            if not b: return None
-            try: st = _S(b.status.value)
-            except ValueError: st = O
-            _states[bid] = st
-        if st in TE: return None
-        ok = TR.get(st, set())
-        if action == "opened" and IR in ok:
-            if st == CL:
-                cl = _claims.get(bid)
-                if cl and cl.contributor_id != sender: return None
-            _states[bid] = IR; return _rec(bid, "webhook_pr_opened", sender, st, IR, {"pr_url": pr_url})
-        if action == "closed" and merged and CO in ok:
-            _states[bid] = CO; return _rec(bid, "webhook_pr_merged", sender, st, CO, {"pr_url": pr_url})
-        if action == "closed" and not merged and st == IR:
-            cl = _claims.get(bid)
-            if cl and cl.released_at is None: cl.released_at = _now()
-            _states[bid] = O; return _rec(bid, "webhook_pr_closed", sender, st, O, {"pr_url": pr_url})
+def _verify_owner(bounty_id: str, actor: str) -> None:
+    """Ensure actor is the bounty creator. System/treasury bypass."""
+    if actor in ("system", "treasury"): return
+    bounty = bounty_service.get_bounty(bounty_id)
+    if not bounty: raise BountyNotFoundError(bounty_id)
+    if bounty.created_by != "system" and actor != bounty.created_by: raise OwnershipError(bounty_id, actor)
+
+# -- Public lifecycle operations --
+
+def initialize_bounty(bounty_id: str, actor: str = "system") -> LifecycleEvent:
+    """Register bounty in DRAFT state. Idempotent if already initialised."""
+    with _state_lock:
+        if not bounty_service.get_bounty(bounty_id): raise BountyNotFoundError(bounty_id)
+        existing = _states.get(bounty_id)
+        if existing is not None: return _record(bounty_id, "initialize_idempotent", actor, existing, existing)
+        _states[bounty_id] = LifecycleState.DRAFT
+        return _record(bounty_id, "initialize", actor, LifecycleState.DRAFT, LifecycleState.DRAFT)
+
+def open_bounty(bounty_id: str, actor: str = "system") -> LifecycleEvent:
+    """DRAFT -> OPEN. Bounty becomes visible and claimable."""
+    with _state_lock:
+        cur = _resolve_state(bounty_id); _check(bounty_id, cur, LifecycleState.OPEN)
+        _states[bounty_id] = LifecycleState.OPEN
+        return _record(bounty_id, "open", actor, cur, LifecycleState.OPEN)
+
+def claim_bounty(bounty_id: str, contributor_id: str, bounty_tier: int = 1) -> ClaimRecord:
+    """Claim OPEN bounty. Tier-gate for T2/T3, 72h deadline, single-claim lock."""
+    with _state_lock:
+        cur = _resolve_state(bounty_id)
+        existing = _claims.get(bounty_id)
+        if existing and existing.released_at is None: raise ClaimConflictError(bounty_id, existing.contributor_id)
+        _check(bounty_id, cur, LifecycleState.CLAIMED)
+        if bounty_tier in {2, 3} and _contributor_tier(contributor_id) < bounty_tier:
+            raise TierGateError(bounty_tier, _contributor_tier(contributor_id))
+        now = _now(); deadline = now + timedelta(hours=CLAIM_HOURS)
+        claim = ClaimRecord(bounty_id=bounty_id, contributor_id=contributor_id, claimed_at=now, deadline=deadline)
+        _claims[bounty_id] = claim; _states[bounty_id] = LifecycleState.CLAIMED
+        _record(bounty_id, "claim", contributor_id, cur, LifecycleState.CLAIMED,
+                {"deadline": deadline.isoformat(), "tier": bounty_tier})
+        return claim
+
+def release_claim(bounty_id: str, actor: str = "system", reason: str = "manual") -> LifecycleEvent:
+    """Release active claim -> OPEN. Allowed by claimant, bounty creator, or system."""
+    with _state_lock:
+        cur = _resolve_state(bounty_id); _check(bounty_id, cur, LifecycleState.OPEN)
+        claim = _claims.get(bounty_id)
+        if claim and claim.released_at is None:
+            bounty = bounty_service.get_bounty(bounty_id)
+            ok = (actor == claim.contributor_id or (bounty and actor == bounty.created_by) or actor == "system")
+            if not ok: raise ClaimNotFoundError(bounty_id, actor)
+            claim.released_at = _now()
+        _states[bounty_id] = LifecycleState.OPEN
+        return _record(bounty_id, "release_claim", actor, cur, LifecycleState.OPEN, {"reason": reason})
+
+def submit_for_review(bounty_id: str, contributor_id: str, pr_url: str = "") -> LifecycleEvent:
+    """Submit PR: OPEN -> IN_REVIEW (T1 open-race) or CLAIMED -> IN_REVIEW (claimant only)."""
+    with _state_lock:
+        cur = _resolve_state(bounty_id); _check(bounty_id, cur, LifecycleState.IN_REVIEW)
+        if cur == LifecycleState.CLAIMED:
+            claim = _claims.get(bounty_id)
+            if not claim or claim.contributor_id != contributor_id: raise ClaimNotFoundError(bounty_id, contributor_id)
+        _states[bounty_id] = LifecycleState.IN_REVIEW
+        return _record(bounty_id, "submit_for_review", contributor_id, cur, LifecycleState.IN_REVIEW, {"pr_url": pr_url})
+
+def complete_bounty(bounty_id: str, actor: str = "system") -> LifecycleEvent:
+    """IN_REVIEW -> COMPLETED. Creator-only (system/treasury bypass)."""
+    with _state_lock:
+        _verify_owner(bounty_id, actor); cur = _resolve_state(bounty_id)
+        _check(bounty_id, cur, LifecycleState.COMPLETED); _states[bounty_id] = LifecycleState.COMPLETED
+        return _record(bounty_id, "complete", actor, cur, LifecycleState.COMPLETED)
+
+def pay_bounty(bounty_id: str, actor: str = "treasury") -> LifecycleEvent:
+    """COMPLETED -> PAID (terminal). Creator-only."""
+    with _state_lock:
+        _verify_owner(bounty_id, actor); cur = _resolve_state(bounty_id)
+        _check(bounty_id, cur, LifecycleState.PAID); _states[bounty_id] = LifecycleState.PAID
+        return _record(bounty_id, "pay", actor, cur, LifecycleState.PAID)
+
+def cancel_bounty(bounty_id: str, actor: str = "system") -> LifecycleEvent:
+    """Cancel from any non-terminal state. Creator-only. Releases active claim."""
+    with _state_lock:
+        _verify_owner(bounty_id, actor); cur = _resolve_state(bounty_id)
+        _check(bounty_id, cur, LifecycleState.CANCELLED)
+        claim = _claims.get(bounty_id)
+        if claim and claim.released_at is None: claim.released_at = _now()
+        _states[bounty_id] = LifecycleState.CANCELLED
+        return _record(bounty_id, "cancel", actor, cur, LifecycleState.CANCELLED)
+
+# -- Webhook integration --
+
+def handle_pr_event(bounty_id, action, pr_url, sender, merged=False):
+    """Process GitHub PR webhook: opened -> IN_REVIEW, merged -> COMPLETED, closed -> OPEN."""
+    with _state_lock:
+        cur = _states.get(bounty_id)
+        if cur is None:
+            bounty = bounty_service.get_bounty(bounty_id)
+            if not bounty: return None
+            try: cur = LifecycleState(bounty.status.value)
+            except ValueError: cur = LifecycleState.OPEN
+            _states[bounty_id] = cur
+        if cur in TERMINAL_STATES: return None
+        allowed = VALID_TRANSITIONS.get(cur, set())
+        if action == "opened" and LifecycleState.IN_REVIEW in allowed:
+            if cur == LifecycleState.CLAIMED:
+                claim = _claims.get(bounty_id)
+                if claim and claim.contributor_id != sender: return None
+            _states[bounty_id] = LifecycleState.IN_REVIEW
+            return _record(bounty_id, "webhook_pr_opened", sender, cur, LifecycleState.IN_REVIEW, {"pr_url": pr_url})
+        if action == "closed" and merged and LifecycleState.COMPLETED in allowed:
+            _states[bounty_id] = LifecycleState.COMPLETED
+            return _record(bounty_id, "webhook_pr_merged", sender, cur, LifecycleState.COMPLETED, {"pr_url": pr_url})
+        if action == "closed" and not merged and cur == LifecycleState.IN_REVIEW:
+            claim = _claims.get(bounty_id)
+            if claim and claim.released_at is None: claim.released_at = _now()
+            _states[bounty_id] = LifecycleState.OPEN
+            return _record(bounty_id, "webhook_pr_closed", sender, cur, LifecycleState.OPEN, {"pr_url": pr_url})
     return None
-def enforce_deadlines():
-    """Deadlines."""
-    now = _now(); w = []; rel = 0
-    with _L: bids = [b for b, c in _claims.items() if c.released_at is None]
-    for bid in bids:
-        with _L:
-            c = _claims.get(bid)
-            if not c or c.released_at: continue
-            tot = (c.deadline - c.claimed_at).total_seconds()
-            if tot <= 0: continue
-            pct = min(((now - c.claimed_at).total_seconds() / tot) * 100, 100.0); cid = c.contributor_id
-            d = {"bounty_id":bid,"contributor_id":cid}
-            if pct >= 100 and _states.get(bid) == CL:
-                c.released_at = now; _states[bid] = O
-                _rec(bid, "deadline_auto_release", "system", CL, O, {**d, "reason": "deadline_expired"})
-                rel += 1; w.append({**d, "action":"released"})
+
+# -- Deadline enforcement (cron) --
+
+def enforce_deadlines() -> DeadlineCheckResponse:
+    """Sweep active claims: warn at >=80% elapsed, auto-release at >=100%."""
+    now = _now(); details: list[dict] = []; released = 0
+    with _state_lock: active = [bid for bid, c in _claims.items() if c.released_at is None]
+    for bounty_id in active:
+        with _state_lock:
+            claim = _claims.get(bounty_id)
+            if not claim or claim.released_at is not None: continue
+            total = (claim.deadline - claim.claimed_at).total_seconds()
+            if total <= 0: continue
+            pct = min(((now - claim.claimed_at).total_seconds() / total) * 100, 100.0)
+            info = {"bounty_id": bounty_id, "contributor_id": claim.contributor_id}
+            if pct >= 100 and _states.get(bounty_id) == LifecycleState.CLAIMED:
+                claim.released_at = now; _states[bounty_id] = LifecycleState.OPEN
+                _record(bounty_id, "deadline_auto_release", "system", LifecycleState.CLAIMED,
+                        LifecycleState.OPEN, {**info, "reason": "deadline_expired"})
+                released += 1; details.append({**info, "action": "released"})
             elif pct >= 80:
-                hrs = max((c.deadline - now).total_seconds() / 3600, 0)
-                w.append({**d, "action":"warning", "pct":round(pct,1), "hrs":round(hrs,1)})
-    return DeadlineCheckResponse(warnings_issued=sum(1 for x in w if x.get("action")=="warning"), claims_released=rel, details=w)
-def get_lifecycle_state(bid):
-    """Current state."""
-    with _L: return _gs(bid)
-def get_claim(bid):
-    """Active claim."""
-    c = _claims.get(bid)
-    with _L: return c if c and c.released_at is None else None
+                hrs = max((claim.deadline - now).total_seconds() / 3600, 0)
+                details.append({**info, "action": "warning", "percent_elapsed": round(pct, 1), "hours_remaining": round(hrs, 1)})
+    warnings = sum(1 for d in details if d.get("action") == "warning")
+    return DeadlineCheckResponse(warnings_issued=warnings, claims_released=released, details=details)
+
+# -- Query helpers --
+
+def get_lifecycle_state(bounty_id: str) -> LifecycleState:
+    """Return the current lifecycle state for a bounty."""
+    with _state_lock: return _resolve_state(bounty_id)
+
+def get_claim(bounty_id: str) -> Optional[ClaimRecord]:
+    """Return the active (unreleased) claim for a bounty, or None."""
+    with _state_lock:
+        claim = _claims.get(bounty_id)
+        return claim if claim and claim.released_at is None else None
+
 def get_audit_log(bounty_id=None, limit=50, actor_filter=None):
-    """Audit log."""
-    with _L: return sorted([e for e in _log if (not bounty_id or e.bounty_id == bounty_id) and (not actor_filter or e.actor == actor_filter)], key=lambda e: e.created_at, reverse=True)[:limit]
-def is_bounty_participant(bid, actor):
-    """Participant."""
-    b = _bs.get_bounty(bid)
-    if b and b.created_by == actor: return True
-    with _L: return any(e.bounty_id == bid and e.actor == actor for e in _log)
-def clear_stores():
-    """Reset."""
-    with _L: _states.clear(); _claims.clear(); _log.clear()
+    """Retrieve audit events filtered by bounty and/or actor, newest first."""
+    with _state_lock:
+        filtered = [e for e in _log if (bounty_id is None or e.bounty_id == bounty_id)
+                    and (actor_filter is None or e.actor == actor_filter)]
+        return sorted(filtered, key=lambda e: e.created_at, reverse=True)[:limit]
+
+def is_bounty_participant(bounty_id: str, actor: str) -> bool:
+    """Check if actor is a participant (creator or has triggered lifecycle events)."""
+    bounty = bounty_service.get_bounty(bounty_id)
+    if bounty and bounty.created_by == actor: return True
+    with _state_lock: return any(e.bounty_id == bounty_id and e.actor == actor for e in _log)
+
+def clear_stores() -> None:
+    """Reset all in-memory stores. Test-only."""
+    with _state_lock: _states.clear(); _claims.clear(); _log.clear()

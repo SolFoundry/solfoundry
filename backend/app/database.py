@@ -89,6 +89,11 @@ async def init_db() -> None:
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
             from app.models.agent import Agent  # noqa: F401
+            from app.models.lifecycle import (  # noqa: F401
+                LifecycleStateDB,
+                LifecycleClaimDB,
+                LifecycleEventDB,
+            )
 
             await conn.run_sync(Base.metadata.create_all)
 
