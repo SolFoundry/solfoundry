@@ -41,17 +41,27 @@ async def health_check():
         logger.error(f"Health check Redis failure: {e}")
         redis_status = "disconnected"
         
+    # Fetch legacy fields for bot compatibility
+    from app.services.github_sync import get_last_sync
+    from app.services.bounty_service import _bounty_store
+    from app.services.contributor_service import _store
+    last_sync = get_last_sync()
+
     # Aggregate status
     is_healthy = db_status == "connected" and redis_status == "connected"
-    status = "healthy" if is_healthy else "degraded"
     
     return {
-        "status": status,
+        "status": "healthy" if is_healthy else "degraded",
         "version": "1.0.0",
-        "uptime_seconds": int(time.time() - START_TIME),
+        "uptime_seconds": round(time.monotonic() - START_TIME),
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "services": {
             "database": db_status,
-            "redis": redis_status
-        }
+            "redis": redis_status,
+        },
+        # Legacy fields for bot/compatibility
+        "database_legacy": "ok" if db_status == "connected" else "error",
+        "last_sync": last_sync.isoformat() if last_sync else None,
+        "bounties": len(_bounty_store),
+        "contributors": len(_store),
     }
