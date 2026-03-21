@@ -50,10 +50,13 @@ Closes #18
 
 ### Step 5: AI Review
 
-Your PR is automatically reviewed by **3 AI models in parallel** (GPT-5.4, Gemini 2.5 Pro, Grok 4). This usually takes 1-2 minutes.
+Your PR is automatically reviewed by **5 AI models in parallel** (GPT-5.4, Gemini 2.5 Pro, Grok 4, Sonnet 4.6, DeepSeek V3.2). This usually takes 1-2 minutes.
 
-- **Score ≥ 6.0/10** → PR is approved for merge → $FNDRY sent to your wallet automatically
-- **Score < 6.0/10** → Changes requested with feedback. Fix the issues and push an update.
+- Scores are aggregated using **trimmed mean** — highest and lowest are dropped, middle 3 averaged.
+- **T1:** Score ≥ 6.0/10 → approved for merge → $FNDRY sent to your wallet automatically.
+- **T2:** Score ≥ 7.0/10 (6.5 for veteran contributors with rep ≥ 80).
+- **T3:** Score ≥ 7.5/10 (7.0 for veteran contributors with rep ≥ 80).
+- Score below threshold → changes requested with feedback. Fix the issues and push an update.
 - Review feedback is intentionally vague — it points to problem areas without giving exact fixes.
 
 ### Spam Filter (Auto-Rejection)
@@ -88,14 +91,16 @@ Your PR gets a **24-hour warning** if:
 - **Requires 4+ merged Tier 1 bounty PRs** to unlock.
 - Open race — first clean PR wins, same as T1. No claiming needed.
 - The claim-guard checks your merged T1 count automatically. If you don't have 4+, your PR gets flagged.
-- Score minimum: **6.0 / 10**
+- Score minimum: **7.0 / 10** (6.5 for veteran contributors with rep ≥ 80)
 - Deadline: **7 days** from issue creation
 
 ### Tier 3 -- Claim-Based (Gated Access)
 
-- **Requires 3+ merged Tier 2 bounty PRs** to unlock.
+- **Two paths to unlock T3:**
+  - **Path A:** 3+ merged Tier 2 bounty PRs
+  - **Path B:** 5+ merged Tier 1 bounty PRs AND 1+ merged Tier 2 bounty PR
 - Comment "claiming" on the issue to reserve it. Only T3 is claim-based.
-- Score minimum: **6.0 / 10**
+- Score minimum: **7.5 / 10** (7.0 for veteran contributors with rep ≥ 80)
 - Deadline: **14 days** from claim
 - Milestones may be defined in the issue for partial payouts.
 - Max **2 concurrent T3 claims** per contributor
@@ -127,7 +132,7 @@ Every PR **must** include a Solana wallet address in the PR description. Use the
 
 ## PR Rules
 
-1. **One PR per bounty per person.** Don't submit multiple attempts.
+1. **Max 50 submissions per bounty per person.** Make each attempt count — iterate on review feedback.
 2. **Reference the bounty issue** with `Closes #N` in the PR description.
 3. **Follow the PR template.** Description, wallet address, checklist. All of it.
 4. **Code must be clean, tested, and match the issue spec exactly.** Don't over-engineer, don't under-deliver.
@@ -137,32 +142,44 @@ Every PR **must** include a Solana wallet address in the PR description. Use the
 
 ## AI Review Pipeline
 
-Every PR is reviewed by **3 AI models in parallel**:
+Every PR is reviewed by **5 AI models in parallel**:
 
 | Model | Role |
 |---|---|
-| GPT-5.4 | Primary review |
-| Gemini 2.5 Pro | Secondary review |
-| Grok 4 | Tertiary review |
+| GPT-5.4 | Code quality, logic, architecture |
+| Gemini 2.5 Pro | Security analysis, edge cases, test coverage |
+| Grok 4 | Performance, best practices, independent verification |
+| Sonnet 4.6 | Code correctness, completeness, production readiness |
+| DeepSeek V3.2 | Cost-efficient cross-validation |
 
 ### Scoring
 
-Each model scores your PR on a 10-point scale across five dimensions:
+Each model scores your PR on a 10-point scale across six dimensions:
 
 - **Quality** -- code cleanliness, structure, style
 - **Correctness** -- does it do what the issue asks
 - **Security** -- no vulnerabilities, no unsafe patterns
-- **Performance** -- efficient, no unnecessary overhead
-- **Documentation** -- comments, docstrings, clear naming
+- **Completeness** -- all acceptance criteria met
+- **Tests** -- test coverage and quality
+- **Integration** -- fits cleanly into the existing codebase
 
-Minimum to pass: **6.0 / 10**
+Scores are aggregated using **trimmed mean** — the highest and lowest model scores are dropped, and the middle 3 are averaged. This prevents any single model from unfairly swinging the result.
+
+**Pass thresholds by tier:**
+
+| Tier | Standard | Veteran (rep ≥ 80) |
+|------|----------|-------------------|
+| T1 | 6.0/10 | 6.5/10 (raised to prevent farming) |
+| T2 | 7.0/10 | 6.5/10 |
+| T3 | 7.5/10 | 7.0/10 |
 
 ### How It Works
 
 1. **Spam filter runs first.** Empty diffs, AI-generated slop, and low-effort submissions are auto-rejected before models even look at them.
-2. **Three models review independently.** Each produces a score and feedback.
-3. **Feedback is intentionally vague.** The review points to problem areas without giving you exact fixes. This is by design -- figure it out.
-4. **Disagreements between models escalate to human review.**
+2. **Five models review independently.** Each produces a score and feedback.
+3. **Trimmed mean aggregation.** Highest and lowest scores dropped, middle 3 averaged.
+4. **Feedback is intentionally vague.** The review points to problem areas without giving you exact fixes. This is by design -- figure it out.
+5. **High disagreement (spread > 3.0 points) is flagged** for manual review.
 
 ### GitHub Actions
 
@@ -182,9 +199,9 @@ These actions run automatically on your PR:
 
 We take this seriously.
 
-- **3 rejected PRs = temporary ban.** Don't waste everyone's time.
+- **Max 50 submissions per bounty.** After 50 failed attempts on the same bounty, you're locked out. Make each one count.
 - **Bulk-dumped AI slop is auto-filtered.** The spam detector catches copy-pasted ChatGPT output. If you didn't write it, don't submit it.
-- **One PR per bounty per person.** No second chances on the same issue.
+- **One open PR per bounty per person.** Close your old PR before opening a new one for the same bounty.
 - **Sybil resistance** via on-chain reputation tied to your Solana wallet. Alt accounts don't work here.
 
 ---

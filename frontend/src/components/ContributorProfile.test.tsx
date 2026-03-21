@@ -1,5 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { ContributorProfile } from './ContributorProfile';
+import type { ContributorBadgeStats } from '../types/badges';
+
+const badgeStats: ContributorBadgeStats = {
+  mergedPrCount: 3,
+  mergedWithoutRevisionCount: 1,
+  isTopContributorThisMonth: false,
+  prSubmissionTimestampsUtc: ['2026-03-15T14:00:00Z'],
+};
 
 describe('ContributorProfile', () => {
   const defaultProps = {
@@ -18,7 +26,7 @@ describe('ContributorProfile', () => {
 
   it('displays truncated wallet address', () => {
     render(<ContributorProfile {...defaultProps} />);
-    expect(screen.getByText(/Amu1YJ.*1o7/)).toBeInTheDocument();
+    expect(screen.getByText(/Amu1YJ.*71o7/)).toBeInTheDocument();
   });
 
   it('displays total earned', () => {
@@ -50,5 +58,17 @@ describe('ContributorProfile', () => {
   it('handles missing wallet address', () => {
     render(<ContributorProfile {...defaultProps} walletAddress="" />);
     expect(screen.getByText('Not connected')).toBeInTheDocument();
+  });
+
+  it('shows badge count when badgeStats provided', () => {
+    render(<ContributorProfile {...defaultProps} badgeStats={badgeStats} />);
+    expect(screen.getByTestId('header-badge-count')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-grid')).toBeInTheDocument();
+  });
+
+  it('hides badge section when badgeStats not provided', () => {
+    render(<ContributorProfile {...defaultProps} />);
+    expect(screen.queryByTestId('badge-grid')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('header-badge-count')).not.toBeInTheDocument();
   });
 });

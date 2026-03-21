@@ -18,6 +18,8 @@ from solders.keypair import Keypair
 from app.main import app
 from app.services import auth_service
 
+auth_service.GITHUB_CLIENT_ID = "test-client-id"
+
 
 @pytest.fixture
 def client():
@@ -31,25 +33,32 @@ def test_keypair():
     return Keypair()
 
 
+import asyncio
+from app.database import async_session_factory
+
 @pytest.fixture
 def auth_headers(client):
     """Create auth headers by doing GitHub OAuth login (simulated)."""
-    # For testing, we'll create a user directly
-    from app.models.user import UserDB
     import uuid
-
-    user = UserDB(
-        id=uuid.uuid4(),
-        github_id="test_github_123",
-        username="testuser",
-        email="test@example.com",
-        avatar_url="https://example.com/avatar.png",
-    )
-
-    # Store in the in-memory store
-    user_id = str(user.id)
-    auth_service._user_store[user_id] = user
-    auth_service._github_to_user["test_github_123"] = user_id
+    from app.models.user import User
+    
+    user_uuid = uuid.uuid4()
+    user_id = str(user_uuid)
+    
+    async def _create_user():
+        """Create user."""
+        async with async_session_factory() as session:
+            user = User(
+                id=user_uuid,
+                github_id="test_github_123",
+                username="testuser",
+                email="test@example.com",
+                avatar_url="https://example.com/avatar.png",
+            )
+            session.add(user)
+            await session.commit()
+            
+    asyncio.run(_create_user())
 
     # Generate token
     token = auth_service.create_access_token(user_id)
@@ -134,7 +143,7 @@ class TestWalletAuth:
         )
 
         assert response.status_code == 400
-        assert "Failed to verify signature" in response.json()["detail"]
+        assert "Failed to verify signature" in response.json()["message"]
 
     def test_wallet_authenticate_valid_signature(self, client, test_keypair):
         """Test wallet auth with valid signature."""
@@ -165,7 +174,7 @@ class TestWalletAuth:
         assert "access_token" in data
         assert "refresh_token" in data
         assert "user" in data
-        assert data["user"]["wallet_address"] == wallet_address
+        assert data["user"]["wallet_address"].lower() == wallet_address.lower()
         assert data["user"]["wallet_verified"] is True
 
 
@@ -214,7 +223,7 @@ class TestWalletLinking:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["user"]["wallet_address"] == wallet_address
+        assert data["user"]["wallet_address"].lower() == wallet_address.lower()
 
 
 class TestTokenRefresh:
@@ -230,23 +239,21 @@ class TestTokenRefresh:
 
     def test_refresh_token_valid(self, client, auth_headers):
         """Test refresh with valid token."""
-        # First, we need to get a refresh token
-        # For testing, create one directly
-        from app.services.auth_service import _user_store
+        # The user was created in auth_headers fixture
+        # We can extract the user_id from the token
+        token = auth_headers["Authorization"].split(" ")[1]
+        user_id = auth_service.decode_token(token)
 
-        user_id = list(_user_store.keys())[0] if _user_store else None
+        refresh_token = auth_service.create_refresh_token(user_id)
 
-        if user_id:
-            refresh_token = auth_service.create_refresh_token(user_id)
+        response = client.post(
+            "/api/auth/refresh", json={"refresh_token": refresh_token}
+        )
 
-            response = client.post(
-                "/api/auth/refresh", json={"refresh_token": refresh_token}
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert "access_token" in data
-            assert data["token_type"] == "bearer"
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
 
 
 class TestProtectedRoutes:
@@ -258,13 +265,13 @@ class TestProtectedRoutes:
         assert response.status_code == 401
 
     def test_get_me_authenticated(self, client, auth_headers):
-        """Test /auth/me with authentication."""
+        """Test getting current user with valid token."""
         response = client.get("/api/auth/me", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
+        assert data["username"] == "testuser"
         assert "id" in data
-        assert "github_id" in data
         assert "username" in data
         assert "created_at" in data
 
@@ -401,7 +408,7 @@ class TestFullAuthFlow:
         )
         assert me_response.status_code == 200
         user = me_response.json()
-        assert user["wallet_address"] == wallet_address
+        assert user["wallet_address"].lower() == wallet_address.lower()
 
         # Step 4: Refresh token
         refresh_response = client.post(

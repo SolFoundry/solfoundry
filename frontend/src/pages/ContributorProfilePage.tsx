@@ -9,6 +9,23 @@ import { useQuery } from '@tanstack/react-query';
 import ContributorProfile from '../components/ContributorProfile';
 import { SkeletonCard } from '../components/common/Skeleton';
 import { apiClient } from '../services/apiClient';
+import type { ContributorBadgeStats } from '../types/badges';
+
+// ── Mock badge stats (replace with real API data) ────────────────────────────
+const MOCK_BADGE_STATS: ContributorBadgeStats = {
+  mergedPrCount: 7,
+  mergedWithoutRevisionCount: 4,
+  isTopContributorThisMonth: false,
+  prSubmissionTimestampsUtc: [
+    '2026-03-15T02:30:00Z', // Night owl PR
+    '2026-03-16T14:00:00Z',
+    '2026-03-17T10:00:00Z',
+    '2026-03-18T11:30:00Z',
+    '2026-03-19T09:00:00Z',
+    '2026-03-20T13:45:00Z',
+    '2026-03-21T04:15:00Z', // Night owl PR
+  ],
+};
 
 /** Shape of the contributor API response from GET /api/contributors/:identifier. */
 interface ContributorApiResponse {
@@ -88,6 +105,7 @@ export default function ContributorProfilePage() {
       totalEarned={contributor.total_earned ?? 0}
       bountiesCompleted={contributor.bounties_completed ?? 0}
       reputationScore={contributor.reputation_score ?? 0}
+      badgeStats={MOCK_BADGE_STATS}
     />
   );
 }

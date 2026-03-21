@@ -4,10 +4,13 @@
  * All components using React Query are wrapped in QueryClientProvider.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import BountiesPage from '../pages/BountiesPage';
+import { BountyBoard } from '../components/bounties/BountyBoard';
 import { BountyCard, formatTimeRemaining, formatReward } from '../components/bounties/BountyCard';
 import { EmptyState } from '../components/bounties/EmptyState';
 import { useBountyBoard } from '../hooks/useBountyBoard';
@@ -65,7 +68,54 @@ const testBounty: Bounty = {
   skills: ['React', 'TS', 'Rust', 'Sol'], rewardAmount: 3500,
   currency: 'USDC', deadline: new Date(Date.now() + 5 * 864e5).toISOString(),
   status: 'open', submissionCount: 3, createdAt: new Date().toISOString(), projectName: 'TP',
+  creatorType: 'community',
 };
+
+const b: Bounty = testBounty;
+
+describe('Page+Board', () => {
+  it('renders BountyBoard with heading', () => {
+    render(<MemoryRouter><BountiesPage /></MemoryRouter>);
+    expect(screen.getByText('Bounty Marketplace')).toBeInTheDocument();
+  });
+  it('renders all cards with filters', () => {
+    render(<BountyBoard />);
+    expect(screen.getByText('Bounty Marketplace')).toBeInTheDocument();
+    expect(within(screen.getByTestId('bounty-grid')).getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
+  });
+  it('filters by tier and resets', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const u = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<BountyBoard />);
+    await u.selectOptions(screen.getByTestId('tier-filter'), 'T1');
+    expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.filter(x => x.tier==='T1').length);
+    await u.click(screen.getByTestId('reset-filters'));
+    expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
+    vi.useRealTimers();
+  });
+  it('has create bounty button', () => {
+    render(<BountyBoard />);
+    const btn = screen.getByTestId('create-bounty-btn');
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAttribute('href', '/bounties/create');
+  });
+  it('has view toggle (grid/list)', () => {
+    render(<BountyBoard />);
+    expect(screen.getByTestId('view-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('view-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('view-list')).toBeInTheDocument();
+  });
+  it('switches between grid and list view', async () => {
+    const u = userEvent.setup();
+    render(<BountyBoard />);
+    expect(screen.getByTestId('bounty-grid')).toBeInTheDocument();
+    await u.click(screen.getByTestId('view-list'));
+    expect(screen.getByTestId('bounty-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('bounty-grid')).not.toBeInTheDocument();
+    await u.click(screen.getByTestId('view-grid'));
+    expect(screen.getByTestId('bounty-grid')).toBeInTheDocument();
+  });
+});
 
 describe('BountyCard', () => {
   it('renders info and handles click', async () => {
@@ -87,6 +137,20 @@ describe('BountyCard', () => {
       <BountyCard bounty={{ ...testBounty, deadline: new Date(Date.now() + 12 * 36e5).toISOString() }} onClick={() => {}} />,
     );
     expect(screen.getByTestId('urgent-indicator')).toBeInTheDocument();
+  });
+  it('shows community badge for community bounty', () => {
+    render(<BountyCard bounty={{...b, creatorType: 'community'}} onClick={()=>{}} />);
+    expect(screen.getByTestId('creator-badge-community')).toBeInTheDocument();
+    expect(screen.getByText('Community')).toBeInTheDocument();
+  });
+  it('shows platform badge for platform bounty', () => {
+    render(<BountyCard bounty={{...b, creatorType: 'platform'}} onClick={()=>{}} />);
+    expect(screen.getByTestId('creator-badge-platform')).toBeInTheDocument();
+    expect(screen.getByText('Official')).toBeInTheDocument();
+  });
+  it('shows submission count for all tiers', () => {
+    render(<BountyCard bounty={{...b, tier: 'T1', submissionCount: 5}} onClick={()=>{}} />);
+    expect(screen.getByText('5 submissions')).toBeInTheDocument();
   });
 });
 

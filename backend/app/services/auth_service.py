@@ -22,6 +22,7 @@ from solders.signature import Signature
 from solders.pubkey import Pubkey
 
 from app.models.user import User, UserResponse
+from app.core.audit import audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -43,34 +44,42 @@ _auth_challenges: Dict[str, Dict] = {}
 
 
 class AuthError(Exception):
+    """Base exception for authentication errors."""
     pass
 
 
 class GitHubOAuthError(AuthError):
+    """Raised when GitHub OAuth flow fails."""
     pass
 
 
 class WalletVerificationError(AuthError):
+    """Raised when wallet signature verification fails."""
     pass
 
 
 class TokenExpiredError(AuthError):
+    """Raised when a JWT token has expired."""
     pass
 
 
 class InvalidTokenError(AuthError):
+    """Raised when a JWT token is malformed or invalid."""
     pass
 
 
 class InvalidStateError(AuthError):
+    """Raised when an OAuth state parameter is invalid."""
     pass
 
 
 class InvalidNonceError(AuthError):
+    """Raised when a wallet auth nonce is invalid."""
     pass
 
 
 def _user_to_response(user: User) -> UserResponse:
+    """Convert a User ORM instance to a UserResponse."""
     return UserResponse(
         id=str(user.id),
         github_id=user.github_id,
@@ -85,6 +94,7 @@ def _user_to_response(user: User) -> UserResponse:
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+    """Generate a signed JWT access token for a user."""
     expires_delta = expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     now = datetime.now(timezone.utc)
     payload = {
@@ -100,6 +110,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
 def create_refresh_token(
     user_id: str, expires_delta: Optional[timedelta] = None
 ) -> str:
+    """Generate a signed JWT refresh token for a user."""
     expires_delta = expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     now = datetime.now(timezone.utc)
     payload = {
@@ -113,6 +124,7 @@ def create_refresh_token(
 
 
 def decode_token(token: str, token_type: str = "access") -> str:
+    """Decode and validate a JWT token, returning user ID."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != token_type:
@@ -128,6 +140,7 @@ def decode_token(token: str, token_type: str = "access") -> str:
 
 
 def get_github_authorize_url(state: Optional[str] = None) -> tuple:
+    """Build the GitHub OAuth authorization URL."""
     if not GITHUB_CLIENT_ID:
         raise GitHubOAuthError("GITHUB_CLIENT_ID not configured")
     state = state or secrets.token_urlsafe(32)
@@ -149,6 +162,7 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
 
 
 def verify_oauth_state(state: str) -> bool:
+    """Verify the OAuth state parameter is valid."""
     if not state:
         raise InvalidStateError("Missing state")
     data = _oauth_states.get(state)
@@ -162,6 +176,7 @@ def verify_oauth_state(state: str) -> bool:
 
 
 async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
+    """Exchange a GitHub OAuth code for user profile."""
     if state:
         verify_oauth_state(state)
     if not GITHUB_CLIENT_SECRET:
@@ -218,6 +233,7 @@ async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
 async def github_oauth_login(
     db: AsyncSession, code: str, state: Optional[str] = None
 ) -> Dict:
+    """Complete GitHub OAuth login and create/update user."""
     github_user = await exchange_github_code(code, state)
     github_id = str(github_user["id"])
 
@@ -254,6 +270,7 @@ async def github_oauth_login(
 
 
 def generate_auth_message(wallet_address: str) -> Dict:
+    """Create a challenge message for wallet auth."""
     nonce = secrets.token_urlsafe(32)
     expires = datetime.now(timezone.utc) + timedelta(minutes=5)
     message = f"""SolFoundry Authentication
@@ -273,6 +290,7 @@ Sign to prove wallet ownership."""
 
 
 def verify_auth_challenge(nonce: str, wallet: str, message: str) -> bool:
+    """Verify a wallet auth challenge nonce and message."""
     if not nonce:
         raise InvalidNonceError("Missing nonce")
     challenge = _auth_challenges.get(nonce)
@@ -290,6 +308,7 @@ def verify_auth_challenge(nonce: str, wallet: str, message: str) -> bool:
 
 
 def verify_wallet_signature(wallet_address: str, message: str, signature: str) -> bool:
+    """Verify a Solana wallet signature."""
     try:
         if not wallet_address or len(wallet_address) < 32 or len(wallet_address) > 48:
             raise WalletVerificationError("Invalid wallet format")
@@ -313,6 +332,7 @@ async def wallet_authenticate(
     message: str,
     nonce: Optional[str] = None,
 ) -> Dict:
+    """Authenticate via wallet signature."""
     if nonce:
         verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
@@ -354,6 +374,7 @@ async def link_wallet_to_user(
     message: str,
     nonce: Optional[str] = None,
 ) -> Dict:
+    """Link a verified wallet to an existing user."""
     if nonce:
         verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
@@ -374,6 +395,13 @@ async def link_wallet_to_user(
 
     await db.commit()
     await db.refresh(user)
+    
+    audit_event(
+        "auth_wallet_linked",
+        user_id=str(user.id),
+        wallet_address=user.wallet_address
+    )
+    
     return {
         "success": True,
         "message": "Wallet linked",
@@ -382,6 +410,7 @@ async def link_wallet_to_user(
 
 
 async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
+    """Exchange a refresh token for a new access token."""
     user_id = decode_token(refresh_token, "refresh")
     result = await db.execute(select(User).where(User.id == user_id))
     if not result.scalar_one_or_none():
@@ -394,6 +423,7 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
 
 
 async def get_current_user(db: AsyncSession, user_id: str) -> UserResponse:
+    """Retrieve the current authenticated user by ID."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

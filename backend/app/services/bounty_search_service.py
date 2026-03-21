@@ -47,9 +47,7 @@ async def search_bounties_db(
 
     has_query = bool(params.q.strip())
     if has_query:
-        conditions.append(
-            "b.search_vector @@ plainto_tsquery('english', :query)"
-        )
+        conditions.append("b.search_vector @@ plainto_tsquery('english', :query)")
         binds["query"] = params.q.strip()
 
     if params.status is not None:
@@ -67,6 +65,9 @@ async def search_bounties_db(
     if params.creator_type:
         conditions.append("b.creator_type = :creator_type")
         binds["creator_type"] = params.creator_type
+    if params.creator_id:
+        conditions.append("b.created_by = :creator_id")
+        binds["creator_id"] = params.creator_id
     if params.reward_min is not None:
         conditions.append("b.reward_amount >= :reward_min")
         binds["reward_min"] = params.reward_min
@@ -98,7 +99,8 @@ async def search_bounties_db(
     select_sql = f"""
         SELECT
             b.id::text, b.title, b.description, b.tier, b.reward_amount,
-            b.status, b.skills, b.github_issue_url, b.deadline,
+            b.status, b.category, b.creator_type, b.skills,
+            b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at,
             {rank_expr} AS rank
         FROM bounties b
@@ -125,8 +127,10 @@ async def search_bounties_db(
                 title=row.title,
                 description=row.description or "",
                 tier=row.tier,
+                category=getattr(row, "category", None),
                 reward_amount=row.reward_amount,
                 status=BountyStatus(row.status),
+                creator_type=getattr(row, "creator_type", "platform"),
                 required_skills=bounty_skills,
                 github_issue_url=row.github_issue_url,
                 deadline=row.deadline,
@@ -302,6 +306,7 @@ def _match_text(query: str, *fields: str) -> float:
 
 
 def _sort_key(b: BountyDB, sort: str, query: str):
+    """Return a sort key tuple for the given sort mode."""
     if sort == "reward_high":
         return (-b.reward_amount,)
     if sort == "reward_low":
@@ -327,19 +332,19 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
     if params.skills:
         skill_set = {s.lower() for s in params.skills}
         results = [
-            b
-            for b in results
-            if skill_set & {s.lower() for s in b.required_skills}
+            b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if params.creator_type:
+        results = [b for b in results if b.creator_type == params.creator_type]
+    if params.creator_id:
+        results = [b for b in results if b.created_by == params.creator_id]
     if params.reward_min is not None:
         results = [b for b in results if b.reward_amount >= params.reward_min]
     if params.reward_max is not None:
         results = [b for b in results if b.reward_amount <= params.reward_max]
     if params.deadline_before is not None:
         results = [
-            b
-            for b in results
-            if b.deadline and b.deadline <= params.deadline_before
+            b for b in results if b.deadline and b.deadline <= params.deadline_before
         ]
 
     q = params.q.strip()
@@ -370,8 +375,10 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
                 title=b.title,
                 description=b.description,
                 tier=b.tier,
+                category=b.category,
                 reward_amount=b.reward_amount,
                 status=b.status,
+                creator_type=b.creator_type,
                 required_skills=b.required_skills,
                 github_issue_url=b.github_issue_url,
                 deadline=b.deadline,
@@ -497,30 +504,33 @@ class BountySearchService:
     """Unified search interface. Uses PostgreSQL when available, memory otherwise."""
 
     def __init__(self, session: Optional[AsyncSession] = None):
+        """Initialize the instance."""
         self._session = session
 
     async def _has_db(self) -> bool:
+        """Check if a working PostgreSQL connection is available."""
         if self._session is None:
             return False
         try:
-            result = await self._session.execute(
-                text("SELECT 1 FROM bounties LIMIT 0")
-            )
+            await self._session.execute(text("SELECT 1 FROM bounties LIMIT 0"))
             return True
         except Exception:
             return False
 
     async def search(self, params: BountySearchParams) -> BountySearchResponse:
+        """Search bounties using DB when available, else memory."""
         if await self._has_db():
             return await search_bounties_db(self._session, params)
         return search_bounties_memory(params)
 
     async def autocomplete(self, q: str, limit: int = 8) -> AutocompleteResponse:
+        """Return autocomplete suggestions."""
         if await self._has_db():
             return await autocomplete_db(self._session, q, limit)
         return autocomplete_memory(q, limit)
 
     async def hot_bounties(self, limit: int = 6) -> list[BountySearchResult]:
+        """Return trending bounties from recent activity."""
         if await self._has_db():
             return await get_hot_bounties_db(self._session, limit)
         return get_hot_bounties_memory(limit)
@@ -531,10 +541,9 @@ class BountySearchService:
         completed_bounty_ids: Optional[list[str]] = None,
         limit: int = 6,
     ) -> list[BountySearchResult]:
+        """Return skill-matched bounty recommendations."""
         if await self._has_db():
             return await get_recommended_bounties_db(
                 self._session, user_skills, completed_bounty_ids or [], limit
             )
-        return get_recommended_memory(
-            user_skills, completed_bounty_ids or [], limit
-        )
+        return get_recommended_memory(user_skills, completed_bounty_ids or [], limit)

@@ -9,11 +9,15 @@ import { DEFAULT_FILTERS } from '../types/bounty';
 import { apiClient } from '../services/apiClient';
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
-const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
+import type { BountyStatus } from '../types/bounty';
+const STATUS_MAP: Record<string, BountyStatus> = {
   open: 'open',
   in_progress: 'in-progress',
+  under_review: 'under_review',
   completed: 'completed',
-  paid: 'completed',
+  disputed: 'disputed',
+  paid: 'paid',
+  cancelled: 'cancelled',
 };
 
 /** Map raw API bounty response to strongly-typed Bounty object. */
@@ -31,6 +35,7 @@ function mapApiBounty(raw: Record<string, unknown>): Bounty {
     submissionCount: Number(raw.submission_count ?? raw.submissionCount ?? 0),
     createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
     projectName: String(raw.created_by || raw.projectName || 'SolFoundry'),
+    creatorType: (String(raw.creator_type || raw.creatorType || 'platform')) as Bounty['creatorType'],
     githubIssueUrl: raw.github_issue_url || raw.githubIssueUrl ? String(raw.github_issue_url || raw.githubIssueUrl) : undefined,
     relevanceScore: Number(raw.relevance_score ?? 0),
     skillMatchCount: Number(raw.skill_match_count ?? 0),
