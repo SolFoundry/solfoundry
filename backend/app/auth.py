@@ -99,12 +99,12 @@ class AuthenticatedUser:
     """Helper class for authenticated user context."""
 
     def __init__(self, user_id: str):
-        """The __init__ function."""
+        """Initialize the instance."""
         self.user_id = user_id
         self._id = user_id  # Alias for convenience
 
     def __str__(self) -> str:
-        """The __str__ function."""
+        """Str."""
         return self.user_id
 
     def owns_resource(self, resource_user_id: str) -> bool:

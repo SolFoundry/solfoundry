@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
 
         await hydrate_payouts()
         await hydrate_reputation()
-        logger.info("PostgreSQL hydration complete")
+        logger.info("PostgreSQL hydration complete (payouts + reputation)")
     except Exception as exc:
         logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
 
@@ -247,7 +247,7 @@ app.include_router(agents_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
-    """The health_check function."""
+    """Return application health status including database connectivity."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store

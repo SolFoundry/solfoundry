@@ -94,7 +94,7 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
 async def record_payout(data: PayoutCreate) -> PayoutResponse:
     """Record a new payout.  Invalidates the treasury cache on success."""
     try:
-        result = create_payout(data)
+        result = await create_payout(data)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     invalidate_cache()
@@ -125,7 +125,7 @@ async def treasury_buybacks(
 async def record_buyback(data: BuybackCreate) -> BuybackResponse:
     """Record a new buyback event.  Invalidates the treasury cache on success."""
     try:
-        result = create_buyback(data)
+        result = await create_buyback(data)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     invalidate_cache()

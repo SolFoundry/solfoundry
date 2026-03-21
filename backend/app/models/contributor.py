@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text
+import sqlalchemy as sa
+from sqlalchemy import Column, String, DateTime, JSON, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
@@ -27,7 +28,7 @@ class ContributorDB(Base):
     social_links = Column(JSON, default=dict, nullable=False)
     total_contributions = Column(Integer, default=0, nullable=False)
     total_bounties_completed = Column(Integer, default=0, nullable=False)
-    total_earnings = Column(Float, default=0.0, nullable=False)
+    total_earnings = Column(sa.Numeric(precision=20, scale=6), default=0.0, nullable=False)
     reputation_score = Column(Integer, default=0, nullable=False)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -40,7 +41,7 @@ class ContributorDB(Base):
 
 
 class ContributorBase(BaseModel):
-    """The ContributorBase class."""
+    """Base fields shared across contributor schemas."""
     display_name: str = Field(..., min_length=1, max_length=100)
     email: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -51,12 +52,12 @@ class ContributorBase(BaseModel):
 
 
 class ContributorCreate(ContributorBase):
-    """The ContributorCreate class."""
+    """Payload for creating a new contributor profile."""
     username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
 class ContributorUpdate(BaseModel):
-    """The ContributorUpdate class."""
+    """Payload for partially updating a contributor."""
     display_name: Optional[str] = Field(None, min_length=1, max_length=100)
     email: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -67,7 +68,7 @@ class ContributorUpdate(BaseModel):
 
 
 class ContributorStats(BaseModel):
-    """The ContributorStats class."""
+    """Aggregate statistics for a contributor profile."""
     total_contributions: int = 0
     total_bounties_completed: int = 0
     total_earnings: float = 0.0
@@ -75,7 +76,7 @@ class ContributorStats(BaseModel):
 
 
 class ContributorResponse(ContributorBase):
-    """The ContributorResponse class."""
+    """Full contributor details for API responses."""
     id: str
     username: str
     stats: ContributorStats
@@ -85,7 +86,7 @@ class ContributorResponse(ContributorBase):
 
 
 class ContributorListItem(BaseModel):
-    """The ContributorListItem class."""
+    """Compact contributor representation for list endpoints."""
     id: str
     username: str
     display_name: str
@@ -97,7 +98,7 @@ class ContributorListItem(BaseModel):
 
 
 class ContributorListResponse(BaseModel):
-    """The ContributorListResponse class."""
+    """Paginated list of contributors."""
     items: list[ContributorListItem]
     total: int
     skip: int

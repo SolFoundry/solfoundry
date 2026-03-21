@@ -34,7 +34,7 @@ def test_structured_error_401_auth_error():
     
     @app.get("/test-auth-error")
     async def trigger_auth_error():
-        """The trigger_auth_error function."""
+        """Trigger auth error."""
         raise AuthError("Unauthorized specifically")
     
     response = client.get("/test-auth-error")
@@ -47,7 +47,7 @@ def test_structured_error_400_value_error():
     """Verify ValueError follows structured JSON format."""
     @app.get("/test-value-error")
     async def trigger_value_error():
-        """The trigger_value_error function."""
+        """Trigger value error."""
         raise ValueError("Invalid input data")
     
     response = client.get("/test-value-error")

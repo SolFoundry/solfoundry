@@ -15,18 +15,18 @@ app.add_middleware(
 
 @app.get("/api/test")
 async def read_test():
-    """The read_test function."""
+    """Read test."""
     return {"status": "ok"}
 
 @app.post("/api/data")
 async def post_data(request: Request):
-    """The post_data function."""
+    """Post data."""
     return {"status": "created"}
 
 client = TestClient(app)
 
 def test_security_headers():
-    """The test_security_headers function."""
+    """Test security headers."""
     response = client.get("/api/test")
     assert response.status_code == 200
     assert response.headers.get("X-Frame-Options") == "DENY"
@@ -35,7 +35,7 @@ def test_security_headers():
 
 def test_rate_limiting():
     # Setup test app specifically to verify rate limiting bounds
-    """The test_rate_limiting function."""
+    """Test rate limiting."""
     test_app = FastAPI()
     test_app.add_middleware(
         RateLimitAndSecurityMiddleware,
@@ -43,7 +43,7 @@ def test_rate_limiting():
     )
     @test_app.get("/api/test")
     async def endpoint():
-        """The endpoint function."""
+        """Endpoint."""
         return {"status": "ok"}
     
     test_client = TestClient(test_app)
@@ -64,7 +64,7 @@ def test_rate_limiting():
 
 def test_blocked_ip():
     # Mocking client IP in TestClient requires a workaround or direct testing
-    """The test_blocked_ip function."""
+    """Test blocked ip."""
     test_app = FastAPI()
     test_app.add_middleware(
         RateLimitAndSecurityMiddleware,
@@ -72,7 +72,7 @@ def test_blocked_ip():
     )
     @test_app.get("/api/test")
     async def endpoint():
-        """The endpoint function."""
+        """Endpoint."""
         return {"status": "ok"}
         
     test_client = TestClient(test_app)
@@ -82,7 +82,7 @@ def test_blocked_ip():
     assert response.json()["detail"] == "IP address is blocked."
 
 def test_payload_size_limit():
-    """The test_payload_size_limit function."""
+    """Test payload size limit."""
     large_payload = "x" * 150
     response = client.post("/api/data", data=large_payload)
     assert response.status_code == 413

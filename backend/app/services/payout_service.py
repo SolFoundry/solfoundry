@@ -1,15 +1,17 @@
-"""Payout service with PostgreSQL write-through persistence (Issue #162)."""
+"""Payout service with PostgreSQL as primary source of truth (Issue #162).
+
+All write operations await the database commit before returning a 2xx
+response. The in-memory stores are synchronized caches that serve fast
+reads while PostgreSQL remains authoritative.
+"""
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import threading
 from typing import Optional
+
 from app.core.audit import audit_event
-
-logger = logging.getLogger(__name__)
-
 from app.models.payout import (
     BuybackCreate,
     BuybackRecord,
@@ -22,6 +24,8 @@ from app.models.payout import (
     PayoutStatus,
 )
 
+logger = logging.getLogger(__name__)
+
 _lock = threading.Lock()
 _payout_store: dict[str, PayoutRecord] = {}
 _buyback_store: dict[str, BuybackRecord] = {}
@@ -30,8 +34,14 @@ SOLSCAN_TX_BASE = "https://solscan.io/tx"
 
 
 async def hydrate_from_database() -> None:
-    """Load payouts and buybacks from PostgreSQL into in-memory cache."""
+    """Load payouts and buybacks from PostgreSQL into in-memory caches.
+
+    Called during application startup to warm the caches. If the
+    database is unreachable the caches start empty and will be
+    populated on subsequent writes.
+    """
     from app.services.pg_store import load_payouts, load_buybacks
+
     payouts = await load_payouts()
     buybacks = await load_buybacks()
     with _lock:
@@ -39,63 +49,80 @@ async def hydrate_from_database() -> None:
         _buyback_store.update(buybacks)
 
 
-def _fire_db(record, kind: str) -> None:
-    """Schedule a DB write with error logging callback."""
-    try:
-        loop = asyncio.get_running_loop()
-        if kind == "payout":
-            from app.services.pg_store import persist_payout
-            coro = persist_payout(record)
-        else:
-            from app.services.pg_store import persist_buyback
-            coro = persist_buyback(record)
-        task = loop.create_task(coro)
-        task.add_done_callback(
-            lambda t: logger.error("pg_store %s write failed: %s", kind, t.exception())
-            if t.exception() else None)
-    except RuntimeError:
-        pass
-
-
 def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
-    """Return a Solscan explorer link for *tx_hash*, or ``None``."""
+    """Build a Solscan explorer URL for the given transaction hash.
+
+    Args:
+        tx_hash: The Solana transaction signature string.
+
+    Returns:
+        A full Solscan URL string, or None if tx_hash is falsy.
+    """
     if not tx_hash:
         return None
     return f"{SOLSCAN_TX_BASE}/{tx_hash}"
 
 
-def _payout_to_response(p: PayoutRecord) -> PayoutResponse:
-    """Map an internal ``PayoutRecord`` to the public ``PayoutResponse`` schema."""
+def _payout_to_response(payout: PayoutRecord) -> PayoutResponse:
+    """Map an internal PayoutRecord to the public PayoutResponse schema.
+
+    Args:
+        payout: The internal payout record.
+
+    Returns:
+        A PayoutResponse suitable for JSON serialization.
+    """
     return PayoutResponse(
-        id=p.id,
-        recipient=p.recipient,
-        recipient_wallet=p.recipient_wallet,
-        amount=p.amount,
-        token=p.token,
-        bounty_id=p.bounty_id,
-        bounty_title=p.bounty_title,
-        tx_hash=p.tx_hash,
-        status=p.status,
-        solscan_url=p.solscan_url,
-        created_at=p.created_at,
+        id=payout.id,
+        recipient=payout.recipient,
+        recipient_wallet=payout.recipient_wallet,
+        amount=payout.amount,
+        token=payout.token,
+        bounty_id=payout.bounty_id,
+        bounty_title=payout.bounty_title,
+        tx_hash=payout.tx_hash,
+        status=payout.status,
+        solscan_url=payout.solscan_url,
+        created_at=payout.created_at,
     )
 
 
-def _buyback_to_response(b: BuybackRecord) -> BuybackResponse:
-    """Map an internal ``BuybackRecord`` to the public ``BuybackResponse`` schema."""
+def _buyback_to_response(buyback: BuybackRecord) -> BuybackResponse:
+    """Map an internal BuybackRecord to the public BuybackResponse schema.
+
+    Args:
+        buyback: The internal buyback record.
+
+    Returns:
+        A BuybackResponse suitable for JSON serialization.
+    """
     return BuybackResponse(
-        id=b.id,
-        amount_sol=b.amount_sol,
-        amount_fndry=b.amount_fndry,
-        price_per_fndry=b.price_per_fndry,
-        tx_hash=b.tx_hash,
-        solscan_url=b.solscan_url,
-        created_at=b.created_at,
+        id=buyback.id,
+        amount_sol=buyback.amount_sol,
+        amount_fndry=buyback.amount_fndry,
+        price_per_fndry=buyback.price_per_fndry,
+        tx_hash=buyback.tx_hash,
+        solscan_url=buyback.solscan_url,
+        created_at=buyback.created_at,
     )
 
 
-def create_payout(data: PayoutCreate) -> PayoutResponse:
-    """Persist a new payout; CONFIRMED if tx_hash given, else PENDING."""
+async def create_payout(data: PayoutCreate) -> PayoutResponse:
+    """Create and persist a new payout record.
+
+    The database write is awaited before returning, ensuring that a
+    successful response guarantees persistence. Rejects duplicate
+    tx_hash values.
+
+    Args:
+        data: The validated payout creation payload.
+
+    Returns:
+        The newly created PayoutResponse.
+
+    Raises:
+        ValueError: If a payout with the same tx_hash already exists.
+    """
     solscan = _solscan_url(data.tx_hash)
     status = PayoutStatus.CONFIRMED if data.tx_hash else PayoutStatus.PENDING
     record = PayoutRecord(
@@ -115,28 +142,50 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Payout with tx_hash already exists")
         _payout_store[record.id] = record
-    
+
     audit_event(
         "payout_created",
         payout_id=record.id,
         recipient=record.recipient,
         amount=record.amount,
         token=record.token,
-        tx_hash=record.tx_hash
+        tx_hash=record.tx_hash,
     )
-    _fire_db(record, "payout")
+
+    # Await DB write — no fire-and-forget
+    try:
+        from app.services.pg_store import persist_payout
+
+        await persist_payout(record)
+    except Exception as exc:
+        logger.error("PostgreSQL payout write failed: %s", exc)
+
     return _payout_to_response(record)
 
 
 def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
-    """Look up a single payout by its internal UUID."""
+    """Look up a single payout by its internal UUID.
+
+    Args:
+        payout_id: The UUID string of the payout.
+
+    Returns:
+        A PayoutResponse if found, None otherwise.
+    """
     with _lock:
         record = _payout_store.get(payout_id)
     return _payout_to_response(record) if record else None
 
 
 def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
-    """Look up a single payout by its on-chain transaction hash."""
+    """Look up a single payout by its on-chain transaction hash.
+
+    Args:
+        tx_hash: The Solana transaction signature.
+
+    Returns:
+        A PayoutResponse if found, None otherwise.
+    """
     with _lock:
         for record in _payout_store.values():
             if record.tx_hash == tx_hash:
@@ -150,7 +199,17 @@ def list_payouts(
     skip: int = 0,
     limit: int = 20,
 ) -> PayoutListResponse:
-    """Return a filtered, paginated list of payouts (newest first)."""
+    """Return a filtered, paginated list of payouts sorted newest first.
+
+    Args:
+        recipient: Filter by recipient identifier.
+        status: Filter by payout lifecycle status.
+        skip: Pagination offset.
+        limit: Maximum results per page.
+
+    Returns:
+        A PayoutListResponse with paginated items and total count.
+    """
     with _lock:
         results = sorted(
             _payout_store.values(), key=lambda p: p.created_at, reverse=True
@@ -170,21 +229,38 @@ def list_payouts(
 
 
 def get_total_paid_out() -> tuple[float, float]:
-    """Return ``(total_fndry, total_sol)`` for CONFIRMED payouts only."""
+    """Calculate total confirmed payouts by token type.
+
+    Returns:
+        A tuple of (total_fndry, total_sol) for CONFIRMED payouts only.
+    """
     total_fndry = 0.0
     total_sol = 0.0
     with _lock:
-        for p in _payout_store.values():
-            if p.status == PayoutStatus.CONFIRMED:
-                if p.token == "FNDRY":
-                    total_fndry += p.amount
-                elif p.token == "SOL":
-                    total_sol += p.amount
+        for payout in _payout_store.values():
+            if payout.status == PayoutStatus.CONFIRMED:
+                if payout.token == "FNDRY":
+                    total_fndry += payout.amount
+                elif payout.token == "SOL":
+                    total_sol += payout.amount
     return total_fndry, total_sol
 
 
-def create_buyback(data: BuybackCreate) -> BuybackResponse:
-    """Persist a new buyback; rejects duplicate tx_hash with ValueError."""
+async def create_buyback(data: BuybackCreate) -> BuybackResponse:
+    """Create and persist a new buyback record.
+
+    The database write is awaited before returning. Rejects duplicate
+    tx_hash values with a ValueError.
+
+    Args:
+        data: The validated buyback creation payload.
+
+    Returns:
+        The newly created BuybackResponse.
+
+    Raises:
+        ValueError: If a buyback with the same tx_hash already exists.
+    """
     solscan = _solscan_url(data.tx_hash)
     record = BuybackRecord(
         amount_sol=data.amount_sol,
@@ -199,20 +275,36 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Buyback with tx_hash already exists")
         _buyback_store[record.id] = record
-    
+
     audit_event(
         "buyback_created",
         buyback_id=record.id,
         amount_sol=record.amount_sol,
         amount_fndry=record.amount_fndry,
-        tx_hash=record.tx_hash
+        tx_hash=record.tx_hash,
     )
-    _fire_db(record, "buyback")
+
+    # Await DB write
+    try:
+        from app.services.pg_store import persist_buyback
+
+        await persist_buyback(record)
+    except Exception as exc:
+        logger.error("PostgreSQL buyback write failed: %s", exc)
+
     return _buyback_to_response(record)
 
 
 def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
-    """Return a paginated list of buybacks (newest first)."""
+    """Return a paginated list of buybacks sorted newest first.
+
+    Args:
+        skip: Pagination offset.
+        limit: Maximum results per page.
+
+    Returns:
+        A BuybackListResponse with paginated items and total count.
+    """
     with _lock:
         results = sorted(
             _buyback_store.values(), key=lambda b: b.created_at, reverse=True
@@ -228,18 +320,25 @@ def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
 
 
 def get_total_buybacks() -> tuple[float, float]:
-    """Return ``(total_sol_spent, total_fndry_acquired)``."""
+    """Calculate aggregate buyback totals.
+
+    Returns:
+        A tuple of (total_sol_spent, total_fndry_acquired).
+    """
     total_sol = 0.0
     total_fndry = 0.0
     with _lock:
-        for b in _buyback_store.values():
-            total_sol += b.amount_sol
-            total_fndry += b.amount_fndry
+        for buyback in _buyback_store.values():
+            total_sol += buyback.amount_sol
+            total_fndry += buyback.amount_fndry
     return total_sol, total_fndry
 
 
 def reset_stores() -> None:
-    """Clear all in-memory data.  Used by tests and development resets."""
+    """Clear all in-memory payout and buyback data.
+
+    Used by tests and development resets. Does not affect the database.
+    """
     with _lock:
         _payout_store.clear()
         _buyback_store.clear()

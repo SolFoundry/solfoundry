@@ -25,7 +25,7 @@ class FakeWebSocket:
     """Minimal WS double for unit tests."""
 
     def __init__(self):
-        """The __init__ function."""
+        """Initialize the instance."""
         from starlette.websockets import WebSocketState
 
         self.client_state = WebSocketState.CONNECTED
@@ -35,11 +35,11 @@ class FakeWebSocket:
         self.sent: list = []
 
     async def accept(self):
-        """The accept function."""
+        """Accept."""
         self.accepted = True
 
     async def close(self, code: int = 1000):
-        """The close function."""
+        """Close the connection and release resources."""
         from starlette.websockets import WebSocketState
 
         self.closed = True
@@ -47,17 +47,17 @@ class FakeWebSocket:
         self.client_state = WebSocketState.DISCONNECTED
 
     async def send_json(self, data: dict):
-        """The send_json function."""
+        """Send json."""
         self.sent.append(data)
 
     async def send_text(self, data: str):
-        """The send_text function."""
+        """Send text."""
         self.sent.append(json.loads(data))
 
 
 @pytest.fixture
 def mgr():
-    """The mgr function."""
+    """Mgr."""
     m = WebSocketManager()
     m._adapter = InMemoryPubSubAdapter(m)
     return m
@@ -65,7 +65,7 @@ def mgr():
 
 @pytest_asyncio.fixture
 async def connected(mgr):
-    """The connected function."""
+    """Connected."""
     ws = FakeWebSocket()
     cid = await mgr.connect(ws, VALID_TOKEN)
     assert cid is not None
@@ -77,48 +77,48 @@ async def connected(mgr):
 
 class TestAuthentication:
     @pytest.mark.asyncio
-    """The TestAuthentication class."""
+    """TestAuthentication."""
     async def test_connect_valid_token(self, mgr):
-        """The test_connect_valid_token function."""
+        """Test connect valid token."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, VALID_TOKEN)
         assert cid is not None and ws.accepted
 
     @pytest.mark.asyncio
     async def test_connect_invalid_token_rejected(self, mgr):
-        """The test_connect_invalid_token_rejected function."""
+        """Test connect invalid token rejected."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, INVALID_TOKEN)
         assert cid is None and ws.close_code == 4001
 
     @pytest.mark.asyncio
     async def test_connect_missing_token_rejected(self, mgr):
-        """The test_connect_missing_token_rejected function."""
+        """Test connect missing token rejected."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, None)
         assert cid is None and ws.close_code == 4001
 
     @pytest.mark.asyncio
     async def test_subscribe_reauth_wrong_token(self, connected):
-        """The test_subscribe_reauth_wrong_token function."""
+        """Test subscribe reauth wrong token."""
         mgr, cid, _ = connected
         assert not await mgr.subscribe(cid, "ch", token=OTHER_TOKEN)
 
     @pytest.mark.asyncio
     async def test_subscribe_reauth_invalid_token(self, connected):
-        """The test_subscribe_reauth_invalid_token function."""
+        """Test subscribe reauth invalid token."""
         mgr, cid, _ = connected
         assert not await mgr.subscribe(cid, "ch", token=INVALID_TOKEN)
 
     @pytest.mark.asyncio
     async def test_broadcast_reauth_invalid_token(self, connected):
-        """The test_broadcast_reauth_invalid_token function."""
+        """Test broadcast reauth invalid token."""
         mgr, cid, _ = connected
         assert await mgr.broadcast("ch", {"x": 1}, token=INVALID_TOKEN) == 0
 
     @pytest.mark.asyncio
     async def test_broadcast_requires_identity(self, mgr):
-        """The test_broadcast_requires_identity function."""
+        """Test broadcast requires identity."""
         assert await mgr.broadcast("ch", {"x": 1}) == 0
 
 
@@ -127,9 +127,9 @@ class TestAuthentication:
 
 class TestHeartbeat:
     @pytest.mark.asyncio
-    """The TestHeartbeat class."""
+    """TestHeartbeat."""
     async def test_heartbeat_sends_ping(self, connected):
-        """The test_heartbeat_sends_ping function."""
+        """Test heartbeat sends ping."""
         mgr, cid, ws = connected
         with patch("app.services.websocket_manager.HEARTBEAT_INTERVAL", 0.05):
             task = asyncio.create_task(mgr.heartbeat(cid))
@@ -144,7 +144,7 @@ class TestHeartbeat:
 
     @pytest.mark.asyncio
     async def test_heartbeat_stops_on_disconnect(self, mgr):
-        """The test_heartbeat_stops_on_disconnect function."""
+        """Test heartbeat stops on disconnect."""
         ws = FakeWebSocket()
         cid = await mgr.connect(ws, VALID_TOKEN)
         await mgr.disconnect(cid)
@@ -155,7 +155,7 @@ class TestHeartbeat:
 
     @pytest.mark.asyncio
     async def test_pong_handled(self, connected):
-        """The test_pong_handled function."""
+        """Test pong handled."""
         mgr, cid, _ = connected
         assert await mgr.handle_message(cid, json.dumps({"type": "pong"})) is None
 
@@ -165,9 +165,9 @@ class TestHeartbeat:
 
 class TestBroadcast:
     @pytest.mark.asyncio
-    """The TestBroadcast class."""
+    """TestBroadcast."""
     async def test_broadcast_delivers_to_subscribers(self, mgr):
-        """The test_broadcast_delivers_to_subscribers function."""
+        """Test broadcast delivers to subscribers."""
         ws1, ws2 = FakeWebSocket(), FakeWebSocket()
         cid1 = await mgr.connect(ws1, VALID_TOKEN)
         cid2 = await mgr.connect(ws2, OTHER_TOKEN)
@@ -180,7 +180,7 @@ class TestBroadcast:
 
     @pytest.mark.asyncio
     async def test_concurrent_broadcast_20_clients(self, mgr):
-        """The test_concurrent_broadcast_20_clients function."""
+        """Test concurrent broadcast 20 clients."""
         sockets = []
         for _ in range(20):
             ws = FakeWebSocket()
@@ -194,7 +194,7 @@ class TestBroadcast:
 
     @pytest.mark.asyncio
     async def test_broadcast_skips_failed_connections(self, mgr):
-        """The test_broadcast_skips_failed_connections function."""
+        """Test broadcast skips failed connections."""
         ws_good, ws_bad = FakeWebSocket(), FakeWebSocket()
         cid1 = await mgr.connect(ws_good, VALID_TOKEN)
         cid2 = await mgr.connect(ws_bad, OTHER_TOKEN)
@@ -211,9 +211,9 @@ class TestBroadcast:
 
 class TestRedisPubSubAdapter:
     @pytest.mark.asyncio
-    """The TestRedisPubSubAdapter class."""
+    """TestRedisPubSubAdapter."""
     async def test_publish_calls_redis(self):
-        """The test_publish_calls_redis function."""
+        """Test publish calls redis."""
         mgr = WebSocketManager()
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
         adapter._redis = AsyncMock()
@@ -223,7 +223,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_subscribe_starts_listener(self):
-        """The test_subscribe_starts_listener function."""
+        """Test subscribe starts listener."""
         mgr = WebSocketManager()
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
         adapter._redis = AsyncMock()
@@ -236,7 +236,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_listener_dispatches_messages(self):
-        """The test_listener_dispatches_messages function."""
+        """Test listener dispatches messages."""
         mgr = WebSocketManager()
         mgr.dispatch_local = AsyncMock(return_value=1)
         adapter = RedisPubSubAdapter("redis://mock:6379/0", mgr)
@@ -252,7 +252,7 @@ class TestRedisPubSubAdapter:
 
     @pytest.mark.asyncio
     async def test_init_falls_back_to_inmemory(self):
-        """The test_init_falls_back_to_inmemory function."""
+        """Test init falls back to inmemory."""
         mgr = WebSocketManager()
         with patch("app.services.websocket_manager.REDIS_URL", "redis://bad:9999"):
             with patch.object(
@@ -267,9 +267,9 @@ class TestRedisPubSubAdapter:
 
 class TestRateLimiting:
     @pytest.mark.asyncio
-    """The TestRateLimiting class."""
+    """TestRateLimiting."""
     async def test_rate_limit_exceeded(self, connected):
-        """The test_rate_limit_exceeded function."""
+        """Test rate limit exceeded."""
         mgr, cid, _ = connected
         with patch("app.services.websocket_manager.RATE_LIMIT_MAX", 3):
             for _ in range(3):
@@ -283,9 +283,9 @@ class TestRateLimiting:
 
 class TestChannelLifecycle:
     @pytest.mark.asyncio
-    """The TestChannelLifecycle class."""
+    """TestChannelLifecycle."""
     async def test_subscribe_unsubscribe(self, connected):
-        """The test_subscribe_unsubscribe function."""
+        """Test subscribe unsubscribe."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(
             cid, json.dumps({"type": "subscribe", "channel": "b:42"})
@@ -299,7 +299,7 @@ class TestChannelLifecycle:
 
     @pytest.mark.asyncio
     async def test_disconnect_cleans_subscriptions(self, connected):
-        """The test_disconnect_cleans_subscriptions function."""
+        """Test disconnect cleans subscriptions."""
         mgr, cid, _ = connected
         await mgr.subscribe(cid, "ch1")
         await mgr.subscribe(cid, "ch2")
@@ -308,14 +308,14 @@ class TestChannelLifecycle:
 
     @pytest.mark.asyncio
     async def test_invalid_json_error(self, connected):
-        """The test_invalid_json_error function."""
+        """Test invalid json error."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(cid, "not json")
         assert resp["type"] == "error" and "invalid JSON" in resp["detail"]
 
     @pytest.mark.asyncio
     async def test_unknown_type_error(self, connected):
-        """The test_unknown_type_error function."""
+        """Test unknown type error."""
         mgr, cid, _ = connected
         resp = await mgr.handle_message(cid, json.dumps({"type": "foobar"}))
         assert resp["type"] == "error" and "unknown" in resp["detail"]
@@ -326,9 +326,9 @@ class TestChannelLifecycle:
 
 class TestEndpoint:
     @pytest.mark.asyncio
-    """The TestEndpoint class."""
+    """TestEndpoint."""
     async def test_connect_without_token_rejected(self):
-        """The test_connect_without_token_rejected function."""
+        """Test connect without token rejected."""
         from app.main import app
 
         transport = ASGITransport(app=app)
@@ -341,12 +341,12 @@ class TestEndpoint:
 
 
 async def _empty_aiter():
-    """The _empty_aiter function."""
+    """Empty aiter."""
     return
     yield
 
 
 async def _async_iter(items):
-    """The _async_iter function."""
+    """Async iter."""
     for item in items:
         yield item

@@ -8,14 +8,14 @@ from pydantic import BaseModel
 
 
 class GitHubUser(BaseModel):
-    """The GitHubUser class."""
+    """GitHubUser."""
     login: str
     id: int
     avatar_url: str | None = None
 
 
 class GitHubRepo(BaseModel):
-    """The GitHubRepo class."""
+    """GitHubRepo."""
     id: int
     name: str
     full_name: str
@@ -23,7 +23,7 @@ class GitHubRepo(BaseModel):
 
 
 class PullRequestDetail(BaseModel):
-    """The PullRequestDetail class."""
+    """PullRequestDetail."""
     number: int
     title: str
     state: str
@@ -35,7 +35,7 @@ class PullRequestDetail(BaseModel):
 
 
 class PushEvent(BaseModel):
-    """The PushEvent class."""
+    """PushEvent."""
     ref: str
     before: str
     after: str
@@ -46,7 +46,7 @@ class PushEvent(BaseModel):
 
 
 class PullRequestEvent(BaseModel):
-    """The PullRequestEvent class."""
+    """PullRequestEvent."""
     action: str
     number: int
     pull_request: PullRequestDetail
@@ -55,7 +55,7 @@ class PullRequestEvent(BaseModel):
 
 
 class IssueEvent(BaseModel):
-    """The IssueEvent class."""
+    """IssueEvent."""
     action: str
     issue: dict[str, Any]
     repository: GitHubRepo
@@ -63,7 +63,7 @@ class IssueEvent(BaseModel):
 
 
 class PingEvent(BaseModel):
-    """The PingEvent class."""
+    """PingEvent."""
     zen: str
     hook_id: int
     hook: dict[str, Any]

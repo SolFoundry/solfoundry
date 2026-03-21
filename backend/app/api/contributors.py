@@ -35,7 +35,7 @@ async def create_contributor(data: ContributorCreate):
     """Create a new contributor profile."""
     if contributor_service.get_contributor_by_username(data.username):
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
-    return contributor_service.create_contributor(data)
+    return await contributor_service.create_contributor(data)
 
 
 @router.get("/leaderboard/reputation", response_model=list[ReputationSummary])
@@ -58,7 +58,7 @@ async def get_contributor(contributor_id: str):
 @router.patch("/{contributor_id}", response_model=ContributorResponse)
 async def update_contributor(contributor_id: str, data: ContributorUpdate):
     """Partially update a contributor profile."""
-    c = contributor_service.update_contributor(contributor_id, data)
+    c = await contributor_service.update_contributor(contributor_id, data)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return c
@@ -67,7 +67,7 @@ async def update_contributor(contributor_id: str, data: ContributorUpdate):
 @router.delete("/{contributor_id}", status_code=204)
 async def delete_contributor(contributor_id: str):
     """Delete a contributor profile by ID."""
-    if not contributor_service.delete_contributor(contributor_id):
+    if not await contributor_service.delete_contributor(contributor_id):
         raise HTTPException(status_code=404, detail="Contributor not found")
 
 
@@ -118,7 +118,7 @@ async def record_contributor_reputation(
         raise HTTPException(status_code=403, detail="Not authorized to record reputation for this contributor")
 
     try:
-        return reputation_service.record_reputation(data)
+        return await reputation_service.record_reputation(data)
     except ContributorNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error))
     except TierNotUnlockedError as error:
