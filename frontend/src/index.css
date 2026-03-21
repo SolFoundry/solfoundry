@@ -110,6 +110,12 @@ body {
   animation: feed-in 0.3s ease-out forwards;
 }
 
+/* Toast progress bar animation */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* Tooltip fade-in animation */
 @keyframes fade-in {
   from {
