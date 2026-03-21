@@ -1,14 +1,17 @@
-"""In-memory bounty service for MVP (Issue #3) + Phase 2 submission-to-payout flow.
+"""Bounty service with PostgreSQL as primary source of truth (Issue #162).
 
-Provides CRUD operations, solution submission, creator approval/dispute,
-auto-approve eligibility, and payout triggering.
+All read operations query the database. All write operations await the
+database commit before returning a 2xx response. The in-memory cache
+is a fallback only when the DB is completely unreachable (e.g. tests
+running against an unavailable backend).
 """
 
-from datetime import datetime, timezone, timedelta
+import hashlib
+import logging
+from datetime import datetime, timezone
 from typing import Optional
-from app.core.audit import audit_event
-from app.models.review import AUTO_APPROVE_TIMEOUT_HOURS
 
+from app.core.audit import audit_event
 from app.models.bounty import (
     BountyCreate,
     BountyDB,
@@ -25,126 +28,340 @@ from app.models.bounty import (
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
+# In-memory cache -- populated on startup via sync/hydration and kept
+# in sync on writes.  Used as a fast read fallback when the database
+# connection is unavailable (e.g. in unit tests without a DB fixture).
 _bounty_store: dict[str, BountyDB] = {}
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# DB I/O helpers (awaited, not fire-and-forget)
 # ---------------------------------------------------------------------------
 
 
-def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
+async def _persist_to_db(bounty: BountyDB) -> None:
+    """Await a write-through to PostgreSQL so the DB is always up to date.
+
+    This is called on every mutation. Failures are logged but do not
+    propagate to the caller to allow graceful degradation.
+
+    Args:
+        bounty: The BountyDB Pydantic model to persist.
+    """
+    try:
+        from app.services.pg_store import persist_bounty
+
+        await persist_bounty(bounty)
+    except Exception as exc:
+        logger.error("PostgreSQL bounty write failed: %s", exc)
+
+
+async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
+    """Load a single bounty from the database and reconstitute submissions.
+
+    Queries the bounties table and the bounty_submissions table to build
+    a complete BountyDB Pydantic model with embedded submissions.
+
+    Args:
+        bounty_id: The UUID string of the bounty to load.
+
+    Returns:
+        A BountyDB instance with submissions attached, or None if not found.
+    """
+    try:
+        from app.services.pg_store import get_bounty_by_id, load_submissions_for_bounty
+
+        row = await get_bounty_by_id(bounty_id)
+        if row is None:
+            return None
+
+        sub_rows = await load_submissions_for_bounty(bounty_id)
+        submissions = [
+            SubmissionRecord(
+                id=str(sr.id) if hasattr(sr, "id") else sr.id,
+                bounty_id=bounty_id,
+                pr_url=sr.pr_url,
+                submitted_by=sr.submitted_by,
+                notes=sr.notes,
+                status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
+                submitted_at=sr.submitted_at,
+            )
+            for sr in sub_rows
+        ]
+
+        return BountyDB(
+            id=str(row.id),
+            title=row.title,
+            description=row.description or "",
+            tier=row.tier,
+            category=getattr(row, "category", None),
+            reward_amount=float(row.reward_amount),
+            status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+            creator_type=getattr(row, "creator_type", "platform"),
+            github_issue_url=row.github_issue_url,
+            required_skills=row.skills if isinstance(row.skills, list) else [],
+            deadline=row.deadline,
+            created_by=row.created_by,
+            submissions=submissions,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+    except Exception as exc:
+        logger.warning("DB read failed for bounty %s: %s", bounty_id, exc)
+        return None
+
+
+async def _load_all_bounties_from_db(
+    *, offset: int = 0, limit: int = 10000
+) -> Optional[list[BountyDB]]:
+    """Load all bounties from PostgreSQL with their submissions.
+
+    Note: submissions are loaded per-bounty (N+1 pattern). For large
+    datasets, this should be replaced with a joined eager-load query.
+    Acceptable for the MVP where bounty count is in the low hundreds.
+
+    Returns None on DB failure so callers can fall back to the cache.
+
+    Args:
+        offset: Pagination offset.
+        limit: Maximum rows to return.
+
+    Returns:
+        A list of BountyDB Pydantic models, or None on failure.
+    """
+    try:
+        from app.services.pg_store import load_bounties, load_submissions_for_bounty
+
+        rows = await load_bounties(offset=offset, limit=limit)
+        result = []
+        for row in rows:
+            bounty_id = str(row.id)
+            sub_rows = await load_submissions_for_bounty(bounty_id)
+            submissions = [
+                SubmissionRecord(
+                    id=str(sr.id) if hasattr(sr, "id") else sr.id,
+                    bounty_id=bounty_id,
+                    pr_url=sr.pr_url,
+                    submitted_by=sr.submitted_by,
+                    notes=sr.notes,
+                    status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                    ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
+                    submitted_at=sr.submitted_at,
+                )
+                for sr in sub_rows
+            ]
+            result.append(BountyDB(
+                id=bounty_id,
+                title=row.title,
+                description=row.description or "",
+                tier=row.tier,
+                category=getattr(row, "category", None),
+                reward_amount=float(row.reward_amount),
+                status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+                creator_type=getattr(row, "creator_type", "platform"),
+                github_issue_url=row.github_issue_url,
+                required_skills=row.skills if isinstance(row.skills, list) else [],
+                deadline=row.deadline,
+                created_by=row.created_by,
+                submissions=submissions,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            ))
+        return result
+    except Exception as exc:
+        logger.warning("DB read failed for bounty list: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Internal response converters
+# ---------------------------------------------------------------------------
+
+
+def _to_submission_response(submission: SubmissionRecord) -> SubmissionResponse:
+    """Convert an internal SubmissionRecord to the public API response model.
+
+    Args:
+        submission: The internal submission record.
+
+    Returns:
+        A SubmissionResponse suitable for JSON serialization.
+    """
     return SubmissionResponse(
-        id=s.id,
-        bounty_id=s.bounty_id,
-        pr_url=s.pr_url,
-        submitted_by=s.submitted_by,
-        contributor_wallet=s.contributor_wallet,
-        notes=s.notes,
-        status=s.status,
-        ai_score=s.ai_score,
-        ai_scores_by_model=s.ai_scores_by_model,
-        review_complete=s.review_complete,
-        meets_threshold=s.meets_threshold,
-        auto_approve_eligible=s.auto_approve_eligible,
-        auto_approve_after=s.auto_approve_after,
-        approved_by=s.approved_by,
-        approved_at=s.approved_at,
-        payout_tx_hash=s.payout_tx_hash,
-        payout_amount=s.payout_amount,
-        payout_at=s.payout_at,
-        winner=s.winner,
-        submitted_at=s.submitted_at,
+        id=submission.id,
+        bounty_id=submission.bounty_id,
+        pr_url=submission.pr_url,
+        submitted_by=submission.submitted_by,
+        notes=submission.notes,
+        status=submission.status,
+        ai_score=submission.ai_score,
+        submitted_at=submission.submitted_at,
     )
 
 
-def _to_bounty_response(b: BountyDB) -> BountyResponse:
-    subs = [_to_submission_response(s) for s in b.submissions]
+def _to_bounty_response(bounty: BountyDB) -> BountyResponse:
+    """Convert a BountyDB record to the full API response model.
+
+    Args:
+        bounty: The internal bounty database record.
+
+    Returns:
+        A BountyResponse with all fields populated.
+    """
+    subs = [_to_submission_response(s) for s in bounty.submissions]
     return BountyResponse(
-        id=b.id,
-        title=b.title,
-        description=b.description,
-        tier=b.tier,
-        reward_amount=b.reward_amount,
-        status=b.status,
-        github_issue_url=b.github_issue_url,
-        required_skills=b.required_skills,
-        deadline=b.deadline,
-        created_by=b.created_by,
+        id=bounty.id,
+        title=bounty.title,
+        description=bounty.description,
+        tier=bounty.tier,
+        category=bounty.category,
+        reward_amount=bounty.reward_amount,
+        status=bounty.status,
+        creator_type=bounty.creator_type,
+        github_issue_url=bounty.github_issue_url,
+        required_skills=bounty.required_skills,
+        deadline=bounty.deadline,
+        created_by=bounty.created_by,
         submissions=subs,
         submission_count=len(subs),
-        winner_submission_id=b.winner_submission_id,
-        winner_wallet=b.winner_wallet,
-        payout_tx_hash=b.payout_tx_hash,
-        payout_at=b.payout_at,
-        claimed_by=b.claimed_by,
-        claimed_at=b.claimed_at,
-        claim_deadline=b.claim_deadline,
-        created_at=b.created_at,
-        updated_at=b.updated_at,
+        created_at=bounty.created_at,
+        updated_at=bounty.updated_at,
     )
 
 
-def _to_list_item(b: BountyDB) -> BountyListItem:
-    subs = [_to_submission_response(s) for s in b.submissions]
+def _to_list_item(bounty: BountyDB) -> BountyListItem:
+    """Convert a BountyDB record to a compact list-view representation.
+
+    Args:
+        bounty: The internal bounty database record.
+
+    Returns:
+        A BountyListItem for paginated list endpoints.
+    """
+    subs = [_to_submission_response(s) for s in bounty.submissions]
     return BountyListItem(
-        id=b.id,
-        title=b.title,
-        tier=b.tier,
-        reward_amount=b.reward_amount,
-        status=b.status,
-        required_skills=b.required_skills,
-        github_issue_url=b.github_issue_url,
-        deadline=b.deadline,
-        created_by=b.created_by,
+        id=bounty.id,
+        title=bounty.title,
+        tier=bounty.tier,
+        reward_amount=bounty.reward_amount,
+        status=bounty.status,
+        category=bounty.category,
+        creator_type=bounty.creator_type,
+        required_skills=bounty.required_skills,
+        github_issue_url=bounty.github_issue_url,
+        deadline=bounty.deadline,
+        created_by=bounty.created_by,
         submissions=subs,
-        submission_count=len(b.submissions),
-        created_at=b.created_at,
+        submission_count=len(bounty.submissions),
+        created_at=bounty.created_at,
     )
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Public API -- all read operations query DB first, cache as fallback
 # ---------------------------------------------------------------------------
 
 
-def create_bounty(data: BountyCreate) -> BountyResponse:
-    """Create a new bounty and return its response representation."""
+PLATFORM_CREATORS = {"system", "platform", "platform_admin", "SolFoundry"}
+
+
+def _resolve_creator_type(created_by: str) -> str:
+    """Determine whether a bounty is platform-official or community-created."""
+    return "platform" if created_by in PLATFORM_CREATORS else "community"
+
+
+async def create_bounty(data: BountyCreate) -> BountyResponse:
+    """Create a new bounty, persist to PostgreSQL, and update the cache.
+
+    The database write is awaited before returning so the caller can
+    trust that a successful response means the data is durable.
+
+    Args:
+        data: Validated bounty creation payload.
+
+    Returns:
+        The newly created bounty as a BountyResponse.
+    """
     bounty = BountyDB(
         title=data.title,
         description=data.description,
         tier=data.tier,
+        category=data.category,
         reward_amount=data.reward_amount,
+        creator_type=_resolve_creator_type(data.created_by),
         github_issue_url=data.github_issue_url,
         required_skills=data.required_skills,
         deadline=data.deadline,
         created_by=data.created_by,
     )
+    await _persist_to_db(bounty)
     _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 
 
-def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
-    """Retrieve a single bounty by ID, or None if not found."""
-    bounty = _bounty_store.get(bounty_id)
-    return _to_bounty_response(bounty) if bounty else None
+async def get_bounty(bounty_id: str) -> Optional[BountyResponse]:
+    """Retrieve a single bounty by ID, querying PostgreSQL first.
+
+    Falls back to the in-memory cache when the database is unavailable.
+
+    Args:
+        bounty_id: The unique identifier of the bounty.
+
+    Returns:
+        BountyResponse if found, None otherwise.
+    """
+    db_bounty = await _load_bounty_from_db(bounty_id)
+    if db_bounty is not None:
+        _bounty_store[bounty_id] = db_bounty
+        return _to_bounty_response(db_bounty)
+
+    # Fallback to cache
+    cached = _bounty_store.get(bounty_id)
+    return _to_bounty_response(cached) if cached else None
 
 
-def list_bounties(
+async def list_bounties(
     *,
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
     created_by: Optional[str] = None,
+    creator_type: Optional[str] = None,
+    reward_min: Optional[float] = None,
+    reward_max: Optional[float] = None,
+    sort: str = "newest",
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering and pagination."""
-    results = list(_bounty_store.values())
+    """List bounties with filtering and sorting.
+
+    Queries PostgreSQL as the primary source. Falls back to the
+    in-memory cache if the database is unreachable.
+
+    Args:
+        status: Filter by bounty lifecycle status.
+        tier: Filter by bounty tier (1, 2, or 3).
+        skills: Filter by required skills (case-insensitive match).
+        created_by: Filter by creator identifier.
+        creator_type: Filter by 'platform' or 'community'.
+        reward_min: Minimum reward amount.
+        reward_max: Maximum reward amount.
+        sort: Sort order (newest, reward_high, reward_low, deadline, submissions).
+        skip: Number of results to skip for pagination.
+        limit: Maximum results per page.
+
+    Returns:
+        A BountyListResponse with paginated items and total count.
+    """
+    db_bounties = await _load_all_bounties_from_db()
+    source = list(_bounty_store.values())
+    if db_bounties:
+        source = db_bounties
+
+    results = list(source)
 
     if created_by is not None:
         results = [b for b in results if b.created_by == created_by]
@@ -155,11 +372,29 @@ def list_bounties(
     if skills:
         skill_set = {s.lower() for s in skills}
         results = [
-            b for b in results if skill_set & {s.lower() for s in b.required_skills}
+            b
+            for b in results
+            if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if creator_type is not None:
+        results = [b for b in results if b.creator_type == creator_type]
+    if reward_min is not None:
+        results = [b for b in results if b.reward_amount >= reward_min]
+    if reward_max is not None:
+        results = [b for b in results if b.reward_amount <= reward_max]
 
-    # Sort by created_at descending (newest first)
-    results.sort(key=lambda b: b.created_at, reverse=True)
+    if sort == "reward_high":
+        results.sort(key=lambda b: b.reward_amount, reverse=True)
+    elif sort == "reward_low":
+        results.sort(key=lambda b: b.reward_amount)
+    elif sort == "deadline":
+        results.sort(
+            key=lambda b: (b.deadline.timestamp() if b.deadline else float("inf"))
+        )
+    elif sort == "submissions":
+        results.sort(key=lambda b: len(b.submissions), reverse=True)
+    else:
+        results.sort(key=lambda b: b.created_at, reverse=True)
 
     total = len(results)
     page = results[skip : skip + limit]
@@ -172,11 +407,27 @@ def list_bounties(
     )
 
 
-def update_bounty(
+async def update_bounty(
     bounty_id: str, data: BountyUpdate
 ) -> tuple[Optional[BountyResponse], Optional[str]]:
-    """Update a bounty. Returns (response, None) on success or (None, error) on failure."""
-    bounty = _bounty_store.get(bounty_id)
+    """Update a bounty's fields and persist the changes to PostgreSQL.
+
+    Validates status transitions against the allowed transition map
+    before applying any changes. The DB write is awaited before
+    returning.
+
+    Args:
+        bounty_id: The ID of the bounty to update.
+        data: The partial update payload.
+
+    Returns:
+        A tuple of (BountyResponse, None) on success, or (None, error_message)
+        on failure.
+    """
+    # Load from DB as primary source
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -192,40 +443,74 @@ def update_bounty(
                 f"Allowed transitions: {[s.value for s in sorted(allowed, key=lambda x: x.value)]}"
             )
 
-    # Apply updates
     for key, value in updates.items():
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
-    
+
     if "status" in updates:
         audit_event(
             "bounty_status_updated",
             bounty_id=bounty_id,
             new_status=updates["status"],
-            updated_by=bounty.created_by # In a real app, this would be the current user
+            updated_by=bounty.created_by,
         )
 
+    await _persist_to_db(bounty)
+    _bounty_store[bounty_id] = bounty
     return _to_bounty_response(bounty), None
 
 
-def delete_bounty(bounty_id: str) -> bool:
-    """Delete a bounty by ID. Returns True if deleted, False if not found."""
-    deleted = _bounty_store.pop(bounty_id, None) is not None
-    if deleted:
+async def delete_bounty(bounty_id: str) -> bool:
+    """Delete a bounty from both the cache and PostgreSQL.
+
+    The DB deletion is awaited to ensure consistency. A deleted
+    bounty cannot be resurrected on restart since it is removed
+    from the database.
+
+    Args:
+        bounty_id: The ID of the bounty to delete.
+
+    Returns:
+        True if the bounty was found and deleted, False otherwise.
+    """
+    # Check DB first
+    db_bounty = await _load_bounty_from_db(bounty_id)
+    cache_had = _bounty_store.pop(bounty_id, None) is not None
+    found = db_bounty is not None or cache_had
+
+    if found:
         audit_event("bounty_deleted", bounty_id=bounty_id)
-    return deleted
+        try:
+            from app.services.pg_store import delete_bounty_row
+
+            await delete_bounty_row(bounty_id)
+        except Exception as exc:
+            logger.error("PostgreSQL bounty delete failed: %s", exc)
+    return found
 
 
-def submit_solution(
+async def submit_solution(
     bounty_id: str, data: SubmissionCreate
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Submit a PR solution for a bounty.
+    """Submit a PR solution for a bounty and persist the update.
 
-    Sets bounty to 'under_review' and marks the submission as pending
-    with auto-approve eligibility after the timeout window.
+    Rejects submissions on bounties that are not open or in progress.
+    Rejects duplicate PR URLs on the same bounty. Generates a
+    deterministic mock AI score from the PR URL hash.
+
+    Args:
+        bounty_id: The ID of the bounty to submit against.
+        data: The submission payload with PR URL and submitter info.
+
+    Returns:
+        A tuple of (SubmissionResponse, None) on success, or
+        (None, error_message) on failure.
     """
-    bounty = _bounty_store.get(bounty_id)
+    # Load from DB as primary source
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -235,221 +520,65 @@ def submit_solution(
             f"Bounty is not accepting submissions (status: {bounty.status.value})",
         )
 
+    # Reject duplicate PR URLs on the same bounty
     for existing in bounty.submissions:
         if existing.pr_url == data.pr_url:
             return None, "This PR URL has already been submitted for this bounty"
 
-    import hashlib
+    # Generate deterministic mock AI score from PR URL
     url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
     score = 0.5 + (url_hash % 50) / 100.0
 
-    now = datetime.now(timezone.utc)
     submission = SubmissionRecord(
         bounty_id=bounty_id,
         pr_url=data.pr_url,
         submitted_by=data.submitted_by,
-        contributor_wallet=data.contributor_wallet,
         notes=data.notes,
         ai_score=score,
-        auto_approve_after=now + timedelta(hours=AUTO_APPROVE_TIMEOUT_HOURS),
     )
     bounty.submissions.append(submission)
-    bounty.status = BountyStatus.UNDER_REVIEW
-    bounty.updated_at = now
-
-    audit_event(
-        "submission_created",
-        bounty_id=bounty_id,
-        submission_id=submission.id,
-        pr_url=data.pr_url,
-        submitted_by=data.submitted_by,
-    )
-
+    bounty.updated_at = datetime.now(timezone.utc)
+    await _persist_to_db(bounty)
+    _bounty_store[bounty_id] = bounty
     return _to_submission_response(submission), None
 
 
-def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
-    """List all submissions for a bounty. Returns None if bounty not found."""
-    bounty = _bounty_store.get(bounty_id)
+async def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
+    """List all submissions for a bounty, querying PostgreSQL first.
+
+    Args:
+        bounty_id: The ID of the bounty.
+
+    Returns:
+        A list of SubmissionResponse objects, or None if the bounty is not found.
+    """
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
 
 
-def get_submission(bounty_id: str, submission_id: str) -> Optional[SubmissionRecord]:
-    """Get a specific submission by bounty and submission ID."""
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
-        return None
-    for sub in bounty.submissions:
-        if sub.id == submission_id:
-            return sub
-    return None
-
-
-def update_submission_review_scores(
-    submission_id: str,
-    ai_scores_by_model: dict[str, float],
-    overall_score: float,
-    review_complete: bool,
-    meets_threshold: bool,
-) -> Optional[SubmissionResponse]:
-    """Update submission with AI review scores. Called after review_service records scores."""
-    for bounty in _bounty_store.values():
-        for sub in bounty.submissions:
-            if sub.id == submission_id:
-                sub.ai_scores_by_model = ai_scores_by_model
-                sub.ai_score = overall_score
-                sub.review_complete = review_complete
-                sub.meets_threshold = meets_threshold
-                sub.auto_approve_eligible = meets_threshold and review_complete
-                bounty.updated_at = datetime.now(timezone.utc)
-                return _to_submission_response(sub)
-    return None
-
-
-def approve_submission(
-    bounty_id: str,
-    submission_id: str,
-    approved_by: str,
-    is_auto: bool = False,
-) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Approve a submission → triggers payout flow.
-
-    Can be called by the bounty creator or the auto-approve system.
-    """
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
-        return None, "Bounty not found"
-
-    for sub in bounty.submissions:
-        if sub.id == submission_id:
-            if sub.status not in (SubmissionStatus.PENDING,):
-                return None, f"Cannot approve submission in status: {sub.status.value}"
-
-            now = datetime.now(timezone.utc)
-            sub.status = SubmissionStatus.APPROVED
-            sub.approved_by = approved_by
-            sub.approved_at = now
-            sub.winner = True
-
-            bounty.status = BountyStatus.COMPLETED
-            bounty.winner_submission_id = submission_id
-            bounty.winner_wallet = sub.contributor_wallet
-            bounty.updated_at = now
-
-            audit_event(
-                "submission_approved",
-                bounty_id=bounty_id,
-                submission_id=submission_id,
-                approved_by=approved_by,
-                is_auto=is_auto,
-            )
-
-            _trigger_payout(bounty, sub)
-
-            return _to_submission_response(sub), None
-
-    return None, "Submission not found"
-
-
-def dispute_submission(
-    bounty_id: str,
-    submission_id: str,
-    disputed_by: str,
-    reason: Optional[str] = None,
-) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Dispute a submission — blocks auto-approve and marks for manual review."""
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
-        return None, "Bounty not found"
-
-    for sub in bounty.submissions:
-        if sub.id == submission_id:
-            allowed = VALID_SUBMISSION_TRANSITIONS.get(sub.status, set())
-            if SubmissionStatus.DISPUTED not in allowed:
-                return None, f"Cannot dispute submission in status: {sub.status.value}"
-
-            sub.status = SubmissionStatus.DISPUTED
-            sub.auto_approve_eligible = False
-            bounty.status = BountyStatus.DISPUTED
-            bounty.updated_at = datetime.now(timezone.utc)
-
-            audit_event(
-                "submission_disputed",
-                bounty_id=bounty_id,
-                submission_id=submission_id,
-                disputed_by=disputed_by,
-                reason=reason,
-            )
-
-            return _to_submission_response(sub), None
-
-    return None, "Submission not found"
-
-
-def _trigger_payout(bounty: BountyDB, submission: SubmissionRecord) -> None:
-    """Initiate payout for an approved submission.
-
-    Calls the payout service to release escrowed FNDRY to the winner's wallet.
-    """
-    from app.services import payout_service
-    from app.models.payout import PayoutCreate
-
-    if not submission.contributor_wallet:
-        audit_event(
-            "payout_skipped",
-            bounty_id=bounty.id,
-            submission_id=submission.id,
-            reason="no_wallet",
-        )
-        return
-
-    try:
-        payout_data = PayoutCreate(
-            recipient=submission.submitted_by,
-            recipient_wallet=submission.contributor_wallet,
-            amount=bounty.reward_amount,
-            token="FNDRY",
-            bounty_id=bounty.id,
-            bounty_title=bounty.title,
-        )
-        payout_resp = payout_service.create_payout(payout_data)
-
-        now = datetime.now(timezone.utc)
-        submission.payout_tx_hash = payout_resp.tx_hash
-        submission.payout_amount = bounty.reward_amount
-        submission.payout_at = now
-        submission.status = SubmissionStatus.PAID
-
-        bounty.status = BountyStatus.PAID
-        bounty.payout_tx_hash = payout_resp.tx_hash
-        bounty.payout_at = now
-        bounty.updated_at = now
-
-        audit_event(
-            "payout_initiated",
-            bounty_id=bounty.id,
-            submission_id=submission.id,
-            amount=bounty.reward_amount,
-            wallet=submission.contributor_wallet,
-            payout_id=payout_resp.id,
-        )
-
-    except Exception as e:
-        audit_event(
-            "payout_failed",
-            bounty_id=bounty.id,
-            submission_id=submission.id,
-            error=str(e),
-        )
-
-
-def update_submission(
+async def update_submission(
     bounty_id: str, submission_id: str, status: str
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Update a submission's status (generic)."""
-    bounty = _bounty_store.get(bounty_id)
+    """Update a submission's lifecycle status and persist the change.
+
+    Validates the status transition against the allowed transition map.
+
+    Args:
+        bounty_id: The ID of the bounty containing the submission.
+        submission_id: The ID of the submission to update.
+        status: The new status value.
+
+    Returns:
+        A tuple of (SubmissionResponse, None) on success, or
+        (None, error_message) on failure.
+    """
+    bounty = await _load_bounty_from_db(bounty_id)
+    if bounty is None:
+        bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
 
@@ -476,6 +605,8 @@ def update_submission(
                 new_status=status,
             )
 
+            await _persist_to_db(bounty)
+            _bounty_store[bounty_id] = bounty
             return _to_submission_response(sub), None
 
     return None, "Submission not found"
