@@ -6,12 +6,45 @@ automatically by the session context manager.
 """
 
 import os
+import uuid
 import logging
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import types
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+
+
+class GUID(types.TypeDecorator):
+    """Platform-independent UUID type.
+
+    Uses PostgreSQL's native UUID when available, falls back to CHAR(36)
+    for other databases (e.g. SQLite in tests).
+    """
+
+    impl = types.CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(types.CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if isinstance(value, uuid.UUID):
+            return str(value) if dialect.name != "postgresql" else value
+        return str(uuid.UUID(value)) if dialect.name != "postgresql" else uuid.UUID(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if not isinstance(value, uuid.UUID):
+            return uuid.UUID(value)
+        return value
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -89,6 +122,7 @@ async def init_db() -> None:
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
             from app.models.agent import Agent  # noqa: F401
+            from app.models.dispute import DisputeDB, DisputeEvidenceDB, DisputeHistoryDB  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 

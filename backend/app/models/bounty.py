@@ -62,7 +62,7 @@ VALID_SUBMISSION_TRANSITIONS: dict[SubmissionStatus, set[SubmissionStatus]] = {
     SubmissionStatus.APPROVED: {SubmissionStatus.PAID, SubmissionStatus.DISPUTED},
     SubmissionStatus.DISPUTED: {SubmissionStatus.APPROVED, SubmissionStatus.REJECTED},
     SubmissionStatus.PAID: set(),
-    SubmissionStatus.REJECTED: set(),
+    SubmissionStatus.REJECTED: {SubmissionStatus.DISPUTED},
 }
 
 # Valid status values for webhook processor
