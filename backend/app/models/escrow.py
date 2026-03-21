@@ -6,14 +6,15 @@ state VARCHAR(20), fund_tx_hash VARCHAR(88), release_tx_hash VARCHAR(88),
 winner_wallet VARCHAR(44), created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ);
 """
 from __future__ import annotations
-import re, uuid
+import re
+import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
-_B58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-_TX = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
+SOLANA_BASE58_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+SOLANA_TX_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
 
 class EscrowState(str, Enum):
@@ -31,20 +32,36 @@ VALID_TRANSITIONS: dict[EscrowState, list[EscrowState]] = {
     EscrowState.FUNDED: [EscrowState.ACTIVE, EscrowState.REFUNDED],
     EscrowState.ACTIVE: [EscrowState.RELEASING, EscrowState.REFUNDED],
     EscrowState.RELEASING: [EscrowState.COMPLETED, EscrowState.REFUNDED],
-    EscrowState.COMPLETED: [], EscrowState.REFUNDED: [],
+    EscrowState.COMPLETED: [],
+    EscrowState.REFUNDED: [],
 }
 
+# Admin user IDs for maintenance endpoints. frozenset for immutability.
+ADMIN_USER_IDS: frozenset[str] = frozenset()
 
-def _vb58(v, n):
+
+class EscrowNotFoundError(Exception):
+    """Raised when no escrow exists for the given bounty or ID."""
+
+
+class EscrowConflictError(Exception):
+    """Raised on duplicate fund/release tx_hash or duplicate active escrow."""
+
+
+class EscrowStateError(Exception):
+    """Raised when a requested state transition is invalid."""
+
+
+def _validate_base58_address(v, n):
     """Validate Solana base-58 address."""
-    if v is not None and not _B58.match(v):
+    if v is not None and not SOLANA_BASE58_PATTERN.match(v):
         raise ValueError(f"{n} must be a valid Solana base-58 address")
     return v
 
 
-def _vtx(v, n):
+def _validate_tx_signature(v, n):
     """Validate Solana tx signature."""
-    if v is not None and not _TX.match(v):
+    if v is not None and not SOLANA_TX_PATTERN.match(v):
         raise ValueError(f"{n} must be a valid Solana transaction signature")
     return v
 
@@ -65,10 +82,10 @@ class EscrowRecord(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: Optional[datetime] = None
-    _val_cw = field_validator("creator_wallet")(classmethod(lambda cls, v: _vb58(v, "creator_wallet")))
-    _val_ww = field_validator("winner_wallet")(classmethod(lambda cls, v: _vb58(v, "winner_wallet")))
-    _val_ft = field_validator("fund_tx_hash")(classmethod(lambda cls, v: _vtx(v, "fund_tx_hash")))
-    _val_rt = field_validator("release_tx_hash")(classmethod(lambda cls, v: _vtx(v, "release_tx_hash")))
+    _val_cw = field_validator("creator_wallet")(classmethod(lambda cls, v: _validate_base58_address(v, "creator_wallet")))
+    _val_ww = field_validator("winner_wallet")(classmethod(lambda cls, v: _validate_base58_address(v, "winner_wallet")))
+    _val_ft = field_validator("fund_tx_hash")(classmethod(lambda cls, v: _validate_tx_signature(v, "fund_tx_hash")))
+    _val_rt = field_validator("release_tx_hash")(classmethod(lambda cls, v: _validate_tx_signature(v, "release_tx_hash")))
 
 
 class EscrowFundRequest(BaseModel):
@@ -78,14 +95,14 @@ class EscrowFundRequest(BaseModel):
     amount: float = Field(..., gt=0, le=100_000_000)
     tx_hash: str = Field(..., min_length=64, max_length=88)
     expires_at: Optional[datetime] = None
-    _val_w = field_validator("creator_wallet")(classmethod(lambda cls, v: _vb58(v, "creator_wallet")))
-    _val_t = field_validator("tx_hash")(classmethod(lambda cls, v: _vtx(v, "tx_hash")))
+    _val_w = field_validator("creator_wallet")(classmethod(lambda cls, v: _validate_base58_address(v, "creator_wallet")))
+    _val_t = field_validator("tx_hash")(classmethod(lambda cls, v: _validate_tx_signature(v, "tx_hash")))
 
 
 class EscrowReleaseRequest(BaseModel):
     """Request for releasing escrow to winner."""
     winner_wallet: str = Field(..., min_length=32, max_length=44)
-    _val = field_validator("winner_wallet")(classmethod(lambda cls, v: _vb58(v, "winner_wallet")))
+    _val = field_validator("winner_wallet")(classmethod(lambda cls, v: _validate_base58_address(v, "winner_wallet")))
 
 
 class EscrowResponse(BaseModel):
@@ -126,4 +143,4 @@ class EscrowLedgerEntry(BaseModel):
     amount: Optional[float] = None
     details: Optional[str] = Field(default=None, max_length=500)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    _val_tx = field_validator("tx_hash")(classmethod(lambda cls, v: _vtx(v, "tx_hash")))
+    _val_tx = field_validator("tx_hash")(classmethod(lambda cls, v: _validate_tx_signature(v, "tx_hash")))

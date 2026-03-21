@@ -9,9 +9,9 @@ import logging, threading
 from datetime import datetime, timezone
 from typing import Optional
 from app.models.escrow import (
-    EscrowFundRequest, EscrowLedgerEntry, EscrowListResponse,
+    EscrowConflictError, EscrowFundRequest, EscrowLedgerEntry, EscrowListResponse, EscrowNotFoundError,
     EscrowRecord, EscrowReleaseRequest, EscrowResponse,
-    EscrowState, VALID_TRANSITIONS,
+    EscrowState, EscrowStateError, VALID_TRANSITIONS,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def _log(eid: str, act: str, fr: EscrowState, to: EscrowState,
 def _chk(cur: EscrowState, tgt: EscrowState) -> None:
     """Validate state transition."""
     if tgt not in VALID_TRANSITIONS.get(cur, []):
-        raise ValueError(f"Invalid transition: {cur.value} -> {tgt.value}")
+        raise EscrowStateError(f"Invalid transition: {cur.value} -> {tgt.value}")
 
 
 def _active(bounty_id: str) -> Optional[EscrowRecord]:
@@ -68,9 +68,9 @@ def create_escrow(data: EscrowFundRequest) -> EscrowResponse:
     with _lock:
         for e in _escrow_store.values():
             if e.bounty_id == data.bounty_id and e.state not in (EscrowState.COMPLETED, EscrowState.REFUNDED):
-                raise ValueError(f"Active escrow already exists for bounty '{data.bounty_id}'")
+                raise EscrowConflictError(f"Active escrow already exists for bounty '{data.bounty_id}'")
             if e.fund_tx_hash == data.tx_hash:
-                raise ValueError(f"Escrow with fund_tx_hash '{data.tx_hash}' already exists")
+                raise EscrowConflictError(f"Escrow with fund_tx_hash '{data.tx_hash}' already exists")
         rec = EscrowRecord(
             bounty_id=data.bounty_id, creator_wallet=data.creator_wallet,
             amount=data.amount, state=EscrowState.FUNDED,
@@ -107,7 +107,7 @@ def activate_escrow(bounty_id: str) -> EscrowResponse:
     with _lock:
         rec = _in_state(bounty_id, EscrowState.FUNDED)
         if not rec:
-            raise ValueError(f"No escrow in FUNDED state found for bounty '{bounty_id}'")
+            raise EscrowNotFoundError(f"No escrow in FUNDED state found for bounty '{bounty_id}'")
         rec.state = EscrowState.ACTIVE
         rec.updated_at = now
         _log(rec.id, "state_change", EscrowState.FUNDED, EscrowState.ACTIVE)
@@ -120,7 +120,7 @@ def release_escrow(bounty_id: str, data: EscrowReleaseRequest) -> EscrowResponse
     with _lock:
         rec = _active(bounty_id)
         if not rec:
-            raise ValueError(f"No active escrow found for bounty '{bounty_id}'")
+            raise EscrowNotFoundError(f"No active escrow found for bounty '{bounty_id}'")
         _chk(rec.state, EscrowState.RELEASING)
         old = rec.state
         rec.state = EscrowState.RELEASING
@@ -136,10 +136,10 @@ def confirm_release(bounty_id: str, release_tx_hash: str) -> EscrowResponse:
     with _lock:
         rec = _in_state(bounty_id, EscrowState.RELEASING)
         if not rec:
-            raise ValueError(f"No escrow in RELEASING state found for bounty '{bounty_id}'")
+            raise EscrowNotFoundError(f"No escrow in RELEASING state found for bounty '{bounty_id}'")
         for e in _escrow_store.values():
             if e.release_tx_hash == release_tx_hash and e.id != rec.id:
-                raise ValueError(f"Release tx_hash '{release_tx_hash}' already used")
+                raise EscrowConflictError(f"Release tx_hash '{release_tx_hash}' already used")
         rec.state = EscrowState.COMPLETED
         rec.release_tx_hash = release_tx_hash
         rec.solscan_release_url = _url(release_tx_hash)
@@ -154,7 +154,7 @@ def refund_escrow(bounty_id: str) -> EscrowResponse:
     with _lock:
         rec = _active(bounty_id)
         if not rec:
-            raise ValueError(f"No active escrow found for bounty '{bounty_id}'")
+            raise EscrowNotFoundError(f"No active escrow found for bounty '{bounty_id}'")
         _chk(rec.state, EscrowState.REFUNDED)
         old = rec.state
         rec.state = EscrowState.REFUNDED
@@ -185,14 +185,13 @@ def list_escrows(creator_wallet: Optional[str] = None,
     """Return filtered, paginated escrows."""
     with _lock:
         results = sorted(_escrow_store.values(), key=lambda r: r.updated_at, reverse=True)
-    if creator_wallet:
-        results = [r for r in results if r.creator_wallet == creator_wallet]
-    if state:
-        results = [r for r in results if r.state == state]
-    total = len(results)
-    return EscrowListResponse(
-        items=[_resp(r) for r in results[skip:skip + limit]],
-        total=total, skip=skip, limit=limit)
+        if creator_wallet:
+            results = [r for r in results if r.creator_wallet == creator_wallet]
+        if state:
+            results = [r for r in results if r.state == state]
+        total = len(results)
+        page = [_resp(r) for r in results[skip:skip + limit]]
+    return EscrowListResponse(items=page, total=total, skip=skip, limit=limit)
 
 
 def get_ledger_entries(escrow_id: str) -> list[EscrowLedgerEntry]:

@@ -1,15 +1,21 @@
 """$FNDRY custodial escrow API endpoints.
 
-Prefix /api/escrow (main.py). POST /fund, /{id}/activate|release|confirm|refund,
-GET /{id}, GET /, GET /{id}/ledger, GET /stats/total-escrowed, POST /expire-check.
+Mounted at /api/escrow via app.main. All mutation endpoints (POST)
+require authentication. Read endpoints (GET) are public.
 """
 from __future__ import annotations
-import re
+
+import asyncio
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth import get_current_user_id
 from app.models.escrow import (
-    EscrowFundRequest, EscrowLedgerEntry, EscrowListResponse,
-    EscrowReleaseRequest, EscrowResponse, EscrowState,
+    EscrowConflictError, EscrowFundRequest, EscrowLedgerEntry,
+    EscrowListResponse, EscrowNotFoundError, EscrowReleaseRequest,
+    EscrowResponse, EscrowState, EscrowStateError,
+    SOLANA_BASE58_PATTERN, SOLANA_TX_PATTERN,
 )
 from app.services.escrow_service import (
     activate_escrow, confirm_release, create_escrow,
@@ -18,23 +24,17 @@ from app.services.escrow_service import (
 )
 
 router = APIRouter(tags=["escrow"])
-_B58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-_TX = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
-
-
-def _err(error: ValueError) -> HTTPException:
-    """Map ValueError to 404 or 409."""
-    s = 404 if "No" in str(error) and "escrow" in str(error) else 409
-    return HTTPException(status_code=s, detail=str(error))
 
 
 @router.post("/fund", response_model=EscrowResponse, status_code=201)
-async def fund_escrow(data: EscrowFundRequest) -> EscrowResponse:
-    """Create and fund a new escrow."""
+async def fund_escrow(
+    data: EscrowFundRequest, _user_id: str = Depends(get_current_user_id),
+) -> EscrowResponse:
+    """Create and fund a new escrow. Requires authentication."""
     try:
-        return create_escrow(data)
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        return await asyncio.to_thread(create_escrow, data)
+    except EscrowConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/", response_model=EscrowListResponse)
@@ -43,75 +43,93 @@ async def get_escrows(
     state: Optional[EscrowState] = Query(None),
     skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100),
 ) -> EscrowListResponse:
-    """Paginated escrows with filters."""
-    if creator_wallet and not _B58.match(creator_wallet):
-        raise HTTPException(status_code=400, detail="Invalid address")
-    return list_escrows(creator_wallet=creator_wallet, state=state, skip=skip, limit=limit)
+    """List escrows with optional filters and pagination (public)."""
+    if creator_wallet and not SOLANA_BASE58_PATTERN.match(creator_wallet):
+        raise HTTPException(status_code=400, detail="Invalid Solana wallet address format")
+    return await asyncio.to_thread(list_escrows, creator_wallet=creator_wallet, state=state, skip=skip, limit=limit)
 
 
 @router.get("/stats/total-escrowed")
 async def total_escrowed() -> dict[str, float]:
-    """Total $FNDRY locked."""
-    return {"total_escrowed_fndry": get_total_escrowed()}
+    """Total $FNDRY currently locked in escrow (public)."""
+    return {"total_escrowed_fndry": await asyncio.to_thread(get_total_escrowed)}
 
 
 @router.post("/expire-check", response_model=list[EscrowResponse])
-async def check_expired() -> list[EscrowResponse]:
-    """Auto-refund expired escrows."""
-    return process_expired_escrows()
+async def check_expired(
+    _user_id: str = Depends(get_current_user_id),
+) -> list[EscrowResponse]:
+    """Auto-refund expired escrows. Requires authentication."""
+    return await asyncio.to_thread(process_expired_escrows)
 
 
 @router.get("/{bounty_id}", response_model=EscrowResponse)
 async def get_status(bounty_id: str) -> EscrowResponse:
-    """Get escrow status."""
-    esc = get_escrow_by_bounty(bounty_id)
+    """Get escrow status for a bounty (public)."""
+    esc = await asyncio.to_thread(get_escrow_by_bounty, bounty_id)
     if not esc:
         raise HTTPException(status_code=404, detail=f"No escrow for '{bounty_id}'")
     return esc
 
 
 @router.post("/{bounty_id}/activate", response_model=EscrowResponse)
-async def activate(bounty_id: str) -> EscrowResponse:
-    """Activate funded escrow."""
+async def activate(
+    bounty_id: str, _user_id: str = Depends(get_current_user_id),
+) -> EscrowResponse:
+    """Activate funded escrow (FUNDED->ACTIVE). Requires authentication."""
     try:
-        return activate_escrow(bounty_id)
-    except ValueError as e:
-        raise _err(e) from e
+        return await asyncio.to_thread(activate_escrow, bounty_id)
+    except EscrowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/{bounty_id}/release", response_model=EscrowResponse)
-async def release(bounty_id: str, data: EscrowReleaseRequest) -> EscrowResponse:
-    """Release to winner."""
+async def release(
+    bounty_id: str, data: EscrowReleaseRequest,
+    _user_id: str = Depends(get_current_user_id),
+) -> EscrowResponse:
+    """Release to winner (ACTIVE->RELEASING). Requires authentication."""
     try:
-        return release_escrow(bounty_id, data)
-    except ValueError as e:
-        raise _err(e) from e
+        return await asyncio.to_thread(release_escrow, bounty_id, data)
+    except EscrowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except EscrowStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/{bounty_id}/confirm", response_model=EscrowResponse)
-async def confirm(bounty_id: str, tx_hash: str = Query(..., min_length=64, max_length=88)) -> EscrowResponse:
-    """Confirm on-chain release."""
-    if not _TX.match(tx_hash):
-        raise HTTPException(status_code=400, detail="Invalid tx")
+async def confirm(
+    bounty_id: str, tx_hash: str = Query(..., min_length=64, max_length=88),
+    _user_id: str = Depends(get_current_user_id),
+) -> EscrowResponse:
+    """Confirm on-chain release (RELEASING->COMPLETED). Requires authentication."""
+    if not SOLANA_TX_PATTERN.match(tx_hash):
+        raise HTTPException(status_code=400, detail="Invalid Solana transaction signature format")
     try:
-        return confirm_release(bounty_id, tx_hash)
-    except ValueError as e:
-        raise _err(e) from e
+        return await asyncio.to_thread(confirm_release, bounty_id, tx_hash)
+    except EscrowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except EscrowConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/{bounty_id}/refund", response_model=EscrowResponse)
-async def refund(bounty_id: str) -> EscrowResponse:
-    """Refund to creator."""
+async def refund(
+    bounty_id: str, _user_id: str = Depends(get_current_user_id),
+) -> EscrowResponse:
+    """Refund escrowed $FNDRY to creator. Requires authentication."""
     try:
-        return refund_escrow(bounty_id)
-    except ValueError as e:
-        raise _err(e) from e
+        return await asyncio.to_thread(refund_escrow, bounty_id)
+    except EscrowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except EscrowStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/{bounty_id}/ledger", response_model=list[EscrowLedgerEntry])
 async def ledger(bounty_id: str) -> list[EscrowLedgerEntry]:
-    """Audit trail for escrow."""
-    esc = get_escrow_by_bounty(bounty_id)
+    """Immutable audit trail for an escrow (public)."""
+    esc = await asyncio.to_thread(get_escrow_by_bounty, bounty_id)
     if not esc:
         raise HTTPException(status_code=404, detail=f"No escrow for '{bounty_id}'")
-    return get_ledger_entries(esc.id)
+    return await asyncio.to_thread(get_ledger_entries, esc.id)
