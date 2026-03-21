@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>✅ Review Complete</h1>
+<p>Hello {{ contributor_name }},</p>
+
+<p>The review for your submission to <strong>"{{ bounty_title }}"</strong> is complete.</p>
+
+<p><strong>Status:</strong> {{ status }}</p>
+<p><strong>Reviewer Comments:</strong> {{ reviewer_comments or 'None' }}</p>
+
+{% if status == "approved" %}
+<p>Congratulations! The payout will be processed shortly.</p>
+{% else %}
+<p>Please address the feedback and submit an updated PR if you wish to revise.</p>
+{% endif %}
+
+<p>
+    <a href="{{ app_url }}/bounties/{{ bounty_id }}" class="btn">View Bounty</a>
+</p>
+{% endblock %}

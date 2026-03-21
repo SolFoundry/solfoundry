@@ -9,12 +9,19 @@ Sends notifications to:
 from __future__ import annotations
 
 import logging
+import asyncio
 from typing import Optional
 
 from app.core.audit import audit_event
 from app.models.notification import NotificationType, NotificationCreate
+from app.models.user import User
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
+
+# Shared email service instance (uses Redis from env)
+from app.services.email_service import EmailService
+email_service = EmailService()
 
 
 async def _send_notification(
@@ -25,24 +32,52 @@ async def _send_notification(
     bounty_id: Optional[str] = None,
     extra_data: Optional[dict] = None,
 ) -> None:
-    """Persist a notification. Falls back to audit log if DB is unavailable."""
+    """Persist a notification and trigger email if applicable. Falls back to audit log if DB is unavailable."""
     try:
         from app.database import get_db_session
         from app.services.notification_service import NotificationService
 
         async with get_db_session() as session:
             svc = NotificationService(session)
-            await svc.create_notification(
-                NotificationCreate(
-                    user_id=user_id,
-                    notification_type=notification_type,
-                    title=title,
-                    message=message,
-                    bounty_id=bounty_id,
-                    extra_data=extra_data,
-                )
+            notification = NotificationCreate(
+                user_id=user_id,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                bounty_id=bounty_id,
+                extra_data=extra_data,
             )
+            await svc.create_notification(notification)
             await session.commit()
+
+            # After commit, fetch user email and send email asynchronously
+            try:
+                user_q = select(User).where(User.id == user_id)
+                result = await session.execute(user_q)
+                user = result.scalar_one_or_none()
+                if user and user.email:
+                    context = {
+                        "user_id": str(user.id),
+                        "contributor_name": user.username,
+                        "notification_type": notification_type,
+                        "title": title,
+                        "message": message,
+                        "bounty_id": str(bounty_id) if bounty_id else "",
+                        "app_url": "https://solfoundry.org",
+                    }
+                    if extra_data:
+                        context.update(extra_data)
+                    # Fire and forget
+                    asyncio.create_task(
+                        email_service.send_notification_email(
+                            user_email=user.email,
+                            user_id=str(user.id),
+                            notification_type=notification_type,
+                            context=context,
+                        )
+                    )
+            except Exception as e:
+                logger.warning("Failed to send email notification: %s", e)
     except Exception as e:
         logger.warning("Failed to persist notification (non-fatal): %s", e)
         audit_event(

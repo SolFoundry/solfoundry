@@ -4,7 +4,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -30,10 +30,16 @@ from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
 from app.services.escrow_service import periodic_escrow_refund
+from app.services.email_service import EmailService
 
 # Initialize logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+
+async def get_email_service(request: Request) -> EmailService:
+    """FastAPI dependency to get the shared EmailService instance."""
+    return request.app.state.email_service
 
 
 @asynccontextmanager
@@ -83,6 +89,10 @@ async def lifespan(app: FastAPI):
     # Start escrow auto-refund checker (every 60 seconds)
     escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
 
+    # Initialize email service
+    app.state.email_service = EmailService()
+    logger.info("Email service initialized")
+
     yield
 
     # Shutdown: Cancel background tasks, close connections, then database
@@ -106,6 +116,13 @@ async def lifespan(app: FastAPI):
         await escrow_refund_task
     except asyncio.CancelledError:
         pass
+
+    # Shutdown email service redis
+    email_svc = app.state.get("email_service")
+    if email_svc and hasattr(email_svc, "redis"):
+        await email_svc.redis.close()
+        logger.info("Email service Redis closed")
+
     await ws_manager.shutdown()
     await close_db()
 

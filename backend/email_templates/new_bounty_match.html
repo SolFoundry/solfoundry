@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🔥 New Bounty Matches Your Skills</h1>
+<p>Hello {{ contributor_name }},</p>
+
+<p>We've found a new bounty that matches your skill set!</p>
+
+<p><strong>Title:</strong> {{ bounty_title }}</p>
+<p><strong>Reward:</strong> {{ reward }}</p>
+<p><strong>Skills:</strong> {{ skills }}</p>
+<p>{{ description|truncate(200) }}</p>
+
+<p>
+    <a href="{{ app_url }}/bounties/{{ bounty_id }}" class="btn">View Bounty</a>
+</p>
+
+<p>This is a great opportunity to earn. Good luck!</p>
+{% endblock %}

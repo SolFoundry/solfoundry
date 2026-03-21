@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>📝 PR Submitted</h1>
+<p>Hello {{ contributor_name }},</p>
+
+<p>A pull request has been submitted for the bounty <strong>"{{ bounty_title }}"</strong>.</p>
+
+<p><strong>PR URL:</strong> <a href="{{ pr_url }}">{{ pr_url }}</a></p>
+<p><strong>Submitted by:</strong> {{ submitter_name }}</p>
+<p><strong>Submitted at:</strong> {{ submitted_at }}</p>
+
+<p>Reviewers will evaluate the submission soon. You can view the PR and add comments.</p>
+
+<p>
+    <a href="{{ pr_url }}" class="btn">View PR on GitHub</a>
+</p>
+{% endblock %}

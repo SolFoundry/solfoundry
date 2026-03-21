@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>💰 Payout Sent</h1>
+<p>Hello {{ contributor_name }},</p>
+
+<p>Great news! The bounty reward for <strong>"{{ bounty_title }}"</strong> has been sent.</p>
+
+<p><strong>Amount:</strong> {{ amount }} {{ currency }}</p>
+{% if tx_hash %}
+<p><strong>Transaction Hash:</strong> <a href="https://explorer.solana.com/tx/{{ tx_hash }}">{{ tx_hash }}</a></p>
+{% endif %}
+<p><strong>Sent at:</strong> {{ sent_at }}</p>
+
+<p>You should see the funds in your wallet shortly. Thank you for your work!</p>
+
+<p>
+    <a href="{{ app_url }}/payouts" class="btn">View Payout History</a>
+</p>
+{% endblock %}

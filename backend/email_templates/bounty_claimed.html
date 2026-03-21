@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🎯 Bounty Claimed</h1>
+<p>Hello {{ contributor_name }},</p>
+
+<p>Great news! Your claim for the bounty <strong>"{{ bounty_title }}"</strong> has been recorded.</p>
+
+<p><strong>Bounty ID:</strong> {{ bounty_id }}</p>
+<p><strong>Claimed at:</strong> {{ claimed_at }}</p>
+
+<p>We'll review your submission shortly. You'll receive another notification when the review is complete.</p>
+
+<p>
+    <a href="{{ app_url }}/bounties/{{ bounty_id }}" class="btn">View Bounty</a>
+    <a href="{{ app_url }}/my-claims" class="btn">My Claims</a>
+</p>
+
+<p>Best of luck!</p>
+{% endblock %}

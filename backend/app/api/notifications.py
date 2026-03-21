@@ -5,6 +5,7 @@ All endpoints require authentication to ensure users can only access
 their own notifications.
 """
 
+import os
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,8 @@ from app.models.errors import ErrorResponse
 from app.services.notification_service import NotificationService
 from app.database import get_db
 from app.auth import get_current_user_id, get_authenticated_user, AuthenticatedUser
+
+APP_URL = os.getenv("APP_URL", "https://solfoundry.org")
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -167,6 +170,7 @@ async def mark_all_notifications_read(
 async def create_notification(
     notification: NotificationCreate,
     db: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service),
 ):
     """
     Create a new notification.
@@ -184,6 +188,9 @@ async def create_notification(
     Note: This endpoint should be protected by API key or internal-only access
     in production.
     """
+    from app.models.user import User
+    from uuid import UUID
+
     service = NotificationService(db)
 
     try:
@@ -192,6 +199,49 @@ async def create_notification(
         # Refresh to get generated fields
         await db.refresh(notification_db)
 
+        # Commit the transaction before sending email
+        await db.commit()
+
+        # Fetch user email and preferences
+        user_q = select(User).where(User.id == UUID(notification.user_id))
+        result = await db.execute(user_q)
+        user = result.scalar_one_or_none()
+        if user and user.email:
+            # Build email context
+            context = {
+                "user_id": user.id,
+                "contributor_name": user.username,
+                "notification_type": notification.notification_type,
+                "title": notification.title,
+                "message": notification.message,
+                "bounty_id": notification.bounty_id or "",
+                "app_url": APP_URL,
+            }
+            # Include extra_data if present
+            if notification.extra_data:
+                context.update(notification.extra_data)
+
+            # Schedule email in background (do not block response)
+            asyncio.create_task(
+                email_service.send_notification_email(
+                    user_email=user.email,
+                    user_id=str(user.id),
+                    notification_type=notification.notification_type,
+                    context=context,
+                )
+            )
+
         return NotificationResponse.model_validate(notification_db)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/unsubscribe")
+async def unsubscribe_email(
+    user_id: str = Query(..., description="User ID to unsubscribe"),
+    type: str = Query(..., alias="type", description="Notification type to disable"),
+    email_service: EmailService = Depends(get_email_service),
+):
+    """Unsubscribe a user from a specific notification type via email."""
+    await email_service.disable_type(user_id, type)
+    return {"message": f"Unsubscribed from {type} emails."}
