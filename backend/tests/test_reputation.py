@@ -184,7 +184,8 @@ def test_no_penalty_on_t2():
     c = _mc()
     for i in range(ANTI_FARMING_THRESHOLD):
         _rec(c.id, f"t1-{i}")
-    assert _rec(c.id, "t2", tier=2).anti_farming_applied is False
+    result = _rec(c.id, "t2", tier=2)
+    assert result.anti_farming_applied is False
 
 
 def test_veteran_after_threshold():
@@ -348,13 +349,14 @@ def test_history_order():
     _rec(c.id, "b-1")
     time.sleep(0.001)
     _rec(c.id, "b-2")
-    history = reputation_service.get_history(c.id)
+    history = run_async(reputation_service.get_history(c.id))
     assert history[0].created_at >= history[1].created_at
 
 
 def test_empty_history():
     """New contributor has empty history."""
-    assert reputation_service.get_history(_mc().id) == []
+    c = _mc()
+    assert run_async(reputation_service.get_history(c.id)) == []
 
 
 def test_leaderboard_sorted():

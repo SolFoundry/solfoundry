@@ -8,8 +8,8 @@ an optional ``session`` parameter for transactional callers.
 Backward-compatible: API response schemas are unchanged.
 """
 
-import uuid
 import logging
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
@@ -148,6 +148,9 @@ async def create_contributor(
             await auto_session.commit()
             await auto_session.refresh(row)
 
+    # Keep in-memory cache in sync
+    _store[str(row.id)] = row
+
     return _row_to_response(row)
 
 
@@ -161,8 +164,8 @@ async def list_contributors(
 ) -> ContributorListResponse:
     """List contributors with optional search, skill, and badge filters.
 
-    Runs two queries — one ``COUNT(*)`` for the total and one paginated
-    ``SELECT`` — so the frontend can render pagination controls.
+    Runs two queries -- one ``COUNT(*)`` for the total and one paginated
+    ``SELECT`` -- so the frontend can render pagination controls.
 
     Args:
         search: Case-insensitive substring match on username or display_name.
@@ -191,7 +194,7 @@ async def list_contributors(
             base_query = base_query.where(search_filter)
             count_query = count_query.where(search_filter)
 
-        # JSON array containment filters — for SQLite test compatibility,
+        # JSON array containment filters -- for SQLite test compatibility,
         # fall back to CAST + LIKE when the JSON operator is unavailable.
         if skills:
             for skill in skills:
@@ -369,12 +372,16 @@ async def delete_contributor(
         return (result.rowcount or 0) > 0
 
     if session is not None:
-        return await _run(session)
+        deleted = await _run(session)
+    else:
+        async with async_session_factory() as auto_session:
+            deleted = await _run(auto_session)
+            await auto_session.commit()
 
-    async with async_session_factory() as auto_session:
-        deleted = await _run(auto_session)
-        await auto_session.commit()
-        return deleted
+    # Remove from in-memory cache
+    _store.pop(contributor_id, None)
+
+    return deleted
 
 
 async def get_contributor_db(
@@ -411,7 +418,10 @@ async def get_contributor_db(
         return await _run(session)
 
     async with async_session_factory() as auto_session:
-        return await _run(auto_session)
+        row = await _run(auto_session)
+        if row is not None:
+            _store[contributor_id] = row
+        return row
 
 
 async def update_reputation_score(
@@ -451,6 +461,11 @@ async def update_reputation_score(
         async with async_session_factory() as auto_session:
             await _run(auto_session)
             await auto_session.commit()
+
+    # Update in-memory cache
+    cached = _store.get(contributor_id)
+    if cached is not None:
+        cached.reputation_score = score
 
 
 async def list_contributor_ids(
@@ -539,7 +554,7 @@ async def get_all_contributors(
     """Return all contributor rows from the database.
 
     Used by the leaderboard service and health endpoint.  Avoid calling
-    this with very large tables — the leaderboard service applies its
+    this with very large tables -- the leaderboard service applies its
     own ORDER BY and LIMIT via ``get_leaderboard_contributors()``.
 
     Args:

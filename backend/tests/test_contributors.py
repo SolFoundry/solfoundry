@@ -9,15 +9,19 @@ import uuid
 from decimal import Decimal
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.database import engine
-from app.main import app
+from app.api.contributors import router as contributors_router
 from app.models.contributor import ContributorCreate, ContributorTable
 from app.services import contributor_service
 from tests.conftest import run_async
 
-client = TestClient(app)
+# Use a minimal test app to avoid lifespan side effects
+_test_app = FastAPI()
+_test_app.include_router(contributors_router, prefix="/api")
+client = TestClient(_test_app)
 
 
 @pytest.fixture(autouse=True)
@@ -63,6 +67,25 @@ def _create(username="alice", display_name="Alice", skills=None, badges=None):
             )
         )
     )
+
+
+def _create_via_api(username="alice", display_name=None, skills=None, badges=None):
+    """Create a contributor through the HTTP API and return the response dict.
+
+    If display_name is not provided, it defaults to the capitalized username
+    to avoid false matches in search tests.
+    """
+    if display_name is None:
+        display_name = username.capitalize()
+    payload = {
+        "username": username,
+        "display_name": display_name,
+        "skills": skills or ["python"],
+        "badges": badges or [],
+    }
+    resp = client.post("/api/contributors", json=payload)
+    assert resp.status_code == 201, f"Create failed: {resp.text}"
+    return resp.json()
 
 
 # -- Create endpoint tests --------------------------------------------------
@@ -144,7 +167,7 @@ def test_filter_badges():
 def test_pagination():
     """GET /contributors respects skip and limit parameters."""
     for i in range(5):
-        _create(f"user{i}")
+        _create_via_api(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
     assert resp.json()["total"] == 5
     assert len(resp.json()["items"]) == 2

@@ -12,7 +12,8 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, Index
+import sqlalchemy as sa
+from sqlalchemy import Column, String, DateTime, JSON, Integer, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
@@ -64,7 +65,7 @@ class SubmissionDB(Base):
     # Bounty matching
     bounty_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     match_confidence = Column(String(20), nullable=True)  # high, medium, low
-    match_score = Column(Float, nullable=True)  # 0.0-1.0
+    match_score = Column(sa.Numeric(precision=5, scale=4), nullable=True)  # 0.0-1.0
     match_reasons = Column(JSON, default=list, nullable=False)  # Why matched
 
     # Submission status
@@ -74,7 +75,7 @@ class SubmissionDB(Base):
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Payout information
-    reward_amount = Column(Float, nullable=True)
+    reward_amount = Column(sa.Numeric(precision=20, scale=6), nullable=True)
     reward_token = Column(String(20), nullable=True)
     payout_tx_hash = Column(String(128), nullable=True)
     payout_at = Column(DateTime(timezone=True), nullable=True)
@@ -145,6 +146,7 @@ class SubmissionUpdate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure status is a valid submission lifecycle status."""
         valid_statuses = {s.value for s in SubmissionStatus}
         if v is not None and v not in valid_statuses:
             raise ValueError(f"Invalid status: {v}. Must be one of: {valid_statuses}")

@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -20,12 +21,15 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.stats import router as stats_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
+from app.services.escrow_service import periodic_escrow_refund
 
 # Initialize logging
 setup_logging()
@@ -37,6 +41,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     await init_db()
     await ws_manager.init()
+
+    # Hydrate in-memory caches from PostgreSQL (source of truth)
+    try:
+        from app.services.payout_service import hydrate_from_database as hydrate_payouts
+        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+
+        await hydrate_payouts()
+        await hydrate_reputation()
+        logger.info("PostgreSQL hydration complete (payouts + reputation)")
+    except Exception as exc:
+        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
 
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
@@ -65,12 +80,16 @@ async def lifespan(app: FastAPI):
     # Start deadline enforcement checker (every 60 seconds)
     deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
 
+    # Start escrow auto-refund checker (every 60 seconds)
+    escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
+
     yield
 
     # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
     auto_approve_task.cancel()
     deadline_task.cancel()
+    escrow_refund_task.cancel()
     try:
         await sync_task
     except asyncio.CancelledError:
@@ -83,11 +102,15 @@ async def lifespan(app: FastAPI):
         await deadline_task
     except asyncio.CancelledError:
         pass
+    try:
+        await escrow_refund_task
+    except asyncio.CancelledError:
+        pass
     await ws_manager.shutdown()
     await close_db()
 
 
-# ── API Documentation Metadata ────────────────────────────────────────────────
+# -- API Documentation Metadata ------------------------------------------------
 
 API_DESCRIPTION = """
 ## Welcome to the SolFoundry Developer Portal
@@ -164,7 +187,7 @@ app.add_middleware(
 
 app.add_middleware(LoggingMiddleware)
 
-# ── Global Exception Handlers ────────────────────────────────────────────────
+# -- Global Exception Handlers ------------------------------------------------
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -184,12 +207,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler for unexpected errors."""
     import structlog
     log = structlog.get_logger(__name__)
-    
+
     request_id = getattr(request.state, "request_id", None)
-    
+
     # Log the full traceback for unhandled exceptions
     log.error("unhandled_exception", exc_info=exc, request_id=request_id)
-    
+
     return JSONResponse(
         status_code=500,
         content={
@@ -251,33 +274,14 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
+# Escrow: /api/escrow/*
+app.include_router(escrow_router, prefix="/api")
 
-@app.get("/health")
-async def health_check():
-    """Return application health status including database and sync info."""
-    from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services import contributor_service
-    from sqlalchemy import text
+# Stats: /api/stats (public endpoint)
+app.include_router(stats_router, prefix="/api")
 
-    db_status = "ok"
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.error("Health check DB failure: %s", e)
-        db_status = "error"
-
-    contributor_count = await contributor_service.count_contributors()
-    last_sync = get_last_sync()
-    return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
-        "bounties": len(_bounty_store),
-        "contributors": contributor_count,
-        "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
-    }
+# System Health: /health
+app.include_router(health_router)
 
 
 @app.post("/api/sync", tags=["admin"])

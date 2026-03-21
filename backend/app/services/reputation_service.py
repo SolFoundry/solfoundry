@@ -1,4 +1,4 @@
-"""Contributor reputation scoring service.
+"""Reputation service with PostgreSQL as primary source of truth (Issue #162).
 
 Calculates reputation from review scores and bounty tier.  Manages tier
 progression, anti-farming, score history, and badges.
@@ -12,6 +12,7 @@ PostgreSQL migration path: reputation_history table on contributor_id.
 """
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -32,8 +33,37 @@ from app.models.reputation import (
 )
 from app.services import contributor_service
 
+logger = logging.getLogger(__name__)
+
 _reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
 _reputation_lock = asyncio.Lock()
+
+
+async def hydrate_from_database() -> None:
+    """Load reputation history from PostgreSQL into the in-memory cache.
+
+    Called during application startup. Falls back gracefully if the
+    database is unreachable.
+    """
+    from app.services.pg_store import load_reputation
+
+    loaded = await load_reputation()
+    if loaded:
+        _reputation_store.update(loaded)
+
+
+async def _load_reputation_from_db() -> Optional[dict[str, list[ReputationHistoryEntry]]]:
+    """Load all reputation data from PostgreSQL.
+
+    Returns None on DB failure so callers can fall back to the cache.
+    """
+    try:
+        from app.services.pg_store import load_reputation
+
+        return await load_reputation()
+    except Exception as exc:
+        logger.warning("DB read failed for reputation: %s", exc)
+        return None
 
 
 def calculate_earned_reputation(
@@ -42,7 +72,8 @@ def calculate_earned_reputation(
     """Calculate reputation points earned from a single bounty completion.
 
     Reputation is proportional to how far the review score exceeds the
-    tier's passing threshold, multiplied by the tier's weight.
+    tier's passing threshold, multiplied by the tier's weight.  Veterans
+    face a raised T1 threshold to discourage farming easy bounties.
 
     Args:
         review_score: The multi-LLM review score (0.0--10.0).
@@ -64,7 +95,7 @@ def calculate_earned_reputation(
 
 
 def determine_badge(reputation_score: float) -> Optional[ReputationBadge]:
-    """Return the highest badge earned for the given score.
+    """Return the highest badge earned for the given cumulative score.
 
     Iterates thresholds in descending order so the first match is the
     highest earned badge, independent of enum declaration order.
@@ -249,13 +280,24 @@ async def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEn
             data.contributor_id, round(total, 2)
         )
 
+    # Await DB write outside the lock to avoid holding it during IO
+    try:
+        from app.services.pg_store import persist_reputation_entry
+
+        await persist_reputation_entry(entry)
+    except Exception as exc:
+        logger.error("PostgreSQL reputation write failed: %s", exc)
+
     return entry
 
 
 async def get_reputation(
     contributor_id: str, include_history: bool = True
 ) -> Optional[ReputationSummary]:
-    """Get the full reputation summary for a contributor.
+    """Build the full reputation summary for a contributor.
+
+    Queries PostgreSQL for history data first, falling back to the
+    in-memory cache when the database is unavailable.
 
     Args:
         contributor_id: The contributor to look up.
@@ -268,7 +310,13 @@ async def get_reputation(
     if contributor is None:
         return None
 
-    history = _reputation_store.get(contributor_id, [])
+    # Try DB first for history
+    db_reputation = await _load_reputation_from_db()
+    if db_reputation is not None:
+        history = db_reputation.get(contributor_id, [])
+    else:
+        history = _reputation_store.get(contributor_id, [])
+
     total = sum(e.earned_reputation for e in history)
     tier_counts = count_tier_completions(history)
     current_tier = determine_current_tier(tier_counts)
@@ -319,11 +367,13 @@ async def get_reputation_leaderboard(
         if summary is not None:
             summaries.append(summary)
     summaries.sort(key=lambda s: (-s.reputation_score, s.username))
-    return summaries[offset: offset + limit]
+    return summaries[offset : offset + limit]
 
 
-def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
+async def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
     """Get per-bounty reputation history sorted newest-first.
+
+    Queries PostgreSQL first, falling back to the in-memory store.
 
     Args:
         contributor_id: The contributor to look up.
@@ -331,5 +381,9 @@ def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
     Returns:
         List of ``ReputationHistoryEntry`` sorted by ``created_at`` desc.
     """
-    history = _reputation_store.get(contributor_id, [])
+    db_reputation = await _load_reputation_from_db()
+    if db_reputation is not None:
+        history = db_reputation.get(contributor_id, [])
+    else:
+        history = _reputation_store.get(contributor_id, [])
     return sorted(history, key=lambda e: e.created_at, reverse=True)

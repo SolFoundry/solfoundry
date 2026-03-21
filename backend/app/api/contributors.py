@@ -206,7 +206,7 @@ async def get_contributor_reputation_history(
     contributor = await contributor_service.get_contributor(contributor_id)
     if contributor is None:
         raise HTTPException(status_code=404, detail="Contributor not found")
-    return reputation_service.get_history(contributor_id)
+    return await reputation_service.get_history(contributor_id)
 
 
 @router.post(

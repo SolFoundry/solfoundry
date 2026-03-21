@@ -1,4 +1,4 @@
-"""Leaderboard service — cached ranked contributor data from PostgreSQL.
+"""Leaderboard service -- cached ranked contributor data from PostgreSQL.
 
 Queries the ``contributors`` table for ranked results and applies a
 time-to-live (TTL) in-memory cache so that repeated requests within

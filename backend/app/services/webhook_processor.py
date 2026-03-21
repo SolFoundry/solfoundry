@@ -43,6 +43,7 @@ class WebhookProcessor:
     }
 
     def __init__(self, db: AsyncSession):
+        """Initialize the instance."""
         self.db = db
 
     async def check_idempotency(self, delivery_id: str) -> bool:

@@ -35,7 +35,7 @@ engine_kwargs = {
 }
 if is_sqlite:
     # Use StaticPool for in-memory SQLite so all connections share the
-    # same database — required for tests where multiple async sessions
+    # same database -- required for tests where multiple async sessions
     # must see each other's writes.
     engine_kwargs.update(
         {
@@ -102,15 +102,22 @@ async def init_db() -> None:
             from app.models.agent import Agent  # noqa: F401
             from app.models.contributor import ContributorTable  # noqa: F401
             from app.models.submission import SubmissionDB  # noqa: F401
+            from app.models.tables import (  # noqa: F401
+                PayoutTable, BuybackTable, ReputationHistoryTable,
+                BountySubmissionTable,
+            )
             from app.models.review import AIReviewScoreDB  # noqa: F401
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
+            from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
 
+            # NOTE: create_all is idempotent (skips existing tables). For
+            # production schema changes use ``alembic upgrade head`` instead.
             await conn.run_sync(Base.metadata.create_all)
 
             logger.info("Database schema initialized successfully")
     except Exception as e:
         logger.warning(f"Database init warning (non-fatal): {e}")
-        # Non-fatal — tables may already exist. In-memory services work without DB.
+        # Non-fatal -- tables may already exist. In-memory services work without DB.
 
 
 async def close_db() -> None:

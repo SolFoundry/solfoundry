@@ -32,6 +32,7 @@ function mapApiBounty(b: any): Bounty {
     submissionCount: b.submission_count ?? b.submissionCount ?? 0,
     createdAt: b.created_at ?? b.createdAt,
     projectName: b.created_by || b.projectName || 'SolFoundry',
+    creatorType: b.creator_type || b.creatorType || 'platform',
     githubIssueUrl: b.github_issue_url || b.githubIssueUrl || undefined,
     relevanceScore: b.relevance_score ?? 0,
     skillMatchCount: b.skill_match_count ?? 0,

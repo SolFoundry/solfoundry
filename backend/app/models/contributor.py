@@ -39,8 +39,8 @@ class ContributorTable(Base):
     and free-form dicts (social_links).
 
     Indexes:
-        - ``ix_contributors_username`` — unique lookup by GitHub handle.
-        - ``ix_contributors_reputation_earnings`` — composite index for
+        - ``ix_contributors_username`` -- unique lookup by GitHub handle.
+        - ``ix_contributors_reputation_earnings`` -- composite index for
           leaderboard ORDER BY queries.
     """
 
@@ -88,7 +88,7 @@ ContributorDB = ContributorTable
 
 
 # ---------------------------------------------------------------------------
-# Pydantic API schemas — these define the public contract and MUST NOT change
+# Pydantic API schemas -- these define the public contract and MUST NOT change
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ class ContributorBase(BaseModel):
 
 
 class ContributorCreate(ContributorBase):
-    """Schema for POST /contributors — creates a new contributor profile.
+    """Schema for POST /contributors -- creates a new contributor profile.
 
     ``username`` must be 3-50 alphanumeric characters (plus ``-`` and ``_``).
     """
@@ -120,7 +120,7 @@ class ContributorCreate(ContributorBase):
 
 
 class ContributorUpdate(BaseModel):
-    """Schema for PATCH /contributors/{id} — partial profile update.
+    """Schema for PATCH /contributors/{id} -- partial profile update.
 
     All fields are optional.  Only provided fields are applied.
     """
