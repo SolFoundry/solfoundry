@@ -1,8 +1,4 @@
-"""Seed live bounty data for SolFoundry.
-
-Only seeds currently active bounties. Phase 2 bounties will be added
-when they launch as GitHub issues.
-"""
+"""Seed live bounty data for SolFoundry."""
 
 import json
 import logging

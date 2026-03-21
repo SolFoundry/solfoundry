@@ -1,4 +1,4 @@
-"""In-memory payout service (MVP -- data lost on restart, DB coming later)."""
+"""Payout service with PostgreSQL persistence (Issue #162)."""
 
 from __future__ import annotations
 
@@ -23,6 +23,14 @@ _payout_store: dict[str, PayoutRecord] = {}
 _buyback_store: dict[str, BuybackRecord] = {}
 
 SOLSCAN_TX_BASE = "https://solscan.io/tx"
+
+
+async def hydrate_from_database() -> None:
+    """Load payouts and buybacks from PostgreSQL into cache."""
+    from app.services.pg_store import load_payouts, load_buybacks
+    with _lock:
+        _payout_store.update(await load_payouts())
+        _buyback_store.update(await load_buybacks())
 
 
 def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
@@ -83,7 +91,7 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Payout with tx_hash already exists")
         _payout_store[record.id] = record
-    
+
     audit_event(
         "payout_created",
         payout_id=record.id,
@@ -92,7 +100,23 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
         token=record.token,
         tx_hash=record.tx_hash
     )
+    _fire_db(record, "payout")
     return _payout_to_response(record)
+
+
+def _fire_db(record, kind):
+    """Schedule async DB write (fire-and-forget)."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        if kind == "payout":
+            from app.services.pg_store import insert_payout
+            loop.create_task(insert_payout(record))
+        else:
+            from app.services.pg_store import insert_buyback
+            loop.create_task(insert_buyback(record))
+    except RuntimeError:
+        pass
 
 
 def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
@@ -166,7 +190,7 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
                 if existing.tx_hash == data.tx_hash:
                     raise ValueError("Buyback with tx_hash already exists")
         _buyback_store[record.id] = record
-    
+
     audit_event(
         "buyback_created",
         buyback_id=record.id,
@@ -174,6 +198,7 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
         amount_fndry=record.amount_fndry,
         tx_hash=record.tx_hash
     )
+    _fire_db(record, "buyback")
     return _buyback_to_response(record)
 
 

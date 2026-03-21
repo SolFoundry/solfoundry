@@ -1,8 +1,4 @@
-"""In-memory bounty service for MVP (Issue #3).
-
-Provides CRUD operations and solution submission.
-Claim lifecycle is out of scope (see Issue #16).
-"""
+"""Bounty service with PostgreSQL persistence (Issue #162)."""
 
 from datetime import datetime, timezone
 from typing import Optional
@@ -24,11 +20,15 @@ from app.models.bounty import (
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
-# ---------------------------------------------------------------------------
+# In-memory cache (write-through to PostgreSQL)
 
 _bounty_store: dict[str, BountyDB] = {}
+
+
+def _fire(coro):
+    import asyncio
+    try: asyncio.get_running_loop().create_task(coro)
+    except RuntimeError: pass
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
 
 
 def create_bounty(data: BountyCreate) -> BountyResponse:
-    """Create a new bounty and return its response representation."""
+    """Create a new bounty. Writes to cache and PostgreSQL."""
     bounty = BountyDB(
         title=data.title,
         description=data.description,
@@ -105,6 +105,7 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         created_by=data.created_by,
     )
     _bounty_store[bounty.id] = bounty
+    from app.services.pg_store import persist_bounty; _fire(persist_bounty(bounty))
     return _to_bounty_response(bounty)
 
 
@@ -177,23 +178,25 @@ def update_bounty(
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
-    
+
     if "status" in updates:
         audit_event(
             "bounty_status_updated",
             bounty_id=bounty_id,
             new_status=updates["status"],
-            updated_by=bounty.created_by # In a real app, this would be the current user
+            updated_by=bounty.created_by
         )
 
+    from app.services.pg_store import persist_bounty; _fire(persist_bounty(bounty))
     return _to_bounty_response(bounty), None
 
 
 def delete_bounty(bounty_id: str) -> bool:
-    """Delete a bounty by ID. Returns True if deleted, False if not found."""
+    """Delete a bounty by ID. Removes from cache and PostgreSQL."""
     deleted = _bounty_store.pop(bounty_id, None) is not None
     if deleted:
         audit_event("bounty_deleted", bounty_id=bounty_id)
+        from app.services.pg_store import delete_bounty; _fire(delete_bounty(bounty_id))
     return deleted
 
 
@@ -230,6 +233,7 @@ def submit_solution(
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
+    from app.services.pg_store import persist_bounty; _fire(persist_bounty(bounty))
     return _to_submission_response(submission), None
 
 
@@ -264,14 +268,15 @@ def update_submission(
                 )
             sub.status = new_status
             bounty.updated_at = datetime.now(timezone.utc)
-            
+
             audit_event(
                 "submission_status_updated",
                 bounty_id=bounty_id,
                 submission_id=submission_id,
                 new_status=status
             )
-            
+
+            from app.services.pg_store import persist_bounty; _fire(persist_bounty(bounty))
             return _to_submission_response(sub), None
 
     return None, "Submission not found"

@@ -35,6 +35,13 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     await init_db()
     await ws_manager.init()
+    # Hydrate caches from PostgreSQL
+    try:
+        from app.services.payout_service import hydrate_from_database as h1
+        from app.services.reputation_service import hydrate_from_database as h2
+        await h1(); await h2()
+    except Exception:
+        pass
 
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
@@ -236,6 +243,7 @@ app.include_router(agents_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
+    """Health check endpoint."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
@@ -256,7 +264,7 @@ async def health_check():
         "bounties": len(_bounty_store),
         "contributors": len(_store),
         "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
 
 

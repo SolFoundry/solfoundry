@@ -7,11 +7,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase
 
-
-class Base(DeclarativeBase):
-    pass
+from app.database import Base
 
 
 class ContributorDB(Base):

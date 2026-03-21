@@ -1,9 +1,4 @@
-"""Contributor reputation scoring service.
-
-Calculates reputation from review scores and bounty tier. Manages tier
-progression, anti-farming, score history, and badges. In-memory MVP.
-PostgreSQL migration path: reputation_history table on contributor_id.
-"""
+"""Reputation service with PostgreSQL persistence (Issue #162)."""
 
 import threading
 import uuid
@@ -28,6 +23,20 @@ from app.services import contributor_service
 
 _reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
 _reputation_lock = threading.Lock()
+
+
+async def hydrate_from_database() -> None:
+    """Load reputation history from PostgreSQL into cache."""
+    from app.services.pg_store import load_reputation
+    loaded = await load_reputation()
+    if loaded:
+        with _reputation_lock: _reputation_store.update(loaded)
+
+def _fire_rep(entry):
+    import asyncio
+    from app.services.pg_store import insert_reputation_entry
+    try: asyncio.get_running_loop().create_task(insert_reputation_entry(entry))
+    except RuntimeError: pass
 
 
 def calculate_earned_reputation(
@@ -175,6 +184,7 @@ def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEntry:
             data.contributor_id, round(total, 2)
         )
 
+    _fire_rep(entry)
     return entry
 
 

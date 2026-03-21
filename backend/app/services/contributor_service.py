@@ -1,4 +1,4 @@
-"""In-memory contributor service for MVP."""
+"""Contributor service (Issue #162: PostgreSQL persistence)."""
 
 import uuid
 from datetime import datetime, timezone
