@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 
-from app.services.webhook_service import (
+from backend.app.services.webhook_service import (
     WebhookVerificationError,
     parse_event,
     verify_signature,

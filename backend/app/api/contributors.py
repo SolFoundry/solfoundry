@@ -1,50 +1,38 @@
-"""Contributor profiles API router."""
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
 
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
-from app.models.contributor import ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate
-from app.services import contributor_service
+from ..db import SessionLocal
+from ..models.database import Contributor
+from ..models.schemas import ContributorRead
+from sqlalchemy import select
 
-router = APIRouter(prefix="/contributors", tags=["contributors"])
+router = APIRouter()
 
+# Dependency to get the database session
+async def get_db():
+    async with SessionLocal() as session:
+        yield session
 
-@router.get("", response_model=ContributorListResponse)
-async def list_contributors(
-    search: Optional[str] = Query(None, description="Search by username or display name"),
-    skills: Optional[str] = Query(None, description="Comma-separated skill filter"),
-    badges: Optional[str] = Query(None, description="Comma-separated badge filter"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-):
-    skill_list = skills.split(",") if skills else None
-    badge_list = badges.split(",") if badges else None
-    return contributor_service.list_contributors(search=search, skills=skill_list, badges=badge_list, skip=skip, limit=limit)
+@router.get("/", response_model=List[ContributorRead])
+async def list_contributors(db: AsyncSession = Depends(get_db)):
+    """
+    Fetch all contributors from PostgreSQL.
+    Requirement: Zero downtime migration path (Schema stays compatible)
+    """
+    result = await db.execute(select(Contributor))
+    contributors = result.scalars().all()
+    return contributors
 
-
-@router.post("", response_model=ContributorResponse, status_code=201)
-async def create_contributor(data: ContributorCreate):
-    if contributor_service.get_contributor_by_username(data.username):
-        raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
-    return contributor_service.create_contributor(data)
-
-
-@router.get("/{contributor_id}", response_model=ContributorResponse)
-async def get_contributor(contributor_id: str):
-    c = contributor_service.get_contributor(contributor_id)
-    if not c:
-        raise HTTPException(status_code=404, detail="Contributor not found")
-    return c
-
-
-@router.patch("/{contributor_id}", response_model=ContributorResponse)
-async def update_contributor(contributor_id: str, data: ContributorUpdate):
-    c = contributor_service.update_contributor(contributor_id, data)
-    if not c:
-        raise HTTPException(status_code=404, detail="Contributor not found")
-    return c
-
-
-@router.delete("/{contributor_id}", status_code=204)
-async def delete_contributor(contributor_id: str):
-    if not contributor_service.delete_contributor(contributor_id):
-        raise HTTPException(status_code=404, detail="Contributor not found")
+@router.get("/{github_id}", response_model=ContributorRead)
+async def get_contributor(github_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Fetch a single contributor by their GitHub ID.
+    """
+    result = await db.execute(
+        select(Contributor).where(Contributor.github_id == github_id)
+    )
+    contributor = result.scalar_one_or_none()
+    if not contributor:
+        raise HTTPException(status_code=44, detail="Contributor not found")
+    return contributor

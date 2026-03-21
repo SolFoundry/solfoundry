@@ -7,11 +7,14 @@ class Contributor(Base):
     __tablename__ = "contributors"
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    github_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
-    username: Mapped[str] = mapped_column(String(100))
-    wallet_address: Mapped[str] = mapped_column(String(44))  # Solana length
+    github_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
+    username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True) # Added for OAuth
+    wallet_address: Mapped[str | None] = mapped_column(String(44), unique=True, index=True, nullable=True)
+    
     reputation_score: Mapped[float] = mapped_column(Float, default=0.0)
     t1_completions: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow) # Added per requirement
     
     submissions = relationship("Submission", back_populates="contributor")
 

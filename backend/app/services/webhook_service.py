@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any
 
-from app.models.webhook import EVENT_MODEL_MAP
+from backend.app.models.webhook import EVENT_MODEL_MAP
 
 logger = logging.getLogger(__name__)
 

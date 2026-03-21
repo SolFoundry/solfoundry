@@ -3,8 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.contributors import router as contributors_router
-from app.api.webhooks.github import router as github_webhook_router
+from backend.app.api.contributors import router as contributors_router
+from backend.app.api.webhooks.github import router as github_webhook_router
 
 app = FastAPI(
     title="SolFoundry Backend",
