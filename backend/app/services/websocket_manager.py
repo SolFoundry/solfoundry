@@ -143,7 +143,7 @@ class _RateBucket:
 
 @dataclass
 class _Connection:
-    """_Connection implementation."""
+    """Tracks a single WebSocket connection: socket reference, user ID, and active channels."""
     ws: WebSocket
     user_id: str
     channels: Set[str] = field(default_factory=set)
@@ -153,7 +153,7 @@ class WebSocketManager:
     """Coordinates WS connections with auth, heartbeat, rate-limit, pub/sub."""
 
     def __init__(self, adapter: Optional[PubSubAdapter] = None) -> None:
-        """Initialize the instance."""
+        """Set up connection registry, subscription map, rate-limit buckets, and pub/sub adapter."""
         self._connections: Dict[str, _Connection] = {}
         self._subscriptions: Dict[str, Set[str]] = {}
         self._rate_buckets: Dict[str, _RateBucket] = {}
@@ -178,7 +178,7 @@ class WebSocketManager:
             self._adapter = InMemoryPubSubAdapter(self)
 
     async def shutdown(self) -> None:
-        """Handle shutdown operation."""
+        """Gracefully close all WebSocket connections and release pub/sub resources."""
         for conn in list(self._connections.values()):
             try:
                 await conn.ws.close(code=1001)
@@ -219,7 +219,7 @@ class WebSocketManager:
     # -- rate limiting --
 
     def _check_rate_limit(self, user_id: str) -> bool:
-        """Handle  check rate limit operation."""
+        """Return True if the user is under the per-window message limit, else False."""
         now = time.monotonic()
         bucket = self._rate_buckets.setdefault(user_id, _RateBucket())
         bucket.timestamps = [
@@ -272,7 +272,7 @@ class WebSocketManager:
         return connection_id
 
     async def disconnect(self, connection_id: str) -> None:
-        """Handle disconnect operation."""
+        """Remove a connection and clean up all its channel subscriptions."""
         conn = self._connections.pop(connection_id, None)
         if conn is None:
             return
