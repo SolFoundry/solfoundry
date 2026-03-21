@@ -1,10 +1,13 @@
-"""Contributor reputation scoring service.
+"""Reputation service with PostgreSQL write-through persistence (Issue #162).
 
-Calculates reputation from review scores and bounty tier. Manages tier
-progression, anti-farming, score history, and badges. In-memory MVP.
-PostgreSQL migration path: reputation_history table on contributor_id.
+Calculates reputation from review scores and bounty tier.  Manages tier
+progression, anti-farming, score history, and badges.  On startup
+``hydrate_from_database`` loads history from PostgreSQL; new entries are
+written through so the database is the durable source of truth.
 """
 
+import asyncio
+import logging
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -26,8 +29,41 @@ from app.models.reputation import (
 )
 from app.services import contributor_service
 
+logger = logging.getLogger(__name__)
+
 _reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
 _reputation_lock = threading.Lock()
+
+
+async def hydrate_from_database() -> None:
+    """Load reputation history from PostgreSQL into in-memory cache.
+
+    Called once during application startup.  Errors propagate so the
+    lifespan handler can log them and decide on fallback behaviour.
+    """
+    from app.services.pg_store import load_reputation
+
+    loaded = await load_reputation()
+    if loaded:
+        with _reputation_lock:
+            _reputation_store.update(loaded)
+
+
+def _fire_reputation_write(entry: ReputationHistoryEntry) -> None:
+    """Schedule an async write of a reputation entry to PostgreSQL.
+
+    Logs errors via a done-callback so failures are never silent.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        from app.services.pg_store import insert_reputation_entry
+        task = loop.create_task(insert_reputation_entry(entry))
+        task.add_done_callback(
+            lambda t: logger.error("pg_store reputation write failed", exc_info=t.exception())
+            if t.exception() else None
+        )
+    except RuntimeError:
+        pass  # No event loop (sync tests)
 
 
 def calculate_earned_reputation(
@@ -175,6 +211,7 @@ def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEntry:
             data.contributor_id, round(total, 2)
         )
 
+    _fire_reputation_write(entry)
     return entry
 
 

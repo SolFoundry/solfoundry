@@ -1,4 +1,4 @@
-"""In-memory contributor service for MVP."""
+"""Contributor service with in-memory store (Issue #162: shared Base)."""
 
 import uuid
 from datetime import datetime, timezone

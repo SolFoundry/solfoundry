@@ -1,13 +1,17 @@
-"""In-memory bounty service for MVP (Issue #3).
+"""Bounty service with PostgreSQL write-through persistence (Issue #162).
 
-Provides CRUD operations and solution submission.
-Claim lifecycle is out of scope (see Issue #16).
+In-memory cache is the hot read path; every mutation is written through
+to PostgreSQL via ``pg_store`` so the database is the durable source of
+truth.  Write errors are logged but do not block the API response
+(fire-and-forget via ``asyncio.create_task``).
 """
 
+import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Optional
-from app.core.audit import audit_event
 
+from app.core.audit import audit_event
 from app.models.bounty import (
     BountyCreate,
     BountyDB,
@@ -24,11 +28,28 @@ from app.models.bounty import (
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
+# In-memory cache (write-through to PostgreSQL)
 _bounty_store: dict[str, BountyDB] = {}
+
+
+def _fire_and_forget(coro) -> None:
+    """Schedule an async coroutine as a background task.
+
+    Attaches a done-callback that logs exceptions so write failures
+    are never silently swallowed.  No-ops when called outside an
+    async context (e.g. synchronous tests).
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(coro)
+        task.add_done_callback(
+            lambda t: logger.error("pg_store background write failed", exc_info=t.exception())
+            if t.exception() else None
+        )
+    except RuntimeError:
+        pass  # No event loop (sync tests)
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +58,7 @@ _bounty_store: dict[str, BountyDB] = {}
 
 
 def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
+    """Convert a SubmissionRecord to the public API response schema."""
     return SubmissionResponse(
         id=s.id,
         bounty_id=s.bounty_id,
@@ -50,6 +72,7 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
 
 
 def _to_bounty_response(b: BountyDB) -> BountyResponse:
+    """Convert a BountyDB record to the full API response schema."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyResponse(
         id=b.id,
@@ -70,6 +93,7 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
+    """Convert a BountyDB record to a lightweight list item."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyListItem(
         id=b.id,
@@ -105,6 +129,8 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         created_by=data.created_by,
     )
     _bounty_store[bounty.id] = bounty
+    from app.services.pg_store import persist_bounty
+    _fire_and_forget(persist_bounty(bounty))
     return _to_bounty_response(bounty)
 
 
@@ -186,14 +212,18 @@ def update_bounty(
             updated_by=bounty.created_by # In a real app, this would be the current user
         )
 
+    from app.services.pg_store import persist_bounty
+    _fire_and_forget(persist_bounty(bounty))
     return _to_bounty_response(bounty), None
 
 
 def delete_bounty(bounty_id: str) -> bool:
-    """Delete a bounty by ID. Returns True if deleted, False if not found."""
+    """Delete a bounty by ID. Removes from cache and PostgreSQL."""
     deleted = _bounty_store.pop(bounty_id, None) is not None
     if deleted:
         audit_event("bounty_deleted", bounty_id=bounty_id)
+        from app.services.pg_store import delete_bounty as pg_delete
+        _fire_and_forget(pg_delete(bounty_id))
     return deleted
 
 
@@ -230,6 +260,8 @@ def submit_solution(
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
+    from app.services.pg_store import persist_bounty
+    _fire_and_forget(persist_bounty(bounty))
     return _to_submission_response(submission), None
 
 
@@ -271,7 +303,9 @@ def update_submission(
                 submission_id=submission_id,
                 new_status=status
             )
-            
+
+            from app.services.pg_store import persist_bounty
+            _fire_and_forget(persist_bounty(bounty))
             return _to_submission_response(sub), None
 
     return None, "Submission not found"
