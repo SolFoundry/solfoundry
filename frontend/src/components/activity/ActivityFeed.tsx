@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ActivityEvent, ActivityEventType } from '../../types/activity';
+import { SkeletonActivityFeed } from '../common/Skeleton';
+import { NoActivityYet } from '../common/EmptyState';
 
 // ── Relative time formatting ────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ interface ActivityFeedProps {
   viewAllHref?: string;
   className?: string;
   variant?: 'sidebar' | 'full';
+  loading?: boolean;
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
@@ -73,6 +76,7 @@ export function ActivityFeed({
   viewAllHref = '#',
   className = '',
   variant = 'sidebar',
+  loading = false,
 }: ActivityFeedProps) {
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
 
@@ -103,6 +107,11 @@ export function ActivityFeed({
 
   const isFullWidth = variant === 'full';
 
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (loading) {
+    return <SkeletonActivityFeed count={5} className={className} />;
+  }
+
   // ── Empty state ─────────────────────────────────────────────────────────
   if (events.length === 0) {
     return (
@@ -113,11 +122,7 @@ export function ActivityFeed({
         <div className="p-5 border-b border-surface-300">
           <h2 className="text-sm font-semibold text-white">{title}</h2>
         </div>
-        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div className="text-3xl mb-3 opacity-40">📭</div>
-          <p className="text-sm text-gray-500">No activity yet</p>
-          <p className="text-xs text-gray-600 mt-1">Events will appear here as the platform comes alive</p>
-        </div>
+        <NoActivityYet />
       </div>
     );
   }
