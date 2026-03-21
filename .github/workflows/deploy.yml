@@ -179,7 +179,9 @@ jobs:
           echo "Health check failed"; exit 1
 
   # ==================== DEPLOY TO PRODUCTION ====================
-  # Production environment MUST have "Required reviewers" protection rule.
+  # Production environment MUST have "Required reviewers" protection rule
+  # configured in GitHub Settings > Environments > production. This gates
+  # every production deploy behind manual approval from designated reviewers.
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -245,7 +247,6 @@ jobs:
         run: pip install -r requirements.txt alembic && alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-        continue-on-error: true
 
   migrate-production:
     name: Run Production Migrations
@@ -262,7 +263,6 @@ jobs:
         run: pip install -r requirements.txt alembic && alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        continue-on-error: true
 
   # ==================== DEPLOYMENT SUMMARY ====================
   deploy-status:
