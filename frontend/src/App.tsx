@@ -76,6 +76,7 @@ const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -129,8 +130,8 @@ function AppLayout() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/bounties" replace />} />
+          {/* 404 Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>
