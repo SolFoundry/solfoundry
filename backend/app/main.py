@@ -21,11 +21,15 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.stats import router as stats_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
+from app.services.bounty_lifecycle_service import periodic_deadline_check
+from app.services.escrow_service import periodic_escrow_refund
 
 # Initialize logging
 setup_logging()
@@ -37,6 +41,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     await init_db()
     await ws_manager.init()
+
+    # Hydrate in-memory caches from PostgreSQL (source of truth)
+    try:
+        from app.services.payout_service import hydrate_from_database as hydrate_payouts
+        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+
+        await hydrate_payouts()
+        await hydrate_reputation()
+        logger.info("PostgreSQL hydration complete (payouts + reputation)")
+    except Exception as exc:
+        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
 
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
@@ -62,17 +77,33 @@ async def lifespan(app: FastAPI):
     # Start auto-approve checker (every 5 minutes)
     auto_approve_task = asyncio.create_task(periodic_auto_approve(interval_seconds=300))
 
+    # Start deadline enforcement checker (every 60 seconds)
+    deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
+
+    # Start escrow auto-refund checker (every 60 seconds)
+    escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
+
     yield
 
     # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
     auto_approve_task.cancel()
+    deadline_task.cancel()
+    escrow_refund_task.cancel()
     try:
         await sync_task
     except asyncio.CancelledError:
         pass
     try:
         await auto_approve_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await deadline_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await escrow_refund_task
     except asyncio.CancelledError:
         pass
     await ws_manager.shutdown()
@@ -243,10 +274,14 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
+# Escrow: /api/escrow/*
+app.include_router(escrow_router, prefix="/api")
+
+# Stats: /api/stats (public endpoint)
+app.include_router(stats_router, prefix="/api")
+
 # System Health: /health
 app.include_router(health_router)
-
-
 
 
 @app.post("/api/sync", tags=["admin"])
