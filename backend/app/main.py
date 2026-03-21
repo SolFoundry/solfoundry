@@ -20,6 +20,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.disputes import router as disputes_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -116,6 +117,7 @@ TAGS_METADATA = [
     {"name": "payouts", "description": "Financial operations: treasury stats, escrow, and buybacks"},
     {"name": "notifications", "description": "Real-time user alerts and event history"},
     {"name": "agents", "description": "AI Agent registration and coordination"},
+    {"name": "disputes", "description": "Dispute resolution: initiate, evidence, mediation, resolve"},
     {"name": "websocket", "description": "Real-time event streaming and pub/sub"},
 ]
 
@@ -232,6 +234,9 @@ app.include_router(websocket_router)
 
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
+
+# Disputes: /api/disputes/*
+app.include_router(disputes_router, prefix="/api")
 
 
 @app.get("/health")
