@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 
 from app.models.leaderboard import (
     CategoryFilter,
-    LeaderboardResponse,
     TierFilter,
     TimePeriod,
 )
@@ -28,9 +27,13 @@ _RANGE_MAP = {
 
 @router.get("/leaderboard")
 async def leaderboard(
-    period: Optional[TimePeriod] = Query(None, description="Time period: week, month, or all"),
+    period: Optional[TimePeriod] = Query(
+        None, description="Time period: week, month, or all"
+    ),
     range: Optional[str] = Query(None, description="Frontend range: 7d, 30d, 90d, all"),
-    tier: Optional[TierFilter] = Query(None, description="Filter by bounty tier: 1, 2, or 3"),
+    tier: Optional[TierFilter] = Query(
+        None, description="Filter by bounty tier: 1, 2, or 3"
+    ),
     category: Optional[CategoryFilter] = Query(None, description="Filter by category"),
     limit: int = Query(50, ge=1, le=100, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
@@ -58,20 +61,26 @@ async def leaderboard(
     # Return frontend-friendly format: array of Contributor objects
     contributors = []
     for entry in result.entries:
-        contributors.append({
-            "rank": entry.rank,
-            "username": entry.username,
-            "avatarUrl": entry.avatar_url or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
-            "points": int(entry.reputation_score * 100) if entry.reputation_score else 0,
-            "bountiesCompleted": entry.bounties_completed,
-            "earningsFndry": entry.total_earned,
-            "earningsSol": 0,
-            "streak": max(1, entry.bounties_completed // 2),
-            "topSkills": [],
-        })
+        contributors.append(
+            {
+                "rank": entry.rank,
+                "username": entry.username,
+                "avatarUrl": entry.avatar_url
+                or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
+                "points": int(entry.reputation_score * 100)
+                if entry.reputation_score
+                else 0,
+                "bountiesCompleted": entry.bounties_completed,
+                "earningsFndry": entry.total_earned,
+                "earningsSol": 0,
+                "streak": max(1, entry.bounties_completed // 2),
+                "topSkills": [],
+            }
+        )
 
     # Enrich with skills from contributor store
     from app.services.contributor_service import _store
+
     for c in contributors:
         for db_contrib in _store.values():
             if db_contrib.username == c["username"]:

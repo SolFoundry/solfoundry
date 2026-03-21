@@ -31,15 +31,38 @@ class BountyStatus(str, Enum):
 
     OPEN = "open"
     IN_PROGRESS = "in_progress"
+    UNDER_REVIEW = "under_review"
     COMPLETED = "completed"
+    DISPUTED = "disputed"
     PAID = "paid"
+    CANCELLED = "cancelled"
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
-    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS},
-    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN},
-    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS},
+    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
+    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
+    BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
+    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED},
+    BountyStatus.DISPUTED: {BountyStatus.COMPLETED, BountyStatus.CANCELLED, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
+    BountyStatus.CANCELLED: set(),  # terminal
+}
+
+class SubmissionStatus(str, Enum):
+    """Lifecycle status of a solution submission."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    DISPUTED = "disputed"
+    PAID = "paid"
+    REJECTED = "rejected"
+
+VALID_SUBMISSION_TRANSITIONS: dict[SubmissionStatus, set[SubmissionStatus]] = {
+    SubmissionStatus.PENDING: {SubmissionStatus.APPROVED, SubmissionStatus.DISPUTED, SubmissionStatus.REJECTED},
+    SubmissionStatus.APPROVED: {SubmissionStatus.PAID, SubmissionStatus.DISPUTED},
+    SubmissionStatus.DISPUTED: {SubmissionStatus.APPROVED, SubmissionStatus.REJECTED},
+    SubmissionStatus.PAID: set(),
+    SubmissionStatus.REJECTED: set(),
 }
 
 # Valid status values for webhook processor
@@ -72,6 +95,8 @@ class SubmissionRecord(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
+    status: SubmissionStatus = SubmissionStatus.PENDING
+    ai_score: float = 0.0
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -79,7 +104,7 @@ class SubmissionCreate(BaseModel):
     """Payload for submitting a solution."""
 
     pr_url: str = Field(..., min_length=1)
-    submitted_by: str = Field(..., min_length=1, max_length=100)
+    submitted_by: str = Field("system", min_length=1, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
 
     @field_validator("pr_url")
@@ -98,6 +123,8 @@ class SubmissionResponse(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
+    status: SubmissionStatus = SubmissionStatus.PENDING
+    ai_score: float = 0.0
     submitted_at: datetime
 
 
@@ -118,6 +145,12 @@ def _validate_skills(skills: list[str]) -> list[str]:
                 "Skills must be lowercase alphanumeric, may contain . + - _"
             )
     return normalised
+
+
+class SubmissionStatusUpdate(BaseModel):
+    """Request model for updating submission status."""
+
+    status: str
 
 
 class BountyCreate(BaseModel):
@@ -216,6 +249,7 @@ class BountyListItem(BaseModel):
     github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
     created_by: str
+    submissions: list[SubmissionResponse] = Field(default_factory=list)
     submission_count: int = 0
     created_at: datetime
 
@@ -227,3 +261,102 @@ class BountyListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+# ---------------------------------------------------------------------------
+# Search models
+# ---------------------------------------------------------------------------
+
+VALID_SORT_FIELDS = {
+    "newest",
+    "reward_high",
+    "reward_low",
+    "deadline",
+    "submissions",
+    "best_match",
+}
+
+VALID_CATEGORIES = {
+    "smart-contract",
+    "frontend",
+    "backend",
+    "design",
+    "content",
+    "security",
+    "devops",
+    "documentation",
+}
+
+
+class BountySearchParams(BaseModel):
+    """Parameters for the bounty search endpoint."""
+
+    q: str = Field("", max_length=200, description="Full-text search query")
+    status: Optional[BountyStatus] = None
+    tier: Optional[int] = Field(None, ge=1, le=3)
+    skills: list[str] = Field(default_factory=list)
+    category: Optional[str] = None
+    creator_type: Optional[str] = Field(
+        None, pattern=r"^(platform|community)$", description="platform or community"
+    )
+    creator_id: Optional[str] = Field(None, description="Filter by creator's ID/wallet")
+    reward_min: Optional[float] = Field(None, ge=0)
+    reward_max: Optional[float] = Field(None, ge=0)
+    deadline_before: Optional[datetime] = None
+    sort: str = Field("newest", description="Sort order")
+    page: int = Field(1, ge=1)
+    per_page: int = Field(20, ge=1, le=100)
+
+    @field_validator("sort")
+    @classmethod
+    def validate_sort(cls, v: str) -> str:
+        if v not in VALID_SORT_FIELDS:
+            raise ValueError(f"Invalid sort. Must be one of: {VALID_SORT_FIELDS}")
+        return v
+
+    @field_validator("reward_max")
+    @classmethod
+    def validate_reward_range(cls, v: Optional[float], info) -> Optional[float]:
+        reward_min = info.data.get("reward_min")
+        if v is not None and reward_min is not None and v < reward_min:
+            raise ValueError("reward_max must be >= reward_min")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_CATEGORIES:
+            raise ValueError(f"Invalid category. Must be one of: {VALID_CATEGORIES}")
+        return v
+
+
+class BountySearchResult(BountyListItem):
+    """A single search result with relevance metadata."""
+
+    description: str = ""
+    relevance_score: float = 0.0
+    skill_match_count: int = 0
+
+
+class BountySearchResponse(BaseModel):
+    """Paginated search results."""
+
+    items: list[BountySearchResult]
+    total: int
+    page: int
+    per_page: int
+    query: str = ""
+
+
+class AutocompleteItem(BaseModel):
+    """A single autocomplete suggestion."""
+
+    text: str
+    type: str  # "title" or "skill"
+    bounty_id: Optional[str] = None
+
+
+class AutocompleteResponse(BaseModel):
+    """Autocomplete suggestions."""
+
+    suggestions: list[AutocompleteItem]
