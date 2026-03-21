@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests base58
+        run: pip install openai anthropic requests base58 httpx
 
       - name: Fetch review engine (private)
         env:
@@ -44,10 +44,6 @@ jobs:
             "https://api.github.com/repos/SolFoundry/solfoundry-review/contents/scripts/ai_review.py" \
             -o .github/scripts/ai_review.py
           echo "Review engine fetched ($(wc -c < .github/scripts/ai_review.py) bytes)"
-          curl -sf -H "Authorization: token $REVIEW_PAT" \
-            -H "Accept: application/vnd.github.v3.raw" \
-            "https://api.github.com/repos/SolFoundry/solfoundry-review/contents/scripts/filter_diff.py" \
-            -o .github/scripts/filter_diff.py || echo "filter_diff.py not available — skipping"
 
       - name: Resolve PR number
         id: pr
@@ -84,81 +80,7 @@ jobs:
           # Write body to file to avoid shell escaping issues
           echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
 
-      - name: Check submission rate limit
-        id: ratelimit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_TITLE: ${{ steps.pr.outputs.title }}
-        run: |
-          PR_NUM="${{ steps.pr.outputs.number }}"
-          PR_AUTHOR="${{ steps.pr.outputs.author }}"
-          REPO="${{ github.repository }}"
-
-          # Extract linked issue number safely (avoid shell interpretation of PR body)
-          ISSUE_NUM=$(python3 -c "
-          import re, os
-          title = os.environ.get('PR_TITLE', '')
-          body = ''
-          if os.path.exists('/tmp/pr_body.txt'):
-              body = open('/tmp/pr_body.txt').read()
-          text = title + ' ' + body
-          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
-          print(m.group(1) if m else '')
-          ")
-
-          if [ -z "$ISSUE_NUM" ]; then
-            echo "No linked issue — skipping rate limit check"
-            echo "skip=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Count ALL PRs (open + closed + merged) by same author targeting same issue
-          ALL_AUTHOR_PRS=$(gh pr list --repo $REPO --state all --author "$PR_AUTHOR" --limit 100 --json number,title,body)
-          ATTEMPTS=$(echo "$ALL_AUTHOR_PRS" | python3 -c "
-          import sys, json, re
-          prs = json.loads(sys.stdin.read())
-          issue_num = '$ISSUE_NUM'
-          if not issue_num:
-              print(0)
-              sys.exit()
-          count = 0
-          for pr in prs:
-              text = (pr.get('title','') + ' ' + (pr.get('body','') or '')).lower()
-              if re.search(r'(?:closes|fixes|resolves)\s+#(?:\S+#)?' + issue_num + r'\b', text):
-                  count += 1
-          print(count)
-          ")
-
-          echo "Author $PR_AUTHOR has $ATTEMPTS submission(s) for issue #$ISSUE_NUM"
-
-          if [ "$ATTEMPTS" -gt 5 ]; then
-            echo "RATE LIMIT: $PR_AUTHOR exceeded max 5 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
-
-            python3 -c "
-          import subprocess, sys
-          author = '$PR_AUTHOR'
-          attempts = '$ATTEMPTS'
-          pr_num = '$PR_NUM'
-          repo = '$REPO'
-          body = (
-              '⚠️ **Submission limit reached**\n\n'
-              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 5). '
-              'Please make sure your code fully addresses the review feedback before submitting again.\n\n'
-              'If you believe this is an error, reach out in our community.\n\n'
-              '---\n*SolFoundry Review Bot*'
-          )
-          subprocess.run(['gh', 'pr', 'comment', pr_num, '--repo', repo, '--body', body], check=True)
-          subprocess.run(['gh', 'pr', 'close', pr_num, '--repo', repo], check=True)
-          "
-
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "skip=false" >> $GITHUB_OUTPUT
-
       - name: Check for existing review (dedup)
-        if: steps.ratelimit.outputs.skip != 'true'
         id: dedup
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -174,21 +96,6 @@ jobs:
             exit 0
           fi
 
-          # For workflow_dispatch (bot-triggered re-reviews after new commits),
-          # delete old review comments so the review runs fresh
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Workflow dispatch — clearing old review for re-review"
-            # Delete old bot review comments
-            OLD_COMMENT_IDS=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
-              --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete")) | .id] | .[]' 2>/dev/null || true)
-            for CID in $OLD_COMMENT_IDS; do
-              gh api -X DELETE "repos/${REPO}/issues/comments/${CID}" 2>/dev/null || true
-              echo "Deleted old review comment $CID"
-            done
-            echo "skip=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           # Check if a multi-LLM review comment already exists on this PR
           EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
             --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | test("Score:|Multi-LLM|Review Summary|Final Score|review-complete"))] | length' 2>/dev/null || echo "0")
@@ -200,57 +107,31 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get PR diff (merge-base, excludes merge commit artifacts)
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
+      - name: Get PR diff
+        if: steps.dedup.outputs.skip != 'true'
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUM="${{ steps.pr.outputs.number }}"
-          REPO="${{ github.repository }}"
-
-          # Fetch PR head ref
-          PR_HEAD=$(gh pr view $PR_NUM --repo $REPO --json headRefOid -q '.headRefOid')
-          PR_BASE=$(gh pr view $PR_NUM --repo $REPO --json baseRefOid -q '.baseRefOid')
-
-          # Get merge base to diff only contributor's changes
-          git fetch origin main --depth=300 2>/dev/null || true
-          git fetch origin pull/$PR_NUM/head:pr-review-head --depth=300 2>/dev/null || true
-
-          MERGE_BASE=$(git merge-base origin/main pr-review-head 2>/dev/null || echo "")
-
-          if [ -n "$MERGE_BASE" ]; then
-            # Merge-base diff: only contributor's own changes, no merge commit artifacts
-            git diff $MERGE_BASE pr-review-head -- . ':!node_modules' ':!vendor' ':!*.lock' ':!package-lock.json' > /tmp/pr_diff.txt
-            echo "diff_method=merge-base" >> $GITHUB_OUTPUT
-          else
-            # Fallback to gh pr diff if merge-base fails
-            gh pr diff $PR_NUM --repo $REPO > /tmp/pr_diff.txt
-            echo "diff_method=gh-pr-diff-fallback" >> $GITHUB_OUTPUT
-          fi
-
+          gh pr diff ${{ steps.pr.outputs.number }} --repo ${{ github.repository }} > /tmp/pr_diff.txt
           echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
 
       - name: Get bounty context and submission order
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
+        if: steps.dedup.outputs.skip != 'true'
         id: bounty
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_TITLE: ${{ steps.pr.outputs.title }}
         run: |
+          # Read PR body from file (handles both triggers)
+          if [ -f /tmp/pr_body.txt ]; then
+            PR_BODY=$(cat /tmp/pr_body.txt)
+          else
+            PR_BODY="${{ github.event.pull_request.body }}"
+          fi
           REPO="${{ github.repository }}"
 
-          # Extract linked issue number safely (avoid shell interpretation of PR body)
-          ISSUE_NUM=$(python3 -c "
-          import re, os
-          title = os.environ.get('PR_TITLE', '')
-          body = ''
-          if os.path.exists('/tmp/pr_body.txt'):
-              body = open('/tmp/pr_body.txt').read()
-          text = title + ' ' + body
-          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
-          print(m.group(1) if m else '')
-          ")
+          # Extract linked issue number from PR body (Closes #N)
+          ISSUE_NUM=$(echo "$PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+#\K\d+' | head -1)
 
           if [ -n "$ISSUE_NUM" ]; then
             echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
@@ -317,16 +198,14 @@ jobs:
             echo "reward=$REWARD" >> $GITHUB_OUTPUT
 
             # Count how many PRs target this issue (submission order)
-            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,title,body 2>/dev/null)
+            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,body 2>/dev/null)
             ORDER=$(echo "$ALL_PRS" | python3 -c "
           import sys,json,re
           prs=json.loads(sys.stdin.read())
           count=0
           for pr in prs:
-              title=(pr.get('title','') or '').lower()
               body=(pr.get('body','') or '').lower()
-              text=title+' '+body
-              if re.search(r'(?:closes|fixes|resolves)\s+#(?:\S+#)?$ISSUE_NUM\b', text):
+              if re.search(r'(?:closes|fixes|resolves)\s+#$ISSUE_NUM', body):
                   count+=1
           print(count)
           " 2>/dev/null)
@@ -342,7 +221,7 @@ jobs:
           fi
 
       - name: Check for duplicate submissions
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true' && steps.bounty.outputs.issue_num != ''
+        if: steps.dedup.outputs.skip != 'true' && steps.bounty.outputs.issue_num != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -362,7 +241,7 @@ jobs:
           # Get all open PRs
           result = subprocess.run(
               ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "100",
-               "--json", "number,author,title,body"],
+               "--json", "number,author,body"],
               capture_output=True, text=True
           )
           prs = json.loads(result.stdout) if result.stdout else []
@@ -372,12 +251,10 @@ jobs:
           for pr in prs:
               if str(pr["number"]) == str(pr_num):
                   continue  # Skip current PR
-              title = (pr.get("title", "") or "").lower()
               body = (pr.get("body", "") or "").lower()
-              text = title + " " + body
               author = pr.get("author", {}).get("login", "")
               if author == pr_author:
-                  if re.search(rf"(?:closes|fixes|resolves)\s+#(?:\S+#)?{issue_num}\b", text):
+                  if re.search(rf"(?:closes|fixes|resolves)\s+#{issue_num}\b", body):
                       duplicates.append(pr["number"])
 
           if duplicates:
@@ -399,7 +276,7 @@ jobs:
           PYEOF
 
       - name: Fetch CodeRabbit analysis (private context for LLM judges)
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
+        if: steps.dedup.outputs.skip != 'true'
         id: coderabbit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -515,102 +392,8 @@ jobs:
               print("No CodeRabbit data available — LLMs will review without it")
           PYEOF
 
-      - name: Check for prior reviews (resubmission detection)
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
-        id: prior_review
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REPO="${{ github.repository }}"
-          PR_AUTHOR="${{ steps.pr.outputs.author }}"
-          BOUNTY_ISSUE="${{ steps.bounty.outputs.issue_num }}"
-          CURRENT_PR="${{ steps.pr.outputs.number }}"
-
-          if [ -z "$BOUNTY_ISSUE" ]; then
-            echo '{"previous_issues":[],"previous_score":"none","is_resubmission":false}' > /tmp/prior_review_context.json
-            echo "No bounty issue — skipping resubmission check"
-            exit 0
-          fi
-
-          python3 -c "
-          import subprocess, json, re, sys
-
-          repo = '$REPO'
-          author = '$PR_AUTHOR'
-          issue = '$BOUNTY_ISSUE'
-          current = '$CURRENT_PR'
-
-          # Find all PRs that reference this bounty issue
-          result = subprocess.run(
-              ['gh', 'api', f'repos/{repo}/issues/{issue}/timeline', '--paginate',
-               '--jq', '[.[] | select(.event==\"cross-referenced\") | select(.source.issue.pull_request != null) | {number: .source.issue.number, user: .source.issue.user.login, state: .source.issue.state}]'],
-              capture_output=True, text=True
-          )
-
-          try:
-              refs = json.loads(result.stdout)
-          except:
-              refs = []
-
-          # Find prior PRs by same author (closed or with reviews), excluding current PR
-          prior_prs = [r for r in refs if r.get('user') == author and str(r.get('number')) != current]
-
-          if not prior_prs:
-              json.dump({'previous_issues': [], 'previous_score': 'none', 'is_resubmission': False},
-                        open('/tmp/prior_review_context.json', 'w'))
-              sys.exit(0)
-
-          # Get the most recent prior PR's review comment
-          last_pr = max(prior_prs, key=lambda x: x.get('number', 0))
-          comments_result = subprocess.run(
-              ['gh', 'api', f'repos/{repo}/issues/{last_pr[\"number\"]}/comments',
-               '--jq', '[.[] | select(.body | contains(\"Multi-LLM Code Review\")) | .body][-1]'],
-              capture_output=True, text=True
-          )
-
-          body = comments_result.stdout.strip()
-          if not body:
-              json.dump({'previous_issues': [], 'previous_score': 'none', 'is_resubmission': True, 'prior_pr': last_pr['number']},
-                        open('/tmp/prior_review_context.json', 'w'))
-              sys.exit(0)
-
-          # Extract issue titles only (NOT suggestions — anti-gaming)
-          issues = re.findall(r'[-\u2022\u26a0\ufe0f\u274c\U0001f534]\s*\*{0,2}(.+?)\*{0,2}\s*$', body, re.MULTILINE)
-          issues = [i.strip() for i in issues if len(i.strip()) > 10 and len(i.strip()) < 200][:10]
-
-          # Extract previous score
-          score_match = re.search(r'Aggregated Score:\s*([\d.]+)/10', body)
-          prev_score = score_match.group(1) if score_match else 'unknown'
-
-          context = {
-              'previous_issues': issues,
-              'previous_score': prev_score,
-              'is_resubmission': True,
-              'prior_pr': last_pr['number']
-          }
-          json.dump(context, open('/tmp/prior_review_context.json', 'w'))
-          print(f'Found prior review on PR #{last_pr[\"number\"]} (score: {prev_score}, {len(issues)} issues)')
-          "
-
-      - name: Filter diff by bounty domain
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
-        run: |
-          DOMAIN="${{ steps.bounty.outputs.domain }}"
-          STACK="${{ steps.bounty.outputs.stack }}"
-          if [ -f .github/scripts/filter_diff.py ]; then
-            python3 .github/scripts/filter_diff.py \
-              --diff /tmp/pr_diff.txt \
-              --domain "${DOMAIN:-unknown}" \
-              --stack "${STACK:-unknown}" \
-              --output /tmp/pr_diff_filtered.txt
-            mv /tmp/pr_diff_filtered.txt /tmp/pr_diff.txt
-            echo "Diff filtered by domain: $DOMAIN"
-          else
-            echo "filter_diff.py not found — using raw diff"
-          fi
-
       - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
-        if: steps.ratelimit.outputs.skip != 'true' && steps.dedup.outputs.skip != 'true'
+        if: steps.dedup.outputs.skip != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -630,16 +413,25 @@ jobs:
           BOUNTY_STACK: ${{ steps.bounty.outputs.stack }}
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: |
-          # Load PR body, bounty spec, and CodeRabbit analysis safely via Python
-          # SECURITY: Never load untrusted PR body into shell variables — use file reads in Python
-          python3 -c "
-          import os
-          for var, path in [('PR_BODY', '/tmp/pr_body.txt'), ('BOUNTY_SPEC', '/tmp/bounty_spec.txt'), ('CODERABBIT_ANALYSIS', '/tmp/coderabbit_analysis.json')]:
-              val = ''
-              if os.path.exists(path):
-                  val = open(path).read()
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  delim = 'GHEOF_' + var
-                  f.write(f'{var}<<{delim}\n{val}\n{delim}\n')
-          "
+          # Load PR body from file to avoid shell escaping
+          if [ -f /tmp/pr_body.txt ]; then
+            export PR_BODY
+            PR_BODY=$(cat /tmp/pr_body.txt)
+          else
+            export PR_BODY=""
+          fi
+          # Load bounty spec for acceptance criteria
+          if [ -f /tmp/bounty_spec.txt ]; then
+            export BOUNTY_SPEC
+            BOUNTY_SPEC=$(cat /tmp/bounty_spec.txt)
+          else
+            export BOUNTY_SPEC=""
+          fi
+          # Load CodeRabbit analysis if available
+          if [ -f /tmp/coderabbit_analysis.json ]; then
+            export CODERABBIT_ANALYSIS
+            CODERABBIT_ANALYSIS=$(cat /tmp/coderabbit_analysis.json)
+          else
+            export CODERABBIT_ANALYSIS=""
+          fi
           python3 .github/scripts/ai_review.py

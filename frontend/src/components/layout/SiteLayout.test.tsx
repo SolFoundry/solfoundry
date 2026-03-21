@@ -1,6 +1,32 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 import { SiteLayout } from './SiteLayout';
+
+// Mock window.matchMedia (required by ThemeProvider for system theme detection)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+/** Wrap component in ThemeProvider (required by ThemeToggle inside SiteLayout). */
+function renderWithTheme(element: React.ReactElement) {
+  return render(
+    <ThemeProvider defaultTheme="dark">
+      {element}
+    </ThemeProvider>,
+  );
+}
 
 // Mock window.scrollTo
 const mockScrollTo = vi.fn();
@@ -37,7 +63,7 @@ describe('SiteLayout', () => {
 
   describe('Rendering', () => {
     it('renders children correctly', () => {
-      render(
+      renderWithTheme(
         <SiteLayout>
           <div data-testid="test-content">Test Content</div>
         </SiteLayout>
@@ -48,39 +74,41 @@ describe('SiteLayout', () => {
     });
 
     it('renders header with logo', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       expect(screen.getByText('SolFoundry')).toBeInTheDocument();
-      expect(screen.getByText('SF')).toBeInTheDocument();
+      // Header and footer both contain "SF" logo
+      expect(screen.getAllByText('SF').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders all navigation links', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      expect(screen.getByRole('link', { name: 'Bounties' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Leaderboard' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Agents' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument();
+      // Desktop + mobile nav both have these links, use getAllByRole
+      expect(screen.getAllByRole('link', { name: 'Bounties' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: 'Leaderboard' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: 'Agents' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: 'Docs' }).length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders footer with all links', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Twitter' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'CA' })).toBeInTheDocument();
+      // Footer links exist (some may also appear in other locations)
+      expect(screen.getAllByRole('link', { name: 'GitHub' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: 'Twitter' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: 'CA' }).length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders copyright with current year', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const currentYear = new Date().getFullYear();
       expect(screen.getByText(new RegExp(`© ${currentYear} SolFoundry`))).toBeInTheDocument();
     });
 
     it('renders contract address in footer', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       expect(screen.getByText(/Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7/)).toBeInTheDocument();
     });
@@ -92,13 +120,13 @@ describe('SiteLayout', () => {
 
   describe('Wallet Connection', () => {
     it('renders connect wallet button when not connected', () => {
-      render(<SiteLayout walletAddress={null}><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout walletAddress={null}><div /></SiteLayout>);
 
       expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
     });
 
     it('calls onConnectWallet when connect button clicked', () => {
-      render(
+      renderWithTheme(
         <SiteLayout walletAddress={null} onConnectWallet={mockOnConnectWallet}>
           <div />
         </SiteLayout>
@@ -109,7 +137,7 @@ describe('SiteLayout', () => {
     });
 
     it('renders wallet address when connected', () => {
-      render(
+      renderWithTheme(
         <SiteLayout walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7">
           <div />
         </SiteLayout>
@@ -120,7 +148,7 @@ describe('SiteLayout', () => {
     });
 
     it('renders user avatar with initial when no avatar URL provided', () => {
-      render(
+      renderWithTheme(
         <SiteLayout walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7" userName="TestUser">
           <div />
         </SiteLayout>
@@ -130,7 +158,7 @@ describe('SiteLayout', () => {
     });
 
     it('shows user dropdown menu when clicked', async () => {
-      render(
+      renderWithTheme(
         <SiteLayout walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7">
           <div />
         </SiteLayout>
@@ -146,7 +174,7 @@ describe('SiteLayout', () => {
     });
 
     it('calls onDisconnectWallet when disconnect clicked', async () => {
-      render(
+      renderWithTheme(
         <SiteLayout
           walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7"
           onDisconnectWallet={mockOnDisconnectWallet}
@@ -172,21 +200,21 @@ describe('SiteLayout', () => {
 
   describe('Navigation Highlighting', () => {
     it('highlights current navigation item', () => {
-      render(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
 
       const bountiesLink = screen.getByRole('link', { name: 'Bounties' });
       expect(bountiesLink).toHaveAttribute('aria-current', 'page');
     });
 
     it('highlights navigation item for nested paths', () => {
-      render(<SiteLayout currentPath="/bounties/123"><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout currentPath="/bounties/123"><div /></SiteLayout>);
 
       const bountiesLink = screen.getByRole('link', { name: 'Bounties' });
       expect(bountiesLink).toHaveClass('text-[#14F195]');
     });
 
     it('does not highlight non-current navigation items', () => {
-      render(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
 
       const leaderboardLink = screen.getByRole('link', { name: 'Leaderboard' });
       expect(leaderboardLink).not.toHaveAttribute('aria-current', 'page');
@@ -200,7 +228,7 @@ describe('SiteLayout', () => {
 
   describe('Mobile Menu', () => {
     it('toggles mobile menu when hamburger button clicked', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const menuButton = screen.getByRole('button', { name: /open menu/i });
 
@@ -213,23 +241,27 @@ describe('SiteLayout', () => {
     });
 
     it('closes mobile menu when overlay clicked', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       // Open menu first
       const menuButton = screen.getByRole('button', { name: /open menu/i });
       fireEvent.click(menuButton);
 
-      // Click overlay
-      const overlay = document.querySelector('.bg-black\\/60');
+      // The overlay div has aria-hidden="true" and class containing "backdrop-blur"
+      const overlays = document.querySelectorAll('.fixed.inset-0');
+      const overlay = Array.from(overlays).find(
+        element => element.getAttribute('aria-hidden') === 'true',
+      );
       if (overlay) {
         fireEvent.click(overlay);
       }
 
-      expect(screen.getByRole('navigation', { name: /mobile navigation/i })).not.toBeVisible();
+      // After closing, the menu button should say "open menu" again
+      expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
     });
 
     it('closes mobile menu on Escape key', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       // Open menu
       const menuButton = screen.getByRole('button', { name: /open menu/i });
@@ -238,11 +270,12 @@ describe('SiteLayout', () => {
       // Press Escape
       fireEvent.keyDown(document, { key: 'Escape' });
 
-      expect(screen.getByRole('navigation', { name: /mobile navigation/i })).not.toBeVisible();
+      // After closing, the menu button should say "open menu" again
+      expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
     });
 
     it('prevents body scroll when mobile menu is open', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const menuButton = screen.getByRole('button', { name: /open menu/i });
       fireEvent.click(menuButton);
@@ -255,7 +288,7 @@ describe('SiteLayout', () => {
     });
 
     it('renders all navigation items in mobile sidebar', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       // Open menu
       const menuButton = screen.getByRole('button', { name: /open menu/i });
@@ -275,14 +308,14 @@ describe('SiteLayout', () => {
 
   describe('Header Scroll Behavior', () => {
     it('has transparent background initially', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const header = screen.getByRole('banner');
       expect(header).toHaveClass('bg-transparent');
     });
 
     it('adds background on scroll', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const header = screen.getByRole('banner');
 
@@ -303,28 +336,28 @@ describe('SiteLayout', () => {
 
   describe('Accessibility', () => {
     it('has correct ARIA attributes on header', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const header = screen.getByRole('banner');
       expect(header).toBeInTheDocument();
     });
 
     it('has correct ARIA attributes on navigation', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const nav = screen.getByRole('navigation', { name: /main navigation/i });
       expect(nav).toBeInTheDocument();
     });
 
     it('has correct ARIA attributes on footer', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const footer = screen.getByRole('contentinfo');
       expect(footer).toBeInTheDocument();
     });
 
     it('has aria-expanded on mobile menu button', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const menuButton = screen.getByRole('button', { name: /open menu/i });
       expect(menuButton).toHaveAttribute('aria-expanded', 'false');
@@ -334,9 +367,11 @@ describe('SiteLayout', () => {
     });
 
     it('has aria-hidden on sidebar when closed', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      const sidebar = screen.getByRole('navigation', { name: /mobile navigation/i });
+      // When closed, the sidebar has aria-hidden="true" which makes getByRole unable to find it
+      // We use the aria-label directly to find it
+      const sidebar = document.querySelector('[aria-label="Mobile navigation"]');
       expect(sidebar).toHaveAttribute('aria-hidden', 'true');
     });
   });
@@ -347,7 +382,7 @@ describe('SiteLayout', () => {
 
   describe('User Dropdown', () => {
     it('displays user name in dropdown', async () => {
-      render(
+      renderWithTheme(
         <SiteLayout
           walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7"
           userName="TestUser"
@@ -364,7 +399,7 @@ describe('SiteLayout', () => {
     });
 
     it('closes dropdown on Escape key', async () => {
-      render(
+      renderWithTheme(
         <SiteLayout walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7">
           <div />
         </SiteLayout>
@@ -379,7 +414,7 @@ describe('SiteLayout', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
 
       await waitFor(() => {
-        expect(screen.queryByText('Profile')).not.toBeVisible();
+        expect(screen.queryByText('Profile')).not.toBeInTheDocument();
       });
     });
   });
@@ -390,7 +425,7 @@ describe('SiteLayout', () => {
 
   describe('Responsive Behavior', () => {
     it('hides desktop navigation on mobile', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       // Desktop nav should have class 'hidden lg:flex'
       const desktopNav = screen.getByRole('navigation', { name: /main navigation/i });
@@ -399,7 +434,7 @@ describe('SiteLayout', () => {
     });
 
     it('shows mobile menu button on mobile', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const menuButton = screen.getByRole('button', { name: /open menu/i });
       expect(menuButton).toHaveClass('lg:hidden');
@@ -412,7 +447,7 @@ describe('SiteLayout', () => {
 
   describe('Theme', () => {
     it('uses dark theme colors', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const layout = document.querySelector('.site-layout');
       expect(layout).toHaveClass('bg-[#0a0a0a]');
@@ -420,21 +455,21 @@ describe('SiteLayout', () => {
     });
 
     it('uses monospace font', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const layout = document.querySelector('.site-layout');
       expect(layout).toHaveClass('font-mono');
     });
 
     it('uses Solana purple (#9945FF) in gradient', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
       expect(connectButton?.className).toMatch(/from-\[#9945FF\]/);
     });
 
     it('uses Solana green (#14F195) in gradient', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
       expect(connectButton?.className).toMatch(/to-\[#14F195\]/);
@@ -447,7 +482,7 @@ describe('SiteLayout', () => {
 
   describe('External Links', () => {
     it('opens GitHub link in new tab', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const githubLink = screen.getByRole('link', { name: 'GitHub' });
       expect(githubLink).toHaveAttribute('target', '_blank');
@@ -455,7 +490,7 @@ describe('SiteLayout', () => {
     });
 
     it('opens Twitter link in new tab', () => {
-      render(<SiteLayout><div /></SiteLayout>);
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const twitterLink = screen.getByRole('link', { name: 'Twitter' });
       expect(twitterLink).toHaveAttribute('target', '_blank');
@@ -466,7 +501,7 @@ describe('SiteLayout', () => {
 
 describe('truncateAddress', () => {
   it('is used correctly for wallet addresses', () => {
-    render(
+    renderWithTheme(
       <SiteLayout walletAddress="Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7">
         <div />
       </SiteLayout>

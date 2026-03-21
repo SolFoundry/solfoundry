@@ -1,91 +1,37 @@
 /**
- * useTreasuryStats - React Query powered hook for tokenomics/treasury data.
- * Fetches from real API with caching, loading states, and error handling.
- * No mock data fallbacks - UI handles empty/error states.
+ * Tokenomics + treasury via apiClient + React Query.
  * @module hooks/useTreasuryStats
  */
-
 import { useQuery } from '@tanstack/react-query';
 import type { TokenomicsData, TreasuryStats } from '../types/tokenomics';
-import { fetchTokenomics, fetchTreasuryStats } from '../api/tokenomics';
+import { apiClient } from '../services/apiClient';
 
-// Default empty data structures for when API is unavailable
-const EMPTY_TOKENOMICS: TokenomicsData = {
-  totalSupply: 0,
-  circulatingSupply: 0,
-  burned: 0,
-  price: 0,
-  marketCap: 0,
-  holders: 0,
-};
+const now = () => new Date().toISOString();
+/** Empty-state tokenomics when API is unreachable. */
+const DEFAULT_TOKENOMICS: TokenomicsData = { tokenName: 'FNDRY', tokenCA: 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS', totalSupply: 1e9, circulatingSupply: 0, treasuryHoldings: 0, totalDistributed: 0, totalBuybacks: 0, totalBurned: 0, feeRevenueSol: 0, lastUpdated: now(), distributionBreakdown: {} };
+/** Empty-state treasury when API is unreachable. */
+const DEFAULT_TREASURY: TreasuryStats = { solBalance: 0, fndryBalance: 0, treasuryWallet: '57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp', totalPaidOutFndry: 0, totalPaidOutSol: 0, totalPayouts: 0, totalBuybackAmount: 0, totalBuybacks: 0, lastUpdated: now() };
 
-const EMPTY_TREASURY: TreasuryStats = {
-  totalBalance: 0,
-  solBalance: 0,
-  fndryBalance: 0,
-  lastUpdated: new Date().toISOString(),
-};
+/** Fetch both tokenomics and treasury in parallel. */
+async function fetchTreasuryData() {
+  const [tokenomicsData, treasuryData] = await Promise.all([
+    apiClient<TokenomicsData>('/api/payouts/tokenomics', { retries: 1 }),
+    apiClient<TreasuryStats>('/api/payouts/treasury', { retries: 1 }),
+  ]);
+  return { tokenomics: tokenomicsData, treasury: treasuryData };
+}
 
-/**
- * Fetches live tokenomics and treasury data from `/api/payouts/tokenomics` and `/api/payouts/treasury`.
- * Returns empty data structures when API is unavailable - UI should handle error state.
- */
+/** Fetches and caches tokenomics + treasury stats via React Query. */
 export function useTreasuryStats() {
-  // Tokenomics query
-  const {
-    data: tokenomicsData,
-    isLoading: tokenomicsLoading,
-    error: tokenomicsError,
-    refetch: refetchTokenomics,
-  } = useQuery({
-    queryKey: ['tokenomics'],
-    queryFn: fetchTokenomics,
-    staleTime: 60 * 1000,
-    retry: 2,
-  });
-
-  // Treasury stats query
-  const {
-    data: treasuryData,
-    isLoading: treasuryLoading,
-    error: treasuryError,
-    refetch: refetchTreasury,
-  } = useQuery({
+  const { data, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['treasury'],
-    queryFn: fetchTreasuryStats,
-    staleTime: 60 * 1000,
-    retry: 2,
+    queryFn: fetchTreasuryData,
+    staleTime: 30_000,
   });
 
-  // Combine loading states
-  const loading = tokenomicsLoading || treasuryLoading;
-  
-  // Combine errors - return first error if any
-  const error = tokenomicsError || treasuryError;
-  
-  // Check if we have real data
-  const hasTokenomics = tokenomicsData !== null && tokenomicsData !== undefined;
-  const hasTreasury = treasuryData !== null && treasuryData !== undefined;
-  
-  // Use API data or empty structures - UI should check isEmpty and error
-  const tokenomics: TokenomicsData = hasTokenomics ? tokenomicsData : EMPTY_TOKENOMICS;
-  const treasury: TreasuryStats = hasTreasury ? treasuryData : EMPTY_TREASURY;
-  
-  // Flag for UI to show empty state
-  const isEmpty = !hasTokenomics && !hasTreasury && !loading;
+  const tokenomics = data?.tokenomics ?? DEFAULT_TOKENOMICS;
+  const treasury = data?.treasury ?? DEFAULT_TREASURY;
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load treasury data') : null;
 
-  const refetch = () => {
-    refetchTokenomics();
-    refetchTreasury();
-  };
-
-  return {
-    tokenomics,
-    treasury,
-    loading,
-    error: error as Error | null,
-    isEmpty,
-    hasData: hasTokenomics || hasTreasury,
-    refetch,
-  };
+  return { tokenomics, treasury, loading, error };
 }
