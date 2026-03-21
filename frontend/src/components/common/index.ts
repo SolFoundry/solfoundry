@@ -3,7 +3,7 @@
  * @module components/common
  */
 
-export { Modal } from './Modal';
+export { default as Modal } from './Modal';
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonTableRow, SkeletonGrid, SkeletonList, SkeletonTable, SkeletonActivityFeed } from './Skeleton';
 export type { SkeletonProps, SkeletonTextProps, SkeletonCardProps, SkeletonAvatarProps, SkeletonTableRowProps, SkeletonGridProps, SkeletonListProps, SkeletonTableProps, SkeletonActivityFeedProps } from './Skeleton';
 export { EmptyState, NoBountiesFound, NoContributionsYet, NoActivityYet, NoSearchResults, NoDataAvailable } from './EmptyState';

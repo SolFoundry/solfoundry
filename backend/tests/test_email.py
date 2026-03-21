@@ -1,11 +1,10 @@
 """Tests for the email notification service."""
 
-import pytest
 import asyncio
-from typing import Dict, Any
+import pytest
 from backend.src.services.email import (
     EmailService, EmailProvider, _RATE_LIMIT_STORE, _USER_PREFERENCES,
-    _UNSUBSCRIBED, _EMAIL_QUEUE, email_worker, set_preference, unsubscribe_all
+    _UNSUBSCRIBED, _EMAIL_QUEUE, set_preference, unsubscribe_all
 )
 
 class MockProvider(EmailProvider):

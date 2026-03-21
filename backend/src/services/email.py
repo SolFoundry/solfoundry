@@ -8,7 +8,7 @@ import os
 import asyncio
 import time
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ class EmailService:
         now = time.time()
         timestamps = _RATE_LIMIT_STORE.get(email, [])
         # Keep only timestamps in the last hour
-        timestamps = [ts for t in timestamps if now - t < 3600]
+        timestamps = [t for t in timestamps if now - t < 3600]
         if len(timestamps) >= 10:
             return False
         
