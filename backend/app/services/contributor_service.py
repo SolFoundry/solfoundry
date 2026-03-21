@@ -1,8 +1,11 @@
-"""In-memory contributor service for MVP."""
+"""PostgreSQL contributor service."""
 
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+
+from sqlalchemy import select, update, delete, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contributor import (
     ContributorDB,
@@ -13,8 +16,6 @@ from app.models.contributor import (
     ContributorStats,
     ContributorUpdate,
 )
-
-_store: dict[str, ContributorDB] = {}
 
 
 def _db_to_response(db: ContributorDB) -> ContributorResponse:
@@ -58,10 +59,9 @@ def _db_to_list_item(db: ContributorDB) -> ContributorListItem:
     )
 
 
-def create_contributor(data: ContributorCreate) -> ContributorResponse:
+async def create_contributor(db: AsyncSession, data: ContributorCreate) -> ContributorResponse:
     """Create a new contributor and return its response."""
-    db = ContributorDB(
-        id=uuid.uuid4(),
+    contributor = ContributorDB(
         username=data.username,
         display_name=data.display_name,
         email=data.email,
@@ -71,11 +71,14 @@ def create_contributor(data: ContributorCreate) -> ContributorResponse:
         badges=data.badges,
         social_links=data.social_links,
     )
-    _store[str(db.id)] = db
-    return _db_to_response(db)
+    db.add(contributor)
+    await db.commit()
+    await db.refresh(contributor)
+    return _db_to_response(contributor)
 
 
-def list_contributors(
+async def list_contributors(
+    db: AsyncSession,
     search: Optional[str] = None,
     skills: Optional[list[str]] = None,
     badges: Optional[list[str]] = None,
@@ -83,75 +86,124 @@ def list_contributors(
     limit: int = 20,
 ) -> ContributorListResponse:
     """List contributors with optional search, skill, and badge filters."""
-    results = list(_store.values())
+    query = select(ContributorDB)
+
     if search:
-        q = search.lower()
-        results = [
-            r for r in results if q in r.username.lower() or q in r.display_name.lower()
-        ]
+        q = f"%{search.lower()}%"
+        query = query.where(
+            or_(
+                func.lower(ContributorDB.username).like(q),
+                func.lower(ContributorDB.display_name).like(q),
+            )
+        )
+
+    # Note: For JSON array filtering in PG, we use the @> operator or contained-by.
+    # Since we use JSON type (not JSONB) in models, we might need to cast or use sqlalchemy helpers.
+    # For now, let's use a simple approach if possible.
     if skills:
-        s = set(skills)
-        results = [r for r in results if s & set(r.skills or [])]
+        for skill in skills:
+            query = query.where(ContributorDB.skills.contains([skill]))
     if badges:
-        b = set(badges)
-        results = [r for r in results if b & set(r.badges or [])]
-    total = len(results)
+        for badge in badges:
+            query = query.where(ContributorDB.badges.contains([badge]))
+
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(count_query)).scalar_one()
+
+    # Apply pagination
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    contributors = result.scalars().all()
+
     return ContributorListResponse(
-        items=[_db_to_list_item(r) for r in results[skip : skip + limit]],
+        items=[_db_to_list_item(c) for c in contributors],
         total=total,
         skip=skip,
         limit=limit,
     )
 
 
-def get_contributor(contributor_id: str) -> Optional[ContributorResponse]:
+async def get_contributor(db: AsyncSession, contributor_id: str) -> Optional[ContributorResponse]:
     """Return a contributor response by ID or None if not found."""
-    db = _store.get(contributor_id)
-    return _db_to_response(db) if db else None
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        result = await db.execute(select(ContributorDB).where(ContributorDB.id == uuid_obj))
+        contributor = result.scalar_one_or_none()
+        return _db_to_response(contributor) if contributor else None
+    except ValueError:
+        return None
 
 
-def get_contributor_by_username(username: str) -> Optional[ContributorResponse]:
+async def get_contributor_by_username(db: AsyncSession, username: str) -> Optional[ContributorResponse]:
     """Look up a contributor by username or return None."""
-    for db in _store.values():
-        if db.username == username:
-            return _db_to_response(db)
-    return None
+    result = await db.execute(select(ContributorDB).where(ContributorDB.username == username))
+    contributor = result.scalar_one_or_none()
+    return _db_to_response(contributor) if contributor else None
 
 
-def update_contributor(
-    contributor_id: str, data: ContributorUpdate
+async def update_contributor(
+    db: AsyncSession, contributor_id: str, data: ContributorUpdate
 ) -> Optional[ContributorResponse]:
     """Partially update a contributor, returning the updated response."""
-    db = _store.get(contributor_id)
-    if not db:
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        result = await db.execute(select(ContributorDB).where(ContributorDB.id == uuid_obj))
+        contributor = result.scalar_one_or_none()
+        if not contributor:
+            return None
+
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(contributor, key, value)
+        
+        await db.commit()
+        await db.refresh(contributor)
+        return _db_to_response(contributor)
+    except ValueError:
         return None
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(db, key, value)
-    db.updated_at = datetime.now(timezone.utc)
-    return _db_to_response(db)
 
 
-def delete_contributor(contributor_id: str) -> bool:
+async def delete_contributor(db: AsyncSession, contributor_id: str) -> bool:
     """Delete a contributor by ID, returning True if found."""
-    return _store.pop(contributor_id, None) is not None
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        result = await db.execute(select(ContributorDB).where(ContributorDB.id == uuid_obj))
+        contributor = result.scalar_one_or_none()
+        if not contributor:
+            return False
+        
+        await db.delete(contributor)
+        await db.commit()
+        return True
+    except ValueError:
+        return False
 
 
-def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:
+async def get_contributor_db(db: AsyncSession, contributor_id: str) -> Optional[ContributorDB]:
     """Return the raw ContributorDB record or None."""
-    return _store.get(contributor_id)
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        result = await db.execute(select(ContributorDB).where(ContributorDB.id == uuid_obj))
+        return result.scalar_one_or_none()
+    except ValueError:
+        return None
 
 
-def update_reputation_score(contributor_id: str, score: float) -> None:
-    """Set the reputation_score on the contributor's DB record.
+async def update_reputation_score(db: AsyncSession, contributor_id: str, score: float) -> None:
+    """Set the reputation_score on the contributor's DB record."""
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        await db.execute(
+            update(ContributorDB)
+            .where(ContributorDB.id == uuid_obj)
+            .values(reputation_score=score, updated_at=datetime.now(timezone.utc))
+        )
+        await db.commit()
+    except ValueError:
+        pass
 
-    This is the public API that other services should use instead of
-    reaching into ``_store`` directly.
-    """
-    db = _store.get(contributor_id)
-    if db is not None:
-        db.reputation_score = score
 
-
-def list_contributor_ids() -> list[str]:
-    """Return all contributor IDs currently in the store."""
-    return list(_store.keys())
+async def list_contributor_ids(db: AsyncSession) -> list[str]:
+    """Return all contributor IDs currently in the DB."""
+    result = await db.execute(select(ContributorDB.id))
+    return [str(row) for row in result.scalars().all()]

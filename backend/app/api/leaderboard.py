@@ -2,15 +2,17 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
 from app.models.leaderboard import (
     CategoryFilter,
     TierFilter,
     TimePeriod,
 )
-from app.services.leaderboard_service import get_leaderboard
+from app.services import leaderboard_service, contributor_service
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
@@ -38,6 +40,7 @@ async def leaderboard(
     category: Optional[CategoryFilter] = Query(None, description="Filter by category"),
     limit: int = Query(50, ge=1, le=100, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
+    db: AsyncSession = Depends(get_db),
 ):
     """Ranked list of contributors by $FNDRY earned.
 
@@ -51,7 +54,8 @@ async def leaderboard(
     elif range:
         resolved_period = _RANGE_MAP.get(range, TimePeriod.all)
 
-    result = get_leaderboard(
+    result = await leaderboard_service.get_leaderboard(
+        db=db,
         period=resolved_period,
         tier=tier,
         category=category,
@@ -79,13 +83,10 @@ async def leaderboard(
             }
         )
 
-    # Enrich with skills from contributor store
-    from app.services.contributor_service import _store
-
+    # Enrich with skills from contributor service
     for c in contributors:
-        for db_contrib in _store.values():
-            if db_contrib.username == c["username"]:
-                c["topSkills"] = (db_contrib.skills or [])[:3]
-                break
+        db_contrib = await contributor_service.get_contributor_by_username(db, c["username"])
+        if db_contrib:
+            c["topSkills"] = (db_contrib.skills or [])[:3]
 
     return JSONResponse(content=contributors)

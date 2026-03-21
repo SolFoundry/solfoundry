@@ -1,10 +1,14 @@
 """Contributor profiles and reputation API router."""
 
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.auth import get_current_user_id
 from app.constants import INTERNAL_SYSTEM_USER_ID
 from app.exceptions import ContributorNotFoundError, TierNotUnlockedError
+from app.database import get_db
 from app.models.contributor import (
     ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate,
 )
@@ -21,71 +25,78 @@ async def list_contributors(
     badges: Optional[str] = Query(None, description="Comma-separated badge filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
 ):
     """List contributors with optional filtering and pagination."""
     skill_list = skills.split(",") if skills else None
     badge_list = badges.split(",") if badges else None
-    return contributor_service.list_contributors(
-        search=search, skills=skill_list, badges=badge_list, skip=skip, limit=limit
+    return await contributor_service.list_contributors(
+        db, search=search, skills=skill_list, badges=badge_list, skip=skip, limit=limit
     )
 
 
 @router.post("", response_model=ContributorResponse, status_code=201)
-async def create_contributor(data: ContributorCreate):
+async def create_contributor(data: ContributorCreate, db: AsyncSession = Depends(get_db)):
     """Create a new contributor profile."""
-    if contributor_service.get_contributor_by_username(data.username):
+    if await contributor_service.get_contributor_by_username(db, data.username):
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
-    return contributor_service.create_contributor(data)
+    return await contributor_service.create_contributor(db, data)
 
 
 @router.get("/leaderboard/reputation", response_model=list[ReputationSummary])
 async def get_reputation_leaderboard(
-    limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100), 
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return contributors ranked by reputation score."""
-    return reputation_service.get_reputation_leaderboard(limit=limit, offset=offset)
+    return await reputation_service.get_reputation_leaderboard(db, limit=limit, offset=offset)
 
 
 @router.get("/{contributor_id}", response_model=ContributorResponse)
-async def get_contributor(contributor_id: str):
+async def get_contributor(contributor_id: str, db: AsyncSession = Depends(get_db)):
     """Get a single contributor profile by ID."""
-    c = contributor_service.get_contributor(contributor_id)
+    c = await contributor_service.get_contributor(db, contributor_id)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return c
 
 
 @router.patch("/{contributor_id}", response_model=ContributorResponse)
-async def update_contributor(contributor_id: str, data: ContributorUpdate):
+async def update_contributor(
+    contributor_id: str, 
+    data: ContributorUpdate,
+    db: AsyncSession = Depends(get_db),
+):
     """Partially update a contributor profile."""
-    c = contributor_service.update_contributor(contributor_id, data)
+    c = await contributor_service.update_contributor(db, contributor_id, data)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return c
 
 
 @router.delete("/{contributor_id}", status_code=204)
-async def delete_contributor(contributor_id: str):
+async def delete_contributor(contributor_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a contributor profile by ID."""
-    if not contributor_service.delete_contributor(contributor_id):
+    if not await contributor_service.delete_contributor(db, contributor_id):
         raise HTTPException(status_code=404, detail="Contributor not found")
 
 
 @router.get("/{contributor_id}/reputation", response_model=ReputationSummary)
-async def get_contributor_reputation(contributor_id: str):
+async def get_contributor_reputation(contributor_id: str, db: AsyncSession = Depends(get_db)):
     """Return full reputation profile for a contributor."""
-    summary = reputation_service.get_reputation(contributor_id)
+    summary = await reputation_service.get_reputation(db, contributor_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Contributor not found")
     return summary
 
 
 @router.get("/{contributor_id}/reputation/history", response_model=list[ReputationHistoryEntry])
-async def get_contributor_reputation_history(contributor_id: str):
+async def get_contributor_reputation_history(contributor_id: str, db: AsyncSession = Depends(get_db)):
     """Return per-bounty reputation history for a contributor."""
-    if contributor_service.get_contributor(contributor_id) is None:
+    if await contributor_service.get_contributor(db, contributor_id) is None:
         raise HTTPException(status_code=404, detail="Contributor not found")
-    return reputation_service.get_history(contributor_id)
+    return await reputation_service.get_history(db, contributor_id)
 
 
 @router.post("/{contributor_id}/reputation", response_model=ReputationHistoryEntry, status_code=201)
@@ -93,23 +104,9 @@ async def record_contributor_reputation(
     contributor_id: str,
     data: ReputationRecordCreate,
     caller_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Record reputation earned from a completed bounty.
-
-    Requires authentication. The caller must be the contributor themselves
-    or the internal system user (all-zeros UUID used by automated pipelines).
-
-    Args:
-        contributor_id: Path parameter — the contributor receiving reputation.
-        data: Reputation record payload.
-        caller_id: Authenticated user ID injected by the auth dependency.
-
-    Raises:
-        HTTPException 400: Path/body contributor_id mismatch.
-        HTTPException 401: Missing credentials (from auth dependency).
-        HTTPException 403: Caller is not authorized to record for this contributor.
-        HTTPException 404: Contributor not found.
-    """
+    """Record reputation earned from a completed bounty."""
     if data.contributor_id != contributor_id:
         raise HTTPException(status_code=400, detail="contributor_id in path must match body")
 
@@ -118,7 +115,7 @@ async def record_contributor_reputation(
         raise HTTPException(status_code=403, detail="Not authorized to record reputation for this contributor")
 
     try:
-        return reputation_service.record_reputation(data)
+        return await reputation_service.record_reputation(db, data)
     except ContributorNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error))
     except TierNotUnlockedError as error:

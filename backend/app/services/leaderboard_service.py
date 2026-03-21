@@ -1,10 +1,14 @@
-"""Leaderboard service — cached ranked contributor data."""
+"""Leaderboard service — cached ranked contributor data from PostgreSQL."""
 
 from __future__ import annotations
 
 import time
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from sqlalchemy import select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contributor import ContributorDB
 from app.models.leaderboard import (
@@ -16,14 +20,14 @@ from app.models.leaderboard import (
     TopContributor,
     TopContributorMeta,
 )
-from app.services.contributor_service import _store
 
 # ---------------------------------------------------------------------------
-# In-memory cache (replaces materialized view for the MVP)
+# In-memory cache
 # ---------------------------------------------------------------------------
 
 _cache: dict[str, tuple[float, LeaderboardResponse]] = {}
 CACHE_TTL = 60  # seconds
+_cache_lock = asyncio.Lock()
 
 
 def _cache_key(
@@ -34,9 +38,10 @@ def _cache_key(
     return f"{period.value}:{tier or 'all'}:{category or 'all'}"
 
 
-def invalidate_cache() -> None:
+async def invalidate_cache() -> None:
     """Call after any contributor stat change."""
-    _cache.clear()
+    async with _cache_lock:
+        _cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -55,45 +60,38 @@ def _period_cutoff(period: TimePeriod) -> Optional[datetime]:
     return None  # all-time
 
 
-def _matches_tier(contributor: ContributorDB, tier: Optional[TierFilter]) -> bool:
-    """Check if contributor has completed bounties in the given tier."""
-    if tier is None:
-        return True
-    tier_label = f"tier-{tier.value}"
-    return tier_label in (contributor.badges or [])
-
-
-def _matches_category(
-    contributor: ContributorDB, category: Optional[CategoryFilter]
-) -> bool:
-    """Check if contributor has skills in the given category."""
-    if category is None:
-        return True
-    return category.value in (contributor.skills or [])
-
-
-def _build_leaderboard(
+async def _build_leaderboard(
+    db: AsyncSession,
     period: TimePeriod,
     tier: Optional[TierFilter],
     category: Optional[CategoryFilter],
 ) -> list[tuple[int, ContributorDB]]:
-    """Return ranked list of (rank, contributor) tuples."""
+    """Return ranked list of (rank, contributor) tuples from DB."""
     cutoff = _period_cutoff(period)
-    candidates = list(_store.values())
+    
+    query = select(ContributorDB)
 
-    # Filter by time period (created_at as proxy — full payout history would
-    # allow per-period earnings, but this is the MVP in-memory approach).
     if cutoff:
-        candidates = [c for c in candidates if c.created_at and c.created_at >= cutoff]
+        query = query.where(ContributorDB.created_at >= cutoff)
 
     # Filter by tier / category
-    candidates = [c for c in candidates if _matches_tier(c, tier)]
-    candidates = [c for c in candidates if _matches_category(c, category)]
+    if tier:
+        # Assuming tier is stored in badges as 'tier-1', 'tier-2', etc.
+        tier_label = f"tier-{tier.value}"
+        query = query.where(ContributorDB.badges.contains([tier_label]))
+    
+    if category:
+        query = query.where(ContributorDB.skills.contains([category.value]))
 
     # Sort by total_earnings desc, then reputation desc, then username asc
-    candidates.sort(
-        key=lambda c: (-c.total_earnings, -c.reputation_score, c.username),
+    query = query.order_by(
+        desc(ContributorDB.total_earnings),
+        desc(ContributorDB.reputation_score),
+        ContributorDB.username,
     )
+
+    result = await db.execute(query)
+    candidates = result.scalars().all()
 
     return [(rank, c) for rank, c in enumerate(candidates, start=1)]
 
@@ -122,7 +120,7 @@ def _to_top(rank: int, c: ContributorDB) -> TopContributor:
         meta=TopContributorMeta(
             medal=MEDALS.get(rank, ""),
             join_date=c.created_at,
-            best_bounty_title=None,  # placeholder — extend when payout history exists
+            best_bounty_title=None,
             best_bounty_earned=c.total_earnings,
         ),
     )
@@ -133,7 +131,8 @@ def _to_top(rank: int, c: ContributorDB) -> TopContributor:
 # ---------------------------------------------------------------------------
 
 
-def get_leaderboard(
+async def get_leaderboard(
+    db: AsyncSession,
     period: TimePeriod = TimePeriod.all,
     tier: Optional[TierFilter] = None,
     category: Optional[CategoryFilter] = None,
@@ -146,22 +145,23 @@ def get_leaderboard(
     now = time.time()
 
     # Check cache
-    if key in _cache:
-        cached_at, cached_resp = _cache[key]
-        if now - cached_at < CACHE_TTL:
-            # Apply pagination on cached full result
-            paginated = cached_resp.entries[offset : offset + limit]
-            return LeaderboardResponse(
-                period=cached_resp.period,
-                total=cached_resp.total,
-                offset=offset,
-                limit=limit,
-                top3=cached_resp.top3,
-                entries=paginated,
-            )
+    async with _cache_lock:
+        if key in _cache:
+            cached_at, cached_resp = _cache[key]
+            if now - cached_at < CACHE_TTL:
+                # Apply pagination on cached full result
+                paginated = cached_resp.entries[offset : offset + limit]
+                return LeaderboardResponse(
+                    period=cached_resp.period,
+                    total=cached_resp.total,
+                    offset=offset,
+                    limit=limit,
+                    top3=cached_resp.top3,
+                    entries=paginated,
+                )
 
     # Build fresh
-    ranked = _build_leaderboard(period, tier, category)
+    ranked = await _build_leaderboard(db, period, tier, category)
 
     top3 = [_to_top(rank, c) for rank, c in ranked[:3]]
     all_entries = [_to_entry(rank, c) for rank, c in ranked]
@@ -176,7 +176,8 @@ def get_leaderboard(
     )
 
     # Store in cache
-    _cache[key] = (now, full)
+    async with _cache_lock:
+        _cache[key] = (now, full)
 
     # Return paginated slice
     return LeaderboardResponse(

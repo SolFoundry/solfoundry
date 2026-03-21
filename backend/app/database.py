@@ -92,6 +92,7 @@ async def init_db() -> None:
             from app.models.submission import SubmissionDB  # noqa: F401
             from app.models.review import AIReviewScoreDB  # noqa: F401
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
+            from app.models.contributor import ContributorDB, ReputationHistoryDB  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 

@@ -1,14 +1,11 @@
-"""Contributor reputation scoring service.
+"""Contributor reputation scoring service."""
 
-Calculates reputation from review scores and bounty tier. Manages tier
-progression, anti-farming, score history, and badges. In-memory MVP.
-PostgreSQL migration path: reputation_history table on contributor_id.
-"""
-
-import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ContributorNotFoundError, TierNotUnlockedError
 from app.models.reputation import (
@@ -24,10 +21,8 @@ from app.models.reputation import (
     TierProgressionDetail,
     truncate_history,
 )
+from app.models.contributor import ContributorDB, ReputationHistoryDB
 from app.services import contributor_service
-
-_reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
-_reputation_lock = threading.Lock()
 
 
 def calculate_earned_reputation(
@@ -46,18 +41,15 @@ def calculate_earned_reputation(
 
 
 def determine_badge(reputation_score: float) -> Optional[ReputationBadge]:
-    """Return the highest badge earned for the given score.
-
-    Iterates thresholds in descending order so the first match is the
-    highest earned badge, independent of enum declaration order.
-    """
-    for badge in sorted(BADGE_THRESHOLDS, key=BADGE_THRESHOLDS.get, reverse=True):
-        if reputation_score >= BADGE_THRESHOLDS[badge]:
+    """Return the highest badge earned for the given score."""
+    sorted_badges = sorted(BADGE_THRESHOLDS.items(), key=lambda item: item[1], reverse=True)
+    for badge, threshold in sorted_badges:
+        if reputation_score >= threshold:
             return badge
     return None
 
 
-def count_tier_completions(history: list[ReputationHistoryEntry]) -> dict[int, int]:
+def count_tier_completions(history: list[ReputationHistoryDB]) -> dict[int, int]:
     """Count bounties completed per tier from history."""
     counts = {1: 0, 2: 0, 3: 0}
     for entry in history:
@@ -101,104 +93,88 @@ def build_tier_progression(
     )
 
 
-def is_veteran(history: list[ReputationHistoryEntry]) -> bool:
+def is_veteran(history: list[ReputationHistoryDB]) -> bool:
     """Check if contributor is a veteran (4+ T1 bounties -> anti-farming)."""
     return sum(1 for e in history if e.bounty_tier == 1) >= ANTI_FARMING_THRESHOLD
 
 
-def _allowed_tier_for_contributor(history: list[ReputationHistoryEntry]) -> int:
+def _allowed_tier_for_contributor(history: list[ReputationHistoryDB]) -> int:
     """Return the highest bounty tier a contributor is allowed to submit."""
     tier_counts = count_tier_completions(history)
     current = determine_current_tier(tier_counts)
     return {"T1": 1, "T2": 2, "T3": 3}[current.value]
 
 
-def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEntry:
-    """Record reputation earned from a completed bounty.
+async def record_reputation(db: AsyncSession, data: ReputationRecordCreate) -> ReputationHistoryEntry:
+    """Record reputation earned from a completed bounty."""
+    contributor = await contributor_service.get_contributor_db(db, data.contributor_id)
+    if contributor is None:
+        raise ContributorNotFoundError(f"Contributor '{data.contributor_id}' not found")
 
-    Thread-safe. Acquires the lock before checking contributor existence
-    to avoid TOCTOU races. Rejects duplicates (same contributor_id +
-    bounty_id) by returning the existing entry. Validates that the
-    contributor has unlocked the requested bounty tier before recording.
+    # Check for duplicate bounty_id
+    stmt = select(ReputationHistoryDB).where(
+        ReputationHistoryDB.contributor_id == contributor.id,
+        ReputationHistoryDB.bounty_id == uuid.UUID(data.bounty_id)
+    )
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+    if existing:
+        return ReputationHistoryEntry.model_validate(existing)
 
-    Raises:
-        ContributorNotFoundError: If the contributor does not exist.
-        TierNotUnlockedError: If the bounty tier is not yet unlocked.
-    """
-    with _reputation_lock:
-        contributor = contributor_service.get_contributor_db(data.contributor_id)
-        if contributor is None:
-            raise ContributorNotFoundError(
-                f"Contributor '{data.contributor_id}' not found"
-            )
+    # Get full history to check tier eligibility
+    history_stmt = select(ReputationHistoryDB).where(ReputationHistoryDB.contributor_id == contributor.id)
+    history_result = await db.execute(history_stmt)
+    history = list(history_result.scalars().all())
 
-        history = _reputation_store.get(data.contributor_id, [])
-
-        # Idempotency — return existing entry on duplicate bounty_id
-        for existing in history:
-            if existing.bounty_id == data.bounty_id:
-                return existing
-
-        # Tier enforcement — contributor must have unlocked the tier
-        allowed_tier = _allowed_tier_for_contributor(history)
-        if data.bounty_tier > allowed_tier:
-            raise TierNotUnlockedError(
-                f"Contributor has not unlocked tier T{data.bounty_tier}; "
-                f"current maximum allowed tier is T{allowed_tier}"
-            )
-
-        anti_farming = is_veteran(history) and data.bounty_tier == 1
-
-        earned = calculate_earned_reputation(
-            review_score=data.review_score,
-            bounty_tier=data.bounty_tier,
-            is_veteran_on_tier1=anti_farming,
+    # Tier enforcement
+    allowed_tier = _allowed_tier_for_contributor(history)
+    if data.bounty_tier > allowed_tier:
+        raise TierNotUnlockedError(
+            f"Contributor has not unlocked tier T{data.bounty_tier}; "
+            f"current maximum allowed tier is T{allowed_tier}"
         )
 
-        entry = ReputationHistoryEntry(
-            entry_id=str(uuid.uuid4()),
-            contributor_id=data.contributor_id,
-            bounty_id=data.bounty_id,
-            bounty_title=data.bounty_title,
-            bounty_tier=data.bounty_tier,
-            review_score=data.review_score,
-            earned_reputation=earned,
-            anti_farming_applied=anti_farming,
-            created_at=datetime.now(timezone.utc),
-        )
+    anti_farming = is_veteran(history) and data.bounty_tier == 1
+    earned = calculate_earned_reputation(
+        review_score=data.review_score,
+        bounty_tier=data.bounty_tier,
+        is_veteran_on_tier1=anti_farming,
+    )
 
-        _reputation_store.setdefault(data.contributor_id, []).append(entry)
+    entry_db = ReputationHistoryDB(
+        contributor_id=contributor.id,
+        bounty_id=uuid.UUID(data.bounty_id),
+        bounty_title=data.bounty_title,
+        bounty_tier=data.bounty_tier,
+        review_score=data.review_score,
+        earned_reputation=earned,
+        anti_farming_applied=anti_farming,
+    )
+    db.add(entry_db)
+    
+    # Update total reputation on contributor
+    new_total = sum(h.earned_reputation for h in history) + earned
+    contributor.reputation_score = round(new_total, 2)
+    contributor.total_contributions += 1
+    contributor.total_bounties_completed += 1
+    
+    await db.commit()
+    await db.refresh(entry_db)
+    return ReputationHistoryEntry.model_validate(entry_db)
 
-        # Consistent precision — use round(total, 2) everywhere
-        total = sum(r.earned_reputation for r in _reputation_store[data.contributor_id])
-        contributor_service.update_reputation_score(
-            data.contributor_id, round(total, 2)
-        )
 
-    return entry
-
-
-def get_reputation(
-    contributor_id: str, include_history: bool = True
+async def get_reputation(
+    db: AsyncSession, contributor_id: str, include_history: bool = True
 ) -> Optional[ReputationSummary]:
-    """Get the full reputation summary for a contributor.
-
-    Args:
-        contributor_id: The contributor to look up.
-        include_history: When True, attach recent history (max 10 entries).
-            Set to False for lightweight summaries (e.g. leaderboard).
-
-    Returns:
-        ReputationSummary or None if the contributor does not exist.
-
-    PostgreSQL migration: replace in-memory dict with
-    ``SELECT … FROM reputation_history WHERE contributor_id = :cid``.
-    """
-    contributor = contributor_service.get_contributor_db(contributor_id)
+    """Get the full reputation summary for a contributor."""
+    contributor = await contributor_service.get_contributor_db(db, contributor_id)
     if contributor is None:
         return None
 
-    history = _reputation_store.get(contributor_id, [])
+    stmt = select(ReputationHistoryDB).where(ReputationHistoryDB.contributor_id == contributor.id)
+    result = await db.execute(stmt)
+    history = list(result.scalars().all())
+    
     total = sum(e.earned_reputation for e in history)
     tier_counts = count_tier_completions(history)
     current_tier = determine_current_tier(tier_counts)
@@ -208,44 +184,47 @@ def get_reputation(
 
     recent_history: list[ReputationHistoryEntry] = []
     if include_history:
-        recent_history = truncate_history(
-            sorted(history, key=lambda e: e.created_at, reverse=True)
-        )
+        sorted_history = sorted(history, key=lambda e: e.created_at, reverse=True)
+        recent_history = [ReputationHistoryEntry.model_validate(e) for e in sorted_history[:10]]
 
     return ReputationSummary(
-        contributor_id=contributor_id,
+        contributor_id=str(contributor.id),
         username=contributor.username,
         display_name=contributor.display_name,
         reputation_score=round(total, 2),
         badge=determine_badge(total),
         tier_progression=build_tier_progression(tier_counts, current_tier),
         is_veteran=is_veteran(history),
-        total_bounties_completed=sum(tier_counts.values()),
+        total_bounties_completed=len(history),
         average_review_score=average,
         history=recent_history,
     )
 
 
-def get_reputation_leaderboard(limit: int = 20, offset: int = 0) -> list[ReputationSummary]:
-    """Get contributors ranked by reputation score descending.
+async def get_reputation_leaderboard(db: AsyncSession, limit: int = 20, offset: int = 0) -> list[ReputationSummary]:
+    """Get contributors ranked by reputation score descending."""
+    stmt = select(ContributorDB).order_by(ContributorDB.reputation_score.desc()).offset(offset).limit(limit)
+    result = await db.execute(stmt)
+    contributors = result.scalars().all()
+    
+    summaries = []
+    for c in contributors:
+        # Build a summary without full history for the leaderboard
+        # In a real app, we might want to optimize this to avoid N+1 queries
+        # but for now we follow the structure.
+        summary = await get_reputation(db, str(c.id), include_history=False)
+        if summary:
+            summaries.append(summary)
+            
+    return summaries
 
-    Builds lightweight summaries (no per-entry history) for performance.
-    Use the ``/contributors/{id}/reputation/history`` endpoint for full
-    records.
 
-    TODO: PostgreSQL migration — ``ORDER BY reputation_score DESC LIMIT
-    :limit OFFSET :offset`` with indexed column.
-    """
-    all_ids = contributor_service.list_contributor_ids()
-    summaries = [
-        s for cid in all_ids
-        if (s := get_reputation(cid, include_history=False)) is not None
-    ]
-    summaries.sort(key=lambda s: (-s.reputation_score, s.username))
-    return summaries[offset: offset + limit]
-
-
-def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
+async def get_history(db: AsyncSession, contributor_id: str) -> list[ReputationHistoryEntry]:
     """Get per-bounty reputation history sorted newest-first."""
-    history = _reputation_store.get(contributor_id, [])
-    return sorted(history, key=lambda e: e.created_at, reverse=True)
+    try:
+        uuid_obj = uuid.UUID(contributor_id)
+        stmt = select(ReputationHistoryDB).where(ReputationHistoryDB.contributor_id == uuid_obj).order_by(ReputationHistoryDB.created_at.desc())
+        result = await db.execute(stmt)
+        return [ReputationHistoryEntry.model_validate(e) for e in result.scalars().all()]
+    except ValueError:
+        return []

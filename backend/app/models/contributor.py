@@ -5,13 +5,10 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text
+from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase
-
-
-class Base(DeclarativeBase):
-    pass
+from sqlalchemy.orm import relationship
+from app.database import Base
 
 
 class ContributorDB(Base):
@@ -29,7 +26,7 @@ class ContributorDB(Base):
     total_contributions = Column(Integer, default=0, nullable=False)
     total_bounties_completed = Column(Integer, default=0, nullable=False)
     total_earnings = Column(Float, default=0.0, nullable=False)
-    reputation_score = Column(Integer, default=0, nullable=False)
+    reputation_score = Column(Float, default=0.0, nullable=False)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -38,6 +35,29 @@ class ContributorDB(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+    # Relationships
+    reputation_history = relationship("ReputationHistoryDB", back_populates="contributor", cascade="all, delete-orphan")
+
+
+class ReputationHistoryDB(Base):
+    """SQLAlchemy model for contributor reputation events."""
+
+    __tablename__ = "reputation_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contributor_id = Column(UUID(as_uuid=True), ForeignKey("contributors.id"), nullable=False, index=True)
+    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    bounty_title = Column(String(255), nullable=False)
+    bounty_tier = Column(Integer, nullable=False)
+    review_score = Column(Float, nullable=False)
+    earned_reputation = Column(Float, nullable=False)
+    anti_farming_applied = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    contributor = relationship("ContributorDB", back_populates="reputation_history")
 
 
 class ContributorBase(BaseModel):
