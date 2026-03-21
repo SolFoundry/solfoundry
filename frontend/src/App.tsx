@@ -1,6 +1,6 @@
 /**
  * App — Root component with full routing and layout.
- * All pages wrapped in WalletProvider + SiteLayout.
+ * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
 import { lazy, Suspense } from 'react';

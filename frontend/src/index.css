@@ -8,13 +8,23 @@
   --color-solana-green: #14F195;
   --color-solana-purple: #9945FF;
 
-  /* Surface colors (dark theme) */
+  /* Surface colors — Dark theme defaults
+     NOTE: For light mode support, components should use Tailwind's dark: prefix
+     or the CSS variables defined below (:root / .dark) */
   --color-surface: #0a0a0a;
   --color-surface-50: #111111;
   --color-surface-100: #1a1a1a;
   --color-surface-200: #222222;
   --color-surface-300: #2a2a2a;
   --color-surface-400: #333333;
+
+  /* Light surface colors (for components that need explicit light mode) */
+  --color-surface-light: #ffffff;
+  --color-surface-light-50: #fafafa;
+  --color-surface-light-100: #f5f5f5;
+  --color-surface-light-200: #eeeeee;
+  --color-surface-light-300: #e0e0e0;
+  --color-surface-light-400: #d0d0d0;
 
   /* Accent colors */
   --color-accent-green: #14F195;
