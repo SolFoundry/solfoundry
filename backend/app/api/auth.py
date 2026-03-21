@@ -284,5 +284,15 @@ async def get_current_user(
         )
 
 
+def get_admin_user_id(
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """
+    Dependency that checks if the current user is an admin.
+    For this prototype, we'll allow all authenticated users to be admin or mock it.
+    """
+    # In a real app, query User DB or role token
+    return current_user_id
+
 # Export the dependency for use in other modules
-__all__ = ["router", "get_current_user_id", "get_current_user"]
+__all__ = ["router", "get_current_user_id", "get_current_user", "get_admin_user_id"]

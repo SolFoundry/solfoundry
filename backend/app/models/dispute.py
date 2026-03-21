@@ -8,20 +8,21 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index
 
-from app.database import Base, GUID
+from sqlalchemy.dialects.postgresql import UUID
+from app.database import Base
 
 
 class DisputeStatus(str, Enum):
-    PENDING = "pending"
-    UNDER_REVIEW = "under_review"
+    OPENED = "opened"
+    EVIDENCE = "evidence"
+    MEDIATION = "mediation"
     RESOLVED = "resolved"
-    CLOSED = "closed"
 
 
 class DisputeOutcome(str, Enum):
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    CANCELLED = "cancelled"
+    RELEASE_TO_CONTRIBUTOR = "release_to_contributor"
+    REFUND_TO_CREATOR = "refund_to_creator"
+    SPLIT = "split"
 
 
 class DisputeReason(str, Enum):
@@ -36,17 +37,17 @@ class DisputeReason(str, Enum):
 class DisputeDB(Base):
     __tablename__ = "disputes"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
     )
-    submitter_id = Column(GUID(), nullable=False)
+    submitter_id = Column(UUID(as_uuid=True), nullable=False)
     reason = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
     evidence_links = Column(JSON, default=list, nullable=False)
-    status = Column(String(20), nullable=False, default="pending")
+    status = Column(String(20), nullable=False, default="opened")
     outcome = Column(String(20), nullable=True)
-    reviewer_id = Column(GUID(), nullable=True)
+    reviewer_id = Column(UUID(as_uuid=True), nullable=True)
     review_notes = Column(Text, nullable=True)
     resolution_action = Column(Text, nullable=True)
     created_at = Column(
@@ -68,14 +69,14 @@ class DisputeDB(Base):
 class DisputeHistoryDB(Base):
     __tablename__ = "dispute_history"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     dispute_id = Column(
-        GUID(), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
     )
     action = Column(String(50), nullable=False)
     previous_status = Column(String(20), nullable=True)
     new_status = Column(String(20), nullable=True)
-    actor_id = Column(GUID(), nullable=False)
+    actor_id = Column(UUID(as_uuid=True), nullable=False)
     notes = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
