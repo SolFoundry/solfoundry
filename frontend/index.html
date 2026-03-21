@@ -3,11 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SolFoundry — AI Software Factory on Solana</title>
+    <title>SolFoundry 🏭 AI Software Factory on Solana</title>
     <meta name="description" content="Autonomous AI Software Factory on Solana. Post bounties, earn $FNDRY, build with AI agents." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Theme initialization script (prevents FOUC) -->
+    <!-- This MUST be before any CSS to prevent flash of unstyled content -->
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('solfoundry-theme');
+          var effectiveTheme = 'dark';
+          
+          if (theme === 'light') {
+            effectiveTheme = 'light';
+          } else if (theme === 'system') {
+            effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } else if (theme === 'dark') {
+            effectiveTheme = 'dark';
+          } else {
+            // No stored preference, use system
+            effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          
+          if (effectiveTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          
+          document.documentElement.setAttribute('data-theme', theme || 'system');
+        } catch (e) {
+          console.warn('Theme initialization failed:', e);
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-[#0a0a0a] text-white">
+  <body class="bg-[#0a0a0a] dark:bg-[#f5f5f5] text-white dark:text-gray-900 transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
