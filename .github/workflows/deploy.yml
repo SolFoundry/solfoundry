@@ -1,6 +1,12 @@
 # Deploy Pipeline - Builds Docker images on merge to main.
-# Staging auto-deploys. Production requires manual approval gate.
-# Rollback: use workflow_dispatch with rollback_tag set to a previous SHA.
+# Staging auto-deploys. Production requires manual approval via environment rules.
+#
+# Rollback: gh workflow run deploy.yml -f environment=staging -f rollback_tag=abc1234
+#
+# Required Secrets: DIGITALOCEAN_ACCESS_TOKEN, DIGITALOCEAN_CLUSTER_NAME,
+#   DATABASE_URL (prod), STAGING_DATABASE_URL (staging)
+# Required Vars: STAGING_HEALTH_URL, PRODUCTION_HEALTH_URL
+# Required Environments: staging (auto), production (add "Required reviewers")
 
 name: Deploy
 
@@ -64,7 +70,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
           tags: |
-            type=sha,prefix=
+            type=sha,prefix=,format=short
             type=ref,event=branch
 
       - name: Build and Push Backend Image
@@ -108,7 +114,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
           tags: |
-            type=sha,prefix=
+            type=sha,prefix=,format=short
             type=ref,event=branch
 
       - name: Build and Push Frontend Image
@@ -127,7 +133,10 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
-    if: always() && (needs.build-backend.result == 'success' || inputs.rollback_tag != '')
+    if: >-
+      always()
+      && (needs.build-backend.result == 'success' || inputs.rollback_tag != '')
+      && (inputs.environment == 'staging' || inputs.environment == '')
     environment:
       name: staging
       url: https://staging.solfoundry.org
@@ -163,18 +172,22 @@ jobs:
       - name: Verify Staging Health
         run: |
           for i in 1 2 3 4 5; do
-            if curl -sf https://staging-api.solfoundry.org/health | grep -q ok; then
+            if curl -sf ${{ vars.STAGING_HEALTH_URL }} | grep -q ok; then
               echo "Staging healthy"; exit 0
             fi; sleep 10
           done
           echo "Health check failed"; exit 1
 
-  # ==================== DEPLOY TO PRODUCTION (manual approval) ============
+  # ==================== DEPLOY TO PRODUCTION ====================
+  # Production environment MUST have "Required reviewers" protection rule.
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [deploy-staging, build-backend, build-frontend]
-    if: always() && needs.deploy-staging.result == 'success'
+    if: >-
+      always()
+      && (needs.deploy-staging.result == 'success' || inputs.environment == 'production')
+      && (inputs.environment == 'production' || inputs.environment == '')
     environment:
       name: production
       url: https://solfoundry.org
@@ -210,35 +223,43 @@ jobs:
       - name: Verify Production Health
         run: |
           for i in 1 2 3 4 5; do
-            if curl -sf https://api.solfoundry.org/health | grep -q ok; then
+            if curl -sf ${{ vars.PRODUCTION_HEALTH_URL }} | grep -q ok; then
               echo "Production healthy"; exit 0
             fi; sleep 10
           done
           echo "Health check failed"; exit 1
 
   # ==================== DATABASE MIGRATIONS ====================
-  migrate-database:
-    name: Run Database Migrations
+  migrate-staging:
+    name: Run Staging Migrations
     runs-on: ubuntu-latest
-    needs: deploy-production
+    needs: deploy-staging
+    if: needs.deploy-staging.result == 'success'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Dependencies
+      - name: Install and run migrations
         working-directory: backend
-        run: |
-          pip install -r requirements.txt
-          pip install alembic
+        run: pip install -r requirements.txt alembic && alembic upgrade head
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        continue-on-error: true
 
-      - name: Run Migrations
+  migrate-production:
+    name: Run Production Migrations
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: needs.deploy-production.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install and run migrations
         working-directory: backend
-        run: alembic upgrade head
+        run: pip install -r requirements.txt alembic && alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         continue-on-error: true
@@ -247,7 +268,7 @@ jobs:
   deploy-status:
     name: Deployment Status
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend, deploy-staging, deploy-production, migrate-database]
+    needs: [build-backend, build-frontend, deploy-staging, deploy-production, migrate-staging, migrate-production]
     if: always()
     steps:
       - name: Generate Deployment Summary
@@ -263,7 +284,8 @@ jobs:
           echo "| Frontend Build | ${{ needs.build-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Staging Deploy | ${{ needs.deploy-staging.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Production Deploy | ${{ needs.deploy-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Migration | ${{ needs.migrate-database.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Staging Migration | ${{ needs.migrate-staging.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Production Migration | ${{ needs.migrate-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Rollback" >> $GITHUB_STEP_SUMMARY
           echo "Trigger workflow_dispatch with rollback_tag to deploy a previous image." >> $GITHUB_STEP_SUMMARY
