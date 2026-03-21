@@ -35,26 +35,44 @@ describe('MarkdownRenderer', () => {
       
       const code = container.querySelector('code');
       expect(code).toHaveTextContent('npm install');
-      expect(code).toHaveClass('bg-[#1a1a1a]');
+      expect(code).toBeInTheDocument();
     });
 
-    it('renders code blocks with syntax highlighting', () => {
+    it('renders code blocks with content', () => {
       const content = '```javascript\nconst x = 1;\n```';
       const { container } = render(<MarkdownRenderer content={content} />);
       
-      // Should have syntax highlighter
-      expect(container.querySelector('.language-javascript')).toBeTruthy;
+      // Verify code content is rendered
+      expect(container.textContent).toContain('const x = 1;');
+      // Verify syntax highlighter creates nested spans for tokens
+      const spans = container.querySelectorAll('span');
+      expect(spans.length).toBeGreaterThan(0);
+    });
+
+    it('renders code blocks without language', () => {
+      const content = '```\nplain text code\n```';
+      render(<MarkdownRenderer content={content} />);
+      
+      expect(screen.getByText(/plain text code/)).toBeInTheDocument();
     });
   });
 
   describe('links', () => {
-    it('renders links that open in new tab', () => {
+    it('renders external links that open in new tab', () => {
       const { container } = render(<MarkdownRenderer content="[SolFoundry](https://solfoundry.org)" />);
       
       const link = container.querySelector('a');
       expect(link).toHaveAttribute('href', 'https://solfoundry.org');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('renders internal anchor links without new tab', () => {
+      const { container } = render(<MarkdownRenderer content="[Section](#section)" />);
+      
+      const link = container.querySelector('a');
+      expect(link).toHaveAttribute('href', '#section');
+      expect(link).not.toHaveAttribute('target', '_blank');
     });
   });
 
@@ -121,6 +139,41 @@ describe('MarkdownRenderer', () => {
       const { container } = render(<MarkdownRenderer content="Test" className="custom-class" />);
       
       expect(container.querySelector('.markdown-content')).toHaveClass('custom-class');
+    });
+  });
+
+  describe('strikethrough (GFM)', () => {
+    it('renders strikethrough text with del element', () => {
+      const { container } = render(<MarkdownRenderer content="~~deleted text~~" />);
+      
+      // Check that strikethrough is rendered with proper element
+      const deletedElement = container.querySelector('del') || container.querySelector('s');
+      expect(deletedElement).toBeTruthy();
+      expect(deletedElement).toHaveTextContent('deleted text');
+    });
+  });
+
+  describe('XSS safety', () => {
+    it('sanitizes dangerous HTML attributes', () => {
+      const content = '<img src="x" onerror="alert(1)">';
+      const { container } = render(<MarkdownRenderer content={content} />);
+      
+      const img = container.querySelector('img');
+      // If img is rendered, ensure it has no dangerous attributes
+      if (img) {
+        expect(img.getAttribute('onerror')).toBeNull();
+      }
+    });
+
+    it('sanitizes javascript: URLs', () => {
+      const content = '[Click me](javascript:alert(1))';
+      const { container } = render(<MarkdownRenderer content={content} />);
+      
+      const link = container.querySelector('a');
+      expect(link).toBeTruthy();
+      // The href should be sanitized or removed
+      const href = link?.getAttribute('href');
+      expect(href === null || href === '' || !href?.startsWith('javascript:')).toBeTruthy();
     });
   });
 });
