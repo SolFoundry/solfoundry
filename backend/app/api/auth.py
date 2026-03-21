@@ -11,6 +11,7 @@ This module provides REST API endpoints for:
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
+from app.models.errors import ErrorResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -81,7 +82,12 @@ async def get_current_user_id(
         )
 
 
-@router.get("/github/authorize", response_model=dict)
+@router.get(
+    "/github/authorize",
+    response_model=dict,
+    summary="Get GitHub Auth URL",
+    description="Generates the GitHub OAuth authorization URL and a temporary state for CSRF protection.",
+)
 async def get_github_authorize(state: Optional[str] = None):
     """
     Get GitHub OAuth authorization URL.
@@ -103,8 +109,20 @@ async def get_github_authorize(state: Optional[str] = None):
         )
 
 
-@router.post("/github", response_model=GitHubOAuthResponse)
-async def github_oauth_callback(request: GitHubOAuthRequest):
+@router.post(
+    "/github",
+    response_model=GitHubOAuthResponse,
+    summary="GitHub OAuth Callback",
+    description="Exchanges a GitHub authorization code for SolFoundry JWT tokens.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid or expired code"},
+        500: {"model": ErrorResponse, "description": "GitHub API error"},
+    },
+)
+async def github_oauth_callback(
+    data: GitHubOAuthRequest,
+    db: AsyncSession = Depends(get_db)
+) -> GitHubOAuthResponse:
     """
     Complete GitHub OAuth flow.
 
@@ -118,7 +136,7 @@ async def github_oauth_callback(request: GitHubOAuthRequest):
     5. Return JWT tokens
     """
     try:
-        result = await auth_service.github_oauth_login(request.code)
+        result = await auth_service.github_oauth_login(db, data.code, data.state)
         return result
     except GitHubOAuthError as e:
         raise HTTPException(
@@ -132,7 +150,12 @@ async def github_oauth_callback(request: GitHubOAuthRequest):
         )
 
 
-@router.get("/wallet/message", response_model=AuthMessageResponse)
+@router.get(
+    "/wallet/message",
+    response_model=AuthMessageResponse,
+    summary="Get Wallet Auth Message",
+    description="Generates a unique message for a Solana wallet to sign. Prevents replay attacks.",
+)
 async def get_wallet_auth_message(wallet_address: str):
     """
     Get a message for wallet authentication.
@@ -143,8 +166,19 @@ async def get_wallet_auth_message(wallet_address: str):
     return auth_service.generate_auth_message(wallet_address)
 
 
-@router.post("/wallet", response_model=WalletAuthResponse)
-async def wallet_authenticate(request: WalletAuthRequest):
+@router.post(
+    "/wallet",
+    response_model=WalletAuthResponse,
+    summary="Wallet Authenticate",
+    description="Verifies a Solana wallet signature and returns JWT tokens.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Signature verification failed"},
+    },
+)
+async def wallet_authenticate(
+    request: WalletAuthRequest,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Authenticate with Solana wallet signature.
 
@@ -157,6 +191,7 @@ async def wallet_authenticate(request: WalletAuthRequest):
     """
     try:
         result = await auth_service.wallet_authenticate(
+            db,
             request.wallet_address,
             request.signature,
             request.message,
@@ -208,7 +243,10 @@ async def link_wallet(
 
 
 @router.post("/refresh", response_model=RefreshTokenResponse)
-async def refresh_token(request: RefreshTokenRequest):
+async def refresh_token(
+    request: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db)
+) -> RefreshTokenResponse:
     """
     Refresh an access token.
 
@@ -216,15 +254,14 @@ async def refresh_token(request: RefreshTokenRequest):
     Refresh tokens are valid for 7 days.
     """
     try:
-        result = await auth_service.refresh_access_token(request.refresh_token)
+        result = await auth_service.refresh_access_token(db, request.refresh_token)
         return result
-    except TokenExpiredError:
+    except (InvalidTokenError, TokenExpiredError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except InvalidTokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),

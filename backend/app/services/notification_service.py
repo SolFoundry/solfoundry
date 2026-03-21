@@ -188,9 +188,12 @@ class NotificationService:
         Raises:
             ValueError: If notification_type is invalid.
         """
-        if data.notification_type not in self.VALID_TYPES:
+        ntype = data.notification_type
+        if isinstance(ntype, NotificationType):
+            ntype = ntype.value
+        if ntype not in self.VALID_TYPES:
             raise ValueError(
-                f"Invalid notification type: {data.notification_type}. "
+                f"Invalid notification type: {ntype}. "
                 f"Must be one of: {self.VALID_TYPES}"
             )
 
@@ -200,7 +203,7 @@ class NotificationService:
             title=data.title,
             message=data.message,
             bounty_id=data.bounty_id,
-            metadata=data.metadata,
+            extra_data=data.extra_data,
         )
 
         self.db.add(notification)

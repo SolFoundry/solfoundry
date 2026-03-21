@@ -12,7 +12,7 @@ from app.models.leaderboard import (
 )
 from app.services.leaderboard_service import get_leaderboard
 
-router = APIRouter(prefix="/api", tags=["leaderboard"])
+router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
 # Map frontend range params to backend TimePeriod
 _RANGE_MAP = {
@@ -25,7 +25,8 @@ _RANGE_MAP = {
 }
 
 
-@router.get("/leaderboard")
+@router.get("/", summary="Get leaderboard", description="Ranked list of contributors by $FNDRY earned.")
+@router.get("", include_in_schema=False)
 async def leaderboard(
     period: Optional[TimePeriod] = Query(
         None, description="Time period: week, month, or all"

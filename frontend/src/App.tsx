@@ -1,6 +1,6 @@
 /**
  * App — Root component with full routing and layout.
- * All pages wrapped in WalletProvider + SiteLayout.
+ * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
 import { lazy, Suspense } from 'react';
@@ -8,6 +8,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/common/ToastContainer';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -21,6 +24,7 @@ const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -65,6 +69,9 @@ function AppLayout() {
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
 
+          {/* How It Works */}
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+
           {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -82,9 +89,14 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider defaultNetwork="mainnet-beta">
-        <AppLayout />
-      </WalletProvider>
+      <ThemeProvider defaultTheme="dark">
+        <ToastProvider>
+          <WalletProvider defaultNetwork="mainnet-beta">
+            <AppLayout />
+          </WalletProvider>
+          <ToastContainer />
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

@@ -11,8 +11,9 @@ from sqlalchemy import (
     DateTime,
     Text,
     Index,
+    JSON,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB, TSVECTOR
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 
@@ -29,7 +30,7 @@ class BountyTable(Base):
     category = Column(String(50), nullable=True)
     creator_type = Column(String(20), nullable=False, server_default="platform")
     github_issue_url = Column(String(512), nullable=True)
-    skills = Column(JSONB, nullable=False, server_default="[]")
+    skills = Column(JSON, nullable=False, default=list)
     deadline = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(String(100), nullable=False, server_default="system")
     submission_count = Column(Integer, nullable=False, server_default="0")
@@ -45,14 +46,14 @@ class BountyTable(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    search_vector = Column(TSVECTOR, nullable=True)
+    search_vector = Column(Text, nullable=True) # Fallback for SQLite; TSVECTOR is PG-only
 
     __table_args__ = (
-        Index("ix_bounties_search_vector", search_vector, postgresql_using="gin"),
+        Index("ix_bounties_search_vector", search_vector),
         Index("ix_bounties_tier_status", tier, status),
         Index("ix_bounties_category_status", category, status),
         Index("ix_bounties_reward", reward_amount),
         Index("ix_bounties_deadline", deadline),
         Index("ix_bounties_popularity", popularity),
-        Index("ix_bounties_skills", skills, postgresql_using="gin"),
+        Index("ix_bounties_skills", skills),
     )

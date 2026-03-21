@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
+from app.models.errors import ErrorResponse
 
 from app.models.payout import (
     BuybackCreate,
@@ -31,13 +32,18 @@ from app.services.treasury_service import (
     invalidate_cache,
 )
 
-router = APIRouter(prefix="/api", tags=["payouts", "treasury"])
+router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
 
 # Relaxed: accept base-58 (Solana) and hex (EVM) transaction hashes.
 _TX_HASH_RE = re.compile(r"^[0-9a-fA-F]{64}$|^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
 
-@router.get("/payouts", response_model=PayoutListResponse)
+@router.get(
+    "/payouts",
+    response_model=PayoutListResponse,
+    summary="List payout history",
+    description="Retrieve a paginated history of all bounty payouts, filtered by recipient or status.",
+)
 async def get_payouts(
     recipient: Optional[str] = Query(
         None, min_length=1, max_length=100, description="Filter by recipient username"
@@ -50,7 +56,16 @@ async def get_payouts(
     return list_payouts(recipient=recipient, status=status, skip=skip, limit=limit)
 
 
-@router.get("/payouts/{tx_hash}", response_model=PayoutResponse)
+@router.get(
+    "/payouts/{tx_hash}",
+    response_model=PayoutResponse,
+    summary="Get payout by transaction",
+    description="Retrieve details for a specific payout using its Solana transaction signature.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid transaction hash format"},
+        404: {"model": ErrorResponse, "description": "Payout not found"},
+    },
+)
 async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     """Single payout by tx hash; 400 for bad format, 404 if missing."""
     if not _TX_HASH_RE.match(tx_hash):
@@ -66,7 +81,16 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     return payout
 
 
-@router.post("/payouts", response_model=PayoutResponse, status_code=201)
+@router.post(
+    "/payouts",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record a payout",
+    description="Manually record a successful bounty payout. Invalidates treasury cache.",
+    responses={
+        409: {"model": ErrorResponse, "description": "Duplicate transaction hash"},
+    },
+)
 async def record_payout(data: PayoutCreate) -> PayoutResponse:
     """Record a new payout.  Invalidates the treasury cache on success."""
     try:
@@ -77,7 +101,12 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
     return result
 
 
-@router.get("/treasury", response_model=TreasuryStats)
+@router.get(
+    "/treasury",
+    response_model=TreasuryStats,
+    summary="Get treasury statistics",
+    description="Returns live balances for SOL and FNDRY, along with cumulative distribution metrics.",
+)
 async def treasury_stats() -> TreasuryStats:
     """Live treasury balance (SOL + $FNDRY), total paid out, total buybacks."""
     return await get_treasury_stats()
