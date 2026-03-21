@@ -10,6 +10,15 @@ Implements comprehensive security headers following OWASP recommendations:
 - Cache-Control headers for sensitive endpoints
 - Request body size enforcement to prevent resource exhaustion
 
+This module provides two middleware classes:
+- SecurityHeadersMiddleware: Our comprehensive OWASP-hardened implementation
+  (Issue #197) with configurable CSP, HSTS, Permissions-Policy, etc.
+- SecurityMiddleware: Upstream basic security headers (Issue #160) with
+  request size limits.
+
+Both are registered in main.py; SecurityHeadersMiddleware is the outermost
+layer and takes precedence for overlapping headers.
+
 References:
     - OWASP Secure Headers: https://owasp.org/www-project-secure-headers/
     - MDN Security Headers: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
@@ -17,13 +26,16 @@ References:
 
 import logging
 import os
-from typing import Callable
+from typing import Callable, Optional
 
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse, JSONResponse
 
 logger = logging.getLogger(__name__)
+
+# ── SecurityHeadersMiddleware configuration (our hardening — Issue #197) ──
 
 # Maximum request body size in bytes (default 1 MB)
 MAX_REQUEST_BODY_SIZE: int = int(os.getenv("MAX_REQUEST_BODY_SIZE", str(1 * 1024 * 1024)))
@@ -189,5 +201,46 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Remove server identification header if present
         if "Server" in response.headers:
             del response.headers["Server"]
+
+        return response
+
+
+# ── SecurityMiddleware (upstream — Issue #160) ────────────────────────────
+
+# Configurable limits
+MAX_PAYLOAD_SIZE = 10 * 1024 * 1024  # 10MB default
+CSP_DEFAULT = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;"
+
+
+class SecurityMiddleware(BaseHTTPMiddleware):
+    """Enforce security headers and request size limits (upstream Issue #160)."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Apply upstream security headers and payload size enforcement."""
+        # Enforce request size limit based on Content-Length header
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_PAYLOAD_SIZE:
+            logger.warning(
+                f"Request payload too large: {content_length} bytes from {request.client.host}"
+            )
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "message": "Request payload exceeds maximum allowed size (10MB).",
+                    "code": "PAYLOAD_TOO_LARGE",
+                },
+            )
+
+        # Proceed to next middleware/handler
+        response = await call_next(request)
+
+        # Set Security Headers
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = CSP_DEFAULT
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
 
         return response

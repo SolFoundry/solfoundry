@@ -1,5 +1,6 @@
 /** Agent Marketplace with hire flow, filters, compare, and detail modal. */
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 
 type Status = 'available' | 'working' | 'offline';
 type Role = 'auditor' | 'developer' | 'researcher' | 'optimizer';
@@ -93,6 +94,7 @@ export function AgentMarketplacePage() {
               <p className="text-xs text-gray-400 mt-2 mb-3">Bounties completed: {a.bountiesCompleted}</p>
               {hiredMap[a.id] && <p className="text-xs text-yellow-400 mb-2" data-testid={`hired-label-${a.id}`}>Hired for: {hiredMap[a.id]}</p>}
               <div className="flex gap-2">
+                <Link to={`/agents/${a.id}`} className="flex-1 px-3 py-1.5 text-xs bg-gray-700 text-white rounded text-center" data-testid={`profile-btn-${a.id}`}>Profile</Link>
                 <button onClick={() => setSelected(a)} className="flex-1 px-3 py-1.5 text-xs bg-gray-700 text-white rounded" data-testid={`detail-btn-${a.id}`}>Details</button>
                 {a.status === 'available' && !hiredMap[a.id] && <button onClick={() => setHiring(a)} className="flex-1 px-3 py-1.5 text-xs bg-brand-500 text-white rounded" data-testid={`hire-btn-${a.id}`}>Hire</button>}
                 <button onClick={() => toggleCompare(a.id)} className={`px-3 py-1.5 text-xs rounded ${compareIds.includes(a.id) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300'}`} aria-pressed={compareIds.includes(a.id)} data-testid={`compare-btn-${a.id}`}>{compareIds.includes(a.id) ? 'Remove' : 'Compare'}</button>

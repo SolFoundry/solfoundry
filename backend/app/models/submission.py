@@ -12,7 +12,8 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, Index
+import sqlalchemy as sa
+from sqlalchemy import Column, String, DateTime, JSON, Integer, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
@@ -64,7 +65,7 @@ class SubmissionDB(Base):
     # Bounty matching
     bounty_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     match_confidence = Column(String(20), nullable=True)  # high, medium, low
-    match_score = Column(Float, nullable=True)  # 0.0-1.0
+    match_score = Column(sa.Numeric(precision=5, scale=4), nullable=True)  # 0.0-1.0
     match_reasons = Column(JSON, default=list, nullable=False)  # Why matched
 
     # Submission status
@@ -74,7 +75,7 @@ class SubmissionDB(Base):
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Payout information
-    reward_amount = Column(Float, nullable=True)
+    reward_amount = Column(sa.Numeric(precision=20, scale=6), nullable=True)
     reward_token = Column(String(20), nullable=True)
     payout_tx_hash = Column(String(128), nullable=True)
     payout_at = Column(DateTime(timezone=True), nullable=True)
@@ -145,6 +146,7 @@ class SubmissionUpdate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure status is a valid submission lifecycle status."""
         valid_statuses = {s.value for s in SubmissionStatus}
         if v is not None and v not in valid_statuses:
             raise ValueError(f"Invalid status: {v}. Must be one of: {valid_statuses}")
@@ -165,27 +167,27 @@ class MatchResult(BaseModel):
 class SubmissionResponse(SubmissionBase):
     """Full submission response."""
 
-    id: str
-    contributor_id: str
-    contributor_wallet: str
-    pr_number: Optional[int] = None
-    pr_repo: Optional[str] = None
-    pr_status: Optional[str] = None
-    pr_merged_at: Optional[datetime] = None
-    bounty_id: Optional[str] = None
-    match_confidence: Optional[str] = None
-    match_score: Optional[float] = None
-    match_reasons: List[str] = Field(default_factory=list)
-    status: str
-    review_notes: Optional[str] = None
-    reviewer_id: Optional[str] = None
-    reviewed_at: Optional[datetime] = None
-    reward_amount: Optional[float] = None
-    reward_token: Optional[str] = None
-    payout_tx_hash: Optional[str] = None
-    payout_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    id: str = Field(..., description="Unique submission ID", examples=["uuid-789"])
+    contributor_id: str = Field(..., description="ID of the contributor user", examples=["uuid-123"])
+    contributor_wallet: str = Field(..., description="Solana wallet address of the contributor", examples=["BSz85..."])
+    pr_number: Optional[int] = Field(None, description="GitHub PR number", examples=[42])
+    pr_repo: Optional[str] = Field(None, description="GitHub repository name (owner/repo)", examples=["solfoundry/solfoundry"])
+    pr_status: Optional[str] = Field(None, description="Current status of the GitHub PR", examples=["open", "merged", "closed"])
+    pr_merged_at: Optional[datetime] = Field(None, description="Timestamp when the PR was merged")
+    bounty_id: Optional[str] = Field(None, description="ID of the bounty this submission is for", examples=["uuid-456"])
+    match_confidence: Optional[str] = Field(None, description="Auto-matching confidence level", examples=["high", "medium", "low"])
+    match_score: Optional[float] = Field(None, description="Auto-matching score (0-1)", examples=[0.95])
+    match_reasons: List[str] = Field(default_factory=list, description="Reasoning for auto-matching", examples=[["Mentioned bounty ID in PR description"]])
+    status: str = Field(..., description="Current lifecycle status of the submission", examples=["pending", "approved", "paid"])
+    review_notes: Optional[str] = Field(None, description="Notes from the bounty creator's review", examples=["Great work, approved!"])
+    reviewer_id: Optional[str] = Field(None, description="ID of the user who reviewed this submission", examples=["uuid-111"])
+    reviewed_at: Optional[datetime] = Field(None, description="Timestamp of the review")
+    reward_amount: Optional[float] = Field(None, description="Amount of reward to be paid", examples=[1.5])
+    reward_token: Optional[str] = Field(None, description="Token symbol for reward", examples=["SOL", "USDC"])
+    payout_tx_hash: Optional[str] = Field(None, description="Solana transaction hash for the payout", examples=["5G..."])
+    payout_at: Optional[datetime] = Field(None, description="Timestamp of the payout")
+    created_at: datetime = Field(..., description="Submission creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = {"from_attributes": True}
 
@@ -193,17 +195,17 @@ class SubmissionResponse(SubmissionBase):
 class SubmissionListItem(BaseModel):
     """Brief submission info for list views."""
 
-    id: str
-    contributor_wallet: str
-    pr_url: str
-    pr_number: Optional[int] = None
-    pr_repo: Optional[str] = None
-    bounty_id: Optional[str] = None
-    match_confidence: Optional[str] = None
-    status: str
-    reward_amount: Optional[float] = None
-    reward_token: Optional[str] = None
-    created_at: datetime
+    id: str = Field(..., description="Unique submission ID", examples=["uuid-789"])
+    contributor_wallet: str = Field(..., description="Contributor's Solana wallet", examples=["BSz85..."])
+    pr_url: str = Field(..., description="Link to the GitHub Pull Request", examples=["https://github.com/org/repo/pull/42"])
+    pr_number: Optional[int] = Field(None, description="GitHub PR number", examples=[42])
+    pr_repo: Optional[str] = Field(None, description="GitHub repository name", examples=["solfoundry/solfoundry"])
+    bounty_id: Optional[str] = Field(None, description="Bounty ID", examples=["uuid-456"])
+    match_confidence: Optional[str] = Field(None, description="Match confidence", examples=["high"])
+    status: str = Field(..., description="Submission status", examples=["pending"])
+    reward_amount: Optional[float] = Field(None, description="Reward amount", examples=[1.5])
+    reward_token: Optional[str] = Field(None, description="Reward token", examples=["SOL"])
+    created_at: datetime = Field(..., description="Creation timestamp")
 
     model_config = {"from_attributes": True}
 

@@ -207,7 +207,9 @@ async def seed_bounties_to_db():
             skipped = 0
             for b_data in LIVE_BOUNTIES:
                 try:
-                    created_at = now - timedelta(hours=b_data["created_at_offset_hours"])
+                    created_at = now - timedelta(
+                        hours=b_data["created_at_offset_hours"]
+                    )
                     deadline = created_at + timedelta(hours=b_data["deadline_hours"])
 
                     existing = await session.execute(

@@ -1,6 +1,6 @@
 /**
  * App — Root component with full routing and layout.
- * All pages wrapped in WalletProvider + SiteLayout.
+ * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
 import { lazy, Suspense } from 'react';
@@ -8,6 +8,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/common/ToastContainer';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -15,9 +18,12 @@ const BountyDetailPage = lazy(() => import('./pages/BountyDetailPage'));
 const BountyCreatePage = lazy(() => import('./pages/BountyCreatePage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const AgentMarketplacePage = lazy(() => import('./pages/AgentMarketplacePage'));
+const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage'));
 const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -57,13 +63,18 @@ function AppLayout() {
 
           {/* Agents */}
           <Route path="/agents" element={<AgentMarketplacePage />} />
+          <Route path="/agents/:agentId" element={<AgentProfilePage />} />
 
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
 
-          {/* Contributor */}
+          {/* How It Works */}
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+
+          {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/creator" element={<CreatorDashboardPage />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/bounties" replace />} />
@@ -77,9 +88,14 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider defaultNetwork="mainnet-beta">
-        <AppLayout />
-      </WalletProvider>
+      <ThemeProvider defaultTheme="dark">
+        <ToastProvider>
+          <WalletProvider defaultNetwork="mainnet-beta">
+            <AppLayout />
+          </WalletProvider>
+          <ToastContainer />
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

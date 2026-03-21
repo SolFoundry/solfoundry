@@ -1,18 +1,22 @@
 """Tiered rate limiting middleware for DDoS protection and abuse prevention.
 
-Implements a token-bucket rate limiter with three access tiers:
-- Anonymous: 30 requests/minute (unauthenticated users)
-- Authenticated: 120 requests/minute (users with valid JWT)
-- Admin: 300 requests/minute (users with admin role)
+This module provides two rate limiter implementations:
 
-Escrow-related endpoints have additional per-endpoint limits to prevent
-fund manipulation attacks:
-- POST /api/payouts: 5 requests/minute
-- POST /api/treasury/buybacks: 5 requests/minute
+1. RateLimitMiddleware (Issue #197 — our security hardening):
+   In-memory sliding window counter with three access tiers:
+   - Anonymous: 30 requests/minute (unauthenticated users)
+   - Authenticated: 120 requests/minute (users with valid JWT)
+   - Admin: 300 requests/minute (users with admin role)
+   Plus per-endpoint limits for sensitive operations (escrow, auth).
 
-The limiter uses an in-memory sliding window counter with automatic cleanup
-of expired entries. For production clusters, replace with Redis-backed
-implementation using the same interface.
+2. RateLimiterMiddleware (upstream Issue #158):
+   Redis-backed token bucket rate limiter with per-IP and per-user limits
+   using configurable limit groups (auth, api, webhooks).
+
+Both are registered in main.py. The in-memory RateLimitMiddleware provides
+immediate protection without Redis dependency; the Redis-backed
+RateLimiterMiddleware provides distributed rate limiting for multi-instance
+deployments.
 
 References:
     - OWASP Rate Limiting: https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html
@@ -24,13 +28,20 @@ import os
 import threading
 import time
 from collections import defaultdict
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Optional, Tuple
 
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse, JSONResponse
+
+from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# In-memory sliding window rate limiter (Issue #197 — our security hardening)
+# ═══════════════════════════════════════════════════════════════════════════
 
 # Rate limit configuration (requests per window)
 ANONYMOUS_RATE_LIMIT: int = int(os.getenv("RATE_LIMIT_ANONYMOUS", "30"))
@@ -369,3 +380,137 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Decrement connection counter
             with _connection_lock:
                 _connection_tracker[client_ip] = max(0, _connection_tracker[client_ip] - 1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Redis-backed token bucket rate limiter (upstream Issue #158)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Token Bucket Lua Script
+# ARGV[1]: Now (timestamp)
+# ARGV[2]: Rate (tokens per second)
+# ARGV[3]: Capacity (burst size)
+# ARGV[4]: Requested tokens (usually 1)
+# Returns {allowed, remaining, reset_time}
+TOKEN_BUCKET_SCRIPT = """
+local now = tonumber(ARGV[1])
+local rate = tonumber(ARGV[2])
+local capacity = tonumber(ARGV[3])
+local requested = tonumber(ARGV[4])
+
+local last_tokens = tonumber(redis.call("HGET", KEYS[1], "tokens")) or capacity
+local last_refreshed = tonumber(redis.call("HGET", KEYS[1], "refreshed")) or now
+
+local delta = math.max(0, now - last_refreshed)
+local current_tokens = math.min(capacity, last_tokens + (delta * rate))
+
+local allowed = 0
+if current_tokens >= requested then
+    current_tokens = current_tokens - requested
+    allowed = 1
+end
+
+redis.call("HSET", KEYS[1], "tokens", current_tokens, "refreshed", now)
+redis.call("EXPIRE", KEYS[1], math.ceil(capacity / rate) + 1)
+
+local reset_time = now + ((capacity - current_tokens) / rate)
+return {allowed, math.floor(current_tokens), math.ceil(reset_time)}
+"""
+
+# Default limit groups (capacity, rate_per_second)
+# Rate is tokens/sec, capacity is max burst.
+# auth: 5/min -> rate = 5/60 = 0.0833, capacity = 5
+# API: 60/min -> rate = 1.0, capacity = 60
+# webhooks: 120/min -> rate = 2.0, capacity = 120
+LIMIT_GROUPS = {
+    "auth": (5, 5 / 60.0),
+    "api": (60, 1.0),
+    "webhooks": (120, 2.0),
+    "default": (60, 1.0),
+}
+
+
+def _get_group(path: str) -> str:
+    """Map request path to a limit group."""
+    if path.startswith("/api/auth"):
+        return "auth"
+    if path.startswith("/api/webhooks"):
+        return "webhooks"
+    if path.startswith("/api"):
+        return "api"
+    return "default"
+
+
+class RateLimiterMiddleware(BaseHTTPMiddleware):
+    """Redis-backed token bucket rate limiter middleware."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Apply Redis-backed token bucket rate limiting."""
+        # Skip health check and websockets (handled separately or not limited)
+        if request.url.path == "/health" or request.scope.get("type") == "websocket":
+            return await call_next(request)
+
+        group_name = _get_group(request.url.path)
+        capacity, rate = LIMIT_GROUPS.get(group_name, LIMIT_GROUPS["default"])
+
+        # Determine identifiers (IP and User)
+        ip = request.client.host
+        user_id = request.headers.get("X-User-ID") or getattr(request.state, "user_id", None)
+
+        # Check IP Limit
+        ip_key = f"rl:ip:{ip}:{group_name}"
+        ip_allowed, ip_rem, ip_reset = await self._check_limit(ip_key, capacity, rate)
+
+        if not ip_allowed:
+            return self._rate_limit_response(ip_rem, ip_reset)
+
+        # Check User Limit (if available)
+        user_rem, user_reset = ip_rem, ip_reset
+        if user_id:
+            user_key = f"rl:usr:{user_id}:{group_name}"
+            user_allowed, user_rem, user_reset = await self._check_limit(user_key, capacity, rate)
+            if not user_allowed:
+                return self._rate_limit_response(user_rem, user_reset)
+
+        # Proceed to next middleware/handler
+        response = await call_next(request)
+
+        # Add rate limit headers
+        response.headers["X-RateLimit-Limit"] = str(capacity)
+        response.headers["X-RateLimit-Remaining"] = str(min(ip_rem, user_rem))
+        response.headers["X-RateLimit-Reset"] = str(min(ip_reset, user_reset))
+
+        return response
+
+    async def _check_limit(self, key: str, capacity: int, rate: float) -> Tuple[bool, int, int]:
+        """Execute token bucket script in Redis."""
+        try:
+            redis = await get_redis()
+            # Register script only once
+            if not hasattr(self, "_lua_script"):
+                self._lua_script = redis.register_script(TOKEN_BUCKET_SCRIPT)
+
+            now = time.time()
+            # allowed, remaining, reset_time
+            res = await self._lua_script(keys=[key], args=[now, rate, capacity, 1])
+            return bool(res[0]), int(res[1]), int(res[2])
+        except Exception as e:
+            logger.error(f"Rate limiter Redis error: {e}")
+            # Fail open if Redis is down (to prevent total outage)
+            return True, capacity, int(time.time())
+
+    def _rate_limit_response(self, remaining: int, reset: int) -> JSONResponse:
+        """Create a 429 Too Many Requests response."""
+        return JSONResponse(
+            status_code=429,
+            content={
+                "message": "Too many requests. Please slow down.",
+                "code": "RATE_LIMIT_EXCEEDED",
+                "retry_after": max(0, reset - int(time.time())),
+            },
+            headers={
+                "X-RateLimit-Remaining": str(remaining),
+                "X-RateLimit-Reset": str(reset),
+                "Retry-After": str(max(0, reset - int(time.time()))),
+            },
+        )
