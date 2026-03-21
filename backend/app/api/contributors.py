@@ -164,6 +164,38 @@ async def delete_contributor(contributor_id: str) -> None:
         raise HTTPException(status_code=404, detail="Contributor not found")
 
 
+@router.get("/unsubscribe", status_code=200)
+async def unsubscribe_contributor(
+    token: str = Query(..., description="Unique unsubscribe token"),
+    notification_type: Optional[str] = Query(None, description="Specific type to unsubscribe from"),
+) -> dict:
+    """Handle one-click unsubscribe via token.
+    
+    If notification_type is provided, disables only that type.
+    Otherwise, disables all email notifications globally.
+    """
+    contributor = await contributor_service.get_contributor_by_token(token)
+    if not contributor:
+        raise HTTPException(status_code=404, detail="Invalid unsubscribe token")
+    
+    update_data = {}
+    if notification_type:
+        prefs = contributor.notification_preferences.copy()
+        prefs[notification_type] = False
+        update_data["notification_preferences"] = prefs
+    else:
+        update_data["email_notifications_enabled"] = False
+        
+    await contributor_service.update_contributor(
+        contributor.id, ContributorUpdate(**update_data)
+    )
+    
+    return {
+        "success": True, 
+        "message": f"Successfully unsubscribed from {notification_type or 'all emails'}."
+    }
+
+
 @router.get("/{contributor_id}/reputation", response_model=ReputationSummary)
 async def get_contributor_reputation(
     contributor_id: str,
