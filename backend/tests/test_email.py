@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from backend.src.services.email import (
+from src.services.email import (
     EmailService,
     EmailProvider,
     _RATE_LIMIT_STORE,
@@ -118,10 +118,13 @@ async def test_provider_failure_and_retries(service):
     svc, provider = service
     provider.should_fail = True
 
-    import backend.src.services.email as email_module
+    import src.services.email as email_module
 
     original_sleep = email_module.asyncio.sleep
-    email_module.asyncio.sleep = lambda x: asyncio.sleep(0)  # Mock sleep to be instant
+    # Use a simple async function to avoid recursion
+    async def mock_sleep(x):
+        pass
+    email_module.asyncio.sleep = mock_sleep
 
     res = await svc._process_send("fail@sol.com", "Fail Test", "welcome", {}, "general")
     assert res is False
