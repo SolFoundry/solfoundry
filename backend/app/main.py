@@ -20,6 +20,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.stats import router as stats_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -261,6 +262,9 @@ app.include_router(websocket_router)
 
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
+
+# Stats: /api/stats (public endpoint)
+app.include_router(stats_router)
 
 
 @app.get("/health")
