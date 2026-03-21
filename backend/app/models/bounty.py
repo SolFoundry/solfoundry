@@ -27,11 +27,17 @@ class BountyTier(int, Enum):
 
 
 class BountyStatus(str, Enum):
-    """Lifecycle status of a bounty."""
+    """Lifecycle status of a bounty.
 
+    Full lifecycle: draft -> open -> claimed -> in_review -> completed -> paid.
+    Legacy shortcut: open -> in_progress -> completed -> paid (still supported).
+    """
+
+    DRAFT = "draft"
     OPEN = "open"
+    CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
-    UNDER_REVIEW = "under_review"
+    IN_REVIEW = "in_review"
     COMPLETED = "completed"
     DISPUTED = "disputed"
     PAID = "paid"
@@ -39,10 +45,12 @@ class BountyStatus(str, Enum):
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
+    BountyStatus.DRAFT: {BountyStatus.OPEN},
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
-    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
-    BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
-    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED},
+    BountyStatus.CLAIMED: {BountyStatus.IN_REVIEW, BountyStatus.OPEN},
+    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.IN_REVIEW, BountyStatus.CANCELLED},
+    BountyStatus.IN_REVIEW: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
+    BountyStatus.COMPLETED: {BountyStatus.PAID},
     BountyStatus.DISPUTED: {BountyStatus.COMPLETED, BountyStatus.CANCELLED, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
     BountyStatus.CANCELLED: set(),  # terminal

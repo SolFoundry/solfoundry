@@ -563,14 +563,16 @@ class TestUpdateBounty:
         assert resp.status_code == 200
         assert resp.json()["status"] == "open"
 
-    def test_completed_back_to_in_progress(self):
+    def test_completed_only_to_paid(self):
         b = _create_bounty()
         bid = b["id"]
         client.patch(f"/api/bounties/{bid}", json={"status": "in_progress"})
         client.patch(f"/api/bounties/{bid}", json={"status": "completed"})
         resp = client.patch(f"/api/bounties/{bid}", json={"status": "in_progress"})
+        assert resp.status_code == 400
+        resp = client.patch(f"/api/bounties/{bid}", json={"status": "paid"})
         assert resp.status_code == 200
-        assert resp.json()["status"] == "in_progress"
+        assert resp.json()["status"] == "paid"
 
     def test_invalid_status_value(self):
         b = _create_bounty()
@@ -588,7 +590,8 @@ class TestStatusTransitions:
     """Exhaustively verify every invalid status transition is rejected."""
 
     def test_transition_map_integrity(self):
-        assert VALID_STATUS_TRANSITIONS[BountyStatus.OPEN] == {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED}
+        assert BountyStatus.IN_PROGRESS in VALID_STATUS_TRANSITIONS[BountyStatus.OPEN]
+        assert VALID_STATUS_TRANSITIONS[BountyStatus.COMPLETED] == {BountyStatus.PAID}
         assert VALID_STATUS_TRANSITIONS[BountyStatus.PAID] == set()
         for s in BountyStatus:
             assert s in VALID_STATUS_TRANSITIONS

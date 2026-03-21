@@ -20,10 +20,12 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.lifecycle import router as lifecycle_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services import lifecycle_service
 
 # Initialize logging
 setup_logging()
@@ -54,8 +56,21 @@ async def lifespan(app: FastAPI):
 
         seed_leaderboard()
 
-    # Start periodic sync in background (every 5 minutes)
-    sync_task = asyncio.create_task(periodic_sync())
+    # Start periodic sync + deadline enforcement in background
+    async def periodic_sync_with_deadlines():
+        """Background loop: sync GitHub data and enforce claim deadlines."""
+        while True:
+            try:
+                await sync_all()
+            except Exception as exc:
+                logger.error("Periodic sync failed: %s", exc)
+            try:
+                lifecycle_service.enforce_deadlines()
+            except Exception as exc:
+                logger.error("Deadline enforcement failed: %s", exc)
+            await asyncio.sleep(300)
+
+    sync_task = asyncio.create_task(periodic_sync_with_deadlines())
 
     yield
 
@@ -173,6 +188,9 @@ app.include_router(payouts_router)
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
+
+# Lifecycle: router has /api/bounties prefix — lifecycle endpoints under bounties
+app.include_router(lifecycle_router)
 
 # WebSocket: /ws/*
 app.include_router(websocket_router)

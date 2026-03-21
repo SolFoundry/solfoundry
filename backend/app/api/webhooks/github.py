@@ -14,6 +14,7 @@ from app.services.webhook_service import (
     verify_signature,
 )
 from app.services.webhook_processor import WebhookProcessor
+from app.services.lifecycle_service import dispatch_pr_event
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,19 @@ async def receive_github_webhook(
                 pr.get("number"),
                 delivery_id,
             )
+
+            # Dispatch to lifecycle engine for state-machine transitions
+            pr_action = action
+            if action == "closed" and pr.get("merged", False):
+                pr_action = "merged"
+            bounty_id = result.get("bounty_updated")
+            if bounty_id:
+                pr_url = pr.get("html_url", "")
+                sender_login = body.get("sender", {}).get("login", "")
+                try:
+                    dispatch_pr_event(str(bounty_id), pr_action, pr_url, sender_login)
+                except Exception as exc:
+                    logger.warning("Lifecycle dispatch failed: %s", exc)
 
             return JSONResponse(status_code=200, content=result)
 
