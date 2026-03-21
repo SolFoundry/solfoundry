@@ -84,21 +84,23 @@ jobs:
         id: ratelimit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
         run: |
           PR_NUM="${{ steps.pr.outputs.number }}"
           PR_AUTHOR="${{ steps.pr.outputs.author }}"
           REPO="${{ github.repository }}"
 
-          # Read PR body to extract linked issue
-          if [ -f /tmp/pr_body.txt ]; then
-            PR_BODY=$(cat /tmp/pr_body.txt)
-          else
-            PR_BODY="${{ github.event.pull_request.body }}"
-          fi
-          PR_TITLE="${{ steps.pr.outputs.title }}"
-
-          # Extract linked issue number
-          ISSUE_NUM=$(echo "$PR_TITLE $PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)\K\d+' | head -1)
+          # Extract linked issue number safely (avoid shell interpretation of PR body)
+          ISSUE_NUM=$(python3 -c "
+          import re, os
+          title = os.environ.get('PR_TITLE', '')
+          body = ''
+          if os.path.exists('/tmp/pr_body.txt'):
+              body = open('/tmp/pr_body.txt').read()
+          text = title + ' ' + body
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
+          ")
 
           if [ -z "$ISSUE_NUM" ]; then
             echo "No linked issue — skipping rate limit check"
@@ -208,18 +210,21 @@ jobs:
         id: bounty
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
         run: |
-          # Read PR body from file (handles both triggers)
-          if [ -f /tmp/pr_body.txt ]; then
-            PR_BODY=$(cat /tmp/pr_body.txt)
-          else
-            PR_BODY="${{ github.event.pull_request.body }}"
-          fi
           REPO="${{ github.repository }}"
 
-          # Extract linked issue number from PR title + body (Closes #N or Closes #Org/repo#N)
-          PR_TITLE="${{ steps.pr.outputs.title }}"
-          ISSUE_NUM=$(echo "$PR_TITLE $PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)\K\d+' | head -1)
+          # Extract linked issue number safely (avoid shell interpretation of PR body)
+          ISSUE_NUM=$(python3 -c "
+          import re, os
+          title = os.environ.get('PR_TITLE', '')
+          body = ''
+          if os.path.exists('/tmp/pr_body.txt'):
+              body = open('/tmp/pr_body.txt').read()
+          text = title + ' ' + body
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
+          ")
 
           if [ -n "$ISSUE_NUM" ]; then
             echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
@@ -505,25 +510,16 @@ jobs:
           BOUNTY_STACK: ${{ steps.bounty.outputs.stack }}
           SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
         run: |
-          # Load PR body from file to avoid shell escaping
-          if [ -f /tmp/pr_body.txt ]; then
-            export PR_BODY
-            PR_BODY=$(cat /tmp/pr_body.txt)
-          else
-            export PR_BODY=""
-          fi
-          # Load bounty spec for acceptance criteria
-          if [ -f /tmp/bounty_spec.txt ]; then
-            export BOUNTY_SPEC
-            BOUNTY_SPEC=$(cat /tmp/bounty_spec.txt)
-          else
-            export BOUNTY_SPEC=""
-          fi
-          # Load CodeRabbit analysis if available
-          if [ -f /tmp/coderabbit_analysis.json ]; then
-            export CODERABBIT_ANALYSIS
-            CODERABBIT_ANALYSIS=$(cat /tmp/coderabbit_analysis.json)
-          else
-            export CODERABBIT_ANALYSIS=""
-          fi
+          # Load PR body, bounty spec, and CodeRabbit analysis safely via Python
+          # SECURITY: Never load untrusted PR body into shell variables — use file reads in Python
+          python3 -c "
+          import os
+          for var, path in [('PR_BODY', '/tmp/pr_body.txt'), ('BOUNTY_SPEC', '/tmp/bounty_spec.txt'), ('CODERABBIT_ANALYSIS', '/tmp/coderabbit_analysis.json')]:
+              val = ''
+              if os.path.exists(path):
+                  val = open(path).read()
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  delim = 'GHEOF_' + var
+                  f.write(f'{var}<<{delim}\n{val}\n{delim}\n')
+          "
           python3 .github/scripts/ai_review.py
