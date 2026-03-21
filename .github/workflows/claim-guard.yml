@@ -172,23 +172,12 @@ jobs:
 
           # ── Shared helper: count user's merged bounty PRs by tier ──
           def count_user_bounty_prs(username):
-              all_prs = []
-              page = 1
-              while True:
-                  url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100&page={page}"
-                  req = urllib.request.Request(url)
-                  req.add_header("Authorization", f"token {token}")
-                  req.add_header("Accept", "application/vnd.github.v3+json")
-                  resp = urllib.request.urlopen(req)
-                  batch = json.loads(resp.read().decode())
-                  if not batch:
-                      break
-                  all_prs.extend(batch)
-                  if len(batch) < 100:
-                      break
-                  page += 1
-                  if page > 10:  # Safety cap: 1000 PRs max
-                      break
+              url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
+              req = urllib.request.Request(url)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              resp = urllib.request.urlopen(req)
+              all_prs = json.loads(resp.read().decode())
               t1_count = 0
               t2_count = 0
               t3_count = 0
@@ -293,37 +282,22 @@ jobs:
                   t1_count, t2_count, t3_count = count_user_bounty_prs(user)
                   print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
 
-                  # Gate: T3 requires 3+ T2 completions OR 5+ T1 and 1+ T2
-                  t3_eligible = t2_count >= 3 or (t1_count >= 5 and t2_count >= 1)
-                  if not t3_eligible:
-                      print(f"Only T1={t1_count}, T2={t2_count} — {user} not eligible for T3")
+                  # Gate: T3 requires 3+ completed T2 bounties
+                  if t2_count < 3:
+                      remaining = 3 - t2_count
+                      print(f"Only {t2_count} T2 completions — {user} not eligible for T3")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
-                      # Build a helpful message showing what they need
-                      paths = []
-                      if t2_count < 3:
-                          paths.append(f"**{3 - t2_count} more T2** bounties (you have {t2_count})")
-                      if t1_count < 5 or t2_count < 1:
-                          need_t1 = max(0, 5 - t1_count)
-                          need_t2 = max(0, 1 - t2_count)
-                          parts = []
-                          if need_t1 > 0:
-                              parts.append(f"{need_t1} more T1")
-                          if need_t2 > 0:
-                              parts.append(f"{need_t2} more T2")
-                          paths.append(f"**{' + '.join(parts)}** (you have {t1_count} T1 + {t2_count} T2)")
-
                       body = (
-                          f"⚠️ @{user} — **Tier 3 bounties are reputation-gated.**\n\n"
-                          f"**Your stats:** {t1_count} T1 + {t2_count} T2 merged bounties\n\n"
-                          f"**Unlock T3 via either path:**\n"
-                          f"- **Path A:** 3+ merged T2 bounties\n"
-                          f"- **Path B:** 5+ merged T1 + 1+ merged T2\n\n"
+                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed Tier 2 bounties.**\n\n"
+                          f"You have **{t2_count}** merged T2 bounty PR(s) — "
+                          f"**{remaining} more** to unlock T3.\n\n"
                           f"### Tier 3 rules:\n"
+                          f"- You must have **3+ merged T2 PRs** to be eligible\n"
                           f"- Comment with a brief plan/proposal to claim\n"
                           f"- The project owner reviews and approves/denies your claim\n"
                           f"- Once approved: 14-day deadline, AI review ≥8/10\n\n"
-                          f"Keep building — you're getting close!\n\n"
+                          f"Keep building through T2 — the top-tier bounties will open up.\n\n"
                           f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )

@@ -10,7 +10,7 @@ on:
 
 concurrency:
   group: ci-${{ github.head_ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: '3.11'

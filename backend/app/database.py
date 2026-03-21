@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import StaticPool
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -33,12 +34,15 @@ engine_kwargs = {
     "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
 }
 if is_sqlite:
-    # Use StaticPool for in-memory SQLite so all connections share the same DB.
-    # This is critical for tests where multiple sessions must see the same data.
-    from sqlalchemy.pool import StaticPool
-
-    engine_kwargs["poolclass"] = StaticPool
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
+    # Use StaticPool for in-memory SQLite so all connections share the
+    # same database -- required for tests where multiple async sessions
+    # must see each other's writes.
+    engine_kwargs.update(
+        {
+            "poolclass": StaticPool,
+            "connect_args": {"check_same_thread": False},
+        }
+    )
 else:
     engine_kwargs.update(
         {
@@ -96,7 +100,7 @@ async def init_db() -> None:
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
             from app.models.agent import Agent  # noqa: F401
-            from app.models.contributor import ContributorDB  # noqa: F401
+            from app.models.contributor import ContributorTable  # noqa: F401
             from app.models.submission import SubmissionDB  # noqa: F401
             from app.models.tables import (  # noqa: F401
                 PayoutTable, BuybackTable, ReputationHistoryTable,
@@ -113,7 +117,7 @@ async def init_db() -> None:
             logger.info("Database schema initialized successfully")
     except Exception as e:
         logger.warning(f"Database init warning (non-fatal): {e}")
-        # Non-fatal — tables may already exist. In-memory services work without DB.
+        # Non-fatal -- tables may already exist. In-memory services work without DB.
 
 
 async def close_db() -> None:

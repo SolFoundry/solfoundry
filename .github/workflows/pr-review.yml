@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency:
       group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - name: Checkout base repo (safe — never runs PR code)
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai anthropic requests base58
+        run: pip install openai requests base58
 
       - name: Fetch review engine (private)
         env:
@@ -102,7 +102,7 @@ jobs:
           if os.path.exists('/tmp/pr_body.txt'):
               body = open('/tmp/pr_body.txt').read()
           text = title + ' ' + body
-          m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           ")
 
@@ -131,8 +131,8 @@ jobs:
 
           echo "Author $PR_AUTHOR has $ATTEMPTS submission(s) for issue #$ISSUE_NUM"
 
-          if [ "$ATTEMPTS" -gt 50 ]; then
-            echo "RATE LIMIT: $PR_AUTHOR exceeded max 50 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
+          if [ "$ATTEMPTS" -gt 5 ]; then
+            echo "RATE LIMIT: $PR_AUTHOR exceeded max 5 submissions for issue #$ISSUE_NUM ($ATTEMPTS attempts)"
 
             python3 -c "
           import subprocess, sys
@@ -142,7 +142,7 @@ jobs:
           repo = '$REPO'
           body = (
               '⚠️ **Submission limit reached**\n\n'
-              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 50). '
+              f'@{author}, you\'ve submitted {attempts} PRs for this bounty (max 5). '
               'Please make sure your code fully addresses the review feedback before submitting again.\n\n'
               'If you believe this is an error, reach out in our community.\n\n'
               '---\n*SolFoundry Review Bot*'
@@ -248,7 +248,7 @@ jobs:
           if os.path.exists('/tmp/pr_body.txt'):
               body = open('/tmp/pr_body.txt').read()
           text = title + ' ' + body
-          m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           ")
 
@@ -615,8 +615,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
