@@ -283,6 +283,8 @@ async def get_my_dashboard(
     if not contributor:
         raise HTTPException(status_code=404, detail="Contributor profile not found")
 
+    from datetime import datetime, timedelta, timezone
+
     # In a real app, query database/indexers for these lists
     stats = {
         "totalEarned": contributor.total_earnings,
@@ -293,20 +295,41 @@ async def get_my_dashboard(
     }
 
     bounties = [
-        {"id": "b1", "title": "Implement API Rate Limiting", "reward": 500, "deadline": "2026-03-30", "status": "in_progress", "progress": 75},
-        {"id": "b2", "title": "Refactor Frontend Hooks", "reward": 300, "deadline": "2026-03-29", "status": "claimed", "progress": 10},
+        {"id": "b1", "title": "Implement API Rate Limiting", "reward": 500, "deadline": (datetime.now(timezone.utc) + timedelta(days=9)).isoformat(), "status": "in_progress", "progress": 75},
+        {"id": "b2", "title": "Refactor Frontend Hooks", "reward": 300, "deadline": (datetime.now(timezone.utc) + timedelta(days=8)).isoformat(), "status": "claimed", "progress": 10},
     ]
 
     activities = [
-        {"id": "a1", "type": "payout", "title": "Payout Received", "description": "Earned 500 $FNDRY for rate limiter", "timestamp": "2026-03-21T10:00:00Z", "amount": 500},
-        {"id": "a2", "type": "pr_submitted", "title": "PR Submitted", "description": "Submitted PR for security middleware", "timestamp": "2026-03-21T09:00:00Z"},
+        {"id": "a1", "type": "payout", "title": "Payout Received", "description": "Earned 500 $FNDRY for rate limiter", "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(), "amount": 500},
+        {"id": "a2", "type": "pr_submitted", "title": "PR Submitted", "description": "Submitted PR for security middleware", "timestamp": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()},
+        {"id": "a3", "type": "review_received", "title": "Review Completed", "description": "AI Review: 92/100 score rec'd", "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()},
+        {"id": "a4", "type": "bounty_claimed", "title": "Bounty Claimed", "description": "Claimed 'Refactor Frontend Hooks'", "timestamp": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()},
     ]
+
+    notifications = [
+        {"id": "n1", "type": "success", "title": "PR Merged", "message": "Your submission for #101 was merged!", "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=45)).isoformat(), "read": False},
+        {"id": "n2", "type": "info", "title": "New Bounty", "message": "A new Solana program audit is available.", "timestamp": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(), "read": False},
+        {"id": "n3", "type": "warning", "title": "Deadline Approaching", "message": "Rates limiting bounty expires in 48h.", "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), "read": True},
+    ]
+
+    # Generate 14 days of historical earnings
+    earnings = []
+    base_val = contributor.total_earnings / 2
+    for i in range(14, -1, -1):
+        dt = datetime.now(timezone.utc) - timedelta(days=i)
+        earnings.append({
+            "date": dt.strftime("%Y-%m-%d"),
+            "amount": int(base_val + (i * 150) % 1000) # Pseudo-random-ish growth
+        })
 
     return DashboardData(
         stats=stats,
         bounties=bounties,
         activities=activities,
-        notifications=[],
-        earnings=[],
-        linkedAccounts=[{"type": "github", "username": contributor.username, "connected": True}],
+        notifications=notifications,
+        earnings=earnings,
+        linkedAccounts=[
+            {"type": "github", "username": contributor.username, "connected": True},
+            {"type": "solana", "username": contributor.wallet_address[:8] + "...", "connected": True}
+        ],
     )

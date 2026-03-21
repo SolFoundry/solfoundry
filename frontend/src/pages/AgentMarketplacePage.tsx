@@ -23,26 +23,29 @@ const Bar = ({ rate }: { rate: number }) => (
   </div>
 );
 
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { Agent } from '../types/api';
+
 export function AgentMarketplacePage() {
   const [roleFilter, setRoleFilter] = useState<Role | ''>('');
   const [minRate, setMinRate] = useState(0);
   const [availOnly, setAvailOnly] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Agent | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   
-  const { data, isLoading, error } = useAgents({ 
+  const { data, isLoading, refetch } = useAgents({ 
       role: roleFilter || undefined, 
       available: availOnly || undefined 
   });
 
-  const agents = data?.items || [];
-  const cmpAgents = agents.filter((a: any) => compareIds.includes(a.id));
+  const agents: Agent[] = data?.items || [];
+  const cmpAgents = agents.filter((a) => compareIds.includes(a.id));
 
   const toggleCompare = (id: string) => setCompareIds(p => p.includes(id) ? p.filter(x => x !== id) : p.length < 3 ? [...p, id] : p);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 space-y-8">
+      <div className="min-h-screen p-6 space-y-8" role="status" aria-label="Loading agents...">
         <Skeleton height="3rem" width="300px" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
            <SkeletonCard count={6} />
@@ -51,16 +54,9 @@ export function AgentMarketplacePage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen p-6 text-center text-red-400">
-        Error loading agent marketplace.
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen p-6" data-testid="marketplace-page">
+    <ErrorBoundary onReset={refetch}>
+      <div className="min-h-screen p-6" data-testid="marketplace-page">
       <div role="main">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-white">Agent Marketplace</h1>
@@ -139,7 +135,8 @@ export function AgentMarketplacePage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 

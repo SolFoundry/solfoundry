@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
-import { SkeletonTable } from '../common/Skeleton';
+import { Skeleton, SkeletonTable } from '../common/Skeleton';
 import { NoDataAvailable } from '../common/EmptyState';
 import type { TimeRange, SortField } from '../../types/leaderboard';
 
@@ -17,12 +17,14 @@ const SORTS: { label: string; value: SortField }[] = [
   { label: 'Earnings', value: 'earnings' },
 ];
 
+import { ErrorBoundary } from '../common/ErrorBoundary';
+
 export function LeaderboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [sortBy, setSortBy] = useState<SortField>('points');
   const [search, setSearch] = useState('');
 
-  const { contributors, loading, error } = useLeaderboard(timeRange);
+  const { contributors, loading: isLoading, refetch } = useLeaderboard(timeRange);
 
   const filteredAndSorted = useMemo(() => {
     let list = [...contributors];
@@ -47,16 +49,14 @@ export function LeaderboardPage() {
     return list.map((c, i) => ({ ...c, displayRank: i + 1 }));
   }, [contributors, search, sortBy]);
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
-        <div className="h-8 w-64 bg-surface-200 rounded-lg animate-pulse" />
+      <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page" role="status" aria-label="Loading leaderboard...">
+        <Skeleton height="2rem" width="250px" className="mb-4" />
         <div className="flex flex-wrap gap-3 items-center">
-          <div className="h-10 w-64 bg-surface-200 rounded-lg animate-pulse" />
+          <Skeleton height="2.5rem" width="250px" />
           <div className="flex gap-1">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-8 w-16 bg-surface-200 rounded-lg animate-pulse" />
-            ))}
+             <Skeleton height="2rem" width="60px" count={4} />
           </div>
         </div>
         <SkeletonTable rows={10} columns={6} showAvatar />
@@ -64,22 +64,9 @@ export function LeaderboardPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-8 text-center" role="alert">
-        <div className="text-red-400 mb-2">Error: {error}</div>
-        <button 
-          onClick={() => window.location.reload()}
-          className="text-sm text-[#00FF88] hover:underline"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
+    <ErrorBoundary onReset={refetch}>
+      <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
       <h1 className="text-2xl font-bold text-white">Contributor Leaderboard</h1>
       <div className="flex flex-wrap gap-3 items-center">
         <input
@@ -169,7 +156,8 @@ export function LeaderboardPage() {
           </tbody>
         </table>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 export default LeaderboardPage;

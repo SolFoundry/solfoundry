@@ -9,6 +9,9 @@ interface CreatorDashboardProps {
     onNavigateBounties?: () => void;
 }
 
+import { ErrorBoundary } from './common/ErrorBoundary';
+import { Bounty, CreatorDashboardData } from '../types/api';
+
 export function CreatorDashboard({
     walletAddress,
     onNavigateBounties,
@@ -17,9 +20,13 @@ export function CreatorDashboard({
     const { data, isLoading, error, refetch } = useCreatorDashboard(walletAddress ?? '');
 
     const { bounties, stats, notifications } = useMemo(() => {
-        const bl = data?.bounties || [];
-        const st = data?.stats || { staked: 0, paid: 0, refunded: 0 };
+        const dashboard = data as CreatorDashboardData;
+        const bl = dashboard?.bounties || [];
+        const st = dashboard?.stats || { staked: 0, paid: 0, refunded: 0 };
         
+        // Correcting notification count based on submissions if they exist in Bounty model
+        // NOTE: Our Bounty model doesn't explicitly have submissions in api.ts yet, 
+        // but we'll cast to any for this specific derived stat to stay compatible with existing backend
         let pending = 0;
         let disputed = 0;
         bl.forEach((b: any) => {
@@ -30,7 +37,7 @@ export function CreatorDashboard({
         });
         
         return { 
-            bounties: bl, 
+            bounties: bl as Bounty[], 
             stats: st,
             notifications: { pending, disputed }
         };
@@ -46,7 +53,7 @@ export function CreatorDashboard({
         { id: 'cancelled', label: 'Cancelled' },
     ];
 
-    const filteredBounties = activeTab === 'all' ? bounties : bounties.filter((b: any) => b.status === activeTab);
+    const filteredBounties = activeTab === 'all' ? bounties : bounties.filter((b) => b.status === activeTab);
 
     const formatNumber = (num: number) => {
         if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -56,7 +63,7 @@ export function CreatorDashboard({
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+            <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8" role="status" aria-label="Loading creator dashboard...">
                 <div className="max-w-7xl mx-auto space-y-8">
                     <div className="space-y-4">
                        <Skeleton height="3rem" width="300px" />
@@ -82,17 +89,9 @@ export function CreatorDashboard({
         );
     }
 
-    if (error) {
-        return (
-            <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 text-white">
-                <p className="text-red-400 mb-4">Error loading creator dashboard.</p>
-                <button onClick={() => refetch()} className="px-4 py-2 bg-[#9945FF] rounded-lg">Retry</button>
-            </div>
-        );
-    }
-
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+        <ErrorBoundary onReset={refetch}>
+            <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
 
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -174,5 +173,6 @@ export function CreatorDashboard({
                 </div>
             </div>
         </div>
-    );
+    </ErrorBoundary>
+);
 }

@@ -96,7 +96,7 @@ export function useBountyBoard() {
   }, []);
 
   // Main Search Query
-  const { data: searchData, isLoading: searchLoading } = useQuery({
+  const { data: searchData, isLoading, refetch } = useQuery({
     queryKey: ['bounties', filters, sortBy, page],
     queryFn: async (): Promise<SearchResponse> => {
       const params = buildSearchParams(filters, sortBy, page, perPage);
@@ -138,7 +138,7 @@ export function useBountyBoard() {
     total,
     filters,
     sortBy,
-    loading: searchLoading,
+    isLoading,
     page,
     totalPages,
     hotBounties,
@@ -147,5 +147,6 @@ export function useBountyBoard() {
     resetFilters,
     setSortBy,
     setPage,
+    refetch
   };
 }
