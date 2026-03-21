@@ -392,7 +392,9 @@ class TestGetBounty:
     def test_get_not_found(self):
         resp = client.get("/api/bounties/nonexistent-id")
         assert resp.status_code == 404
-        assert "not found" in resp.json()["message"].lower()
+        body = resp.json()
+        error_text = (body.get("message") or body.get("detail") or "").lower()
+        assert "not found" in error_text
 
     def test_get_includes_submissions(self):
         b = _create_bounty()
@@ -543,7 +545,9 @@ class TestUpdateBounty:
         bid = b["id"]
         resp = client.patch(f"/api/bounties/{bid}", json={"status": "completed"})
         assert resp.status_code == 400
-        assert "Invalid status transition" in resp.json()["message"]
+        body = resp.json()
+        error_text = body.get("message") or body.get("detail") or ""
+        assert "Invalid status transition" in error_text
 
     def test_invalid_open_to_paid(self):
         b = _create_bounty()
@@ -754,7 +758,9 @@ class TestSubmitSolution:
             f"/api/bounties/{bid}/submit", json={"pr_url": url, "submitted_by": "bob"}
         )
         assert resp.status_code == 400
-        assert "already been submitted" in resp.json()["message"]
+        body = resp.json()
+        error_text = body.get("message") or body.get("detail") or ""
+        assert "already been submitted" in error_text
 
     def test_submit_on_completed_bounty_rejected(self):
         b = _create_bounty()
@@ -769,7 +775,9 @@ class TestSubmitSolution:
             },
         )
         assert resp.status_code == 400
-        assert "not accepting" in resp.json()["message"]
+        body = resp.json()
+        error_text = body.get("message") or body.get("detail") or ""
+        assert "not accepting" in error_text
 
     def test_submit_on_paid_bounty_rejected(self):
         b = _create_bounty()

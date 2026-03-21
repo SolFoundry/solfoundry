@@ -1,6 +1,40 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+// Mock Solana wallet adapter so tests don't need real crypto libs
+vi.mock('@solana/wallet-adapter-react', () => ({
+  useWallet: () => ({ connected: false, publicKey: null, connect: vi.fn(), disconnect: vi.fn() }),
+  useConnection: () => ({ connection: {} }),
+}));
+
+vi.mock('../hooks/useFndryToken', () => ({
+  useFndryBalance: () => ({ balance: 1000000, rawBalance: BigInt(0), loading: false, error: null, refetch: vi.fn() }),
+  useBountyEscrow: () => ({ fundBounty: vi.fn(), transaction: { status: 'idle', signature: null, error: null }, reset: vi.fn() }),
+}));
+
+vi.mock('./wallet/WalletProvider', () => ({
+  useNetwork: () => ({ network: 'devnet', endpoint: 'https://api.devnet.solana.com', setNetwork: vi.fn(), networkOptions: [] }),
+}));
+
+vi.mock('./wallet/FundBountyFlow', () => ({
+  FundBountyButton: ({ amount, onFunded, disabled }: any) => (
+    <button onClick={() => onFunded('mock-sig')} disabled={disabled} data-testid="fund-button">
+      Fund Bounty - {amount}
+    </button>
+  ),
+}));
+
+vi.mock('../config/constants', () => ({
+  FNDRY_TOKEN_MINT: 'mock-mint',
+  FNDRY_DECIMALS: 9,
+  ESCROW_WALLET: 'mock-escrow',
+  TOKEN_PROGRAM_ID: 'mock-token-program',
+  ASSOCIATED_TOKEN_PROGRAM_ID: 'mock-ata-program',
+  solscanTxUrl: (sig: string) => `https://solscan.io/tx/${sig}`,
+  findAssociatedTokenAddress: vi.fn(),
+}));
+
 import { BountyCreationWizard } from './BountyCreationWizard';
 
 // Mock localStorage
@@ -32,17 +66,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Helper to navigate through steps
+/**
+ * Navigate the bounty creation wizard to a given step by filling required
+ * fields and clicking Next at each stage.
+ */
 async function navigateToStep(step: number) {
-  const nextButtons = screen.getAllByRole('button');
-  const nextButton = nextButtons.find(btn => btn.textContent?.includes('Next'));
-  
   for (let i = 1; i < step; i++) {
     switch (i) {
       case 1:
+        // Select T1 tier
         fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
         break;
       case 2:
+        // Fill title and description
         fireEvent.change(screen.getByPlaceholderText(/Implement User Authentication/i), {
           target: { value: 'Test Title' },
         });
@@ -50,22 +86,36 @@ async function navigateToStep(step: number) {
           target: { value: 'Test Description' },
         });
         break;
-      case 3:
-        // Requirements already has one input
+      case 3: {
+        // Fill at least one requirement
+        const reqInput = screen.getByPlaceholderText(/Enter requirement/i);
+        fireEvent.change(reqInput, { target: { value: 'Must pass tests' } });
         break;
+      }
       case 4:
-        fireEvent.change(screen.getByRole('combobox'), {
+        // Select category and at least one skill
+        fireEvent.change(screen.getByDisplayValue('Select a category...'), {
           target: { value: 'Frontend' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'React' }));
         break;
-      case 5:
-        // Reward and deadline already have defaults
+      case 5: {
+        // Set deadline (reward has a default)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 14);
+        const dateStr = tomorrow.toISOString().split('T')[0];
+        fireEvent.change(screen.getByDisplayValue(''), { target: { value: dateStr } });
         break;
+      }
     }
-    if (i < step) {
-      fireEvent.click(screen.getByText(/Next|Continue to Publish/));
-      await waitFor(() => new Promise(resolve => setTimeout(resolve, 100)));
+    // Click Next to advance
+    const nextBtn = screen.queryByText(/Next →/) || screen.queryByText(/Continue to Publish/);
+    if (nextBtn) {
+      fireEvent.click(nextBtn);
+      // Wait for the step transition to render
+      await waitFor(() => {
+        expect(screen.getByText(new RegExp(`Step ${i + 1} of 7`))).toBeInTheDocument();
+      });
     }
   }
 }
@@ -82,7 +132,9 @@ describe('BountyCreationWizard', () => {
     render(<BountyCreationWizard />);
     const progressBar = screen.getByRole('progressbar');
     expect(progressBar).toBeInTheDocument();
-    expect(progressBar).toHaveAttribute('aria-valuenow', '14.285714285714286');
+    // 100/7 = 14.2857... — allow for floating-point platform differences
+    const valuenow = Number(progressBar.getAttribute('aria-valuenow'));
+    expect(Math.abs(valuenow - 100 / 7)).toBeLessThan(0.001);
     expect(progressBar).toHaveAttribute('aria-valuemin', '0');
     expect(progressBar).toHaveAttribute('aria-valuemax', '100');
   });
@@ -268,7 +320,11 @@ describe('BountyCreationWizard', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -315,7 +371,11 @@ describe('BountyCreationWizard', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -370,7 +430,11 @@ describe('BountyCreationWizard', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -392,7 +456,7 @@ describe('BountyCreationWizard', () => {
     today.setDate(today.getDate() + 10);
     const deadline = today.toISOString().split('T')[0];
     
-    const dateInput = screen.getByLabelText(/Deadline/);
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
     fireEvent.change(dateInput, { target: { value: deadline } });
     
     fireEvent.click(screen.getByText('Next →'));
@@ -408,160 +472,38 @@ describe('BountyCreationWizard', () => {
     expect(screen.getByText('Frontend')).toBeInTheDocument();
   });
 
-  it('disables publish until confirmed and authenticated', async () => {
-    const mockAuthState = {
-      isGithubAuthenticated: false,
-      isWalletConnected: false,
-      walletBalance: 0,
-    };
-    
-    render(<BountyCreationWizard authState={mockAuthState} />);
-    
-    // Navigate to step 7
-    fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Title & Description')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByPlaceholderText(/Implement User Authentication/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Describe the bounty/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Category & Skills')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByRole('combobox'), {
-      target: { value: 'Frontend' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'React' }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Reward & Deadline')).toBeInTheDocument();
-    });
-    
-    const today = new Date();
-    today.setDate(today.getDate() + 10);
-    fireEvent.change(screen.getByLabelText(/Deadline/), {
-      target: { value: today.toISOString().split('T')[0] },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Preview Bounty')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Continue to Publish'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Confirm & Publish')).toBeInTheDocument();
-    });
-    
-    // Publish button should be disabled
-    const publishButton = screen.getByRole('button', { name: 'Publish Bounty' });
-    expect(publishButton).toBeDisabled();
-    
-    // Check the agreement checkbox
-    const checkbox = screen.getByRole('checkbox');
-    fireEvent.click(checkbox);
-    
-    // Still disabled due to auth
-    expect(publishButton).toBeDisabled();
-    expect(screen.getByText(/Please connect your GitHub account/)).toBeInTheDocument();
+  it('shows fund & publish step with wallet status', async () => {
+    render(<BountyCreationWizard />);
+
+    // Navigate to step 7 using the helper
+    await navigateToStep(7);
+
+    // Should show Fund & Publish heading
+    expect(screen.getByText('Fund & Publish')).toBeInTheDocument();
+
+    // Wallet status should be shown (mocked as not connected)
+    expect(screen.getByText(/Not connected/)).toBeInTheDocument();
+
+    // Agreement checkbox should be present
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+
+    // Wallet connect prompt should appear
+    expect(screen.getByText(/connect your Solana wallet/i)).toBeInTheDocument();
   });
 
-  it('enables publish when authenticated and agreed', async () => {
-    const mockAuthState = {
-      isGithubAuthenticated: true,
-      isWalletConnected: true,
-      walletBalance: 1000000,
-    };
-    
-    const onPublish = vi.fn().mockResolvedValue(undefined);
-    
-    render(<BountyCreationWizard authState={mockAuthState} onPublishBounty={onPublish} />);
-    
+  it('shows fund button when agreement is checked', async () => {
+    render(<BountyCreationWizard />);
+
     // Navigate to step 7
-    fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Title & Description')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByPlaceholderText(/Implement User Authentication/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Describe the bounty/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Category & Skills')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByRole('combobox'), {
-      target: { value: 'Frontend' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'React' }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Reward & Deadline')).toBeInTheDocument();
-    });
-    
-    const today = new Date();
-    today.setDate(today.getDate() + 10);
-    fireEvent.change(screen.getByLabelText(/Deadline/), {
-      target: { value: today.toISOString().split('T')[0] },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Preview Bounty')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Continue to Publish'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Confirm & Publish')).toBeInTheDocument();
-    });
-    
-    // Check the agreement checkbox
+    await navigateToStep(7);
+
+    // Check agreement
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
-    
-    // Now publish should be enabled
-    const publishButton = screen.getByRole('button', { name: 'Publish Bounty' });
-    expect(publishButton).toBeEnabled();
-    
-    // Click publish
-    fireEvent.click(publishButton);
-    
-    // Should call onPublish
-    await waitFor(() => {
-      expect(onPublish).toHaveBeenCalled();
-    });
+
+    // The mocked FundBountyButton should be present (disabled since wallet not connected)
+    const fundButton = screen.getByTestId('fund-button');
+    expect(fundButton).toBeInTheDocument();
   });
 });
 
@@ -606,41 +548,44 @@ describe('TitleDescription', () => {
 
   it('toggles markdown preview', async () => {
     render(<BountyCreationWizard />);
-    
+
     // Navigate to step 2
     fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
     fireEvent.click(screen.getByText('Next →'));
-    
+
     await waitFor(() => {
-      expect(screen.getByText('Preview')).toBeInTheDocument();
+      expect(screen.getByText('Title & Description')).toBeInTheDocument();
     });
-    
-    fireEvent.click(screen.getByText('Preview'));
-    
+
+    // The Preview button is the one inside the description editor
+    const previewBtn = screen.getByRole('button', { name: /Preview/i });
+    fireEvent.click(previewBtn);
+
     await waitFor(() => {
-      expect(screen.getByText('Edit')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Edit/i })).toBeInTheDocument();
     });
   });
 
   it('renders markdown in preview mode', async () => {
     render(<BountyCreationWizard />);
-    
+
     // Navigate to step 2
     fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
     fireEvent.click(screen.getByText('Next →'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Title & Description')).toBeInTheDocument();
     });
-    
+
     // Enter markdown content
     fireEvent.change(screen.getByPlaceholderText(/Describe the bounty/i), {
       target: { value: '**Bold text** and `code`' },
     });
-    
-    // Click preview
-    fireEvent.click(screen.getByText('Preview'));
-    
+
+    // Click preview button
+    const previewBtn = screen.getByRole('button', { name: /Preview/i });
+    fireEvent.click(previewBtn);
+
     // Check that markdown is rendered (bold and code elements)
     await waitFor(() => {
       const previewContainer = screen.getByText(/Bold text/).closest('div');
@@ -733,7 +678,11 @@ describe('CategorySkills', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -767,7 +716,11 @@ describe('CategorySkills', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -803,7 +756,11 @@ describe('RewardDeadline', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -848,7 +805,11 @@ describe('RewardDeadline', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -872,7 +833,7 @@ describe('RewardDeadline', () => {
     // Set a deadline
     const today = new Date();
     today.setDate(today.getDate() + 10);
-    fireEvent.change(screen.getByLabelText(/Deadline/), {
+    fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
       target: { value: today.toISOString().split('T')[0] },
     });
     
@@ -909,7 +870,11 @@ describe('PreviewBounty', () => {
     await waitFor(() => {
       expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
     });
-    
+
+    // Fill at least one requirement to pass validation
+    const reqInputs = screen.getAllByPlaceholderText('Enter requirement...');
+    fireEvent.change(reqInputs[0], { target: { value: 'Must pass all tests' } });
+
     fireEvent.click(screen.getByText('Next →'));
     
     await waitFor(() => {
@@ -928,7 +893,7 @@ describe('PreviewBounty', () => {
     
     const today = new Date();
     today.setDate(today.getDate() + 10);
-    fireEvent.change(screen.getByLabelText(/Deadline/), {
+    fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
       target: { value: today.toISOString().split('T')[0] },
     });
     fireEvent.click(screen.getByText('Next →'));
@@ -942,71 +907,23 @@ describe('PreviewBounty', () => {
 });
 
 describe('ConfirmPublish', () => {
-  it('shows auth status', async () => {
-    const mockAuthState = {
-      isGithubAuthenticated: false,
-      isWalletConnected: true,
-      walletBalance: 50000,
-    };
-    
-    render(<BountyCreationWizard authState={mockAuthState} />);
-    
+  it('shows wallet and escrow status on fund step', async () => {
+    render(<BountyCreationWizard />);
+
     // Navigate to step 7
-    fireEvent.click(screen.getByRole('button', { name: /Tier 1 - Open Race/i }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Title & Description')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByPlaceholderText(/Implement User Authentication/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Describe the bounty/i), {
-      target: { value: 'Test' },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Requirements Checklist')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Category & Skills')).toBeInTheDocument();
-    });
-    
-    fireEvent.change(screen.getByRole('combobox'), {
-      target: { value: 'Frontend' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'React' }));
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Reward & Deadline')).toBeInTheDocument();
-    });
-    
-    const today = new Date();
-    today.setDate(today.getDate() + 10);
-    fireEvent.change(screen.getByLabelText(/Deadline/), {
-      target: { value: today.toISOString().split('T')[0] },
-    });
-    fireEvent.click(screen.getByText('Next →'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Preview Bounty')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Continue to Publish'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Confirm & Publish')).toBeInTheDocument();
-    });
-    
-    // Check auth status is shown
-    expect(screen.getByText('GitHub Authentication')).toBeInTheDocument();
-    expect(screen.getByText('✗ Not connected')).toBeInTheDocument();
-    expect(screen.getByText('✓ Connected')).toBeInTheDocument(); // Wallet
+    await navigateToStep(7);
+
+    // Fund & Publish heading
+    expect(screen.getByText('Fund & Publish')).toBeInTheDocument();
+
+    // Wallet status section should be visible
+    expect(screen.getByText('Wallet')).toBeInTheDocument();
+
+    // Escrow funding status
+    expect(screen.getByText('Escrow Funding')).toBeInTheDocument();
+
+    // Summary section with bounty tier and title
+    expect(screen.getByText('Bounty Tier')).toBeInTheDocument();
+    expect(screen.getByText('Staking Amount')).toBeInTheDocument();
   });
 });

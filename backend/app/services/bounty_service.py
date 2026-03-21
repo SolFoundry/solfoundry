@@ -1,7 +1,24 @@
 """In-memory bounty marketplace service (Issues #3, #188).
 
-Provides CRUD, filtering, sorting, and solution submission.
-Threading lock guards ``_bounty_store`` for concurrent request safety.
+Provides CRUD, filtering, sorting, and solution submission for the
+SolFoundry bounty marketplace. Threading lock guards ``_bounty_store``
+for concurrent request safety.
+
+Architecture
+------------
+This service uses an in-memory dict as the primary data store.
+The BountyTable SQLAlchemy model in ``app.models.bounty_table`` defines the
+PostgreSQL schema used for full-text search and production persistence.
+
+PostgreSQL migration path
+~~~~~~~~~~~~~~~~~~~~~~~~~
+1. ``BountyTable`` already mirrors every field in ``BountyDB``.
+2. ``bounty_search_service.py`` reads/writes through ``BountySearchService``,
+   which auto-detects whether a live ``bounties`` table exists.
+3. To switch fully to Postgres, replace each ``_bounty_store`` access with a
+   SQLAlchemy query — all Pydantic models remain identical.
+4. ``alembic`` migrations are recommended for DDL changes; the initial schema
+   is created by ``database.init_db()`` using ``Base.metadata.create_all``.
 """
 
 import hashlib
@@ -28,7 +45,10 @@ from app.models.bounty import (
 )
 
 # ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
+# In-memory store
+#
+# Production replacement: PostgreSQL via ``BountyTable`` (see bounty_table.py).
+# The in-memory store provides zero-config local development and fast tests.
 # ---------------------------------------------------------------------------
 
 _bounty_store: dict[str, BountyDB] = {}
@@ -41,6 +61,7 @@ _store_lock = threading.Lock()
 
 
 def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
+    """Convert an internal ``SubmissionRecord`` to the API response model."""
     return SubmissionResponse(
         id=s.id,
         bounty_id=s.bounty_id,
@@ -54,6 +75,7 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
 
 
 def _to_bounty_response(b: BountyDB) -> BountyResponse:
+    """Convert an internal ``BountyDB`` record to the full API response model."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyResponse(
         id=b.id,
@@ -76,6 +98,7 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
+    """Convert an internal ``BountyDB`` record to a compact list item."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyListItem(
         id=b.id,
@@ -96,6 +119,12 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
 
 
 def _apply_sort(bounties: list[BountyDB], sort: str) -> list[BountyDB]:
+    """Sort a list of bounties by the given criterion.
+
+    Supported values: ``newest``, ``reward_high``, ``reward_low``,
+    ``deadline``, ``submissions``, ``submissions_low``.
+    Unknown values default to ``newest`` (created_at descending).
+    """
     if sort == "reward_high":
         return sorted(bounties, key=lambda b: b.reward_amount, reverse=True)
     if sort == "reward_low":
