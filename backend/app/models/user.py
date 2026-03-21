@@ -30,6 +30,8 @@ class User(Base):
     wallet_address = Column(String(64), unique=True, nullable=True, index=True)
     wallet_verified = Column(Boolean, default=False)
     role = Column(String(20), nullable=False, default=UserRole.CONTRIBUTOR.value)
+    reputation_score = Column(Float, default=0.0)
+    creator_reputation_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
@@ -50,6 +52,8 @@ class UserDB(BaseModel):
     wallet_address: Optional[str] = None
     wallet_verified: bool = False
     role: str = UserRole.CONTRIBUTOR.value
+    reputation_score: float = 0.0
+    creator_reputation_score: float = 0.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -63,6 +67,8 @@ class UserResponse(BaseModel):
     wallet_address: Optional[str] = Field(None, description="Linked Solana wallet address", examples=["7Pq6..."])
     wallet_verified: bool = Field(False, description="Whether the wallet ownership has been verified via signature")
     role: str = Field(UserRole.CONTRIBUTOR.value, description="User's role (contributor, creator, admin)")
+    reputation_score: float = Field(0.0, description="Reputation as a contributor")
+    creator_reputation_score: float = Field(0.0, description="Reputation as a bounty creator")
     created_at: datetime = Field(..., description="Timestamp of account creation")
     updated_at: datetime = Field(..., description="Timestamp of the last update")
 

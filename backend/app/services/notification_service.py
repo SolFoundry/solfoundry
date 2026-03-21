@@ -245,8 +245,28 @@ class TelegramNotifier:
     @staticmethod
     async def send_alert(message: str):
         """Send a message to the configured telegram admin channel."""
-        # In a real app, read from env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-        # import httpx
-        # logger.info(f"Sending Telegram Alert: {message}")
-        # await httpx.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", json={"chat_id": ID, "text": message})
-        logging.info(f"TELEGRAM ALERT: {message}")
+        import httpx
+        import os
+
+        # Configuration from environment
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        
+        if not token or not chat_id:
+            logging.warning(f"Telegram NOT configured. Logging only: {message}")
+            return
+
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": message,
+                        "parse_mode": "Markdown"
+                    },
+                    timeout=5.0
+                )
+                resp.raise_for_status()
+        except Exception as e:
+            logging.error(f"Failed to send Telegram alert: {e}")

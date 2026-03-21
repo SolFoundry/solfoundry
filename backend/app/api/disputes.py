@@ -54,9 +54,9 @@ async def get_dispute(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Retrieve full details and history for a dispute."""
+    """Retrieve full details and history for a dispute. Only participants can view."""
     try:
-        return await dispute_service.get_dispute(db, dispute_id)
+        return await dispute_service.get_dispute(db, dispute_id, actor_id=current_user_id)
     except DisputeError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -72,7 +72,7 @@ async def submit_evidence(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Submit new evidence for an open dispute. Can be called multiple times."""
+    """Submit new evidence for an open dispute. Only participants can call this."""
     try:
         return await dispute_service.add_evidence(db, dispute_id, evidence, actor_id=current_user_id)
     except DisputeError as e:
