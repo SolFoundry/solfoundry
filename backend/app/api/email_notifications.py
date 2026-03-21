@@ -96,7 +96,7 @@ async def update_email_preferences(
     if not prefs:
         prefs = EmailPreferencesDB(
             user_id=str(user.user_id),
-            email_address=user.email,
+            email_address=getattr(user, "email", None),
         )
         db.add(prefs)
 
@@ -135,42 +135,61 @@ async def unsubscribe_from_email(
 
     Uses the token from email to identify the user without authentication.
     This allows one-click unsubscribe from email clients.
+    
+    Token contains user_id for O(1) lookup.
     """
-    # We need to find the user by verifying the token
-    # Since tokens are user-specific, we need to check against all users
-    # This is handled by the EmailPreferences verification
+    from app.services.email.service import EmailPreferences
+    
+    # Extract user_id from token for O(1) lookup
+    user_id = EmailPreferences.extract_user_id_from_token(request.token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid unsubscribe token format",
+        )
 
-    secret = os.getenv("SECRET_KEY", "change-me-in-production")
+    # Get secret key - require it in production
+    secret = os.getenv("SECRET_KEY")
+    if not secret:
+        debug = os.getenv("DEBUG", "false").lower() == "true"
+        if debug:
+            import secrets as secrets_module
+            secret = secrets_module.token_urlsafe(32)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server configuration error",
+            )
 
-    # Query all email preferences to find matching token
-    # In production, you might want a more efficient approach
-    query = select(EmailPreferencesDB)
+    # Query the specific user's preferences (O(1) lookup)
+    query = select(EmailPreferencesDB).where(EmailPreferencesDB.user_id == user_id)
     result = await db.execute(query)
-    all_prefs = result.scalars().all()
+    prefs = result.scalar_one_or_none()
 
-    matching_user = None
-    for prefs in all_prefs:
-        if EmailPreferences.verify_unsubscribe_token(
-            str(prefs.user_id),
-            request.notification_type,
-            request.token,
-            secret,
-        ):
-            matching_user = prefs
-            break
+    if not prefs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User preferences not found",
+        )
 
-    if not matching_user:
+    # Verify token
+    if not EmailPreferences.verify_unsubscribe_token(
+        user_id,
+        request.notification_type,
+        request.token,
+        secret,
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired unsubscribe token",
         )
 
     # Update preference
-    matching_user.set_preference(request.notification_type, False)
+    prefs.set_preference(request.notification_type, False)
     await db.commit()
 
     logger.info(
-        f"User {matching_user.user_id} unsubscribed from {request.notification_type}"
+        f"User {user_id} unsubscribed from {request.notification_type}"
     )
 
     return UnsubscribeResponse(
@@ -284,15 +303,15 @@ async def get_rate_limit_status(
 
     Returns the number of emails the user can still send.
     """
-    from app.services.email.service import get_email_service
+    from app.services.email.service import get_email_service, EMAIL_RATE_LIMIT, EMAIL_RATE_WINDOW
 
     try:
         service = await get_email_service()
         remaining = await service.rate_limiter.get_remaining(user_id)
         return {
             "remaining": remaining,
-            "limit": 10,  # EMAIL_RATE_LIMIT
-            "reset_seconds": 3600,  # EMAIL_RATE_WINDOW
+            "limit": EMAIL_RATE_LIMIT,
+            "reset_seconds": EMAIL_RATE_WINDOW,
         }
     except Exception as e:
         logger.exception(f"Failed to get rate limit status: {e}")

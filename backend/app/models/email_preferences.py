@@ -5,7 +5,7 @@ Stores per-user email notification preferences and unsubscribe status.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy import JSON, Boolean, Column, DateTime, Index, String
@@ -75,6 +75,9 @@ class EmailPreferencesDB(Base):
         if self.preferences is None:
             self.preferences = {}
         self.preferences[notification_type] = enabled
+        # Mark the JSON field as modified so SQLAlchemy detects the change
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(self, "preferences")
 
 
 class EmailPreferencesBase(BaseModel):
@@ -186,7 +189,7 @@ DEFAULT_NOTIFICATION_TYPES = [
 class NotificationTypeList(BaseModel):
     """List of available notification types."""
 
-    types: List[Dict[str, any]] = Field(
+    types: List[Dict[str, Any]] = Field(
         default_factory=lambda: DEFAULT_NOTIFICATION_TYPES,
         description="Available notification types with descriptions",
     )

@@ -9,10 +9,12 @@ Provides:
 
 import asyncio
 import hashlib
+import hmac
 import logging
 import os
 import secrets
 import time
+from base64 import urlsafe_b64encode, urlsafe_b64decode
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -286,7 +288,10 @@ class EmailPreferences:
 
     @staticmethod
     def generate_unsubscribe_token(user_id: str, notification_type: str, secret: str) -> str:
-        """Generate unsubscribe token.
+        """Generate unsubscribe token with user_id embedded.
+
+        Token format: base64(user_id:notification_type:timestamp):hmac_signature
+        This allows O(1) lookup by extracting user_id from the token.
 
         Args:
             user_id: User UUID.
@@ -296,8 +301,13 @@ class EmailPreferences:
         Returns:
             Unsubscribe token.
         """
-        data = f"{user_id}:{notification_type}:{secret}"
-        return hashlib.sha256(data.encode()).hexdigest()[:32]
+        timestamp = str(int(time.time()))
+        payload = f"{user_id}:{notification_type}:{timestamp}"
+        signature = hmac.new(
+            secret.encode(), payload.encode(), hashlib.sha256
+        ).hexdigest()[:16]
+        encoded_payload = urlsafe_b64encode(payload.encode()).decode()
+        return f"{encoded_payload}.{signature}"
 
     @staticmethod
     def verify_unsubscribe_token(
@@ -314,10 +324,45 @@ class EmailPreferences:
         Returns:
             True if valid, False otherwise.
         """
-        expected = EmailPreferences.generate_unsubscribe_token(
-            user_id, notification_type, secret
-        )
-        return secrets.compare_digest(token, expected)
+        try:
+            encoded_payload, signature = token.split(".")
+            payload = urlsafe_b64decode(encoded_payload.encode()).decode()
+            parts = payload.split(":")
+            if len(parts) != 3:
+                return False
+            token_user_id, token_notif_type, timestamp = parts
+            
+            # Verify user_id and notification_type match
+            if token_user_id != user_id or token_notif_type != notification_type:
+                return False
+            
+            # Verify signature
+            expected_sig = hmac.new(
+                secret.encode(), payload.encode(), hashlib.sha256
+            ).hexdigest()[:16]
+            return secrets.compare_digest(signature, expected_sig)
+        except Exception:
+            return False
+
+    @staticmethod
+    def extract_user_id_from_token(token: str) -> Optional[str]:
+        """Extract user_id from unsubscribe token for O(1) lookup.
+
+        Args:
+            token: Unsubscribe token.
+
+        Returns:
+            User ID if token is valid format, None otherwise.
+        """
+        try:
+            encoded_payload, _ = token.split(".")
+            payload = urlsafe_b64decode(encoded_payload.encode()).decode()
+            parts = payload.split(":")
+            if len(parts) >= 1:
+                return parts[0]
+        except Exception:
+            pass
+        return None
 
 
 class EmailService:
@@ -335,10 +380,36 @@ class EmailService:
             provider: Email provider instance.
             db: Database session for preferences.
             secret_key: Secret key for tokens (uses SECRET_KEY env var if not provided).
+
+        Raises:
+            RuntimeError: If SECRET_KEY is not set in production environment.
         """
         self.provider = provider or get_email_provider()
         self.db = db
-        self.secret_key = secret_key or os.getenv("SECRET_KEY", "change-me-in-production")
+        
+        # Handle secret key - require it in production
+        if secret_key:
+            self.secret_key = secret_key
+        else:
+            env_secret = os.getenv("SECRET_KEY")
+            if not env_secret:
+                # Check if we're in development mode
+                debug = os.getenv("DEBUG", "false").lower() == "true"
+                if debug:
+                    # Generate a secure random key for development
+                    self.secret_key = secrets.token_urlsafe(32)
+                    logger.warning(
+                        "SECRET_KEY not set. Using random key for development. "
+                        "Set SECRET_KEY environment variable for production."
+                    )
+                else:
+                    raise RuntimeError(
+                        "SECRET_KEY environment variable must be set in production. "
+                        "Email service cannot start without a secure secret key."
+                    )
+            else:
+                self.secret_key = env_secret
+        
         self.rate_limiter = EmailRateLimiter()
         self.queue = EmailQueue()
         self.template_engine = EmailTemplateEngine()

@@ -3,6 +3,7 @@
 Provides branded email templates for different notification types.
 """
 
+import html
 import os
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -139,12 +140,12 @@ class EmailTemplateEngine:
         """Template for bounty claimed notification."""
         colors = context["colors"]
         base_url = context["base_url"]
-        bounty_title = context.get("bounty_title", "Unknown Bounty")
+        bounty_title = html.escape(context.get("bounty_title", "Unknown Bounty"))
         bounty_id = context.get("bounty_id", "")
         bounty_url = f"{base_url}/bounties/{bounty_id}" if bounty_id else "#"
-        claimer_name = context.get("claimer_name", "A contributor")
-        bounty_reward = context.get("bounty_reward", "")
-        user_name = context.get("user_name", "Creator")
+        claimer_name = html.escape(context.get("claimer_name", "A contributor"))
+        bounty_reward = html.escape(context.get("bounty_reward", ""))
+        user_name = html.escape(context.get("user_name", "Creator"))
 
         content = f"""
             <h1 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 700; color: {colors['text']};">
@@ -178,13 +179,13 @@ class EmailTemplateEngine:
         """Template for PR submitted notification."""
         colors = context["colors"]
         base_url = context["base_url"]
-        bounty_title = context.get("bounty_title", "Unknown Bounty")
+        bounty_title = html.escape(context.get("bounty_title", "Unknown Bounty"))
         bounty_id = context.get("bounty_id", "")
         bounty_url = f"{base_url}/bounties/{bounty_id}" if bounty_id else "#"
         pr_url = context.get("pr_url", "#")
         pr_number = context.get("pr_number", "")
-        contributor_name = context.get("contributor_name", "A contributor")
-        user_name = context.get("user_name", "Reviewer")
+        contributor_name = html.escape(context.get("contributor_name", "A contributor"))
+        user_name = html.escape(context.get("user_name", "Reviewer"))
 
         content = f"""
             <h1 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 700; color: {colors['text']};">
@@ -218,14 +219,14 @@ class EmailTemplateEngine:
         """Template for review complete notification."""
         colors = context["colors"]
         base_url = context["base_url"]
-        bounty_title = context.get("bounty_title", "Unknown Bounty")
+        bounty_title = html.escape(context.get("bounty_title", "Unknown Bounty"))
         bounty_id = context.get("bounty_id", "")
         bounty_url = f"{base_url}/bounties/{bounty_id}" if bounty_id else "#"
         pr_url = context.get("pr_url", "#")
         review_status = context.get("review_status", "approved")
         review_score = context.get("review_score", "")
-        reviewer_feedback = context.get("reviewer_feedback", "")
-        user_name = context.get("user_name", "Contributor")
+        reviewer_feedback = html.escape(context.get("reviewer_feedback", ""))
+        user_name = html.escape(context.get("user_name", "Contributor"))
 
         # Determine status color and icon
         if review_status == "approved":
@@ -274,13 +275,13 @@ class EmailTemplateEngine:
         """Template for payout sent notification."""
         colors = context["colors"]
         base_url = context["base_url"]
-        bounty_title = context.get("bounty_title", "Unknown Bounty")
+        bounty_title = html.escape(context.get("bounty_title", "Unknown Bounty"))
         bounty_id = context.get("bounty_id", "")
         bounty_url = f"{base_url}/bounties/{bounty_id}" if bounty_id else "#"
-        amount = context.get("amount", "0")
-        token = context.get("token", "$FNDRY")
+        amount = html.escape(context.get("amount", "0"))
+        token = html.escape(context.get("token", "$FNDRY"))
         transaction_url = context.get("transaction_url", "#")
-        user_name = context.get("user_name", "Contributor")
+        user_name = html.escape(context.get("user_name", "Contributor"))
 
         content = f"""
             <h1 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 700; color: {colors['text']};">
@@ -322,13 +323,13 @@ class EmailTemplateEngine:
         """Template for new bounty matching skills notification."""
         colors = context["colors"]
         base_url = context["base_url"]
-        bounty_title = context.get("bounty_title", "New Bounty")
+        bounty_title = html.escape(context.get("bounty_title", "New Bounty"))
         bounty_id = context.get("bounty_id", "")
         bounty_url = f"{base_url}/bounties/{bounty_id}" if bounty_id else "#"
-        bounty_reward = context.get("bounty_reward", "")
-        matched_skills = context.get("matched_skills", [])
-        bounty_tier = context.get("bounty_tier", "")
-        user_name = context.get("user_name", "Contributor")
+        bounty_reward = html.escape(context.get("bounty_reward", ""))
+        matched_skills = [html.escape(skill) for skill in context.get("matched_skills", [])]
+        bounty_tier = html.escape(context.get("bounty_tier", ""))
+        user_name = html.escape(context.get("user_name", "Contributor"))
 
         skills_html = ""
         if matched_skills:
@@ -370,8 +371,8 @@ class EmailTemplateEngine:
         """Template for unsubscribe confirmation."""
         colors = context["colors"]
         base_url = context["base_url"]
-        notification_type = context.get("notification_type", "this notification type")
-        user_name = context.get("user_name", "User")
+        notification_type = html.escape(context.get("notification_type", "this notification type"))
+        user_name = html.escape(context.get("user_name", "User"))
         preferences_url = f"{base_url}/settings/notifications"
 
         content = f"""

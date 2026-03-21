@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_email_preferences'
-down_revision = None  # Will be updated when merging
+down_revision = '001_contributors'
 branch_labels = None
 depends_on = None
 
