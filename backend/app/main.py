@@ -20,6 +20,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.disputes import router as disputes_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -179,6 +180,9 @@ app.include_router(websocket_router)
 
 # Agents: router has /api/agents prefix — Agent Registration API (Issue #203)
 app.include_router(agents_router)
+
+# Disputes: router has /api/disputes prefix — Dispute Resolution System
+app.include_router(disputes_router)
 
 
 @app.get("/health")
