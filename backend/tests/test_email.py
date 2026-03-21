@@ -1,6 +1,5 @@
 """Tests for the email notification service."""
 
-import asyncio
 import pytest
 from src.services.email import (
     EmailService,
@@ -121,9 +120,11 @@ async def test_provider_failure_and_retries(service):
     import src.services.email as email_module
 
     original_sleep = email_module.asyncio.sleep
+
     # Use a simple async function to avoid recursion
     async def mock_sleep(x):
         pass
+
     email_module.asyncio.sleep = mock_sleep
 
     res = await svc._process_send("fail@sol.com", "Fail Test", "welcome", {}, "general")
