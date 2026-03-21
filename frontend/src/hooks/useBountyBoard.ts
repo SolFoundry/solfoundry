@@ -28,6 +28,7 @@ function mapApiBounty(b: any): Bounty {
     submissionCount: b.submission_count ?? b.submissionCount ?? 0,
     createdAt: b.created_at ?? b.createdAt,
     projectName: b.created_by || b.projectName || 'SolFoundry',
+    creatorType: b.creator_type ?? b.creatorType ?? 'community',
     githubIssueUrl: b.github_issue_url || b.githubIssueUrl || undefined,
     relevanceScore: b.relevance_score ?? 0,
     skillMatchCount: b.skill_match_count ?? 0,
@@ -68,6 +69,7 @@ function localSort(arr: Bounty[], sortBy: BountySortBy): Bounty[] {
     case 'reward_low': return s.sort((a, b) => a.rewardAmount - b.rewardAmount);
     case 'deadline': return s.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
     case 'submissions': return s.sort((a, b) => b.submissionCount - a.submissionCount);
+    case 'submissions_low': return s.sort((a, b) => a.submissionCount - b.submissionCount);
     case 'best_match':
     case 'newest':
     default: return s.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

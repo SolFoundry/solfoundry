@@ -840,10 +840,27 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
     if (onPublishBounty) {
       await onPublishBounty(formData);
     } else {
-      // Default publish behavior - would integrate with GitHub API
-      console.log('Publishing bounty:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // POST to bounties API so the bounty appears in the marketplace
+      const tiers: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
+      const cats: Record<string, string> = { Frontend: 'frontend', Backend: 'backend', 'Smart Contracts': 'smart-contract', DevOps: 'devops', Documentation: 'documentation', Design: 'design', Security: 'security', Testing: 'backend' };
+      const base = import.meta.env.VITE_API_URL ?? '';
+      const res = await fetch(`${base}/api/bounties`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title, description: formData.description,
+          tier: tiers[formData.tier] ?? 2,
+          category: cats[formData.category] ?? formData.category.toLowerCase(),
+          reward_amount: formData.rewardAmount,
+          required_skills: formData.skills.map(s => s.toLowerCase()),
+          deadline: formData.deadline ? new Date(formData.deadline + 'T23:59:59Z').toISOString() : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to create bounty' }));
+        throw new Error(err.message ?? err.detail ?? 'Failed to create bounty');
+      }
+      localStorage.removeItem(DRAFT_KEY);
     }
   };
   

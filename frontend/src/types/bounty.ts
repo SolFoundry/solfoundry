@@ -1,6 +1,8 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'completed';
-export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'submissions_low' | 'best_match';
+
+export type CreatorType = 'platform' | 'community';
 
 export interface Bounty {
   id: string;
@@ -15,6 +17,7 @@ export interface Bounty {
   submissionCount: number;
   createdAt: string;
   projectName: string;
+  creatorType: CreatorType;
   githubIssueUrl?: string;
   relevanceScore?: number;
   skillMatchCount?: number;
@@ -68,6 +71,7 @@ export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [
   { value: 'reward_low', label: 'Lowest Reward' },
   { value: 'deadline', label: 'Ending Soon' },
   { value: 'submissions', label: 'Most Submissions' },
+  { value: 'submissions_low', label: 'Fewest Submissions' },
   { value: 'best_match', label: 'Best Match' },
 ];
 

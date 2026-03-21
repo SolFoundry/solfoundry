@@ -19,18 +19,28 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
   const urg = b.status === 'open' && !exp && new Date(b.deadline).getTime() - Date.now() < 2 * 864e5;
   const showSubmissions = b.tier === 'T3';
 
+  const creatorBadge = b.creatorType === 'platform'
+    ? { label: 'Platform', className: 'bg-solana-purple/15 text-solana-purple' }
+    : { label: 'Community', className: 'bg-blue-500/15 text-blue-400' };
+
   const cardContent = (
     <>
       {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#FF6B6B] animate-pulse" data-testid="urgent-indicator" />}
       <div className="p-5">
-        <div className="flex justify-between mb-3"><TierBadge tier={b.tier} /><StatusIndicator status={b.status} /></div>
+        <div className="flex justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TierBadge tier={b.tier} />
+            <span className={'rounded-full px-2 py-0.5 text-[10px] font-medium ' + creatorBadge.className} data-testid="creator-type-badge">{creatorBadge.label}</span>
+          </div>
+          <StatusIndicator status={b.status} />
+        </div>
         <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
         <p className="text-xs text-gray-500 mb-3">{b.projectName}</p>
         <div className="flex items-baseline gap-1 mb-3"><span className="text-lg font-bold text-solana-green">{formatReward(b.rewardAmount)}</span><span className="text-xs text-gray-500">{b.currency}</span></div>
         <SkillTags skills={b.skills} maxVisible={3} />
         <div className="flex justify-between pt-3 mt-3 border-t border-surface-300">
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
-          {showSubmissions && <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>}
+          <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
         </div>
       </div>
     </>

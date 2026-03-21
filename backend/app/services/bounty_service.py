@@ -1,13 +1,15 @@
-"""In-memory bounty service for MVP (Issue #3).
+"""In-memory bounty marketplace service (Issues #3, #188).
 
-Provides CRUD operations and solution submission.
-Claim lifecycle is out of scope (see Issue #16).
+Provides CRUD, filtering, sorting, and solution submission.
+Threading lock guards ``_bounty_store`` for concurrent request safety.
 """
 
+import hashlib
+import threading
 from datetime import datetime, timezone
 from typing import Optional
-from app.core.audit import audit_event
 
+from app.core.audit import audit_event
 from app.models.bounty import (
     BountyCreate,
     BountyDB,
@@ -16,6 +18,7 @@ from app.models.bounty import (
     BountyResponse,
     BountyStatus,
     BountyUpdate,
+    CreatorType,
     SubmissionCreate,
     SubmissionRecord,
     SubmissionResponse,
@@ -29,6 +32,7 @@ from app.models.bounty import (
 # ---------------------------------------------------------------------------
 
 _bounty_store: dict[str, BountyDB] = {}
+_store_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -56,8 +60,10 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         title=b.title,
         description=b.description,
         tier=b.tier,
+        category=b.category,
         reward_amount=b.reward_amount,
         status=b.status,
+        creator_type=b.creator_type,
         github_issue_url=b.github_issue_url,
         required_skills=b.required_skills,
         deadline=b.deadline,
@@ -77,6 +83,8 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         tier=b.tier,
         reward_amount=b.reward_amount,
         status=b.status,
+        category=b.category,
+        creator_type=b.creator_type,
         required_skills=b.required_skills,
         github_issue_url=b.github_issue_url,
         deadline=b.deadline,
@@ -85,6 +93,19 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         submission_count=len(b.submissions),
         created_at=b.created_at,
     )
+
+
+def _apply_sort(bounties: list[BountyDB], sort: str) -> list[BountyDB]:
+    if sort == "reward_high":
+        return sorted(bounties, key=lambda b: b.reward_amount, reverse=True)
+    if sort == "reward_low":
+        return sorted(bounties, key=lambda b: b.reward_amount)
+    if sort == "deadline":
+        far_future = datetime.max.replace(tzinfo=timezone.utc)
+        return sorted(bounties, key=lambda b: b.deadline or far_future)
+    if sort in ("submissions", "submissions_low"):
+        return sorted(bounties, key=lambda b: len(b.submissions), reverse=(sort == "submissions"))
+    return sorted(bounties, key=lambda b: b.created_at, reverse=True)
 
 
 # ---------------------------------------------------------------------------
@@ -98,13 +119,17 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         title=data.title,
         description=data.description,
         tier=data.tier,
+        category=getattr(data, "category", None),
         reward_amount=data.reward_amount,
         github_issue_url=data.github_issue_url,
         required_skills=data.required_skills,
         deadline=data.deadline,
         created_by=data.created_by,
+        creator_type=data.creator_type,
     )
-    _bounty_store[bounty.id] = bounty
+    with _store_lock:
+        _bounty_store[bounty.id] = bounty
+    audit_event("bounty_created", bounty_id=bounty.id, creator=bounty.created_by)
     return _to_bounty_response(bounty)
 
 
@@ -120,11 +145,14 @@ def list_bounties(
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
     created_by: Optional[str] = None,
+    creator_type: Optional[str] = None,
+    sort: str = "newest",
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering and pagination."""
-    results = list(_bounty_store.values())
+    """List bounties with filtering, sorting, and pagination."""
+    with _store_lock:
+        results = list(_bounty_store.values())
 
     if created_by is not None:
         results = [b for b in results if b.created_by == created_by]
@@ -132,14 +160,15 @@ def list_bounties(
         results = [b for b in results if b.status == status]
     if tier is not None:
         results = [b for b in results if b.tier == tier]
+    if creator_type is not None:
+        results = [b for b in results if b.creator_type.value == creator_type]
     if skills:
-        skill_set = {s.lower() for s in skills}
+        skill_set = frozenset(s.lower() for s in skills)
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
 
-    # Sort by created_at descending (newest first)
-    results.sort(key=lambda b: b.created_at, reverse=True)
+    results = _apply_sort(results, sort)
 
     total = len(results)
     page = results[skip : skip + limit]
@@ -217,7 +246,6 @@ def submit_solution(
             return None, "This PR URL has already been submitted for this bounty"
 
     # Generate deterministic mock AI score from PR URL
-    import hashlib
     url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
     score = 0.5 + (url_hash % 50) / 100.0
 

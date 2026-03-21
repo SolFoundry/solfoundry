@@ -23,6 +23,7 @@ from app.models.bounty import (
     BountyStatus,
     BountyTier,
     BountyUpdate,
+    CreatorType,
     SubmissionCreate,
     SubmissionResponse,
     SubmissionStatusUpdate,
@@ -64,7 +65,10 @@ async def create_bounty(
     data: BountyCreate,
     user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
+    """Create a bounty.  ``creator_type`` is auto-set to ``community`` for
+    regular users; only the ``system`` account produces ``platform`` bounties."""
     data.created_by = user.wallet_address or str(user.id)
+    data.creator_type = CreatorType.COMMUNITY
     return bounty_service.create_bounty(data)
 
 
@@ -84,14 +88,27 @@ async def list_bounties(
         None, description="Comma-separated list of skills (e.g., 'python,rust')"
     ),
     created_by: Optional[str] = Query(None, description="Filter by creator's username or wallet"),
+    creator_type: Optional[str] = Query(
+        None, description="Filter by creator type: 'platform' or 'community'",
+        pattern=r"^(platform|community)$",
+    ),
+    sort: str = Query("newest", description="Sort order: newest, reward_high, reward_low, deadline, submissions, submissions_low"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of items to return"),
 ) -> BountyListResponse:
+    """List bounties with filtering, sorting, and pagination."""
     skill_list = (
         [s.strip().lower() for s in skills.split(",") if s.strip()] if skills else None
     )
     return bounty_service.list_bounties(
-        status=status, tier=tier, skills=skill_list, created_by=created_by, skip=skip, limit=limit
+        status=status,
+        tier=tier,
+        skills=skill_list,
+        created_by=created_by,
+        creator_type=creator_type,
+        sort=sort,
+        skip=skip,
+        limit=limit,
     )
 
 

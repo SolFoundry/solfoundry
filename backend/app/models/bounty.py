@@ -38,6 +38,13 @@ class BountyStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class CreatorType(str, Enum):
+    """Distinguishes platform-created vs community-created bounties."""
+
+    PLATFORM = "platform"
+    COMMUNITY = "community"
+
+
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
@@ -66,7 +73,7 @@ VALID_SUBMISSION_TRANSITIONS: dict[SubmissionStatus, set[SubmissionStatus]] = {
 }
 
 # Valid status values for webhook processor
-VALID_STATUSES: set[str] = {status.value for status in BountyStatus}
+VALID_STATUSES: frozenset[str] = frozenset(status.value for status in BountyStatus)
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +237,7 @@ class BountyCreate(BountyBase):
 
     description: str = Field("", max_length=DESCRIPTION_MAX_LENGTH) # Override default for creation
     tier: BountyTier = BountyTier.T2 # Override default for creation
+    creator_type: CreatorType = CreatorType.COMMUNITY
 
 
 class BountyUpdate(BaseModel):
@@ -259,12 +267,14 @@ class BountyDB(BaseModel):
     title: str
     description: str = ""
     tier: BountyTier = BountyTier.T2
+    category: Optional[str] = None
     reward_amount: float
     status: BountyStatus = BountyStatus.OPEN
     github_issue_url: Optional[str] = None
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str = "system"
+    creator_type: CreatorType = CreatorType.COMMUNITY
     submissions: list[SubmissionRecord] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -275,6 +285,10 @@ class BountyResponse(BountyBase):
 
     id: str = Field(..., description="Unique UUID for the bounty", examples=["550e8400-e29b-41d4-a716-446655440000"])
     status: BountyStatus = Field(..., description="Current state of the bounty", examples=[BountyStatus.OPEN])
+    creator_type: CreatorType = Field(
+        CreatorType.COMMUNITY,
+        description="Whether the bounty was created by the platform or a community member",
+    )
     created_at: datetime = Field(..., description="Timestamp when the bounty was created")
     updated_at: datetime = Field(..., description="Timestamp of the last update")
     github_issue_number: Optional[int] = Field(None, description="The GitHub issue number", examples=[123])
@@ -294,6 +308,7 @@ class BountyListItem(BaseModel):
     reward_amount: float
     status: BountyStatus
     category: Optional[str] = None
+    creator_type: CreatorType = CreatorType.COMMUNITY
     required_skills: list[str] = Field(default_factory=list)
     github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
@@ -316,16 +331,17 @@ class BountyListResponse(BaseModel):
 # Search models
 # ---------------------------------------------------------------------------
 
-VALID_SORT_FIELDS = {
+VALID_SORT_FIELDS: frozenset[str] = frozenset({
     "newest",
     "reward_high",
     "reward_low",
     "deadline",
     "submissions",
+    "submissions_low",
     "best_match",
-}
+})
 
-VALID_CATEGORIES = {
+VALID_CATEGORIES: frozenset[str] = frozenset({
     "smart-contract",
     "frontend",
     "backend",
@@ -334,7 +350,7 @@ VALID_CATEGORIES = {
     "security",
     "devops",
     "documentation",
-}
+})
 
 
 class BountySearchParams(BaseModel):
