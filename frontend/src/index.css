@@ -35,8 +35,23 @@ body {
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0a0a0a;
-  color: #e5e5e5;
+  background-color: var(--bg-color, #0a0a0a);
+  color: var(--text-color, #e5e5e5);
+}
+
+/* Light mode overrides */
+:root:not(.dark) {
+  --bg-color: #ffffff;
+  --text-color: #1a1a1a;
+  --surface-color: #f5f5f5;
+  --border-color: #e5e5e5;
+}
+
+:root.dark {
+  --bg-color: #0a0a0a;
+  --text-color: #e5e5e5;
+  --surface-color: #1a1a1a;
+  --border-color: #333333;
 }
 
 /* Solana gradient utility */
@@ -49,7 +64,7 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--bg-color, #0a0a0a);
 }
 ::-webkit-scrollbar-thumb {
   background: #333;
@@ -57,6 +72,17 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Light mode scrollbar */
+:root:not(.dark) ::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 
 /* Activity feed entry animation */
@@ -74,8 +100,6 @@ body {
   animation: feed-in 0.3s ease-out forwards;
 }
 
-<<<<<<< Updated upstream
-=======
 /* Tooltip fade-in animation */
 @keyframes fade-in {
   from {
@@ -91,34 +115,32 @@ body {
   animation: fade-in 0.15s ease-out forwards;
 }
 
-/* Tooltip fade-in animation */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-.animate-fade-in {
-  animation: fade-in 0.15s ease-out forwards;
-}
-
->>>>>>> Stashed changes
 /* ============================================================================
    Form element overrides for dark theme
    ============================================================================ */
-select,
-input[type="search"],
-input[type="text"] {
+.dark select,
+.dark input[type="search"],
+.dark input[type="text"] {
   background-color: #1a1a1a;
   color: #e5e5e5;
   border-color: #2a2a2a;
 }
 
-select option {
+.dark select option {
   background-color: #1a1a1a;
   color: #e5e5e5;
+}
+
+/* Light mode form elements */
+:root:not(.dark) select,
+:root:not(.dark) input[type="search"],
+:root:not(.dark) input[type="text"] {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border-color: #e5e5e5;
+}
+
+:root:not(.dark) select option {
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
