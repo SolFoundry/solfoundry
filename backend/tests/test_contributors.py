@@ -10,14 +10,12 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clear_store():
-    """The clear_store function."""
     contributor_service._store.clear()
     yield
     contributor_service._store.clear()
 
 
 def _create(username="alice", display_name="Alice", skills=None, badges=None):
-    """The _create function."""
     from app.models.contributor import ContributorCreate
 
     return contributor_service.create_contributor(
@@ -31,7 +29,6 @@ def _create(username="alice", display_name="Alice", skills=None, badges=None):
 
 
 def test_create_success():
-    """The test_create_success function."""
     resp = client.post(
         "/api/contributors", json={"username": "alice", "display_name": "Alice"}
     )
@@ -41,7 +38,6 @@ def test_create_success():
 
 
 def test_create_duplicate():
-    """The test_create_duplicate function."""
     _create("bob")
     resp = client.post(
         "/api/contributors", json={"username": "bob", "display_name": "Bob"}
@@ -50,7 +46,6 @@ def test_create_duplicate():
 
 
 def test_create_invalid_username():
-    """The test_create_invalid_username function."""
     resp = client.post(
         "/api/contributors", json={"username": "a b", "display_name": "Bad"}
     )
@@ -58,20 +53,17 @@ def test_create_invalid_username():
 
 
 def test_list_empty():
-    """The test_list_empty function."""
     resp = client.get("/api/contributors")
     assert resp.json()["total"] == 0
 
 
 def test_list_with_data():
-    """The test_list_with_data function."""
     _create("alice")
     _create("bob")
     assert client.get("/api/contributors").json()["total"] == 2
 
 
 def test_search():
-    """The test_search function."""
     _create("alice")
     _create("bob")
     resp = client.get("/api/contributors?search=alice")
@@ -79,7 +71,6 @@ def test_search():
 
 
 def test_filter_skills():
-    """The test_filter_skills function."""
     _create("alice", skills=["python", "rust"])
     _create("bob", skills=["javascript"])
     resp = client.get("/api/contributors?skills=rust")
@@ -87,14 +78,12 @@ def test_filter_skills():
 
 
 def test_filter_badges():
-    """The test_filter_badges function."""
     _create("alice", badges=["early_adopter"])
     resp = client.get("/api/contributors?badges=early_adopter")
     assert resp.json()["total"] == 1
 
 
 def test_pagination():
-    """The test_pagination function."""
     for i in range(5):
         _create(f"user{i}")
     resp = client.get("/api/contributors?skip=0&limit=2")
@@ -103,25 +92,21 @@ def test_pagination():
 
 
 def test_get_by_id():
-    """The test_get_by_id function."""
     c = _create("alice")
     resp = client.get(f"/api/contributors/{c.id}")
     assert resp.status_code == 200
 
 
 def test_get_not_found():
-    """The test_get_not_found function."""
     assert client.get("/api/contributors/nope").status_code == 404
 
 
 def test_update():
-    """The test_update function."""
     c = _create("alice")
     resp = client.patch(f"/api/contributors/{c.id}", json={"display_name": "Updated"})
     assert resp.json()["display_name"] == "Updated"
 
 
 def test_delete():
-    """The test_delete function."""
     c = _create("alice")
     assert client.delete(f"/api/contributors/{c.id}").status_code == 204

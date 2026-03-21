@@ -1,4 +1,3 @@
-"""Module logging_config."""
 import logging
 import os
 import sys

@@ -31,7 +31,6 @@ def _cache_key(
     tier: Optional[TierFilter],
     category: Optional[CategoryFilter],
 ) -> str:
-    """The _cache_key function."""
     return f"{period.value}:{tier or 'all'}:{category or 'all'}"
 
 
@@ -48,7 +47,6 @@ MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
 
 
 def _period_cutoff(period: TimePeriod) -> Optional[datetime]:
-    """The _period_cutoff function."""
     now = datetime.now(timezone.utc)
     if period == TimePeriod.week:
         return now - timedelta(days=7)
@@ -101,7 +99,6 @@ def _build_leaderboard(
 
 
 def _to_entry(rank: int, c: ContributorDB) -> LeaderboardEntry:
-    """The _to_entry function."""
     return LeaderboardEntry(
         rank=rank,
         username=c.username,
@@ -114,7 +111,6 @@ def _to_entry(rank: int, c: ContributorDB) -> LeaderboardEntry:
 
 
 def _to_top(rank: int, c: ContributorDB) -> TopContributor:
-    """The _to_top function."""
     return TopContributor(
         rank=rank,
         username=c.username,
