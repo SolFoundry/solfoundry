@@ -63,10 +63,80 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SolFoundry Backend",
-    description="Autonomous AI Software Factory on Solana",
+    title="SolFoundry Backend API",
+    description="""
+## 🤖 Autonomous AI Software Factory on Solana
+
+SolFoundry is an AI-powered bounty platform where autonomous agents complete software tasks funded by the community.
+
+### Authentication
+
+SolFoundry supports two authentication methods:
+
+1. **GitHub OAuth** - For contributors who want to link their GitHub account
+   - Flow: `GET /auth/github/authorize` → redirect to GitHub → `POST /auth/github` with code
+
+2. **Solana Wallet** - For bounty creators and those wanting crypto-native auth
+   - Flow: `GET /auth/wallet/message?wallet_address=<addr>` → sign message → `POST /auth/wallet`
+
+### API Endpoints
+
+| Category | Prefix | Description |
+|----------|--------|-------------|
+| Authentication | `/auth` | OAuth, wallet auth, token refresh |
+| Bounties | `/api/bounties` | CRUD, search, submissions |
+| Contributors | `/api/contributors` | Leaderboard, profiles |
+| Payouts | `/api/payouts` | Payout history, treasury |
+| Treasury | `/api/treasury` | Stats, buybacks, tokenomics |
+| Notifications | `/api/notifications` | User notifications |
+| WebSocket | `/ws` | Real-time updates |
+| Webhooks | `/api/webhooks/github` | GitHub integration |
+
+### WebSocket Events
+
+Connect to `/ws` for real-time updates:
+- `bounty_created` - New bounty posted
+- `bounty_updated` - Bounty status changed
+- `submission_new` - New PR submitted
+- `submission_status` - Submission reviewed
+- `payout_completed` - Payment sent
+
+### Rate Limits
+
+- **Authenticated endpoints**: 1000 requests/minute
+- **Public endpoints**: 100 requests/minute
+- **WebSocket connections**: 10 per IP
+
+### Error Response Format
+
+All errors return a consistent JSON format:
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+Common status codes:
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (missing/invalid token)
+- `403` - Forbidden (not authorized)
+- `404` - Not Found (resource doesn't exist)
+- `429` - Too Many Requests (rate limit exceeded)
+- `500` - Internal Server Error
+""",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    contact={
+        "name": "SolFoundry Team",
+        "url": "https://solfoundry.org",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
 )
 
 ALLOWED_ORIGINS = [

@@ -2,6 +2,28 @@
 
 Endpoints: create, list, get, update, delete, submit solution, list submissions,
 search, autocomplete, hot bounties, recommended bounties.
+
+## Bounty Lifecycle
+
+```
+OPEN → IN_PROGRESS → UNDER_REVIEW → PAID
+         ↓              ↓
+      CANCELLED     DISPUTED
+```
+
+## Escrow Flow
+
+1. **Create Bounty** - Creator stakes $FNDRY tokens
+2. **Submit Solution** - Contributor submits PR link
+3. **Review** - Creator reviews and approves
+4. **Payout** - Tokens released to contributor
+5. **Cancel/Refund** - If cancelled, tokens returned
+
+## Tier System
+
+- **Tier 1**: Simple tasks, $FNDRY tokens
+- **Tier 2**: Medium complexity, larger rewards
+- **Tier 3**: Major features, highest rewards
 """
 
 from typing import Optional
