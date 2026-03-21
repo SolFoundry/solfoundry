@@ -7,8 +7,6 @@ This module tests:
 """
 
 import pytest
-import time
-from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -60,7 +58,6 @@ class TestStatsEndpoint:
         from app.models.bounty import BountyDB
         from app.models.contributor import ContributorDB
         import uuid
-        from datetime import datetime, timezone
         
         # Create a contributor
         contributor_id = str(uuid.uuid4())

@@ -28,7 +28,8 @@ class FakeWebSocket:
         self.sent: list = []
 
         """Accept."""
-    async def accept(self): self.accepted = True
+    async def accept(self):
+        self.accepted = True
     async def close(self, code=1000):
         """Close the fake WebSocket connection."""
         self.closed = True; self.close_code = code
