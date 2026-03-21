@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -81,9 +82,11 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider defaultNetwork="mainnet-beta">
-        <AppLayout />
-      </WalletProvider>
+      <ThemeProvider defaultTheme="dark">
+        <WalletProvider defaultNetwork="mainnet-beta">
+          <AppLayout />
+        </WalletProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
