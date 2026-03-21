@@ -7,6 +7,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.logging_config import setup_logging
+from app.core.correlation import CorrelationMiddleware
+from app.core.exceptions import register_exception_handlers
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -16,10 +19,11 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
-from app.database import init_db, close_db
+from app.database import init_db, close_db, engine
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +73,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+register_exception_handlers(app)
+
 ALLOWED_ORIGINS = [
     "https://solfoundry.org",
     "https://www.solfoundry.org",
@@ -76,12 +82,15 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server
 ]
 
+app.add_middleware(CorrelationMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-Correlation-ID"],
+    expose_headers=["X-Correlation-ID"],
 )
 
 # ── Route Registration ──────────────────────────────────────────────────────
@@ -115,16 +124,45 @@ app.include_router(agents_router)
 
 @app.get("/health")
 async def health_check():
+    """Health check with service dependency status."""
+    import redis as redis_lib
+
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
 
+    dependencies: dict = {}
+
+    # Database
+    try:
+        async with engine.connect() as conn:
+            from sqlalchemy import text
+            await conn.execute(text("SELECT 1"))
+        dependencies["database"] = {"status": "healthy"}
+    except Exception as e:
+        dependencies["database"] = {"status": "unhealthy", "error": str(e)}
+
+    # Redis
+    try:
+        import os
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r = redis_lib.from_url(redis_url, socket_connect_timeout=2)
+        r.ping()
+        dependencies["redis"] = {"status": "healthy"}
+    except Exception as e:
+        dependencies["redis"] = {"status": "unhealthy", "error": str(e)}
+
+    overall = "healthy" if all(
+        d["status"] == "healthy" for d in dependencies.values()
+    ) else "degraded"
+
     last_sync = get_last_sync()
     return {
-        "status": "ok",
+        "status": overall,
         "bounties": len(_bounty_store),
         "contributors": len(_store),
         "last_sync": last_sync.isoformat() if last_sync else None,
+        "dependencies": dependencies,
     }
 
 

@@ -1,8 +1,11 @@
 """GitHub webhook receiver endpoint."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
+from typing import Optional
 
 from fastapi import APIRouter, Header, Request, Depends
 from fastapi.responses import JSONResponse
@@ -14,6 +17,7 @@ from app.services.webhook_service import (
     verify_signature,
 )
 from app.services.webhook_processor import WebhookProcessor
+from app.core.audit import audit_log
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +29,9 @@ WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 @router.post("/github")
 async def receive_github_webhook(
     request: Request,
-    x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
-    x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
-    x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
+    x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
+    x_hub_signature_256: Optional[str] = Header(None, alias="X-Hub-Signature-256"),
+    x_github_delivery: Optional[str] = Header(None, alias="X-GitHub-Delivery"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """
@@ -101,6 +105,11 @@ async def receive_github_webhook(
                 pr.get("number"),
                 delivery_id,
             )
+            audit_log(
+                "webhook.pull_request", "webhook",
+                resource_id=delivery_id,
+                details={"action": action, "pr_number": pr.get("number"), "repo": repo.get("full_name")},
+            )
 
             return JSONResponse(status_code=200, content=result)
 
@@ -127,6 +136,11 @@ async def receive_github_webhook(
                 action,
                 issue.get("number"),
                 delivery_id,
+            )
+            audit_log(
+                "webhook.issues", "webhook",
+                resource_id=delivery_id,
+                details={"action": action, "issue_number": issue.get("number"), "repo": repo.get("full_name")},
             )
             return JSONResponse(status_code=200, content=result)
 

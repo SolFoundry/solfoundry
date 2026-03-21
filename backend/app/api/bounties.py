@@ -31,6 +31,7 @@ from app.models.user import UserResponse
 from app.services import auth_service
 from app.services import bounty_service
 from app.services.bounty_search_service import BountySearchService
+from app.core.audit import audit_log
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
     bounty = bounty_service.get_bounty(bounty_id)
@@ -54,7 +55,9 @@ async def create_bounty(
     user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
     data.created_by = user.wallet_address or str(user.id)
-    return bounty_service.create_bounty(data)
+    result = bounty_service.create_bounty(data)
+    audit_log("bounty.created", "bounty", resource_id=result.id, user_id=str(user.id), details={"title": data.title, "reward": data.reward_amount})
+    return result
 
 
 @router.get(
@@ -223,6 +226,7 @@ async def update_bounty(
     if error:
         status_code = 404 if "not found" in error.lower() else 400
         raise HTTPException(status_code=status_code, detail=error)
+    audit_log("bounty.updated", "bounty", resource_id=bounty_id, user_id=str(user.id), details={"changes": data.model_dump(exclude_unset=True)})
     return result
 
 
@@ -238,6 +242,7 @@ async def delete_bounty(
     await _verify_bounty_ownership(bounty_id, user)
     if not bounty_service.delete_bounty(bounty_id):
         raise HTTPException(status_code=404, detail="Bounty not found")
+    audit_log("bounty.deleted", "bounty", resource_id=bounty_id, user_id=str(user.id))
 
 
 @router.post(
@@ -308,4 +313,5 @@ async def cancel_bounty(
     )
     if error:
         raise HTTPException(status_code=400, detail=error)
+    audit_log("bounty.cancelled", "bounty", resource_id=bounty_id, user_id=str(user.id))
     return result

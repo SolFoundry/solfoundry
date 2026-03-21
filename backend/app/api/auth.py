@@ -35,6 +35,7 @@ from app.services.auth_service import (
     TokenExpiredError,
     InvalidTokenError,
 )
+from app.core.audit import audit_log
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer(auto_error=False)
@@ -119,6 +120,8 @@ async def github_oauth_callback(request: GitHubOAuthRequest):
     """
     try:
         result = await auth_service.github_oauth_login(request.code)
+        user_obj = result.get("user")
+        audit_log("auth.github_login", "auth", user_id=getattr(user_obj, "id", "") or "", details={"method": "github_oauth"})
         return result
     except GitHubOAuthError as e:
         raise HTTPException(
@@ -161,6 +164,7 @@ async def wallet_authenticate(request: WalletAuthRequest):
             request.signature,
             request.message,
         )
+        audit_log("auth.wallet_login", "auth", details={"wallet": request.wallet_address})
         return result
     except WalletVerificationError as e:
         raise HTTPException(
@@ -194,6 +198,7 @@ async def link_wallet(
             request.signature,
             request.message,
         )
+        audit_log("auth.link_wallet", "auth", user_id=user_id, details={"wallet": request.wallet_address})
         return result
     except WalletVerificationError as e:
         raise HTTPException(
@@ -217,6 +222,7 @@ async def refresh_token(request: RefreshTokenRequest):
     """
     try:
         result = await auth_service.refresh_access_token(request.refresh_token)
+        audit_log("auth.token_refresh", "auth")
         return result
     except TokenExpiredError:
         raise HTTPException(

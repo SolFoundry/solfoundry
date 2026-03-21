@@ -31,6 +31,8 @@ from app.services.treasury_service import (
     invalidate_cache,
 )
 
+from app.core.audit import audit_log
+
 router = APIRouter(prefix="/api", tags=["payouts", "treasury"])
 
 # Relaxed: accept base-58 (Solana) and hex (EVM) transaction hashes.
@@ -73,6 +75,11 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
         result = create_payout(data)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    audit_log(
+        "payout.created", "payout",
+        resource_id=result.tx_hash or "",
+        details={"recipient": data.recipient, "amount": data.amount, "token": data.token},
+    )
     invalidate_cache()
     return result
 
@@ -99,6 +106,11 @@ async def record_buyback(data: BuybackCreate) -> BuybackResponse:
         result = create_buyback(data)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    audit_log(
+        "buyback.created", "buyback",
+        resource_id=result.tx_hash or "",
+        details={"amount_sol": data.amount_sol, "amount_fndry": data.amount_fndry},
+    )
     invalidate_cache()
     return result
 

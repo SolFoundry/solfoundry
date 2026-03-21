@@ -65,6 +65,7 @@ target/
 
 # Logs
 *.log
+logs/
 
 # Data
 data/
