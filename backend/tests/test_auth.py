@@ -34,7 +34,7 @@ def test_keypair():
 
 
 import asyncio
-from app.database import async_session_factory, Base, engine, get_db
+from app.database import async_session_factory
 
 @pytest.fixture
 def auth_headers(client):

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
+import { ThemeToggle } from './ThemeToggle';
 
 // ============================================================================
 // Types
@@ -263,6 +264,9 @@ function Header({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Wallet Connect Button */}
           {walletAddress ? (
             <div className="relative">

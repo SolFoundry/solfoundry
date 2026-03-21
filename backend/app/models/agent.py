@@ -23,7 +23,6 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON, UUID
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from app.database import Base
 

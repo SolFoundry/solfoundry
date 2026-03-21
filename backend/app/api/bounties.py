@@ -7,11 +7,10 @@ search, autocomplete, hot bounties, recommended bounties.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.errors import ErrorResponse, HTTPValidationError
+from app.models.errors import ErrorResponse
 from app.models.bounty import (
     AutocompleteResponse,
     BountyCreate,
@@ -29,7 +28,6 @@ from app.models.bounty import (
 )
 from app.api.auth import get_current_user
 from app.models.user import UserResponse
-from app.services import auth_service
 from app.services import bounty_service
 from app.services.bounty_search_service import BountySearchService
 

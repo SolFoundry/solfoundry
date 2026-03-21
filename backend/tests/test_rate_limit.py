@@ -1,9 +1,7 @@
 """Tests for rate limiting and security middleware."""
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from backend.src.middleware.rate_limit import RateLimitAndSecurityMiddleware
-import pytest
-import time
+from src.middleware.rate_limit import RateLimitAndSecurityMiddleware
 
 app = FastAPI()
 app.add_middleware(

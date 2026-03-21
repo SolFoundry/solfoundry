@@ -13,7 +13,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Deque, Dict, List, Optional, Protocol, Set
 
 from fastapi import WebSocket

@@ -2,10 +2,9 @@
 
 import pytest
 import asyncio
-from typing import Dict, Any
-from backend.src.services.email import (
+from src.services.email import (
     EmailService, EmailProvider, _RATE_LIMIT_STORE, _USER_PREFERENCES,
-    _UNSUBSCRIBED, _EMAIL_QUEUE, email_worker, set_preference, unsubscribe_all
+    _UNSUBSCRIBED, _EMAIL_QUEUE, set_preference, unsubscribe_all
 )
 
 class MockProvider(EmailProvider):

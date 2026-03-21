@@ -1,9 +1,8 @@
 import time
 import uuid
 import structlog
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from contextlib import contextmanager
 
 logger = structlog.get_logger(__name__)
 
