@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl
 from sqlalchemy import Column, String, DateTime, JSON, Text, Float, ForeignKey, Index
 
 from app.database import Base, GUID
@@ -28,6 +28,14 @@ VALID_STATUS_TRANSITIONS: dict[DisputeStatus, set[DisputeStatus]] = {
     DisputeStatus.MEDIATION: {DisputeStatus.RESOLVED},
     DisputeStatus.RESOLVED: set(),
 }
+
+
+def validate_transition(current: DisputeStatus, target: DisputeStatus) -> None:
+    """Validate that a status transition is allowed."""
+    allowed = VALID_STATUS_TRANSITIONS.get(current, set())
+    if target not in allowed:
+        raise ValueError(f"Invalid status transition: {current.value} -> {target.value}")
+
 
 
 class DisputeOutcome(str, Enum):
@@ -52,15 +60,23 @@ class DisputeDB(Base):
     __tablename__ = "disputes"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    bounty_id = Column(GUID(), ForeignKey("bounties.id"), nullable=False)
-    submitter_id = Column(GUID(), nullable=False)
-    creator_id = Column(GUID(), nullable=False)
+    bounty_id = Column(
+        GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
+    )
+    submitter_id = Column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    creator_id = Column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     reason = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
     evidence_links = Column(JSON, default=list, nullable=False)
     status = Column(String(20), nullable=False, default=DisputeStatus.OPENED.value)
     outcome = Column(String(20), nullable=True)
-    reviewer_id = Column(GUID(), nullable=True)
+    reviewer_id = Column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     review_notes = Column(Text, nullable=True)
     resolution_action = Column(Text, nullable=True)
     ai_review_score = Column(Float, nullable=True)
@@ -104,7 +120,7 @@ class DisputeHistoryDB(Base):
 class EvidenceItem(BaseModel):
     """A single piece of evidence attached to a dispute."""
     evidence_type: str
-    url: Optional[str] = None
+    url: Optional[HttpUrl] = None
     description: str = Field(..., min_length=1, max_length=500)
 
     @field_validator("evidence_type")
@@ -119,11 +135,12 @@ class EvidenceItem(BaseModel):
     def validate_url_for_link_types(self) -> "EvidenceItem":
         """Ensure link/screenshot evidence has a valid http(s) URL."""
         if self.evidence_type in ("link", "screenshot"):
-            if not self.url or not self.url.strip():
+            if not self.url:
                 raise ValueError(
                     f"{self.evidence_type} evidence requires a non-empty url"
                 )
-            if not self.url.startswith(("http://", "https://")):
+            url_str = str(self.url)
+            if not url_str.startswith(("http://", "https://")):
                 raise ValueError(
                     f"{self.evidence_type} url must use http or https scheme"
                 )

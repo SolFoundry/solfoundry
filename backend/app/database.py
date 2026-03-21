@@ -6,6 +6,7 @@ automatically by the session context manager.
 """
 
 import os
+import re
 import logging
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -16,6 +17,11 @@ from sqlalchemy.types import TypeDecorator, CHAR
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+_UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 # Database URL from environment
 DATABASE_URL = os.getenv(
@@ -66,8 +72,13 @@ class GUID(TypeDecorator):
         return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
-        """Convert to string for storage."""
-        return str(value) if value is not None else value
+        """Convert to string after validating UUID format."""
+        if value is None:
+            return value
+        str_value = str(value)
+        if not _UUID_PATTERN.match(str_value):
+            raise ValueError(f"Invalid UUID format: {str_value!r}")
+        return str_value
 
     def process_result_value(self, value, dialect):
         """Return stored value as string."""

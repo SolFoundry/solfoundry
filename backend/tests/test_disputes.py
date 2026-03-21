@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone, timedelta
 
+from unittest.mock import patch
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -46,9 +48,10 @@ def reset():
     dispute_service._history_store.clear()
     dispute_service._reputation_impacts.clear()
     _bounty_store.clear()
-    dispute_service.ADMIN_USER_IDS.clear()
-    dispute_service.ADMIN_USER_IDS.add(ADMIN)
-    yield
+    with patch.object(
+        dispute_service, "is_admin", side_effect=lambda uid: uid == ADMIN
+    ):
+        yield
     dispute_service._dispute_store.clear()
     dispute_service._history_store.clear()
     dispute_service._reputation_impacts.clear()
@@ -100,6 +103,7 @@ def test_create_all_reasons():
     for i, reason in enumerate(["incorrect_review", "plagiarism", "rule_violation",
             "technical_issue", "unfair_competition", "other"]):
         dispute_service._dispute_store.clear()
+        _bounty_store.clear()
         _seed_bounty(f"b{i}")
         assert client.post("/api/disputes", json=_payload(f"b{i}", reason),
             headers=HEADERS_SUBMITTER).status_code == 201
@@ -215,6 +219,18 @@ def test_evidence_not_found():
         {"evidence_type": "link", "url": "https://example.com", "description": "y"}]},
         headers=HEADERS_SUBMITTER).status_code == 404
 
+def test_evidence_max_items_exceeded():
+    """Submitting more than 10 evidence items returns 422."""
+    d = _create_dispute()
+    items = [
+        {"evidence_type": "link", "url": f"https://example.com/ev{i}",
+         "description": f"Evidence item {i}"}
+        for i in range(11)
+    ]
+    resp = client.post(f'/api/disputes/{d['id']}/evidence',
+        json={"evidence_items": items}, headers=HEADERS_SUBMITTER)
+    assert resp.status_code == 422
+
 def test_resolve_non_admin_forbidden():
     """Non-admin user gets 403 when trying to resolve."""
     d = _create_dispute(); _add_evidence(d["id"])
@@ -224,6 +240,7 @@ def test_resolve_all_outcomes():
     """Admin can resolve with all valid outcomes."""
     for outcome in ("contributor_wins", "creator_wins", "split"):
         dispute_service._dispute_store.clear(); dispute_service._history_store.clear()
+        _bounty_store.clear()
         d = _create_dispute(); _add_evidence(d["id"])
         resp = _resolve(d["id"], outcome=outcome, user=ADMIN)
         assert resp.status_code == 200 and resp.json()["status"] == "resolved"

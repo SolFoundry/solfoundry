@@ -11,7 +11,9 @@ import httpx
 from app.models.dispute import (
     DisputeCreate, DisputeDetailResponse, DisputeHistoryItem, DisputeListItem,
     DisputeListResponse, DisputeOutcome, DisputeResolve, DisputeResponse,
-    DisputeStats, DisputeStatus, EvidenceItem, EvidenceSubmit)
+    DisputeStats, DisputeStatus, EvidenceItem, EvidenceSubmit,
+    validate_transition,
+)
 from app.services.bounty_service import _bounty_store
 from app.services.contributor_service import _store as _contributor_store
 
@@ -23,7 +25,8 @@ _reputation_impacts: list[dict] = []
 
 AI_MEDIATION_THRESHOLD = 7.0
 DISPUTE_WINDOW_HOURS = 72
-ADMIN_USER_IDS: set[str] = set(
+AI_MEDIATION_URL = os.getenv("AI_MEDIATION_URL", "")
+ADMIN_USER_IDS: frozenset[str] = frozenset(
     filter(None, os.getenv("ADMIN_USER_IDS", "").split(","))
 )
 
@@ -76,11 +79,12 @@ def _send_telegram_notification(dispute_id: str, message: str):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
-        httpx.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message}, timeout=5)
+        with httpx.Client(timeout=5) as hc:
+            hc.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message})
     except Exception as exc:
         logger.warning("Telegram notification failed: %s", exc)
 
-def _get_bounty_rejection_info(bounty_id: str):
+def _get_bounty_rejection_info(bounty_id: str, submitter_id: str = None):
     """Look up bounty and return (bounty, rejected_at) or (None, None)."""
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
@@ -88,12 +92,30 @@ def _get_bounty_rejection_info(bounty_id: str):
     rejected = [s for s in bounty.submissions if s.status.value == "rejected"]
     if not rejected:
         return bounty, None
+    if submitter_id:
+        sr = [s for s in rejected if s.submitted_by == submitter_id]
+        if sr:
+            return bounty, max(sr, key=lambda s: s.submitted_at).submitted_at
     latest = max(rejected, key=lambda s: s.submitted_at)
     return bounty, latest.submitted_at
 
+
+def _call_ai_mediation_service(dispute_id, evidence_links):
+    """Call external AI mediation service or fall back to formula."""
+    if AI_MEDIATION_URL:
+        try:
+            with httpx.Client(timeout=10) as hc:
+                resp = hc.post(AI_MEDIATION_URL, json={"dispute_id": dispute_id, "evidence_count": len(evidence_links)})
+                if resp.status_code == 200:
+                    return float(resp.json().get("score", 0.0))
+        except Exception as exc:
+            logger.warning("AI mediation service failed: %s", exc)
+    return min(10.0, round(len(evidence_links) * 1.5 + 3.0, 1))
+
+
 def create_dispute(data: DisputeCreate, submitter_id: str):
     """File a new dispute. Validates bounty, rejection, and 72h window."""
-    bounty, rejected_at = _get_bounty_rejection_info(data.bounty_id)
+    bounty, rejected_at = _get_bounty_rejection_info(data.bounty_id, submitter_id=submitter_id)
     if not bounty:
         return None, "Bounty not found"
     creator_id = bounty.created_by
@@ -169,6 +191,7 @@ def submit_evidence(dispute_id: str, data: EvidenceSubmit, actor_id: str):
     d["evidence_links"] += [i.model_dump() for i in data.evidence_items]
     d["updated_at"] = _now()
     if cur == DisputeStatus.OPENED:
+        validate_transition(cur, DisputeStatus.EVIDENCE)
         prev = d["status"]
         d["status"] = DisputeStatus.EVIDENCE.value
         _hist(dispute_id, "status_transition", actor_id, prev, d["status"])
@@ -178,15 +201,17 @@ def submit_evidence(dispute_id: str, data: EvidenceSubmit, actor_id: str):
 
 def _run_ai_mediation(dispute_id: str, d: dict):
     """Internal AI mediation logic run as part of resolve flow."""
-    evidence_count = len(d.get("evidence_links", []))
-    score = min(10.0, round(evidence_count * 1.5 + 3.0, 1))
+    evidence_links = d.get("evidence_links", [])
+    score = _call_ai_mediation_service(dispute_id, evidence_links)
     d["ai_review_score"] = score
     d["updated_at"] = _now()
     if DisputeStatus(d["status"]) == DisputeStatus.EVIDENCE:
+        validate_transition(DisputeStatus.EVIDENCE, DisputeStatus.MEDIATION)
         prev = d["status"]
         d["status"] = DisputeStatus.MEDIATION.value
         _hist(dispute_id, "ai_mediation_started", "system", prev, d["status"])
     if score >= AI_MEDIATION_THRESHOLD:
+        validate_transition(DisputeStatus.MEDIATION, DisputeStatus.RESOLVED)
         d.update(ai_recommendation=DisputeOutcome.CONTRIBUTOR_WINS.value,
             status=DisputeStatus.RESOLVED.value,
             outcome=DisputeOutcome.CONTRIBUTOR_WINS.value,
@@ -217,6 +242,7 @@ def resolve_dispute(dispute_id: str, data: DisputeResolve, reviewer_id: str):
             return _resp(d), None
     elif cur != DisputeStatus.MEDIATION:
         return None, f"Only disputes in evidence or mediation can be resolved. Current: {d['status']}"
+    validate_transition(DisputeStatus(d["status"]), DisputeStatus.RESOLVED)
     prev, oc = d["status"], DisputeOutcome(data.outcome)
     acts = {DisputeOutcome.CONTRIBUTOR_WINS: "release_to_contributor",
             DisputeOutcome.CREATOR_WINS: "refund_to_creator",
