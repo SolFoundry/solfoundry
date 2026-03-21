@@ -1,12 +1,30 @@
 """Bounty lifecycle state machine and claim management (Issue #164).
 
-draft -> open -> claimed -> in_review -> completed -> paid.
-T1 open-race, T2/T3 claim with deadline, webhooks, audit log.
-PostgreSQL migration: _bounty_store -> bounties; _audit_log ->
-lifecycle_audit_log(id, bounty_id, from/to_status, triggered_by, action,
-reason, metadata JSONB, created_at); _claims -> bounty_claims(id, bounty_id
-UNIQUE, claimed_by, claimed_at, deadline, estimated_hours, released,
-released_at, warning_sent); _claim_lock -> SELECT ... FOR UPDATE.
+State machine: draft -> open -> claimed -> in_review -> completed -> paid.
+T1 uses open-race (anyone submits, first merged wins).
+T2/T3 require claim before review (claimed -> in_review, NOT open -> in_review).
+Webhooks, deadline enforcement, and audit logging are included.
+
+All in-memory store mutations (_bounty_store, _claims, _audit_log) are
+serialised through a single ``_state_lock`` (threading.Lock) to prevent
+race conditions under concurrent requests.  In production this lock is
+replaced by PostgreSQL transactional updates with row-level locking.
+
+PostgreSQL migration path (in-memory stores are MVP only)::
+
+    CREATE TABLE lifecycle_audit_log (
+        id UUID PRIMARY KEY, bounty_id UUID NOT NULL REFERENCES bounties(id),
+        from_status VARCHAR(32), to_status VARCHAR(32),
+        triggered_by VARCHAR(100) DEFAULT 'system', action VARCHAR(64),
+        reason TEXT, metadata JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now());
+
+    CREATE TABLE bounty_claims (
+        id UUID PRIMARY KEY, bounty_id UUID UNIQUE NOT NULL REFERENCES bounties(id),
+        claimed_by VARCHAR(100), claimed_at TIMESTAMPTZ DEFAULT now(),
+        deadline TIMESTAMPTZ, estimated_hours INT, released BOOLEAN DEFAULT FALSE,
+        released_at TIMESTAMPTZ, warning_sent BOOLEAN DEFAULT FALSE);
+
+    -- _state_lock -> SELECT ... FOR UPDATE inside a transaction.
 """
 
 import logging
@@ -24,7 +42,7 @@ from app.services.bounty_service import _bounty_store, _to_bounty_response
 logger = logging.getLogger(__name__)
 _audit_log: list[AuditLogEntry] = []
 _claims: dict[str, ClaimRecord] = {}
-_claim_lock = threading.Lock()
+_state_lock = threading.Lock()
 DEFAULT_CLAIM_DEADLINE_HOURS = 168
 
 TRANSITIONS: dict[str, dict[str, str]] = {
@@ -59,40 +77,42 @@ def _check(b, act):
 
 
 def _do(bid, act, by="system", reason=None, meta=None):
-    """Apply transition + log. Returns (result_dict, error)."""
-    b = _bounty_store.get(bid)
-    if not b:
-        return None, LifecycleNotFoundError("Bounty not found")
-    t, err = _check(b, act)
-    if err:
-        return None, err
-    prev = b.status.value
-    b.status = BountyStatus(t)
-    b.updated_at = datetime.now(timezone.utc)
-    e = _log(bid, prev, t, act, by, reason, meta)
+    """Apply transition + log (atomic via lock). Returns (result_dict, error)."""
+    with _state_lock:
+        b = _bounty_store.get(bid)
+        if not b:
+            return None, LifecycleNotFoundError("Bounty not found")
+        t, err = _check(b, act)
+        if err:
+            return None, err
+        prev = b.status.value
+        b.status = BountyStatus(t)
+        b.updated_at = datetime.now(timezone.utc)
+        e = _log(bid, prev, t, act, by, reason, meta)
     return {"bounty_id": bid, "previous_status": prev, "new_status": t,
             "action": act, "triggered_by": by, "audit_log_id": e.id}, None
 
 
 def create_draft_bounty(data):
-    """Create bounty in draft status."""
-    b = BountyDB(title=data.title, description=data.description, tier=data.tier,
-                 reward_amount=data.reward_amount, github_issue_url=data.github_issue_url,
-                 required_skills=data.required_skills, deadline=data.deadline,
-                 created_by=data.created_by, status=BountyStatus.DRAFT)
-    _bounty_store[b.id] = b
-    _log(b.id, "", "draft", LifecycleAction.CREATE_DRAFT, data.created_by)
+    """Create bounty in draft status (atomic via lock)."""
+    with _state_lock:
+        b = BountyDB(title=data.title, description=data.description, tier=data.tier,
+                     reward_amount=data.reward_amount, github_issue_url=data.github_issue_url,
+                     required_skills=data.required_skills, deadline=data.deadline,
+                     created_by=data.created_by, status=BountyStatus.DRAFT)
+        _bounty_store[b.id] = b
+        _log(b.id, "", "draft", LifecycleAction.CREATE_DRAFT, data.created_by)
     return _to_bounty_response(b).model_dump(mode="json"), None
 
 
 def publish_bounty(bid, by="system"):
-    """Publish draft -> open."""
+    """Publish draft -> open (atomic via _do lock)."""
     return _do(bid, LifecycleAction.PUBLISH, by)
 
 
 def claim_bounty(bid, req):
     """Claim T2/T3 bounty with deadline (atomic via lock)."""
-    with _claim_lock:
+    with _state_lock:
         b = _bounty_store.get(bid)
         if not b:
             return None, LifecycleNotFoundError("Bounty not found")
@@ -121,7 +141,7 @@ def claim_bounty(bid, req):
 
 def release_claim(bid, req):
     """Release claim, reopen bounty (atomic via lock)."""
-    with _claim_lock:
+    with _state_lock:
         b = _bounty_store.get(bid)
         if not b:
             return None, LifecycleNotFoundError("Bounty not found")
@@ -143,18 +163,45 @@ def release_claim(bid, req):
 
 
 def submit_for_review(bid, pr_url, by):
-    """Move bounty to in_review."""
-    return _do(bid, LifecycleAction.SUBMIT_FOR_REVIEW, by, None, {"pr_url": pr_url})
+    """Move bounty to in_review (atomic via lock).
+
+    T1 bounties may go directly from open -> in_review (open-race model).
+    T2/T3 bounties MUST be in claimed status first; attempting open -> in_review
+    on a T2/T3 bounty is rejected with a validation error.
+    """
+    with _state_lock:
+        b = _bounty_store.get(bid)
+        if not b:
+            return None, LifecycleNotFoundError("Bounty not found")
+        # Enforce tier-based claim requirement: T2/T3 must be claimed first
+        if b.tier != BountyTier.T1 and b.status == BountyStatus.OPEN:
+            return None, LifecycleValidationError(
+                "T2/T3 bounties must be claimed before submitting for review")
+        t, err = _check(b, LifecycleAction.SUBMIT_FOR_REVIEW)
+        if err:
+            return None, err
+        prev = b.status.value
+        b.status = BountyStatus(t)
+        b.updated_at = datetime.now(timezone.utc)
+        e = _log(bid, prev, t, LifecycleAction.SUBMIT_FOR_REVIEW, by,
+                 None, {"pr_url": pr_url})
+    return {"bounty_id": bid, "previous_status": prev, "new_status": t,
+            "action": LifecycleAction.SUBMIT_FOR_REVIEW,
+            "triggered_by": by, "audit_log_id": e.id}, None
 
 
 def approve_bounty(bid, by="system"):
-    """Approve in-review -> completed."""
+    """Approve in-review -> completed (atomic via _do lock)."""
     return _do(bid, LifecycleAction.APPROVE, by)
 
 
 def reject_bounty(bid, by="system", reason=None):
-    """Reject submission, reopen (atomic via lock)."""
-    with _claim_lock:
+    """Reject submission, reopen (atomic via lock).
+
+    Safely handles bounties that have no active claim (e.g. T1 open-race
+    bounties that went through review without ever being claimed).
+    """
+    with _state_lock:
         b = _bounty_store.get(bid)
         if not b:
             return None, LifecycleNotFoundError("Bounty not found")
@@ -164,8 +211,10 @@ def reject_bounty(bid, by="system", reason=None):
         prev = b.status.value
         b.status = BountyStatus(t)
         b.updated_at = datetime.now(timezone.utc)
-        if bid in _claims:
-            _claims[bid].released = True
+        cl = _claims.get(bid)
+        if cl and not cl.released:
+            cl.released = True
+            cl.released_at = datetime.now(timezone.utc)
         e = _log(bid, prev, t, LifecycleAction.REJECT, by, reason or "Rejected")
     return {"bounty_id": bid, "previous_status": prev, "new_status": t,
             "action": LifecycleAction.REJECT.value,
@@ -173,7 +222,7 @@ def reject_bounty(bid, by="system", reason=None):
 
 
 def mark_paid(bid, by="system", tx_hash=None):
-    """Mark completed bounty as paid."""
+    """Mark completed bounty as paid (atomic via _do lock)."""
     return _do(bid, LifecycleAction.MARK_PAID, by, None,
                {"transaction_hash": tx_hash} if tx_hash else {})
 
@@ -184,7 +233,7 @@ def handle_webhook(bid, req):
     T1 merged sets auto_approved=True. Fallback to WEBHOOK_UPDATE only for
     'opened'; merged/closed fail immediately if primary action is invalid.
     """
-    with _claim_lock:
+    with _state_lock:
         b = _bounty_store.get(bid)
         if not b:
             return None, LifecycleNotFoundError("Bounty not found")
@@ -218,7 +267,7 @@ def enforce_deadlines():
     """Warn at 80% elapsed, auto-release at 100%. Uses warning_sent flag (atomic via lock)."""
     now = datetime.now(timezone.utc)
     out = []
-    with _claim_lock:
+    with _state_lock:
         for bid, cl in list(_claims.items()):
             if cl.released or not cl.deadline:
                 continue

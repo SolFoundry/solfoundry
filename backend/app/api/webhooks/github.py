@@ -118,7 +118,7 @@ async def receive_github_webhook(
                 try:
                     dispatch_pr_event(str(bounty_id), pr_action, pr_url, sender_login)
                 except Exception as exc:
-                    logger.warning("Lifecycle dispatch failed (non-fatal): %s", exc)
+                    logger.error("Lifecycle dispatch failed (non-fatal): %s", exc, exc_info=True)
 
             return JSONResponse(status_code=200, content=result)
 

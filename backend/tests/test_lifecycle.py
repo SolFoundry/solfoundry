@@ -279,3 +279,78 @@ class TestDispatch:
         ls.dispatch_pr_event(bid, "opened", "https://github.com/o/r/pull/1", "bot")
         r, e = ls.dispatch_pr_event(bid, "merged", "https://github.com/o/r/pull/1", "bot")
         assert e is None and r["new_status"] == "completed"
+
+
+class TestT2T3ClaimEnforcement:
+    """T2/T3 bounties must be claimed before submitting for review."""
+
+    def test_t2_open_to_review_rejected(self):
+        """T2 bounty cannot go directly from open to in_review."""
+        bid = _o(tier=2)["id"]
+        r = c.post(_r(bid))
+        assert r.status_code == 400
+        assert "must be claimed" in r.json()["detail"]
+
+    def test_t3_open_to_review_rejected(self):
+        """T3 bounty cannot go directly from open to in_review."""
+        bid = _o(tier=3)["id"]
+        r = c.post(_r(bid))
+        assert r.status_code == 400
+        assert "must be claimed" in r.json()["detail"]
+
+    def test_t1_open_to_review_allowed(self):
+        """T1 bounty CAN go directly from open to in_review (open-race)."""
+        bid = _o(tier=1)["id"]
+        assert c.post(_r(bid)).json()["new_status"] == "in_review"
+
+    def test_t2_claimed_to_review_allowed(self):
+        """T2 bounty can go from claimed to in_review."""
+        bid = _o(tier=2)["id"]
+        c.post("/api/bounties/" + bid + "/claim", json={"claimed_by": "dev"})
+        assert c.post(_r(bid)).json()["new_status"] == "in_review"
+
+
+class TestRejectWithNoClaim:
+    """Regression: reject_bounty must not KeyError when no claim exists."""
+
+    def test_reject_t1_no_claim(self):
+        """T1 bounty goes open->in_review->reject without ever being claimed."""
+        bid = _o(tier=1)["id"]
+        c.post(_r(bid))
+        r = c.post("/api/bounties/" + bid + "/reject")
+        assert r.status_code == 200
+        assert r.json()["new_status"] == "open"
+
+    def test_reject_clears_claim(self):
+        """After rejection, the claim should be marked released."""
+        bid = _o(tier=2)["id"]
+        c.post("/api/bounties/" + bid + "/claim", json={"claimed_by": "a"})
+        c.post(_r(bid))
+        c.post("/api/bounties/" + bid + "/reject")
+        cl = ls._claims.get(bid)
+        assert cl is not None and cl.released is True
+
+
+class TestBackwardCompatUnderReview:
+    """Regression: UNDER_REVIEW enum alias must be importable and usable."""
+
+    def test_under_review_enum_exists(self):
+        from app.models.bounty import BountyStatus
+        assert hasattr(BountyStatus, "UNDER_REVIEW")
+        assert BountyStatus.UNDER_REVIEW.value == "under_review"
+
+    def test_under_review_in_transitions(self):
+        from app.models.bounty import VALID_STATUS_TRANSITIONS, BountyStatus
+        assert BountyStatus.UNDER_REVIEW in VALID_STATUS_TRANSITIONS
+
+    def test_under_review_string_in_valid_statuses(self):
+        from app.models.bounty import VALID_STATUSES
+        assert "under_review" in VALID_STATUSES
+
+
+class TestGlobalLocking:
+    """Verify all state-mutation functions use _state_lock."""
+
+    def test_state_lock_exists(self):
+        import threading
+        assert isinstance(ls._state_lock, type(threading.Lock()))

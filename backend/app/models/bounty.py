@@ -31,6 +31,10 @@ class BountyStatus(str, Enum):
 
     Full lifecycle: draft -> open -> claimed -> in_review -> completed -> paid.
     Legacy shortcut: open -> in_progress -> completed -> paid (still supported).
+
+    Backward compatibility: UNDER_REVIEW is a deprecated alias for IN_REVIEW.
+    Existing code that references BountyStatus.UNDER_REVIEW or the string value
+    "under_review" will continue to work.  New code should use IN_REVIEW.
     """
 
     DRAFT = "draft"
@@ -38,6 +42,7 @@ class BountyStatus(str, Enum):
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     IN_REVIEW = "in_review"
+    UNDER_REVIEW = "under_review"  # backward-compat alias (deprecated)
     COMPLETED = "completed"
     DISPUTED = "disputed"
     PAID = "paid"
@@ -46,15 +51,17 @@ class BountyStatus(str, Enum):
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
     BountyStatus.DRAFT: {BountyStatus.OPEN},
-    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
+    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CLAIMED, BountyStatus.CANCELLED},
     BountyStatus.CLAIMED: {BountyStatus.IN_REVIEW, BountyStatus.OPEN},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.IN_REVIEW, BountyStatus.CANCELLED},
     BountyStatus.IN_REVIEW: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
+    BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
     BountyStatus.COMPLETED: {BountyStatus.PAID},
     BountyStatus.DISPUTED: {BountyStatus.COMPLETED, BountyStatus.CANCELLED, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
     BountyStatus.CANCELLED: set(),  # terminal
 }
+
 
 class SubmissionStatus(str, Enum):
     """Lifecycle status of a solution submission."""
