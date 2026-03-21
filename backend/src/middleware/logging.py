@@ -9,10 +9,13 @@ import uuid
 import time
 import sys
 import traceback
+import re
+import os
 from logging.handlers import RotatingFileHandler
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 class JSONFormatter(logging.Formatter):
     def format(self, record):
@@ -30,61 +33,91 @@ class JSONFormatter(logging.Formatter):
             log_record["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_record)
 
-def _get_logger(name, filename, max_bytes=10485760, backup_count=5):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    
-    if not logger.handlers:
-        # File handler with rotation
-        file_handler = RotatingFileHandler(filename, maxBytes=max_bytes, backupCount=backup_count)
+def setup_logging(log_dir="logs", max_bytes=10485760, backup_count=5):
+    """Initialize logging configuration with rotation and separate streams."""
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+        
+    def configure_stream(name, filename, to_stdout=False):
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        
+        # Clear existing handlers
+        if logger.hasHandlers():
+            logger.handlers.clear()
+            
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, filename), 
+            maxBytes=max_bytes, 
+            backupCount=backup_count
+        )
         file_handler.setFormatter(JSONFormatter())
-        
-        # Stdout handler
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setFormatter(JSONFormatter())
-        
         logger.addHandler(file_handler)
-        logger.addHandler(stream_handler)
-    return logger
+        
+        if to_stdout:
+            stream_handler = logging.StreamHandler(sys.stdout)
+            stream_handler.setFormatter(JSONFormatter())
+            logger.addHandler(stream_handler)
+        return logger
 
-# Separate log streams
-access_logger = _get_logger("access", "access.log")
-app_logger = _get_logger("application", "app.log")
-audit_logger = _get_logger("audit", "audit.log")
-error_logger = _get_logger("error", "error.log")
+    configure_stream("access", "access.log", to_stdout=True)
+    configure_stream("application", "app.log", to_stdout=True)
+    configure_stream("error", "error.log", to_stdout=True)
+    configure_stream("audit", "audit.log", to_stdout=False)
+    
+_logging_setup_done = False
+
+def _get_logger(name):
+    global _logging_setup_done
+    if not _logging_setup_done:
+        setup_logging()
+        _logging_setup_done = True
+    return logging.getLogger(name)
+
+def _validate_correlation_id(cid: str) -> str:
+    if cid and isinstance(cid, str) and re.match(r'^[a-zA-Z0-9-]{10,50}$', cid):
+        return cid
+    return str(uuid.uuid4())
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+        raw_cid = request.headers.get("X-Correlation-ID")
+        correlation_id = _validate_correlation_id(raw_cid)
         start_time = time.time()
         
-        # Check for Audit paths BEFORE processing
-        is_audit = "payout" in request.url.path or "auth" in request.url.path or "payment" in request.url.path
-            
+        path = request.url.path
+        
+        # Check for Audit paths using explicit match or strictly defined prefix
+        is_audit = (path in ["/api/auth/login", "/api/auth/logout"] 
+                    or path.startswith("/api/payout/")
+                    or path.startswith("/api/admin/bounty/status/"))
+        
         try:
             response = await call_next(request)
-            process_time = (time.time() - start_time) * 1000  # ms
             
-            # Application/Access Log for successful request
-            log_extra = {
-                "stream": "access",
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "client_ip": request.client.host if request.client else "unknown",
-                "duration_ms": round(process_time, 2)
-            }
-            access_logger.info("Request processed", extra={"correlation_id": correlation_id, "extra_info": log_extra})
-            
-            # Optional Audit Log
-            if is_audit and response.status_code == 200:
-                audit_logger.info(
-                    "Sensitive operation successful", 
-                    extra={
-                        "correlation_id": correlation_id, 
-                        "extra_info": {"path": request.url.path, "event_type": "sensitive_action"}
-                    }
-                )
+            # Application/Access Log for successful request, exclude health checks from log spam
+            if path not in ["/health", "/api/health"]:
+                process_time = (time.time() - start_time) * 1000  # ms
+                log_extra = {
+                    "stream": "access",
+                    "method": request.method,
+                    "path": path,
+                    "status_code": response.status_code,
+                    "client_ip": request.client.host if request.client else "unknown",
+                    "duration_ms": round(process_time, 2)
+                }
+                _get_logger("access").info("Request processed", extra={"correlation_id": correlation_id, "extra_info": log_extra})
+                
+                # Optional Audit Log
+                if is_audit and response.status_code in [200, 201]:
+                    _get_logger("audit").info(
+                        "Sensitive operation successful", 
+                        extra={
+                            "correlation_id": correlation_id, 
+                            "extra_info": {"path": path, "event_type": "sensitive_action"}
+                        }
+                    )
 
             response.headers["X-Correlation-ID"] = correlation_id
             return response
@@ -92,10 +125,14 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             process_time = (time.time() - start_time) * 1000
             
-            # Format detailed error metrics
+            # Do not swallow framework HTTPExceptions (e.g. 404, 422)
+            if isinstance(e, StarletteHTTPException) or getattr(e, "status_code", None) is not None:
+                raise e
+
+            # Format detailed error metrics for TRUE unhandled SERVER 500 EXCEPTIONS
             error_data = {
                 "stream": "error",
-                "path": request.url.path,
+                "path": path,
                 "method": request.method,
                 "error_type": type(e).__name__,
                 "stack_trace": traceback.format_exc(),
@@ -103,15 +140,16 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             }
             
             # Use error logger stream explicitly
-            error_logger.error(
+            _get_logger("error").error(
                 f"Unhandled exception: {str(e)}", 
-                extra={"correlation_id": correlation_id, "extra_info": error_data}, 
+                extra={"correlation_id": correlation_id, "extra_info": error_data},
                 exc_info=True
             )
             
             # Mask internal errors from client
             return JSONResponse(
                 status_code=500,
+                headers={"X-Correlation-ID": correlation_id},
                 content={
                     "error": "Internal Server Error", 
                     "correlation_id": correlation_id,
