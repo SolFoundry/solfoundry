@@ -1,6 +1,6 @@
 /**
  * App — Root component with full routing and layout.
- * All pages wrapped in WalletProvider + SiteLayout.
+ * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
 import React, { lazy, Suspense } from 'react';
@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 /** Catches render errors with retry. */
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -91,9 +92,11 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider defaultNetwork="mainnet-beta">
-        <AppLayout />
-      </WalletProvider>
+      <ThemeProvider defaultTheme="dark">
+        <WalletProvider defaultNetwork="mainnet-beta">
+          <AppLayout />
+        </WalletProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
