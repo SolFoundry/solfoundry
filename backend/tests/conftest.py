@@ -8,8 +8,12 @@ import os
 import pytest
 
 # Set test database URL before importing app modules
-# This must be done before any app imports
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# This must be done before any app imports.
+#
+# Default behavior (unit tests): use in-memory SQLite.
+# Integration behavior (CI): if `TEST_DATABASE_URL` is set, use it instead
+# so the app + ORM exercise a real backend (e.g. Postgres).
+os.environ["DATABASE_URL"] = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
 
 # Configure asyncio mode for pytest

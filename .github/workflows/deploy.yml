@@ -16,6 +16,11 @@ on:
         options:
           - production
           - staging
+      image_tag:
+        description: 'Specific backend image tag / git sha to deploy (rollback). Leave empty for latest.'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -26,6 +31,8 @@ env:
   NODE_VERSION: '20'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/backend
+  DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+  DEPLOY_TAG: ${{ inputs.image_tag || github.sha }}
 
 jobs:
   # ==================== BUILD FRONTEND ====================
@@ -37,6 +44,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_TAG }}
 
       - name: Check for package.json
         id: check
@@ -81,13 +90,20 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend (Vercel)
     runs-on: ubuntu-latest
+    environment: ${{ env.DEPLOY_ENV }}
     needs: build-frontend
-    if: needs.build-frontend.outputs.has_frontend == 'true' && github.event_name != 'workflow_dispatch'
+    if: needs.build-frontend.outputs.has_frontend == 'true'
+    outputs:
+      vercel_preview_url: ${{ steps.vercel_deploy_preview.outputs['preview-url'] }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_TAG }}
 
-      - name: Deploy to Vercel
+      - name: Deploy to Vercel (production)
+        id: vercel_deploy
+        if: env.DEPLOY_ENV == 'production'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -95,6 +111,22 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
           working-directory: frontend
+
+      - name: Deploy to Vercel (staging/preview)
+        id: vercel_deploy_preview
+        if: env.DEPLOY_ENV != 'production'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          # No --prod flag => preview deployment; action exposes `preview-url`.
+          working-directory: frontend
+
+      - name: Publish staging URL
+        if: env.DEPLOY_ENV != 'production'
+        run: |
+          echo "- [Staging Site](${{ steps.vercel_deploy_preview.outputs['preview-url'] }})" >> $GITHUB_STEP_SUMMARY
 
   # ==================== BUILD BACKEND DOCKER IMAGE ====================
   build-backend:
@@ -145,8 +177,9 @@ jobs:
   deploy-backend:
     name: Deploy Backend (DigitalOcean)
     runs-on: ubuntu-latest
+    environment: ${{ env.DEPLOY_ENV }}
     needs: build-backend
-    if: github.event_name != 'workflow_dispatch'
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -163,12 +196,12 @@ jobs:
         run: |
           # Update deployment image
           kubectl set image deployment/solfoundry-backend \
-            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --namespace production
+            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEPLOY_TAG }} \
+            --namespace ${{ env.DEPLOY_ENV }}
           
           # Wait for rollout
           kubectl rollout status deployment/solfoundry-backend \
-            --namespace production \
+            --namespace ${{ env.DEPLOY_ENV }} \
             --timeout=300s
         continue-on-error: true
 
@@ -176,8 +209,9 @@ jobs:
   migrate-database:
     name: Run Database Migrations
     runs-on: ubuntu-latest
+    environment: ${{ env.DEPLOY_ENV }}
     needs: deploy-backend
-    if: github.event_name != 'workflow_dispatch'
+    if: env.DEPLOY_ENV == 'production' && (github.event_name != 'workflow_dispatch' || inputs.image_tag == '')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -211,8 +245,8 @@ jobs:
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit/Image Tag:** ${{ env.DEPLOY_TAG }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
@@ -224,8 +258,13 @@ jobs:
           echo "| Database Migration | ${{ needs.migrate-database.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Production Site](https://solfoundry.org)" >> $GITHUB_STEP_SUMMARY
-          echo "- [API Health](https://api.solfoundry.org/health)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.DEPLOY_ENV }}" = "production" ]; then
+            echo "- [Production Site](https://solfoundry.org)" >> $GITHUB_STEP_SUMMARY
+            echo "- [API Health](https://api.solfoundry.org/health)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [Staging Site](${{ needs.deploy-frontend.outputs.vercel_preview_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "- [Staging /health](${{ needs.deploy-frontend.outputs.vercel_preview_url }}/health)" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Notify on Success
         if: success()
