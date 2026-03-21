@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency:
       group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - name: Checkout base repo (safe — never runs PR code)
         uses: actions/checkout@v4
