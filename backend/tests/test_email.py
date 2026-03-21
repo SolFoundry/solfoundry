@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from backend.src.services.email import (
+from src.services.email import (
     EmailService, EmailProvider, _RATE_LIMIT_STORE, _USER_PREFERENCES,
     _UNSUBSCRIBED, _EMAIL_QUEUE, set_preference, unsubscribe_all
 )
