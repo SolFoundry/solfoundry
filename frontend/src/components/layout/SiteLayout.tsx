@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollToTop } from '../common/ScrollToTop';
+import { Breadcrumbs } from './Breadcrumbs';
 
 // ============================================================================
 // Types
@@ -149,6 +150,7 @@ export function SiteLayout({
 
       {/* Main Content */}
       <main className="min-h-screen pt-16">
+        <Breadcrumbs />
         {children}
       </main>
 
