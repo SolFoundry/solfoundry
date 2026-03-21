@@ -9,6 +9,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/common/ToastContainer';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -83,9 +85,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider defaultTheme="dark">
-        <WalletProvider defaultNetwork="mainnet-beta">
-          <AppLayout />
-        </WalletProvider>
+        <ToastProvider>
+          <WalletProvider defaultNetwork="mainnet-beta">
+            <AppLayout />
+          </WalletProvider>
+          <ToastContainer />
+        </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>
   );
