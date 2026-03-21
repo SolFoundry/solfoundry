@@ -1,6 +1,9 @@
 'use client';
 
 import React from 'react';
+import { BadgeGrid, BadgeCount } from './badges';
+import { useBadges } from '../hooks/useBadges';
+import { ContributorStats, BadgeState } from '../types/badge';
 
 interface ContributorProfileProps {
   username: string;
@@ -9,7 +12,16 @@ interface ContributorProfileProps {
   totalEarned?: number;
   bountiesCompleted?: number;
   reputationScore?: number;
+  stats?: ContributorStats;
 }
+
+const defaultStats: ContributorStats = {
+  prsMerged: 0,
+  prsWithNoRevisions: 0,
+  monthlyPRs: 0,
+  isMonthlyTop: false,
+  prTimestamps: [],
+};
 
 export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   username,
@@ -18,10 +30,14 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   totalEarned = 0,
   bountiesCompleted = 0,
   reputationScore = 0,
+  stats = defaultStats,
 }) => {
   const truncatedWallet = walletAddress 
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : 'Not connected';
+  
+  const badges = useBadges(stats);
+  const earnedBadgeCount = badges.filter((b: BadgeState) => b.earned).length;
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 sm:p-6 text-white">
@@ -34,9 +50,15 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
             <span className="text-2xl sm:text-3xl">{username.charAt(0).toUpperCase()}</span>
           )}
         </div>
-        <div className="text-center sm:text-left">
+        <div className="text-center sm:text-left flex-1">
           <h1 className="text-xl sm:text-2xl font-bold break-words">{username}</h1>
           <p className="text-gray-400 text-xs sm:text-sm font-mono">{truncatedWallet}</p>
+          {/* Badge count on profile */}
+          {earnedBadgeCount > 0 && (
+            <div className="mt-1">
+              <BadgeCount badges={badges} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -55,6 +77,13 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>
       </div>
+
+      {/* Badges Section */}
+      {badges.length > 0 && (
+        <div className="bg-gray-800 rounded-lg p-3 sm:p-4 mb-6">
+          <BadgeGrid badges={badges} />
+        </div>
+      )}
 
       {/* Hire as Agent Button - Touch friendly (min 44px height) */}
       <button 
