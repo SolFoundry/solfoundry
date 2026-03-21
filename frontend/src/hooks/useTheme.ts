@@ -5,8 +5,9 @@
  * - Persist theme preference in localStorage
  * - Respect system preference (prefers-color-scheme) as default
  * - Apply dark class to document.documentElement (Tailwind standard)
+ * - Safe transition management with cleanup
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -41,19 +42,11 @@ function getStoredTheme(): Theme | null {
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   
-  // Add transition class for smooth theme change
-  root.classList.add('theme-transitioning');
-  
   if (theme === 'dark') {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
   }
-  
-  // Remove transition class after animation completes
-  setTimeout(() => {
-    root.classList.remove('theme-transitioning');
-  }, 300);
 }
 
 /**
@@ -72,6 +65,12 @@ export function useTheme(): {
     return getSystemPreference();
   });
 
+  // Track transition timeout to prevent race conditions
+  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track system preference listener
+  const mediaQueryRef = useRef<MediaQueryList | null>(null);
+
   // Apply theme on mount and when theme changes
   useEffect(() => {
     applyTheme(theme);
@@ -80,6 +79,7 @@ export function useTheme(): {
   // Listen for system preference changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQueryRef.current = mediaQuery;
     
     const handleChange = (e: MediaQueryListEvent) => {
       if (!getStoredTheme()) {
@@ -88,7 +88,13 @@ export function useTheme(): {
     };
 
     mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+      // Clear any pending transition timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, []);
 
   /**

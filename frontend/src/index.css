@@ -77,6 +77,34 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
+/* Form elements - light theme */
+select,
+input[type="search"],
+input[type="text"] {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border-color: #e5e7eb;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+/* Form elements - dark theme */
+html.dark select,
+html.dark input[type="search"],
+html.dark input[type="text"] {
+  background-color: #1a1a1a;
+  color: #e5e5e5;
+  border-color: #333;
+}
+
+html.dark select option {
+  background-color: #1a1a1a;
+  color: #e5e5e5;
+}
+
 /* ============================================================================
    Loading Skeleton Styles
    ============================================================================ */

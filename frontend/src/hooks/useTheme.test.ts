@@ -32,56 +32,64 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-// Mock matchMedia
-const matchMediaMock = jest.fn().mockImplementation((query: string) => ({
-  matches: false,
-  media: query,
-  onchange: null,
-  addListener: jest.fn(),
-  removeListener: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
-  dispatchEvent: jest.fn(),
-}));
-
-Object.defineProperty(window, 'matchMedia', {
-  value: matchMediaMock,
-});
+// Mock matchMedia - default to light system preference
+const createMatchMedia = (matches: boolean) => 
+  jest.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  }));
 
 describe('useTheme', () => {
   beforeEach(() => {
     localStorageMock.clear();
     document.documentElement.classList.remove('dark');
     document.documentElement.classList.remove('theme-transitioning');
+    // Default to light system preference
+    Object.defineProperty(window, 'matchMedia', {
+      value: createMatchMedia(false),
+      writable: true,
+    });
   });
 
-  it('should default to dark theme when no stored preference', () => {
+  it('should default to light theme when system prefers light and no stored preference', () => {
+    const { result } = renderHook(() => useTheme());
+    
+    expect(result.current.theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('should default to dark theme when system prefers dark and no stored preference', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      value: createMatchMedia(true),
+      writable: true,
+    });
+    
     const { result } = renderHook(() => useTheme());
     
     expect(result.current.theme).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
-  it('should use stored theme from localStorage', () => {
-    localStorageMock.getItem.mockReturnValue('light');
+  it('should use stored theme from localStorage over system preference', () => {
+    localStorageMock.getItem.mockReturnValue('dark');
     
     const { result } = renderHook(() => useTheme());
     
-    expect(result.current.theme).toBe('light');
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(result.current.theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
   it('should toggle between light and dark themes', () => {
     const { result } = renderHook(() => useTheme());
     
-    expect(result.current.theme).toBe('dark');
-    
-    act(() => {
-      result.current.toggleTheme();
-    });
-    
+    // Starts with light (system preference)
     expect(result.current.theme).toBe('light');
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
     
     act(() => {
       result.current.toggleTheme();
@@ -89,6 +97,13 @@ describe('useTheme', () => {
     
     expect(result.current.theme).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
+    
+    act(() => {
+      result.current.toggleTheme();
+    });
+    
+    expect(result.current.theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
   it('should persist theme to localStorage when toggled', () => {
@@ -98,18 +113,18 @@ describe('useTheme', () => {
       result.current.toggleTheme();
     });
     
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('solfoundry-theme', 'light');
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('solfoundry-theme', 'dark');
   });
 
   it('should set theme directly with setTheme', () => {
     const { result } = renderHook(() => useTheme());
     
     act(() => {
-      result.current.setTheme('light');
+      result.current.setTheme('dark');
     });
     
-    expect(result.current.theme).toBe('light');
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(result.current.theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
   it('should handle localStorage errors gracefully', () => {
@@ -120,5 +135,26 @@ describe('useTheme', () => {
     // Should not throw
     const { result } = renderHook(() => useTheme());
     expect(result.current.theme).toBeDefined();
+  });
+
+  it('should apply correct DOM classes when theme changes', () => {
+    const { result } = renderHook(() => useTheme());
+    
+    // Light theme - no dark class
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    
+    // Set to dark
+    act(() => {
+      result.current.setTheme('dark');
+    });
+    
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    
+    // Set back to light
+    act(() => {
+      result.current.setTheme('light');
+    });
+    
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });
