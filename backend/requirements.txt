@@ -15,6 +15,8 @@ pyjwt>=2.8,<3.0
 python-jose[cryptography]>=3.3,<4.0
 solders>=0.21,<1.0
 aiosqlite>=0.20.0,<1.0.0
+# Security hardening dependencies (Issue #197)
+pip-audit>=2.7.0,<3.0.0
+# Structured logging and JSON logger (upstream)
 structlog>=24.0.0,<25.0.0
 python-json-logger>=2.0.0,<3.0.0
-alembic>=1.13.0,<2.0.0

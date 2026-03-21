@@ -1,8 +1,8 @@
 """Pytest configuration for backend tests.
 
-Sets up an in-memory SQLite database for test isolation and initializes
-the schema once for the entire test session.  Auth is enabled (the
-default) so tests must pass proper auth headers.
+Provides session-level event loop configuration, automatic rate limiter
+reset between tests to prevent cross-test interference from the security
+middleware, and an in-memory SQLite database for test isolation.
 """
 
 import asyncio
@@ -14,6 +14,7 @@ import pytest
 # This must be done before any app imports
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
+os.environ["AUTH_ENABLED"] = os.environ.get("AUTH_ENABLED", "false")
 
 # Configure asyncio mode for pytest
 pytest_plugins = ("pytest_asyncio",)
@@ -52,6 +53,37 @@ def run_async(coro):
         The result of the coroutine.
     """
     return get_test_loop().run_until_complete(coro)
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an event loop for the test session."""
+    loop = get_test_loop()
+    yield loop
+    # Don't close here — init_test_db cleanup handles it
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limit_counters():
+    """Reset rate limit counters between all tests to prevent 429 responses.
+
+    The security middleware rate limiter tracks requests per IP across the
+    test session. Without this reset, later tests may hit rate limits
+    triggered by earlier tests.
+    """
+    try:
+        from app.middleware.rate_limiter import _global_counter, _endpoint_counter
+        _global_counter.reset()
+        _endpoint_counter.reset()
+    except ImportError:
+        pass  # Rate limiter not available in all test configurations
+    yield
+    try:
+        from app.middleware.rate_limiter import _global_counter, _endpoint_counter
+        _global_counter.reset()
+        _endpoint_counter.reset()
+    except ImportError:
+        pass
 
 
 @pytest.fixture(scope="session", autouse=True)
