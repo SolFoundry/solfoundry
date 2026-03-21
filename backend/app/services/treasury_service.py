@@ -1,4 +1,14 @@
-"""Treasury service -- cached RPC balance queries and aggregated stats (MVP)."""
+"""Treasury service -- cached RPC balance queries and aggregated statistics.
+
+Provides treasury balance snapshots and $FNDRY tokenomics by combining
+on-chain data (via Solana RPC) with in-memory payout and buyback totals.
+
+Balance queries are cached for ``CACHE_TTL`` seconds (default 60) to
+reduce RPC load.  The cache is invalidated after payouts and buybacks.
+
+In-memory MVP -- data is lost on restart.
+PostgreSQL migration path: aggregate queries replace in-memory iteration.
+"""
 
 from __future__ import annotations
 
@@ -25,13 +35,21 @@ from app.services.solana_client import (
 logger = logging.getLogger(__name__)
 
 _cache: dict[str, tuple[float, tuple[float, float]]] = {}
+"""RPC balance cache: maps cache_key -> (timestamp, (sol, fndry))."""
+
 CACHE_TTL: int = 60
+"""Time-to-live for cached balance data in seconds."""
 
 _cache_lock: asyncio.Lock | None = None
+"""Lazy-initialized asyncio lock for cache write serialization."""
 
 
 def _get_cache_lock() -> asyncio.Lock:
-    """Lazily create the per-event-loop asyncio lock for cache writes."""
+    """Lazily create the per-event-loop asyncio lock for cache writes.
+
+    Returns:
+        The shared asyncio lock instance.
+    """
     global _cache_lock
     if _cache_lock is None:
         _cache_lock = asyncio.Lock()
@@ -39,12 +57,26 @@ def _get_cache_lock() -> asyncio.Lock:
 
 
 def invalidate_cache() -> None:
-    """Clear the RPC balance cache (e.g. after a payout or buyback)."""
+    """Clear the RPC balance cache.
+
+    Called after payouts, buybacks, or any operation that changes
+    the treasury state so the next query fetches fresh data.
+    """
     _cache.clear()
 
 
 async def _get_cached_balances(cache_key: str) -> tuple[float, float]:
-    """Return cached ``(sol, fndry)`` balances, refreshing if stale."""
+    """Return cached ``(sol, fndry)`` balances, refreshing if stale.
+
+    Uses a double-check locking pattern to avoid thundering-herd
+    issues when the cache expires under concurrent requests.
+
+    Args:
+        cache_key: The cache partition key (e.g. ``"treasury_stats"``).
+
+    Returns:
+        A tuple of (SOL balance, FNDRY balance).
+    """
     now = time.time()
     entry = _cache.get(cache_key)
     if entry is not None:
@@ -61,7 +93,12 @@ async def _get_cached_balances(cache_key: str) -> tuple[float, float]:
 
 
 async def get_treasury_stats() -> TreasuryStats:
-    """Build a live treasury snapshot (cached balances + aggregate totals)."""
+    """Build a live treasury snapshot combining cached balances with aggregates.
+
+    Returns:
+        A ``TreasuryStats`` model with current SOL/FNDRY balances,
+        cumulative payouts, and buyback totals.
+    """
     sol_balance, fndry_balance = await _get_cached_balances("treasury_stats")
     total_fndry_paid, total_sol_paid = get_total_paid_out()
     total_buyback_sol, _ = get_total_buybacks()
@@ -79,8 +116,21 @@ async def get_treasury_stats() -> TreasuryStats:
     )
 
 
-async def _fetch_and_cache_balances(cache_key: str, now: float) -> tuple[float, float]:
-    """Call Solana RPC and cache; returns (0, 0) on failure."""
+async def _fetch_and_cache_balances(
+    cache_key: str, now: float
+) -> tuple[float, float]:
+    """Call Solana RPC for fresh balances and update the cache.
+
+    Returns ``(0.0, 0.0)`` on RPC failure so the API degrades
+    gracefully instead of raising.
+
+    Args:
+        cache_key: The cache partition key.
+        now: Current time (``time.time()``) for cache timestamping.
+
+    Returns:
+        A tuple of (SOL balance, FNDRY balance).
+    """
     try:
         sol_balance, fndry_balance = await get_treasury_balances()
     except Exception:
@@ -91,24 +141,39 @@ async def _fetch_and_cache_balances(cache_key: str, now: float) -> tuple[float, 
 
 
 def _count_confirmed_payouts() -> int:
-    """Count payouts with ``CONFIRMED`` status."""
+    """Count payouts with ``CONFIRMED`` status.
+
+    Returns:
+        The number of confirmed payouts in the store.
+    """
     with _store_lock:
         return sum(
-            1 for p in _payout_store.values() if p.status == PayoutStatus.CONFIRMED
+            1 for payout_record in _payout_store.values()
+            if payout_record.status == PayoutStatus.CONFIRMED
         )
 
 
 def _count_buybacks() -> int:
-    """Return the total number of recorded buyback events."""
+    """Return the total number of recorded buyback events.
+
+    Returns:
+        The buyback count.
+    """
     with _store_lock:
         return len(_buyback_store)
 
 
-TOTAL_SUPPLY = 1_000_000_000.0
+TOTAL_SUPPLY: float = 1_000_000_000.0
+"""Total $FNDRY token supply (1 billion)."""
 
 
 async def get_tokenomics() -> TokenomicsResponse:
-    """Build $FNDRY tokenomics; circulating = total_supply - treasury_holdings."""
+    """Build $FNDRY tokenomics; ``circulating = total_supply - treasury_holdings``.
+
+    Returns:
+        A ``TokenomicsResponse`` model with supply breakdown,
+        distribution stats, and fee revenue.
+    """
     _, fndry_balance = await _get_cached_balances("treasury_stats")
     total_fndry_paid, _ = get_total_paid_out()
     total_sol_buyback, total_buyback_fndry = get_total_buybacks()

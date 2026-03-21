@@ -1,4 +1,9 @@
-"""Application-specific exception classes."""
+"""Application-specific exception classes for the SolFoundry backend.
+
+Each exception maps to a specific failure mode in the payout pipeline
+or contributor system, enabling fine-grained error handling and
+meaningful HTTP status codes in API endpoints.
+"""
 
 
 class ContributorNotFoundError(Exception):
@@ -10,28 +15,58 @@ class TierNotUnlockedError(Exception):
 
 
 class PayoutError(Exception):
-    """Base class for all payout-pipeline errors."""
+    """Base class for all payout-pipeline errors.
+
+    All payout-related exceptions inherit from this so callers can
+    catch the entire family with a single ``except PayoutError``.
+    """
 
 
 class DoublePayError(PayoutError):
-    """Raised when a bounty already has an active payout (prevents double-pay)."""
+    """Raised when a bounty already has an active (non-failed) payout.
+
+    The per-bounty lock mechanism ensures only one successful payout
+    per bounty; this error signals a duplicate attempt.
+    """
 
 
 class PayoutLockError(PayoutError):
-    """Raised when a payout cannot acquire the per-bounty processing lock."""
+    """Raised when a payout cannot acquire the per-bounty processing lock.
+
+    This typically indicates high contention on a single bounty and
+    maps to HTTP 423 (Locked) in the API layer.
+    """
 
 
 class TransferError(PayoutError):
-    """Raised when an on-chain SPL token transfer fails after all retries."""
+    """Raised when an on-chain SPL token transfer fails after all retries.
+
+    Attributes:
+        attempts: The number of transfer attempts that were made before
+            giving up.
+    """
 
     def __init__(self, message: str, attempts: int = 0) -> None:
+        """Initialize with a message and the number of retry attempts.
+
+        Args:
+            message: Human-readable error description.
+            attempts: Number of transfer attempts that were made.
+        """
         super().__init__(message)
         self.attempts = attempts
 
 
 class PayoutNotFoundError(PayoutError):
-    """Raised when a payout ID does not exist in the store."""
+    """Raised when a payout ID does not exist in the store.
+
+    Maps to HTTP 404 in the API layer.
+    """
 
 
 class InvalidPayoutTransitionError(PayoutError):
-    """Raised when a status transition is not allowed by the state machine."""
+    """Raised when a status transition is not allowed by the state machine.
+
+    For example, attempting to execute a payout that has not been
+    admin-approved yet.  Maps to HTTP 409 in the API layer.
+    """
