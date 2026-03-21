@@ -55,6 +55,7 @@ from app.services.payout_service import (
     create_payout,
     get_payout_by_id,
     get_payout_by_tx_hash,
+    get_total_paid_out,
     list_buybacks,
     list_payouts,
     process_payout,
@@ -253,7 +254,7 @@ async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
     Raises:
         HTTPException: 404 if the payout does not exist.
     """
-    payout = get_payout_by_id(payout_id)
+    payout = await get_payout_by_id(payout_id)
     if payout is None:
         raise HTTPException(
             status_code=404,
@@ -286,8 +287,10 @@ async def admin_approve_payout(
     """
     try:
         if body.approved:
-            return approve_payout(payout_id, body.admin_id)
-        return reject_payout(payout_id, body.admin_id, body.reason)
+            response = await approve_payout(payout_id, body.admin_id)
+        else:
+            response = await reject_payout(payout_id, body.admin_id, body.reason)
+        return response
     except PayoutNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InvalidPayoutTransitionError as exc:
@@ -315,13 +318,13 @@ async def execute_payout(payout_id: str) -> PayoutResponse:
     on failure it moves to FAILED with the error reason.
     """
     try:
-        result = await process_payout(payout_id)
+        response = await process_payout(payout_id)
     except PayoutNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InvalidPayoutTransitionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     invalidate_cache()
-    return result
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +360,7 @@ async def get_payout_detail(tx_hash: str) -> PayoutResponse:
             status_code=400,
             detail="tx_hash must be a valid transaction signature (base-58 or hex)",
         )
-    payout = get_payout_by_tx_hash(tx_hash)
+    payout = await get_payout_by_tx_hash(tx_hash)
     if payout is None:
         raise HTTPException(
             status_code=404,

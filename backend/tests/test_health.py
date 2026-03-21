@@ -49,6 +49,14 @@ async def test_health_all_services_up():
     assert data["status"] == "healthy"
     assert data["services"]["database"] == "connected"
     assert data["services"]["redis"] == "connected"
+    
+    # CodeRabbit Fix: Strict contract validation (Issue #343/395)
+    assert "version" in data
+    assert "uptime_seconds" in data
+    assert data["uptime_seconds"] >= 0
+    assert "timestamp" in data
+    # Basic ISO-8601 validation (ends with Z for UTC)
+    assert data["timestamp"].endswith("Z")
 
 @pytest.mark.asyncio
 async def test_health_check_db_down():
