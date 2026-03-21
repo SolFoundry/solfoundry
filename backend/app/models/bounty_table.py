@@ -13,7 +13,7 @@ from sqlalchemy import (
     Index,
     JSON,
 )
-from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 

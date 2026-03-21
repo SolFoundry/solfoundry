@@ -1,8 +1,9 @@
 """In-memory bounty marketplace service (Issues #3, #188).
 
 Provides CRUD, filtering, sorting, and solution submission for the
-SolFoundry bounty marketplace. Threading lock guards ``_bounty_store``
-for concurrent request safety.
+SolFoundry bounty marketplace. Also handles Phase 2 submission-to-payout flow:
+creator approval/dispute, auto-approve eligibility, and payout triggering.
+Threading lock guards ``_bounty_store`` for concurrent request safety.
 
 Architecture
 ------------
@@ -23,8 +24,9 @@ PostgreSQL migration path
 
 import hashlib
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+from app.models.review import AUTO_APPROVE_TIMEOUT_HOURS
 
 from app.core.audit import audit_event
 from app.models.bounty import (
@@ -67,9 +69,21 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
         bounty_id=s.bounty_id,
         pr_url=s.pr_url,
         submitted_by=s.submitted_by,
+        contributor_wallet=s.contributor_wallet,
         notes=s.notes,
         status=s.status,
         ai_score=s.ai_score,
+        ai_scores_by_model=s.ai_scores_by_model,
+        review_complete=s.review_complete,
+        meets_threshold=s.meets_threshold,
+        auto_approve_eligible=s.auto_approve_eligible,
+        auto_approve_after=s.auto_approve_after,
+        approved_by=s.approved_by,
+        approved_at=s.approved_at,
+        payout_tx_hash=s.payout_tx_hash,
+        payout_amount=s.payout_amount,
+        payout_at=s.payout_at,
+        winner=s.winner,
         submitted_at=s.submitted_at,
     )
 
@@ -92,6 +106,13 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         created_by=b.created_by,
         submissions=subs,
         submission_count=len(subs),
+        winner_submission_id=b.winner_submission_id,
+        winner_wallet=b.winner_wallet,
+        payout_tx_hash=b.payout_tx_hash,
+        payout_at=b.payout_at,
+        claimed_by=b.claimed_by,
+        claimed_at=b.claimed_at,
+        claim_deadline=b.claim_deadline,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -258,7 +279,11 @@ def delete_bounty(bounty_id: str) -> bool:
 def submit_solution(
     bounty_id: str, data: SubmissionCreate
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Submit a PR solution for a bounty."""
+    """Submit a PR solution for a bounty.
+
+    Sets bounty to 'under_review' and marks the submission as pending
+    with auto-approve eligibility after the timeout window.
+    """
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
@@ -269,7 +294,6 @@ def submit_solution(
             f"Bounty is not accepting submissions (status: {bounty.status.value})",
         )
 
-    # Reject duplicate PR URLs on the same bounty
     for existing in bounty.submissions:
         if existing.pr_url == data.pr_url:
             return None, "This PR URL has already been submitted for this bounty"
@@ -278,15 +302,28 @@ def submit_solution(
     url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
     score = 0.5 + (url_hash % 50) / 100.0
 
+    now = datetime.now(timezone.utc)
     submission = SubmissionRecord(
         bounty_id=bounty_id,
         pr_url=data.pr_url,
         submitted_by=data.submitted_by,
+        contributor_wallet=data.contributor_wallet,
         notes=data.notes,
         ai_score=score,
+        auto_approve_after=now + timedelta(hours=AUTO_APPROVE_TIMEOUT_HOURS),
     )
     bounty.submissions.append(submission)
-    bounty.updated_at = datetime.now(timezone.utc)
+    bounty.status = BountyStatus.UNDER_REVIEW
+    bounty.updated_at = now
+
+    audit_event(
+        "submission_created",
+        bounty_id=bounty_id,
+        submission_id=submission.id,
+        pr_url=data.pr_url,
+        submitted_by=data.submitted_by,
+    )
+
     return _to_submission_response(submission), None
 
 
@@ -298,10 +335,179 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     return [_to_submission_response(s) for s in bounty.submissions]
 
 
+def get_submission(bounty_id: str, submission_id: str) -> Optional[SubmissionRecord]:
+    """Get a specific submission by bounty and submission ID."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            return sub
+    return None
+
+
+def update_submission_review_scores(
+    submission_id: str,
+    ai_scores_by_model: dict[str, float],
+    overall_score: float,
+    review_complete: bool,
+    meets_threshold: bool,
+) -> Optional[SubmissionResponse]:
+    """Update submission with AI review scores. Called after review_service records scores."""
+    for bounty in _bounty_store.values():
+        for sub in bounty.submissions:
+            if sub.id == submission_id:
+                sub.ai_scores_by_model = ai_scores_by_model
+                sub.ai_score = overall_score
+                sub.review_complete = review_complete
+                sub.meets_threshold = meets_threshold
+                sub.auto_approve_eligible = meets_threshold and review_complete
+                bounty.updated_at = datetime.now(timezone.utc)
+                return _to_submission_response(sub)
+    return None
+
+
+def approve_submission(
+    bounty_id: str,
+    submission_id: str,
+    approved_by: str,
+    is_auto: bool = False,
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Approve a submission → triggers payout flow.
+
+    Can be called by the bounty creator or the auto-approve system.
+    """
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            if sub.status not in (SubmissionStatus.PENDING,):
+                return None, f"Cannot approve submission in status: {sub.status.value}"
+
+            now = datetime.now(timezone.utc)
+            sub.status = SubmissionStatus.APPROVED
+            sub.approved_by = approved_by
+            sub.approved_at = now
+            sub.winner = True
+
+            bounty.status = BountyStatus.COMPLETED
+            bounty.winner_submission_id = submission_id
+            bounty.winner_wallet = sub.contributor_wallet
+            bounty.updated_at = now
+
+            audit_event(
+                "submission_approved",
+                bounty_id=bounty_id,
+                submission_id=submission_id,
+                approved_by=approved_by,
+                is_auto=is_auto,
+            )
+
+            _trigger_payout(bounty, sub)
+
+            return _to_submission_response(sub), None
+
+    return None, "Submission not found"
+
+
+def dispute_submission(
+    bounty_id: str,
+    submission_id: str,
+    disputed_by: str,
+    reason: Optional[str] = None,
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Dispute a submission — blocks auto-approve and marks for manual review."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            allowed = VALID_SUBMISSION_TRANSITIONS.get(sub.status, set())
+            if SubmissionStatus.DISPUTED not in allowed:
+                return None, f"Cannot dispute submission in status: {sub.status.value}"
+
+            sub.status = SubmissionStatus.DISPUTED
+            sub.auto_approve_eligible = False
+            bounty.status = BountyStatus.DISPUTED
+            bounty.updated_at = datetime.now(timezone.utc)
+
+            audit_event(
+                "submission_disputed",
+                bounty_id=bounty_id,
+                submission_id=submission_id,
+                disputed_by=disputed_by,
+                reason=reason,
+            )
+
+            return _to_submission_response(sub), None
+
+    return None, "Submission not found"
+
+
+def _trigger_payout(bounty: BountyDB, submission: SubmissionRecord) -> None:
+    """Initiate payout for an approved submission.
+
+    Calls the payout service to release escrowed FNDRY to the winner's wallet.
+    """
+    from app.services import payout_service
+    from app.models.payout import PayoutCreate
+
+    if not submission.contributor_wallet:
+        audit_event(
+            "payout_skipped",
+            bounty_id=bounty.id,
+            submission_id=submission.id,
+            reason="no_wallet",
+        )
+        return
+
+    try:
+        payout_data = PayoutCreate(
+            recipient=submission.submitted_by,
+            recipient_wallet=submission.contributor_wallet,
+            amount=bounty.reward_amount,
+            token="FNDRY",
+            bounty_id=bounty.id,
+            bounty_title=bounty.title,
+        )
+        payout_resp = payout_service.create_payout(payout_data)
+
+        now = datetime.now(timezone.utc)
+        submission.payout_tx_hash = payout_resp.tx_hash
+        submission.payout_amount = bounty.reward_amount
+        submission.payout_at = now
+        submission.status = SubmissionStatus.PAID
+
+        bounty.status = BountyStatus.PAID
+        bounty.payout_tx_hash = payout_resp.tx_hash
+        bounty.payout_at = now
+        bounty.updated_at = now
+
+        audit_event(
+            "payout_initiated",
+            bounty_id=bounty.id,
+            submission_id=submission.id,
+            amount=bounty.reward_amount,
+            wallet=submission.contributor_wallet,
+            payout_id=payout_resp.id,
+        )
+
+    except Exception as e:
+        audit_event(
+            "payout_failed",
+            bounty_id=bounty.id,
+            submission_id=submission.id,
+            error=str(e),
+        )
+
+
 def update_submission(
     bounty_id: str, submission_id: str, status: str
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Update a submission's status."""
+    """Update a submission's status (generic)."""
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
@@ -321,14 +527,14 @@ def update_submission(
                 )
             sub.status = new_status
             bounty.updated_at = datetime.now(timezone.utc)
-            
+
             audit_event(
                 "submission_status_updated",
                 bounty_id=bounty_id,
                 submission_id=submission_id,
-                new_status=status
+                new_status=status,
             )
-            
+
             return _to_submission_response(sub), None
 
     return None, "Submission not found"
