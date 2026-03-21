@@ -236,9 +236,10 @@ app.include_router(agents_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
+    """Return application health status including database and sync info."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
+    from app.services import contributor_service
     from sqlalchemy import text
 
     db_status = "ok"
@@ -249,12 +250,13 @@ async def health_check():
         logger.error("Health check DB failure: %s", e)
         db_status = "error"
 
+    contributor_count = await contributor_service.count_contributors()
     last_sync = get_last_sync()
     return {
         "status": "ok" if db_status == "ok" else "degraded",
         "database": db_status,
         "bounties": len(_bounty_store),
-        "contributors": len(_store),
+        "contributors": contributor_count,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "version": "0.1.0",
     }

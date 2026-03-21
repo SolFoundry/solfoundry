@@ -371,9 +371,9 @@ KNOWN_PAYOUTS: dict[str, dict] = {
 
 
 async def sync_contributors() -> int:
-    """Sync merged PRs + known payouts → contributor store for leaderboard."""
-    from app.models.contributor import ContributorDB as ContribDB
-    from app.services.contributor_service import _store
+    """Sync merged PRs + known payouts → PostgreSQL + in-memory cache."""
+    from app.services import contributor_service
+    from decimal import Decimal
     import uuid
 
     logger.info("Starting contributor sync...")
@@ -408,19 +408,17 @@ async def sync_contributors() -> int:
                     phase2_earnings.get(author, 0) + bounty.reward_amount
                 )
 
-    # Build contributor store — merge known payouts with live PR data
-    new_store: dict[str, ContribDB] = {}
+    # Build contributor data — merge known payouts with live PR data
     now = datetime.now(timezone.utc)
-
-    # All known contributors (from payouts + anyone with merged PRs)
     all_authors = set(KNOWN_PAYOUTS.keys()) | set(author_pr_counts.keys())
+    synced_count = 0
 
     for author in all_authors:
         known = KNOWN_PAYOUTS.get(author, {})
         pr_data = author_pr_counts.get(author, {"avatar_url": "", "prs": 0})
 
         total_prs = pr_data["prs"]
-        bounties = known.get("bounties_completed", total_prs)  # fallback to PR count
+        bounties = known.get("bounties_completed", total_prs)
         earnings = known.get("total_fndry", 0) + phase2_earnings.get(author, 0)
         skills = known.get("skills", [])
         bio = known.get("bio", f"SolFoundry contributor — {total_prs} merged PRs")
@@ -429,7 +427,6 @@ async def sync_contributors() -> int:
             or f"https://avatars.githubusercontent.com/{author}"
         )
 
-        # Compute badges
         badges = []
         if bounties >= 1:
             badges.append("tier-1")
@@ -442,63 +439,53 @@ async def sync_contributors() -> int:
         if total_prs >= 5:
             badges.append("phase-1-og")
 
-        # Reputation score
         rep = 0
         rep += min(total_prs * 5, 40)
         rep += min(bounties * 5, 40)
         rep += min(len(skills) * 3, 20)
         rep = min(rep, 100)
 
-        contrib = ContribDB(
-            id=uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
-            username=author,
-            display_name=author,
-            avatar_url=avatar,
-            bio=bio,
-            skills=skills[:10],
-            badges=badges,
-            total_contributions=total_prs,
-            total_bounties_completed=bounties,
-            total_earnings=earnings,
-            reputation_score=rep,
-            created_at=now - timedelta(days=45),
-            updated_at=now,
-        )
-        new_store[str(contrib.id)] = contrib
+        # Upsert to PostgreSQL instead of in-memory dict
+        await contributor_service.upsert_contributor({
+            "id": uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
+            "username": author,
+            "display_name": author,
+            "avatar_url": avatar,
+            "bio": bio,
+            "skills": skills[:10],
+            "badges": badges,
+            "total_contributions": total_prs,
+            "total_bounties_completed": bounties,
+            "total_earnings": Decimal(str(earnings)),
+            "reputation_score": float(rep),
+            "created_at": now - timedelta(days=45),
+            "updated_at": now,
+        })
+        synced_count += 1
 
     # Core team member (doesn't earn bounties)
-    core_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"))
-    if core_id in new_store:
-        # Update existing entry with core team info
-        existing = new_store[core_id]
-        existing.display_name = "SolFoundry Core"
-        existing.badges = ["core-team", "tier-3", "architect"]
-        existing.reputation_score = 100
-        existing.total_earnings = 0  # Core team doesn't earn bounties
-    else:
-        core = ContribDB(
-            id=uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
-            username="mtarcure",
-            display_name="SolFoundry Core",
-            avatar_url="https://avatars.githubusercontent.com/u/mtarcure",
-            bio="SolFoundry core team. Architecture, security, DevOps.",
-            skills=["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
-            badges=["core-team", "tier-3", "architect"],
-            total_contributions=50,
-            total_bounties_completed=15,
-            total_earnings=0,
-            reputation_score=100,
-            created_at=now - timedelta(days=60),
-            updated_at=now,
-        )
-        new_store[str(core.id)] = core
+    await contributor_service.upsert_contributor({
+        "id": uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
+        "username": "mtarcure",
+        "display_name": "SolFoundry Core",
+        "avatar_url": "https://avatars.githubusercontent.com/u/mtarcure",
+        "bio": "SolFoundry core team. Architecture, security, DevOps.",
+        "skills": ["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
+        "badges": ["core-team", "tier-3", "architect"],
+        "total_contributions": 50,
+        "total_bounties_completed": 15,
+        "total_earnings": Decimal("0"),
+        "reputation_score": 100.0,
+        "created_at": now - timedelta(days=60),
+        "updated_at": now,
+    })
+    synced_count += 1
 
-    # Atomic swap
-    _store.clear()
-    _store.update(new_store)
+    # Refresh the in-memory cache from PostgreSQL
+    await contributor_service.refresh_store_cache()
 
-    logger.info("Synced %d contributors", len(new_store))
-    return len(new_store)
+    logger.info("Synced %d contributors to PostgreSQL", synced_count)
+    return synced_count
 
 
 def _compute_badges(stats: dict) -> list[str]:
