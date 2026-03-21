@@ -13,8 +13,8 @@ Provides REST endpoints for the automated payout pipeline:
 - ``GET /payouts/treasury`` -- Live treasury balance and statistics.
 - ``GET /payouts/tokenomics`` -- $FNDRY supply breakdown.
 
-In-memory MVP -- data is lost on restart.
-PostgreSQL migration path: see ``app.models.payout`` module docstring.
+All reads query PostgreSQL as the primary source of truth. Writes
+are awaited before returning to guarantee persistence.
 """
 
 from __future__ import annotations
@@ -91,13 +91,13 @@ async def get_payouts(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=100, description="Maximum records per page"),
 ) -> PayoutListResponse:
-    """Return paginated payout history with optional filters.
+    """Return paginated payout history with optional filters from PostgreSQL.
 
     Supports filtering by recipient, status, bounty_id, token type,
     and date range (``start_date`` / ``end_date``).  Results are sorted
     newest-first by ``created_at``.
     """
-    return list_payouts(
+    return await list_payouts(
         recipient=recipient,
         status=status,
         bounty_id=bounty_id,
@@ -124,10 +124,10 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
 
     If ``tx_hash`` is provided, the payout is immediately ``confirmed``;
     otherwise it enters the queue as ``pending`` and must be admin-approved
-    before on-chain execution.
+    before on-chain execution. Invalidates the treasury cache on success.
     """
     try:
-        result = create_payout(data)
+        result = await create_payout(data)
     except (DoublePayError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except PayoutLockError as exc:
@@ -162,8 +162,8 @@ async def treasury_buybacks(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=100, description="Maximum records per page"),
 ) -> BuybackListResponse:
-    """Return paginated buyback history (newest first)."""
-    return list_buybacks(skip=skip, limit=limit)
+    """Return paginated buyback history from PostgreSQL (newest first)."""
+    return await list_buybacks(skip=skip, limit=limit)
 
 
 @router.post(
@@ -173,12 +173,12 @@ async def treasury_buybacks(
     summary="Record a buyback",
 )
 async def record_buyback(data: BuybackCreate) -> BuybackResponse:
-    """Record a new buyback event.  Invalidates the treasury cache on success.
+    """Record a new buyback event. Invalidates the treasury cache on success.
 
     Rejects duplicate ``tx_hash`` values with HTTP 409.
     """
     try:
-        result = create_buyback(data)
+        result = await create_buyback(data)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     invalidate_cache()

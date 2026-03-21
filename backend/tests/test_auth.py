@@ -46,6 +46,7 @@ def auth_headers(client):
     user_id = str(user_uuid)
     
     async def _create_user():
+        """Create user."""
         async with async_session_factory() as session:
             user = User(
                 id=user_uuid,

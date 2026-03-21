@@ -38,6 +38,17 @@ async def lifespan(app: FastAPI):
     await init_db()
     await ws_manager.init()
 
+    # Hydrate in-memory caches from PostgreSQL (source of truth)
+    try:
+        from app.services.payout_service import hydrate_from_database as hydrate_payouts
+        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+
+        await hydrate_payouts()
+        await hydrate_reputation()
+        logger.info("PostgreSQL hydration complete (payouts + reputation)")
+    except Exception as exc:
+        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
+
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
         result = await sync_all()
@@ -254,15 +265,23 @@ app.include_router(agents_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
+    """Return application health status including database connectivity.
+
+    Checks the database connection via a lightweight SELECT query and
+    reports bounty/contributor counts from PostgreSQL when available.
+    """
     from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
+    from app.services.pg_store import count_bounties, count_contributors
     from sqlalchemy import text
 
     db_status = "ok"
+    bounty_count = 0
+    contributor_count = 0
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
+        bounty_count = await count_bounties()
+        contributor_count = await count_contributors()
     except Exception as e:
         logger.error("Health check DB failure: %s", e)
         db_status = "error"
@@ -271,8 +290,8 @@ async def health_check():
     return {
         "status": "ok" if db_status == "ok" else "degraded",
         "database": db_status,
-        "bounties": len(_bounty_store),
-        "contributors": len(_store),
+        "bounties": bounty_count,
+        "contributors": contributor_count,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "version": "0.1.0",
     }
