@@ -20,6 +20,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -206,6 +207,7 @@ async def value_error_handler(request: Request, exc: ValueError):
             "code": "VALIDATION_ERROR"
         }
     )
+
 # Auth: /api/auth/*
 app.include_router(auth_router, prefix="/api")
 
@@ -232,6 +234,9 @@ app.include_router(websocket_router)
 
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
+
+# Escrow: /api/escrow/*
+app.include_router(escrow_router, prefix="/api")
 
 
 @app.get("/health")
