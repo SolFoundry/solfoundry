@@ -25,6 +25,14 @@ class NotificationType(str, Enum):
     PAYOUT_SENT = "payout_sent"
     BOUNTY_EXPIRED = "bounty_expired"
     RANK_CHANGED = "rank_changed"
+    SUBMISSION_RECEIVED = "submission_received"
+    SUBMISSION_APPROVED = "submission_approved"
+    SUBMISSION_REJECTED = "submission_rejected"
+    SUBMISSION_DISPUTED = "submission_disputed"
+    AUTO_APPROVED = "auto_approved"
+    PAYOUT_INITIATED = "payout_initiated"
+    PAYOUT_CONFIRMED = "payout_confirmed"
+    PAYOUT_FAILED = "payout_failed"
 
 
 class NotificationDB(Base):

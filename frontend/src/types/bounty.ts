@@ -1,6 +1,69 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
-export type BountyStatus = 'open' | 'in-progress' | 'completed';
+export type BountyStatus = 'open' | 'in-progress' | 'under_review' | 'completed' | 'disputed' | 'paid' | 'cancelled';
 export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+export type SubmissionStatus = 'pending' | 'approved' | 'disputed' | 'paid' | 'rejected';
+
+export interface ModelReviewScore {
+  model_name: string;
+  quality_score: number;
+  correctness_score: number;
+  security_score: number;
+  completeness_score: number;
+  test_coverage_score: number;
+  overall_score: number;
+  review_summary?: string;
+  review_status: string;
+}
+
+export interface AggregatedReviewScore {
+  submission_id: string;
+  bounty_id: string;
+  model_scores: ModelReviewScore[];
+  overall_score: number;
+  meets_threshold: boolean;
+  review_complete: boolean;
+  quality_avg: number;
+  correctness_avg: number;
+  security_avg: number;
+  completeness_avg: number;
+  test_coverage_avg: number;
+}
+
+export interface BountySubmission {
+  id: string;
+  bounty_id: string;
+  pr_url: string;
+  submitted_by: string;
+  contributor_wallet?: string;
+  notes?: string;
+  status: SubmissionStatus;
+  ai_score: number;
+  ai_scores_by_model: Record<string, number>;
+  review_complete: boolean;
+  meets_threshold: boolean;
+  auto_approve_eligible: boolean;
+  auto_approve_after?: string;
+  approved_by?: string;
+  approved_at?: string;
+  payout_tx_hash?: string;
+  payout_amount?: number;
+  payout_at?: string;
+  winner: boolean;
+  submitted_at: string;
+}
+
+export interface LifecycleLogEntry {
+  id: string;
+  bounty_id: string;
+  submission_id?: string;
+  event_type: string;
+  previous_state?: string;
+  new_state?: string;
+  actor_id?: string;
+  actor_type?: string;
+  details?: Record<string, unknown>;
+  created_at: string;
+}
 
 export interface Bounty {
   id: string;
@@ -18,6 +81,11 @@ export interface Bounty {
   githubIssueUrl?: string;
   relevanceScore?: number;
   skillMatchCount?: number;
+  submissions?: BountySubmission[];
+  winner_submission_id?: string;
+  winner_wallet?: string;
+  payout_tx_hash?: string;
+  payout_at?: string;
 }
 
 export type BountyCategory = 'smart-contract' | 'frontend' | 'backend' | 'design' | 'content' | 'security' | 'devops' | 'documentation';
@@ -59,7 +127,11 @@ export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = 
   { value: 'all', label: 'All' },
   { value: 'open', label: 'Open' },
   { value: 'in-progress', label: 'In Progress' },
+  { value: 'under_review', label: 'Under Review' },
   { value: 'completed', label: 'Completed' },
+  { value: 'disputed', label: 'Disputed' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [

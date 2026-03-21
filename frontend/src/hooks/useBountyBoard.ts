@@ -7,11 +7,15 @@ const REPO = 'SolFoundry/solfoundry';
 const GITHUB_API = 'https://api.github.com';
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
-const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
+import type { BountyStatus } from '../types/bounty';
+const STATUS_MAP: Record<string, BountyStatus> = {
   open: 'open',
   in_progress: 'in-progress',
+  under_review: 'under_review',
   completed: 'completed',
-  paid: 'completed',
+  disputed: 'disputed',
+  paid: 'paid',
+  cancelled: 'cancelled',
 };
 
 function mapApiBounty(b: any): Bounty {
