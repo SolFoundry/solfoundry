@@ -1,3 +1,4 @@
+"""Module test_bounty_dashboard."""
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -39,6 +40,7 @@ BOB = UserResponse(
 current_mock_user = ALICE
 
 async def override_get_current_user():
+    """The override_get_current_user function."""
     return current_mock_user
 
 _test_app = FastAPI()
@@ -53,6 +55,7 @@ client = TestClient(_test_app)
 
 @pytest.fixture(autouse=True)
 def clear_store():
+    """The clear_store function."""
     bounty_service._bounty_store.clear()
     yield
     bounty_service._bounty_store.clear()
@@ -62,9 +65,11 @@ def clear_store():
 # ---------------------------------------------------------------------------
 
 class TestBountyDashboard:
+    """The TestBountyDashboard class."""
     def test_creator_stats(self):
         # Create bounties with various statuses for Alice
         # OPEN (staked)
+        """The test_creator_stats function."""
         bounty_service.create_bounty(BountyCreate(title="Bounty 1", reward_amount=100.0, created_by="alice-wallet"))
         # PAID (paid)
         b2 = bounty_service.create_bounty(BountyCreate(title="Bounty 2", reward_amount=200.0, created_by="alice-wallet"))
@@ -86,6 +91,7 @@ class TestBountyDashboard:
         assert stats["refunded"] == 300.0
 
     def test_ownership_validation(self):
+        """The test_ownership_validation function."""
         global current_mock_user
         # Alice creates a bounty
         current_mock_user = ALICE
@@ -113,6 +119,7 @@ class TestBountyDashboard:
         assert resp.json()["title"] == "Updated by Alice"
 
     def test_submission_flow_and_transitions(self):
+        """The test_submission_flow_and_transitions function."""
         global current_mock_user
         # Alice creates a bounty
         current_mock_user = ALICE
@@ -147,6 +154,7 @@ class TestBountyDashboard:
         assert resp.json()["status"] == "paid"
 
     def test_deterministic_ai_score(self):
+        """The test_deterministic_ai_score function."""
         global current_mock_user
         current_mock_user = ALICE
         resp = client.post("/api/bounties", json={"title": "Bounty for Score", "reward_amount": 10.0})
