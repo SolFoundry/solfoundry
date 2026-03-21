@@ -20,6 +20,7 @@ const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -70,7 +71,7 @@ function AppLayout() {
           <Route path="/creator" element={<CreatorDashboardPage />} />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/bounties" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </SiteLayout>
