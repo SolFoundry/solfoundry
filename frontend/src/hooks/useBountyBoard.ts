@@ -1,10 +1,8 @@
+/** Bounty fetching via apiClient with search + fallback. @module hooks/useBountyBoard */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
-import { mockBounties } from '../data/mockBounties';
-
-const REPO = 'SolFoundry/solfoundry';
-const GITHUB_API = 'https://api.github.com';
+import { apiClient } from '../services/apiClient';
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
 const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
@@ -93,7 +91,7 @@ function applyLocalFilters(all: Bounty[], f: BountyBoardFilters, sortBy: BountyS
 }
 
 export function useBountyBoard() {
-  const [allBounties, setAllBounties] = useState<Bounty[]>(mockBounties);
+  const [allBounties, setAllBounties] = useState<Bounty[]>([]);
   const [apiResults, setApiResults] = useState<{ items: Bounty[]; total: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
@@ -120,25 +118,18 @@ export function useBountyBoard() {
       setLoading(true);
       try {
         const params = buildSearchParams(filters, sortBy, page, perPage);
-        const res = await fetch(`/api/bounties/search?${params}`, { signal: ctrl.signal });
-        if (!res.ok) throw new Error('search failed');
-        const data: SearchResponse = await res.json();
+        const data = await apiClient<SearchResponse>(`/api/bounties/search?${params}`, { signal: ctrl.signal });
         setApiResults({ items: data.items.map(mapApiBounty), total: data.total });
-      } catch (e: any) {
-        if (e.name === 'AbortError') return;
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
         useApiRef.current = false;
         setApiResults(null);
         // Fallback: fetch all bounties once from old list endpoint
         try {
-          const res = await fetch('/api/bounties?limit=100');
-          if (res.ok) {
-            const data = await res.json();
-            const items = (data.items || data);
-            if (Array.isArray(items) && items.length > 0) {
-              setAllBounties(items.map(mapApiBounty));
-            }
-          }
-        } catch { /* keep mock data */ }
+          const d = await apiClient<{ items?: unknown[] }>('/api/bounties?limit=100', { retries: 0 });
+          const items = (d.items || d) as unknown[];
+          if (Array.isArray(items) && items.length > 0) setAllBounties(items.map(mapApiBounty));
+        } catch { /* API unavailable */ }
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
@@ -161,9 +152,9 @@ export function useBountyBoard() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/bounties/hot?limit=6');
-        if (res.ok) setHotBounties((await res.json()).map(mapApiBounty));
-      } catch { /* ignore */ }
+        const d = await apiClient<unknown[]>('/api/bounties/hot?limit=6', { retries: 0, cacheTtl: 60_000 });
+        setHotBounties(d.map(mapApiBounty));
+      } catch { /* API unavailable */ }
     })();
   }, []);
 
@@ -172,9 +163,9 @@ export function useBountyBoard() {
     const skills = filters.skills.length > 0 ? filters.skills : ['react', 'typescript', 'rust'];
     (async () => {
       try {
-        const res = await fetch(`/api/bounties/recommended?skills=${skills.join(',')}&limit=6`);
-        if (res.ok) setRecommendedBounties((await res.json()).map(mapApiBounty));
-      } catch { /* ignore */ }
+        const d = await apiClient<unknown[]>(`/api/bounties/recommended?skills=${skills.join(',')}&limit=6`, { retries: 0, cacheTtl: 60_000 });
+        setRecommendedBounties(d.map(mapApiBounty));
+      } catch { /* API unavailable */ }
     })();
   }, [filters.skills]);
 

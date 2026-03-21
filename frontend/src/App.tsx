@@ -3,11 +3,19 @@
  * All pages wrapped in WalletProvider + SiteLayout.
  * @module App
  */
-import { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+
+/** Catches render errors with retry. */
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(e: Error) { return { error: e }; }
+  componentDidCatch(e: Error) { console.error('[ErrorBoundary]', e); }
+  render() { const err = this.state.error; if (!err) return this.props.children; return (<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 p-8" role="alert"><p className="text-lg font-semibold text-white">Something went wrong</p><p className="text-sm text-gray-400 text-center max-w-md">{err.message}</p><button onClick={() => this.setState({ error: null })} className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm">Try again</button></div>); }
+}
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -46,6 +54,7 @@ function AppLayout() {
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
     >
+      <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Bounties */}
@@ -73,6 +82,7 @@ function AppLayout() {
           <Route path="*" element={<Navigate to="/bounties" replace />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </SiteLayout>
   );
 }
