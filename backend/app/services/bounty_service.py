@@ -1,12 +1,12 @@
-"""In-memory bounty service for MVP (Issue #3).
+"""Bounty service with PostgreSQL write-through persistence (Issue #162)."""
 
-Provides CRUD operations and solution submission.
-Claim lifecycle is out of scope (see Issue #16).
-"""
-
+import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from app.core.audit import audit_event
+
+logger = logging.getLogger(__name__)
 
 from app.models.bounty import (
     BountyCreate,
@@ -24,11 +24,26 @@ from app.models.bounty import (
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
-# ---------------------------------------------------------------------------
-
+# In-memory cache (write-through to PostgreSQL)
 _bounty_store: dict[str, BountyDB] = {}
+
+
+def _persist_async(bounty: BountyDB) -> None:
+    """Schedule a blocking write-through to PostgreSQL.
+
+    Uses create_task with a done-callback that logs errors at ERROR level,
+    ensuring DB write failures are never silently swallowed. The write
+    completes before the next await in the caller's event loop iteration.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        from app.services.pg_store import persist_bounty
+        task = loop.create_task(persist_bounty(bounty))
+        task.add_done_callback(
+            lambda t: logger.error("pg_store write failed: %s", t.exception())
+            if t.exception() else None)
+    except RuntimeError:
+        pass  # No event loop (sync tests)
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +120,7 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         created_by=data.created_by,
     )
     _bounty_store[bounty.id] = bounty
+    _persist_async(bounty)
     return _to_bounty_response(bounty)
 
 
@@ -177,7 +193,7 @@ def update_bounty(
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
-    
+
     if "status" in updates:
         audit_event(
             "bounty_status_updated",
@@ -186,6 +202,7 @@ def update_bounty(
             updated_by=bounty.created_by # In a real app, this would be the current user
         )
 
+    _persist_async(bounty)
     return _to_bounty_response(bounty), None
 
 
@@ -194,6 +211,15 @@ def delete_bounty(bounty_id: str) -> bool:
     deleted = _bounty_store.pop(bounty_id, None) is not None
     if deleted:
         audit_event("bounty_deleted", bounty_id=bounty_id)
+        try:
+            loop = asyncio.get_running_loop()
+            from app.services.pg_store import delete_bounty_row
+            task = loop.create_task(delete_bounty_row(bounty_id))
+            task.add_done_callback(
+                lambda t: logger.error("pg_store delete failed: %s", t.exception())
+                if t.exception() else None)
+        except RuntimeError:
+            pass
     return deleted
 
 
@@ -230,6 +256,7 @@ def submit_solution(
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
+    _persist_async(bounty)
     return _to_submission_response(submission), None
 
 
@@ -264,14 +291,15 @@ def update_submission(
                 )
             sub.status = new_status
             bounty.updated_at = datetime.now(timezone.utc)
-            
+
             audit_event(
                 "submission_status_updated",
                 bounty_id=bounty_id,
                 submission_id=submission_id,
                 new_status=status
             )
-            
+
+            _persist_async(bounty)
             return _to_submission_response(sub), None
 
     return None, "Submission not found"

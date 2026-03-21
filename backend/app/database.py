@@ -89,7 +89,14 @@ async def init_db() -> None:
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
             from app.models.agent import Agent  # noqa: F401
+            from app.models.contributor import ContributorDB  # noqa: F401
+            from app.models.submission import SubmissionDB  # noqa: F401
+            from app.models.tables import (  # noqa: F401
+                PayoutTable, BuybackTable, ReputationHistoryTable,
+            )
 
+            # NOTE: create_all is idempotent (skips existing tables). For
+            # production schema changes use ``alembic upgrade head`` instead.
             await conn.run_sync(Base.metadata.create_all)
 
             logger.info("Database schema initialized successfully")

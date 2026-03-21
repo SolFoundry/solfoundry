@@ -1,5 +1,7 @@
-"""In-memory contributor service for MVP."""
+"""Contributor service with PostgreSQL write-through persistence (Issue #162)."""
 
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -14,7 +16,22 @@ from app.models.contributor import (
     ContributorUpdate,
 )
 
+logger = logging.getLogger(__name__)
+
 _store: dict[str, ContributorDB] = {}
+
+
+def _fire_persist(db: ContributorDB) -> None:
+    """Schedule a write-through to PostgreSQL with error logging."""
+    try:
+        loop = asyncio.get_running_loop()
+        from app.services.pg_store import persist_contributor
+        task = loop.create_task(persist_contributor(db))
+        task.add_done_callback(
+            lambda t: logger.error("pg_store write failed: %s", t.exception())
+            if t.exception() else None)
+    except RuntimeError:
+        pass
 
 
 def _db_to_response(db: ContributorDB) -> ContributorResponse:
@@ -30,10 +47,10 @@ def _db_to_response(db: ContributorDB) -> ContributorResponse:
         badges=db.badges or [],
         social_links=db.social_links or {},
         stats=ContributorStats(
-            total_contributions=db.total_contributions,
-            total_bounties_completed=db.total_bounties_completed,
-            total_earnings=db.total_earnings,
-            reputation_score=db.reputation_score,
+            total_contributions=db.total_contributions or 0,
+            total_bounties_completed=db.total_bounties_completed or 0,
+            total_earnings=db.total_earnings or 0.0,
+            reputation_score=db.reputation_score or 0,
         ),
         created_at=db.created_at,
         updated_at=db.updated_at,
@@ -50,16 +67,17 @@ def _db_to_list_item(db: ContributorDB) -> ContributorListItem:
         skills=db.skills or [],
         badges=db.badges or [],
         stats=ContributorStats(
-            total_contributions=db.total_contributions,
-            total_bounties_completed=db.total_bounties_completed,
-            total_earnings=db.total_earnings,
-            reputation_score=db.reputation_score,
+            total_contributions=db.total_contributions or 0,
+            total_bounties_completed=db.total_bounties_completed or 0,
+            total_earnings=db.total_earnings or 0.0,
+            reputation_score=db.reputation_score or 0,
         ),
     )
 
 
 def create_contributor(data: ContributorCreate) -> ContributorResponse:
     """Create a new contributor and return its response."""
+    now = datetime.now(timezone.utc)
     db = ContributorDB(
         id=uuid.uuid4(),
         username=data.username,
@@ -70,8 +88,11 @@ def create_contributor(data: ContributorCreate) -> ContributorResponse:
         skills=data.skills,
         badges=data.badges,
         social_links=data.social_links,
+        created_at=now,
+        updated_at=now,
     )
     _store[str(db.id)] = db
+    _fire_persist(db)
     return _db_to_response(db)
 
 
@@ -128,12 +149,24 @@ def update_contributor(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(db, key, value)
     db.updated_at = datetime.now(timezone.utc)
+    _fire_persist(db)
     return _db_to_response(db)
 
 
 def delete_contributor(contributor_id: str) -> bool:
     """Delete a contributor by ID, returning True if found."""
-    return _store.pop(contributor_id, None) is not None
+    deleted = _store.pop(contributor_id, None) is not None
+    if deleted:
+        try:
+            loop = asyncio.get_running_loop()
+            from app.services.pg_store import delete_contributor_row
+            task = loop.create_task(delete_contributor_row(contributor_id))
+            task.add_done_callback(
+                lambda t: logger.error("pg_store delete failed: %s", t.exception())
+                if t.exception() else None)
+        except RuntimeError:
+            pass
+    return deleted
 
 
 def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:

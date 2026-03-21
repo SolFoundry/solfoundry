@@ -1,10 +1,14 @@
-"""In-memory payout service (MVP -- data lost on restart, DB coming later)."""
+"""Payout service with PostgreSQL write-through persistence (Issue #162)."""
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import threading
 from typing import Optional
 from app.core.audit import audit_event
+
+logger = logging.getLogger(__name__)
 
 from app.models.payout import (
     BuybackCreate,
@@ -23,6 +27,34 @@ _payout_store: dict[str, PayoutRecord] = {}
 _buyback_store: dict[str, BuybackRecord] = {}
 
 SOLSCAN_TX_BASE = "https://solscan.io/tx"
+
+
+async def hydrate_from_database() -> None:
+    """Load payouts and buybacks from PostgreSQL into in-memory cache."""
+    from app.services.pg_store import load_payouts, load_buybacks
+    payouts = await load_payouts()
+    buybacks = await load_buybacks()
+    with _lock:
+        _payout_store.update(payouts)
+        _buyback_store.update(buybacks)
+
+
+def _fire_db(record, kind: str) -> None:
+    """Schedule a DB write with error logging callback."""
+    try:
+        loop = asyncio.get_running_loop()
+        if kind == "payout":
+            from app.services.pg_store import persist_payout
+            coro = persist_payout(record)
+        else:
+            from app.services.pg_store import persist_buyback
+            coro = persist_buyback(record)
+        task = loop.create_task(coro)
+        task.add_done_callback(
+            lambda t: logger.error("pg_store %s write failed: %s", kind, t.exception())
+            if t.exception() else None)
+    except RuntimeError:
+        pass
 
 
 def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
@@ -92,6 +124,7 @@ def create_payout(data: PayoutCreate) -> PayoutResponse:
         token=record.token,
         tx_hash=record.tx_hash
     )
+    _fire_db(record, "payout")
     return _payout_to_response(record)
 
 
@@ -174,6 +207,7 @@ def create_buyback(data: BuybackCreate) -> BuybackResponse:
         amount_fndry=record.amount_fndry,
         tx_hash=record.tx_hash
     )
+    _fire_db(record, "buyback")
     return _buyback_to_response(record)
 
 

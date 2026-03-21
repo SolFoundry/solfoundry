@@ -36,6 +36,17 @@ async def lifespan(app: FastAPI):
     await init_db()
     await ws_manager.init()
 
+    # Hydrate in-memory caches from PostgreSQL (source of truth)
+    try:
+        from app.services.payout_service import hydrate_from_database as hydrate_payouts
+        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+
+        await hydrate_payouts()
+        await hydrate_reputation()
+        logger.info("PostgreSQL hydration complete")
+    except Exception as exc:
+        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
+
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
         result = await sync_all()
