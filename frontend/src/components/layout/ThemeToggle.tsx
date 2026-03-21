@@ -1,20 +1,9 @@
 /**
- * ThemeToggle - Toggle between light, dark, and system theme modes
+ * ThemeToggle - Toggle between light and dark theme modes
  * @module components/layout/ThemeToggle
  */
-import { useState, useEffect, useRef } from 'react';
-import { useTheme, ThemeMode } from '../../contexts/ThemeContext';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface ThemeOption {
-  value: ThemeMode;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-}
+import { useState, useEffect } from 'react';
+import { useTheme, type Theme } from '../../contexts/ThemeContext';
 
 // ============================================================================
 // Icons
@@ -36,111 +25,20 @@ function MoonIcon({ className = '' }: { className?: string }) {
   );
 }
 
-function ComputerIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
-    </svg>
-  );
-}
-
-function CheckIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-    </svg>
-  );
-}
-
-// ============================================================================
-// Theme Options
-// ============================================================================
-
-const THEME_OPTIONS: ThemeOption[] = [
-  {
-    value: 'light',
-    label: 'Light',
-    icon: <SunIcon className="w-4 h-4" />,
-    description: 'Light mode',
-  },
-  {
-    value: 'dark',
-    label: 'Dark',
-    icon: <MoonIcon className="w-4 h-4" />,
-    description: 'Dark mode',
-  },
-  {
-    value: 'system',
-    label: 'System',
-    icon: <ComputerIcon className="w-4 h-4" />,
-    description: 'Follow system preference',
-  },
-];
-
 // ============================================================================
 // Component
 // ============================================================================
 
 /**
- * ThemeToggle - Dropdown menu for selecting theme mode
- * 
- * Features:
- * - Three options: Light, Dark, System
- * - Shows current theme indicator
- * - Accessible with keyboard navigation
- * - Displays resolved theme when using 'system' mode
+ * ThemeToggle - Simple button that toggles between light and dark themes
  */
 export function ThemeToggle() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isOpen]);
-
-  // Get current icon based on resolved theme
-  const getCurrentIcon = () => {
-    if (resolvedTheme === 'dark') {
-      return <MoonIcon className="w-5 h-5" />;
-    }
-    return <SunIcon className="w-5 h-5" />;
-  };
 
   // Don't render until mounted (prevents hydration mismatch)
   if (!mounted) {
@@ -156,117 +54,17 @@ export function ThemeToggle() {
   }
 
   return (
-    <div ref={dropdownRef} className="relative">
-      {/* Toggle Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
-        aria-label="Toggle theme"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-      >
-        {getCurrentIcon()}
-        <ChevronDownIcon className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div
-          className="absolute right-0 mt-2 w-40 py-1 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl z-50"
-          role="listbox"
-          aria-label="Theme options"
-        >
-          {THEME_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                setTheme(option.value);
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors
-                ${theme === option.value
-                  ? 'text-[#14F195] bg-[#14F195]/10'
-                  : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-              role="option"
-              aria-selected={theme === option.value}
-            >
-              {option.icon}
-              <span className="flex-1 text-left">{option.label}</span>
-              {theme === option.value && (
-                <CheckIcon className="w-4 h-4 text-[#14F195]" />
-              )}
-            </button>
-          ))}
-          
-          {/* System hint */}
-          {theme === 'system' && (
-            <div className="px-3 py-2 text-xs text-gray-500 border-t border-white/10 mt-1">
-              Using {resolvedTheme} mode
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
-// Simple Toggle Version (for compact UIs)
-// ============================================================================
-
-interface SimpleThemeToggleProps {
-  /** Show system option in cycle */
-  showSystemOption?: boolean;
-}
-
-/**
- * SimpleThemeToggle - Simple button that cycles through themes
- * Good for mobile or compact layouts
- */
-export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggleProps) {
-  const { theme, resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const cycleTheme = () => {
-    const modes: ThemeMode[] = showSystemOption 
-      ? ['light', 'dark', 'system']
-      : ['light', 'dark'];
-    
-    const currentIndex = modes.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setTheme(modes[nextIndex]);
-  };
-
-  if (!mounted) {
-    return (
-      <button
-        type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF]"
-        aria-label="Toggle theme"
-      />
-    );
-  }
-
-  return (
     <button
       type="button"
-      onClick={cycleTheme}
+      onClick={toggleTheme}
       className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
-      aria-label={`Current theme: ${theme}. Click to change.`}
+      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
-      {theme === 'system' ? (
-        <ComputerIcon className="h-5 w-5" />
-      ) : resolvedTheme === 'dark' ? (
-        <MoonIcon className="h-5 w-5" />
-      ) : (
+      {theme === 'dark' ? (
         <SunIcon className="h-5 w-5" />
+      ) : (
+        <MoonIcon className="h-5 w-5" />
       )}
     </button>
   );
