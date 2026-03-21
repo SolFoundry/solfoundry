@@ -3,3 +3,4 @@ export { WalletProvider, useNetwork, NETWORK_OPTIONS } from './WalletProvider';
 export { NetworkSelector } from './NetworkSelector';
 export { FundBountyButton } from './FundBountyFlow';
 export { EscrowStatus } from './EscrowStatus';
+export { WalletAddress, truncateString, type WalletAddressProps } from './WalletAddress';
