@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -242,31 +243,10 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
+# System Health: /health
+app.include_router(health_router)
 
-@app.get("/health")
-async def health_check():
-    from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
-    from sqlalchemy import text
 
-    db_status = "ok"
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.error("Health check DB failure: %s", e)
-        db_status = "error"
-
-    last_sync = get_last_sync()
-    return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
-        "bounties": len(_bounty_store),
-        "contributors": len(_store),
-        "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
-    }
 
 
 @app.post("/api/sync", tags=["admin"])
