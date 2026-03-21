@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TimePeriod(str, Enum):
@@ -30,14 +30,14 @@ class CategoryFilter(str, Enum):
 class LeaderboardEntry(BaseModel):
     """Single row on the leaderboard."""
 
-    rank: int
-    username: str
-    display_name: str
-    avatar_url: Optional[str] = None
-    total_earned: float = 0.0
-    bounties_completed: int = 0
-    reputation_score: int = 0
-    wallet_address: Optional[str] = None
+    rank: int = Field(..., description="Current rank (1-indexed)", examples=[1])
+    username: str = Field(..., description="GitHub username", examples=["codemaster"])
+    display_name: str = Field(..., description="Display name", examples=["Code Master"])
+    avatar_url: Optional[str] = Field(None, description="URL to user avatar", examples=["https://github.com/avatar.png"])
+    total_earned: float = Field(0.0, description="Total $FNDRY earned", examples=[1250.5])
+    bounties_completed: int = Field(0, description="Number of bounties completed", examples=[12])
+    reputation_score: int = Field(0, description="Internal reputation score based on quality", examples=[450])
+    wallet_address: Optional[str] = Field(None, description="Linked Solana wallet", examples=["BSz85..."])
 
     model_config = {"from_attributes": True}
 

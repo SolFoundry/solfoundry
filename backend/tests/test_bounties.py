@@ -46,7 +46,7 @@ async def override_get_current_user():
 # ---------------------------------------------------------------------------
 
 _test_app = FastAPI()
-_test_app.include_router(bounties_router)
+_test_app.include_router(bounties_router, prefix="/api")
 _test_app.dependency_overrides[get_current_user] = override_get_current_user
 
 
@@ -292,6 +292,7 @@ class TestListBounties:
             "created_by",
             "submissions",
             "submission_count",
+            "category",
             "created_at",
         }
         assert set(item.keys()) == expected_keys
@@ -390,7 +391,7 @@ class TestGetBounty:
     def test_get_not_found(self):
         resp = client.get("/api/bounties/nonexistent-id")
         assert resp.status_code == 404
-        assert "not found" in resp.json()["detail"].lower()
+        assert "not found" in resp.json()["message"].lower()
 
     def test_get_includes_submissions(self):
         b = _create_bounty()
@@ -423,6 +424,9 @@ class TestGetBounty:
             "created_by",
             "submissions",
             "submission_count",
+            "category",
+            "github_issue_number",
+            "github_repo",
             "created_at",
             "updated_at",
         }
@@ -537,7 +541,7 @@ class TestUpdateBounty:
         bid = b["id"]
         resp = client.patch(f"/api/bounties/{bid}", json={"status": "completed"})
         assert resp.status_code == 400
-        assert "Invalid status transition" in resp.json()["detail"]
+        assert "Invalid status transition" in resp.json()["message"]
 
     def test_invalid_open_to_paid(self):
         b = _create_bounty()
@@ -748,7 +752,7 @@ class TestSubmitSolution:
             f"/api/bounties/{bid}/submit", json={"pr_url": url, "submitted_by": "bob"}
         )
         assert resp.status_code == 400
-        assert "already been submitted" in resp.json()["detail"]
+        assert "already been submitted" in resp.json()["message"]
 
     def test_submit_on_completed_bounty_rejected(self):
         b = _create_bounty()
@@ -763,7 +767,7 @@ class TestSubmitSolution:
             },
         )
         assert resp.status_code == 400
-        assert "not accepting" in resp.json()["detail"]
+        assert "not accepting" in resp.json()["message"]
 
     def test_submit_on_paid_bounty_rejected(self):
         b = _create_bounty()

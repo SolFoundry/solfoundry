@@ -63,13 +63,13 @@ class PayoutRecord(BaseModel):
 class PayoutCreate(BaseModel):
     """Request body for recording a new payout."""
 
-    recipient: str = Field(..., min_length=1, max_length=100)
-    recipient_wallet: Optional[str] = None
-    amount: float = Field(..., gt=0, description="Payout amount (must be positive)")
-    token: str = Field(default="FNDRY", pattern=r"^(FNDRY|SOL)$")
-    bounty_id: Optional[str] = None
-    bounty_title: Optional[str] = Field(default=None, max_length=200)
-    tx_hash: Optional[str] = None
+    recipient: str = Field(..., min_length=1, max_length=100, description="Recipient username or ID", examples=["cryptodev"])
+    recipient_wallet: Optional[str] = Field(None, description="Solana wallet address for the payout", examples=["7Pq6..."])
+    amount: float = Field(..., gt=0, description="Payout amount (must be positive)", examples=[100.0])
+    token: str = Field(default="FNDRY", pattern=r"^(FNDRY|SOL)$", description="Token to use for payout", examples=["FNDRY"])
+    bounty_id: Optional[str] = Field(None, description="Associated bounty UUID", examples=["550e8400-e29b-41d4-a716-446655440000"])
+    bounty_title: Optional[str] = Field(default=None, max_length=200, description="Title of the bounty for reference")
+    tx_hash: Optional[str] = Field(None, description="Solana transaction signature", examples=["5fX..."])
 
     @field_validator("recipient_wallet")
     @classmethod
@@ -116,14 +116,14 @@ class PayoutListResponse(BaseModel):
 class TreasuryStats(BaseModel):
     """Live treasury balance and aggregate statistics."""
 
-    sol_balance: float = 0.0
-    fndry_balance: float = 0.0
-    treasury_wallet: str
-    total_paid_out_fndry: float = 0.0
-    total_paid_out_sol: float = 0.0
-    total_payouts: int = 0
-    total_buyback_amount: float = 0.0
-    total_buybacks: int = 0
+    sol_balance: float = Field(0.0, description="Total SOL held in treasury", examples=[1250.5])
+    fndry_balance: float = Field(0.0, description="Total FNDRY tokens held in treasury", examples=[500000.0])
+    treasury_wallet: str = Field(..., description="Public address of the treasury wallet", examples=["Treasury..."])
+    total_paid_out_fndry: float = Field(0.0, description="Cumulative FNDRY paid to contributors")
+    total_paid_out_sol: float = Field(0.0, description="Cumulative SOL paid to contributors")
+    total_payouts: int = Field(0, description="Total number of payout events")
+    total_buyback_amount: float = Field(0.0, description="Total SOL spent on FNDRY buybacks")
+    total_buybacks: int = Field(0, description="Total number of buyback events")
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

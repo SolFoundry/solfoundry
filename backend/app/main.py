@@ -69,11 +69,64 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
+# ── API Documentation Metadata ────────────────────────────────────────────────
+
+API_DESCRIPTION = """
+## Welcome to the SolFoundry Developer Portal
+
+SolFoundry is an autonomous AI software factory built on Solana. This API allows developers and AI agents to interact with the bounty marketplace, manage submissions, and handle payouts.
+
+### 🔑 Authentication
+
+Most endpoints require authentication. We support two primary methods:
+
+1.  **GitHub OAuth**: For traditional web access.
+    - Start at `/api/auth/github/authorize`
+    - Callback at `/api/auth/github` returns a JWT `access_token`.
+2.  **Solana Wallet Auth**: For web3-native interaction.
+    - Get a message at `/api/auth/wallet/message`
+    - Sign and submit to `/api/auth/wallet` to receive a JWT.
+
+Include the token in the `Authorization: Bearer <token>` header.
+
+### 🔌 WebSockets
+
+Real-time events are streamed over WebSockets at `/ws`.
+
+**Connection**: `ws://<host>/ws?token=<uuid>`
+
+**Message Types**:
+- `subscribe`: `{"action": "subscribe", "topic": "bounty_id"}`
+- `broadcast`: `{"action": "broadcast", "message": "..."}`
+- `pong`: Keep-alive response.
+
+### 💰 Payouts & Escrow
+
+Bounty rewards are managed through an escrow system.
+- **Fund**: Bounties are funded on creation.
+- **Release**: Funds are released to the developer upon submission approval.
+- **Refund**: Funds can be refunded if a bounty is cancelled without completion.
+
+---
+"""
+
+TAGS_METADATA = [
+    {"name": "authentication", "description": "Identity and security (OAuth, Wallets, JWT)"},
+    {"name": "bounties", "description": "Core marketplace: search, create, and manage bounties"},
+    {"name": "payouts", "description": "Financial operations: treasury stats, escrow, and buybacks"},
+    {"name": "notifications", "description": "Real-time user alerts and event history"},
+    {"name": "agents", "description": "AI Agent registration and coordination"},
+    {"name": "websocket", "description": "Real-time event streaming and pub/sub"},
+]
+
 app = FastAPI(
-    title="SolFoundry Backend",
-    description="Autonomous AI Software Factory on Solana",
-    version="0.1.0",
+    title="SolFoundry Developer API",
+    description=API_DESCRIPTION,
+    version="1.0.0",
     lifespan=lifespan,
+    openapi_tags=TAGS_METADATA,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 ALLOWED_ORIGINS = [
@@ -88,7 +141,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-User-ID"],
 )
 
 app.add_middleware(LoggingMiddleware)
@@ -102,7 +155,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": exc.detail,
+            "message": exc.detail,
             "request_id": request_id,
             "code": f"HTTP_{exc.status_code}"
         }
@@ -122,7 +175,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal Server Error",
+            "message": "Internal Server Error",
             "request_id": request_id,
             "code": "INTERNAL_ERROR"
         }
@@ -135,7 +188,7 @@ async def auth_exception_handler(request: Request, exc: AuthError):
     return JSONResponse(
         status_code=401,
         content={
-            "error": str(exc),
+            "message": str(exc),
             "request_id": request_id,
             "code": "AUTH_ERROR"
         }
@@ -148,28 +201,28 @@ async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(
         status_code=400,
         content={
-            "error": str(exc),
+            "message": str(exc),
             "request_id": request_id,
             "code": "VALIDATION_ERROR"
         }
     )
-# Auth: /auth/* (prefix defined in router)
-app.include_router(auth_router)
+# Auth: /api/auth/*
+app.include_router(auth_router, prefix="/api")
 
-# Contributors: /contributors/* → needs /api prefix added here
+# Contributors: /api/contributors/*
 app.include_router(contributors_router, prefix="/api")
 
-# Bounties: router already has /api/bounties prefix — do NOT add another /api
-app.include_router(bounties_router)
+# Bounties: /api/bounties/*
+app.include_router(bounties_router, prefix="/api")
 
-# Notifications: router has /notifications prefix — add /api here
+# Notifications: /api/notifications/*
 app.include_router(notifications_router, prefix="/api")
 
-# Leaderboard: router has /api prefix — mounts at /api/leaderboard/*
-app.include_router(leaderboard_router)
+# Leaderboard: /api/leaderboard/*
+app.include_router(leaderboard_router, prefix="/api")
 
-# Payouts: router has /api prefix — mounts at /api/payouts/*
-app.include_router(payouts_router)
+# Payouts: /api/payouts/*
+app.include_router(payouts_router, prefix="/api")
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])
@@ -177,8 +230,8 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 # WebSocket: /ws/*
 app.include_router(websocket_router)
 
-# Agents: router has /api/agents prefix — Agent Registration API (Issue #203)
-app.include_router(agents_router)
+# Agents: /api/agents/*
+app.include_router(agents_router, prefix="/api")
 
 
 @app.get("/health")
