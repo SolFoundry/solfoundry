@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { ContributorProfile } from './ContributorProfile';
-import type { ContributorBadgeStats } from '../types/badges';
+import type { ContributorBadgeStats, TierStats } from '../types/badges';
 
 const badgeStats: ContributorBadgeStats = {
   mergedPrCount: 3,
@@ -70,5 +70,16 @@ describe('ContributorProfile', () => {
     render(<ContributorProfile {...defaultProps} />);
     expect(screen.queryByTestId('badge-grid')).not.toBeInTheDocument();
     expect(screen.queryByTestId('header-badge-count')).not.toBeInTheDocument();
+  });
+
+  it('shows tier progress bar when tierStats provided', () => {
+    const tierStats: TierStats = { t1Merged: 2, t2Merged: 0, t3Merged: 0 };
+    render(<ContributorProfile {...defaultProps} tierStats={tierStats} />);
+    expect(screen.getByTestId('tier-progress-bar')).toBeInTheDocument();
+  });
+
+  it('hides tier progress bar when tierStats not provided', () => {
+    render(<ContributorProfile {...defaultProps} />);
+    expect(screen.queryByTestId('tier-progress-bar')).not.toBeInTheDocument();
   });
 });

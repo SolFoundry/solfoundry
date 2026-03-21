@@ -14,6 +14,15 @@ export interface ContributorBadgeStats {
   prSubmissionTimestampsUtc: string[];
 }
 
+export interface TierStats {
+  /** Number of merged Tier-1 bounties */
+  t1Merged: number;
+  /** Number of merged Tier-2 bounties */
+  t2Merged: number;
+  /** Number of merged Tier-3 bounties */
+  t3Merged: number;
+}
+
 export interface BadgeDefinition {
   id: BadgeId;
   name: string;

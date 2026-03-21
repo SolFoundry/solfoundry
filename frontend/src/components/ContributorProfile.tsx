@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import type { ContributorBadgeStats } from '../types/badges';
+import type { ContributorBadgeStats, TierStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
+import { TierProgressBar } from './TierProgressBar';
 
 interface ContributorProfileProps {
   username: string;
@@ -14,6 +15,8 @@ interface ContributorProfileProps {
   reputationScore?: number;
   /** Badge stats — if omitted, badge section is hidden. */
   badgeStats?: ContributorBadgeStats;
+  /** Tier progression stats — if omitted, tier bar is hidden. */
+  tierStats?: TierStats;
 }
 
 export const ContributorProfile: React.FC<ContributorProfileProps> = ({
@@ -24,6 +27,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   bountiesCompleted = 0,
   reputationScore = 0,
   badgeStats,
+  tierStats,
 }) => {
   const truncatedWallet = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -78,6 +82,9 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>
       </div>
+
+      {/* Tier Progress Bar */}
+      {tierStats && <TierProgressBar tierStats={tierStats} />}
 
       {/* Achievements / Badge Grid */}
       {badgeStats && <BadgeGrid badges={badges} />}
