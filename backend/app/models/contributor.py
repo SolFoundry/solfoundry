@@ -11,12 +11,10 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    """The Base class."""
     pass
 
 
 class ContributorDB(Base):
-    """The ContributorDB class."""
     __tablename__ = "contributors"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -43,7 +41,6 @@ class ContributorDB(Base):
 
 
 class ContributorBase(BaseModel):
-    """The ContributorBase class."""
     display_name: str = Field(..., min_length=1, max_length=100)
     email: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -54,12 +51,10 @@ class ContributorBase(BaseModel):
 
 
 class ContributorCreate(ContributorBase):
-    """The ContributorCreate class."""
     username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
 class ContributorUpdate(BaseModel):
-    """The ContributorUpdate class."""
     display_name: Optional[str] = Field(None, min_length=1, max_length=100)
     email: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -70,7 +65,6 @@ class ContributorUpdate(BaseModel):
 
 
 class ContributorStats(BaseModel):
-    """The ContributorStats class."""
     total_contributions: int = 0
     total_bounties_completed: int = 0
     total_earnings: float = 0.0
@@ -78,7 +72,6 @@ class ContributorStats(BaseModel):
 
 
 class ContributorResponse(ContributorBase):
-    """The ContributorResponse class."""
     id: str
     username: str
     stats: ContributorStats
@@ -88,7 +81,6 @@ class ContributorResponse(ContributorBase):
 
 
 class ContributorListItem(BaseModel):
-    """The ContributorListItem class."""
     id: str
     username: str
     display_name: str
@@ -100,7 +92,6 @@ class ContributorListItem(BaseModel):
 
 
 class ContributorListResponse(BaseModel):
-    """The ContributorListResponse class."""
     items: list[ContributorListItem]
     total: int
     skip: int

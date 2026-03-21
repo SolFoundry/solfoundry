@@ -1,4 +1,3 @@
-"""Module logging_middleware."""
 import time
 import uuid
 import structlog
@@ -9,10 +8,8 @@ from contextlib import contextmanager
 logger = structlog.get_logger(__name__)
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """The LoggingMiddleware class."""
     async def dispatch(self, request: Request, call_next):
         # 1. Generate or extract correlation ID
-        """The dispatch function."""
         request_id = request.headers.get("X-Request-ID")
         if not request_id:
             request_id = str(uuid.uuid4())
