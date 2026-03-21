@@ -840,10 +840,27 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
     if (onPublishBounty) {
       await onPublishBounty(formData);
     } else {
-      // Default publish behavior - would integrate with GitHub API
-      console.log('Publishing bounty:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        tier: formData.tier === 'T1' ? 1 : formData.tier === 'T2' ? 2 : 3,
+        reward_amount: formData.rewardAmount,
+        required_skills: formData.skills.map(s => s.toLowerCase()),
+        deadline: formData.deadline
+          ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
+          : undefined,
+        created_by: formData.category || 'community',
+        creator_type: 'community',
+      };
+      const response = await fetch('/api/bounties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': '00000000-0000-0000-0000-000000000001' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const body: Record<string, unknown> = await response.json().catch(() => ({}));
+        throw new Error(typeof body.detail === 'string' ? body.detail : 'Failed to create bounty');
+      }
     }
   };
   

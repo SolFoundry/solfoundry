@@ -31,38 +31,22 @@ class BountyStatus(str, Enum):
 
     OPEN = "open"
     IN_PROGRESS = "in_progress"
-    UNDER_REVIEW = "under_review"
     COMPLETED = "completed"
-    DISPUTED = "disputed"
     PAID = "paid"
-    CANCELLED = "cancelled"
+
+
+class CreatorType(str, Enum):
+    """Distinguishes platform-created bounties from community-created ones."""
+
+    PLATFORM = "platform"
+    COMMUNITY = "community"
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
-    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
-    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
-    BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
-    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED},
-    BountyStatus.DISPUTED: {BountyStatus.COMPLETED, BountyStatus.CANCELLED, BountyStatus.IN_PROGRESS},
+    BountyStatus.OPEN: {BountyStatus.IN_PROGRESS},
+    BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN},
+    BountyStatus.COMPLETED: {BountyStatus.PAID, BountyStatus.IN_PROGRESS},
     BountyStatus.PAID: set(),  # terminal
-    BountyStatus.CANCELLED: set(),  # terminal
-}
-
-class SubmissionStatus(str, Enum):
-    """Lifecycle status of a solution submission."""
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    DISPUTED = "disputed"
-    PAID = "paid"
-    REJECTED = "rejected"
-
-VALID_SUBMISSION_TRANSITIONS: dict[SubmissionStatus, set[SubmissionStatus]] = {
-    SubmissionStatus.PENDING: {SubmissionStatus.APPROVED, SubmissionStatus.DISPUTED, SubmissionStatus.REJECTED},
-    SubmissionStatus.APPROVED: {SubmissionStatus.PAID, SubmissionStatus.DISPUTED},
-    SubmissionStatus.DISPUTED: {SubmissionStatus.APPROVED, SubmissionStatus.REJECTED},
-    SubmissionStatus.PAID: set(),
-    SubmissionStatus.REJECTED: set(),
 }
 
 # Valid status values for webhook processor
@@ -80,6 +64,7 @@ REWARD_MIN = 0.01
 REWARD_MAX = 1_000_000.0
 MAX_SKILLS = 20
 SKILL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.+-]{0,49}$")
+WALLET_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +80,6 @@ class SubmissionRecord(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
-    status: SubmissionStatus = SubmissionStatus.PENDING
-    ai_score: float = 0.0
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -104,7 +87,7 @@ class SubmissionCreate(BaseModel):
     """Payload for submitting a solution."""
 
     pr_url: str = Field(..., min_length=1)
-    submitted_by: str = Field("system", min_length=1, max_length=100)
+    submitted_by: str = Field(..., min_length=1, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
 
     @field_validator("pr_url")
@@ -123,8 +106,6 @@ class SubmissionResponse(BaseModel):
     pr_url: str
     submitted_by: str
     notes: Optional[str] = None
-    status: SubmissionStatus = SubmissionStatus.PENDING
-    ai_score: float = 0.0
     submitted_at: datetime
 
 
@@ -147,67 +128,23 @@ def _validate_skills(skills: list[str]) -> list[str]:
     return normalised
 
 
-class SubmissionStatusUpdate(BaseModel):
-    """Request model for updating submission status."""
+class BountyCreate(BaseModel):
+    """Payload for creating a new bounty."""
 
-    status: str
-
-
-class BountyBase(BaseModel):
-    """Base fields for all bounty models."""
-
-    title: str = Field(
-        ...,
-        min_length=TITLE_MIN_LENGTH,
-        max_length=TITLE_MAX_LENGTH,
-        description="Clear, concise title for the bounty",
-        examples=["Implement full-text search in FastAPI"],
+    title: str = Field(..., min_length=TITLE_MIN_LENGTH, max_length=TITLE_MAX_LENGTH)
+    description: str = Field("", max_length=DESCRIPTION_MAX_LENGTH)
+    tier: BountyTier = BountyTier.T2
+    reward_amount: float = Field(..., ge=REWARD_MIN, le=REWARD_MAX)
+    github_issue_url: Optional[str] = None
+    required_skills: list[str] = Field(default_factory=list)
+    deadline: Optional[datetime] = None
+    created_by: str = Field("system", min_length=1, max_length=100)
+    creator_wallet: Optional[str] = Field(
+        None, description="Solana wallet address of the bounty creator"
     )
-    description: str = Field(
-        ...,
-        max_length=DESCRIPTION_MAX_LENGTH,
-        description="Detailed requirements and acceptance criteria (Markdown supported)",
-        examples=["We need to add PostgreSQL-backed full-text search to our existing bounty API..."],
-    )
-    tier: BountyTier = Field(
-        ...,
-        description="Bounty difficulty and reward tier (T1, T2, or T3)",
-        examples=[BountyTier.T1],
-    )
-    category: Optional[str] = Field(
-        None,
-        description="Broad category for the task (e.g., backend, frontend, docs)",
-        examples=["backend"],
-    )
-    reward_amount: float = Field(
-        ...,
-        ge=REWARD_MIN,
-        le=REWARD_MAX,
-        description="Reward amount in USD-equivalent (Solana/FNDRY tokens)",
-        examples=[500.0],
-    )
-    required_skills: list[str] = Field(
-        default_factory=list,
-        max_length=MAX_SKILLS,
-        description="List of required technical skills",
-        examples=[["python", "postgresql", "fastapi"]],
-    )
-    github_issue_url: Optional[str] = Field(
-        None,
-        description="Direct link to the tracking GitHub issue",
-        examples=["https://github.com/codebestia/solfoundry/issues/123"],
-    )
-    deadline: Optional[datetime] = Field(
-        None,
-        description="Optional deadline for the bounty",
-        examples=[datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)],
-    )
-    created_by: str = Field(
-        "system",
-        min_length=1,
-        max_length=100,
-        description="Identifier of the user or system that created the bounty",
-        examples=["user_123", "platform_admin"],
+    creator_type: CreatorType = Field(
+        CreatorType.COMMUNITY,
+        description="Whether this bounty was created by the platform or community",
     )
 
     @field_validator("required_skills")
@@ -224,12 +161,13 @@ class BountyBase(BaseModel):
             raise ValueError("github_issue_url must be a GitHub URL")
         return v
 
-
-class BountyCreate(BountyBase):
-    """Payload for creating a new bounty."""
-
-    description: str = Field("", max_length=DESCRIPTION_MAX_LENGTH) # Override default for creation
-    tier: BountyTier = BountyTier.T2 # Override default for creation
+    @field_validator("creator_wallet")
+    @classmethod
+    def validate_wallet_address(cls, v: Optional[str]) -> Optional[str]:
+        """Validate Solana wallet address format (base58, 32-44 chars)."""
+        if v is not None and not WALLET_PATTERN.match(v):
+            raise ValueError("creator_wallet must be a valid Solana address (base58)")
+        return v
 
 
 class BountyUpdate(BaseModel):
@@ -265,24 +203,32 @@ class BountyDB(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     deadline: Optional[datetime] = None
     created_by: str = "system"
+    creator_wallet: Optional[str] = None
+    creator_type: CreatorType = CreatorType.COMMUNITY
     submissions: list[SubmissionRecord] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class BountyResponse(BountyBase):
-    """Full details of a bounty for API responses."""
+class BountyResponse(BaseModel):
+    """Full bounty detail returned by GET /bounties/{id} and mutations."""
 
-    id: str = Field(..., description="Unique UUID for the bounty", examples=["550e8400-e29b-41d4-a716-446655440000"])
-    status: BountyStatus = Field(..., description="Current state of the bounty", examples=[BountyStatus.OPEN])
-    created_at: datetime = Field(..., description="Timestamp when the bounty was created")
-    updated_at: datetime = Field(..., description="Timestamp of the last update")
-    github_issue_number: Optional[int] = Field(None, description="The GitHub issue number", examples=[123])
-    github_repo: Optional[str] = Field(None, description="The full repository name (org/repo)", examples=["codebestia/solfoundry"])
-
-    model_config = {"from_attributes": True}
+    id: str
+    title: str
+    description: str
+    tier: BountyTier
+    reward_amount: float
+    status: BountyStatus
+    github_issue_url: Optional[str] = None
+    required_skills: list[str] = Field(default_factory=list)
+    deadline: Optional[datetime] = None
+    created_by: str
+    creator_wallet: Optional[str] = None
+    creator_type: str = "community"
     submissions: list[SubmissionResponse] = Field(default_factory=list)
     submission_count: int = 0
+    created_at: datetime
+    updated_at: datetime
 
 
 class BountyListItem(BaseModel):
@@ -293,12 +239,12 @@ class BountyListItem(BaseModel):
     tier: BountyTier
     reward_amount: float
     status: BountyStatus
-    category: Optional[str] = None
     required_skills: list[str] = Field(default_factory=list)
     github_issue_url: Optional[str] = None
     deadline: Optional[datetime] = None
     created_by: str
-    submissions: list[SubmissionResponse] = Field(default_factory=list)
+    creator_wallet: Optional[str] = None
+    creator_type: str = "community"
     submission_count: int = 0
     created_at: datetime
 
@@ -348,7 +294,6 @@ class BountySearchParams(BaseModel):
     creator_type: Optional[str] = Field(
         None, pattern=r"^(platform|community)$", description="platform or community"
     )
-    creator_id: Optional[str] = Field(None, description="Filter by creator's ID/wallet")
     reward_min: Optional[float] = Field(None, ge=0)
     reward_max: Optional[float] = Field(None, ge=0)
     deadline_before: Optional[datetime] = None

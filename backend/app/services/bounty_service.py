@@ -1,12 +1,12 @@
-"""In-memory bounty service for MVP (Issue #3).
+"""In-memory bounty service (MVP). PostgreSQL migration: bounties/submissions tables with FK.
 
 Provides CRUD operations and solution submission.
 Claim lifecycle is out of scope (see Issue #16).
 """
 
+import threading
 from datetime import datetime, timezone
 from typing import Optional
-from app.core.audit import audit_event
 
 from app.models.bounty import (
     BountyCreate,
@@ -16,19 +16,33 @@ from app.models.bounty import (
     BountyResponse,
     BountyStatus,
     BountyUpdate,
+    CreatorType,
     SubmissionCreate,
     SubmissionRecord,
     SubmissionResponse,
-    SubmissionStatus,
-    VALID_SUBMISSION_TRANSITIONS,
     VALID_STATUS_TRANSITIONS,
 )
 
-# ---------------------------------------------------------------------------
-# In-memory store (replaced by a database in production)
+# Typed service exceptions
+class BountyNotFoundError(Exception):
+    """Raised when a bounty lookup fails."""
+
+class InvalidStatusTransitionError(Exception):
+    """Raised on invalid status transition."""
+
+class DuplicateSubmissionError(Exception):
+    """Raised on duplicate PR URL submission."""
+
+class SubmissionNotAllowedError(Exception):
+    """Raised when submissions are closed."""
+
+ADMIN_WALLET_IDS: frozenset[str] = frozenset({"97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"})
+
+# In-memory store  (PostgreSQL migration: bounties/submissions tables with FK)
 # ---------------------------------------------------------------------------
 
 _bounty_store: dict[str, BountyDB] = {}
+_store_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -43,8 +57,6 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
         pr_url=s.pr_url,
         submitted_by=s.submitted_by,
         notes=s.notes,
-        status=s.status,
-        ai_score=s.ai_score,
         submitted_at=s.submitted_at,
     )
 
@@ -62,6 +74,8 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
         required_skills=b.required_skills,
         deadline=b.deadline,
         created_by=b.created_by,
+        creator_wallet=b.creator_wallet,
+        creator_type=b.creator_type.value,
         submissions=subs,
         submission_count=len(subs),
         created_at=b.created_at,
@@ -70,7 +84,6 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
-    subs = [_to_submission_response(s) for s in b.submissions]
     return BountyListItem(
         id=b.id,
         title=b.title,
@@ -81,7 +94,8 @@ def _to_list_item(b: BountyDB) -> BountyListItem:
         github_issue_url=b.github_issue_url,
         deadline=b.deadline,
         created_by=b.created_by,
-        submissions=subs,
+        creator_wallet=b.creator_wallet,
+        creator_type=b.creator_type.value,
         submission_count=len(b.submissions),
         created_at=b.created_at,
     )
@@ -103,8 +117,11 @@ def create_bounty(data: BountyCreate) -> BountyResponse:
         required_skills=data.required_skills,
         deadline=data.deadline,
         created_by=data.created_by,
+        creator_wallet=data.creator_wallet,
+        creator_type=data.creator_type,
     )
-    _bounty_store[bounty.id] = bounty
+    with _store_lock:
+        _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 
 
@@ -119,15 +136,16 @@ def list_bounties(
     status: Optional[BountyStatus] = None,
     tier: Optional[int] = None,
     skills: Optional[list[str]] = None,
-    created_by: Optional[str] = None,
+    creator_type: Optional[str] = None,
+    reward_min: Optional[float] = None,
+    reward_max: Optional[float] = None,
+    sort: str = "newest",
     skip: int = 0,
     limit: int = 20,
 ) -> BountyListResponse:
-    """List bounties with optional filtering and pagination."""
+    """List bounties with optional filtering, sorting, and pagination."""
     results = list(_bounty_store.values())
 
-    if created_by is not None:
-        results = [b for b in results if b.created_by == created_by]
     if status is not None:
         results = [b for b in results if b.status == status]
     if tier is not None:
@@ -137,9 +155,26 @@ def list_bounties(
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if creator_type is not None:
+        results = [b for b in results if b.creator_type.value == creator_type]
+    if reward_min is not None:
+        results = [b for b in results if b.reward_amount >= reward_min]
+    if reward_max is not None:
+        results = [b for b in results if b.reward_amount <= reward_max]
 
-    # Sort by created_at descending (newest first)
-    results.sort(key=lambda b: b.created_at, reverse=True)
+    # Apply sort order
+    if sort == "reward_high":
+        results.sort(key=lambda b: b.reward_amount, reverse=True)
+    elif sort == "reward_low":
+        results.sort(key=lambda b: b.reward_amount)
+    elif sort == "deadline":
+        results.sort(
+            key=lambda b: b.deadline or datetime.max.replace(tzinfo=timezone.utc)
+        )
+    elif sort == "submissions":
+        results.sort(key=lambda b: len(b.submissions))
+    else:
+        results.sort(key=lambda b: b.created_at, reverse=True)
 
     total = len(results)
     page = results[skip : skip + limit]
@@ -177,24 +212,13 @@ def update_bounty(
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
-    
-    if "status" in updates:
-        audit_event(
-            "bounty_status_updated",
-            bounty_id=bounty_id,
-            new_status=updates["status"],
-            updated_by=bounty.created_by # In a real app, this would be the current user
-        )
-
     return _to_bounty_response(bounty), None
 
 
 def delete_bounty(bounty_id: str) -> bool:
     """Delete a bounty by ID. Returns True if deleted, False if not found."""
-    deleted = _bounty_store.pop(bounty_id, None) is not None
-    if deleted:
-        audit_event("bounty_deleted", bounty_id=bounty_id)
-    return deleted
+    with _store_lock:
+        return _bounty_store.pop(bounty_id, None) is not None
 
 
 def submit_solution(
@@ -216,17 +240,11 @@ def submit_solution(
         if existing.pr_url == data.pr_url:
             return None, "This PR URL has already been submitted for this bounty"
 
-    # Generate deterministic mock AI score from PR URL
-    import hashlib
-    url_hash = int(hashlib.md5(data.pr_url.encode()).hexdigest(), 16)
-    score = 0.5 + (url_hash % 50) / 100.0
-
     submission = SubmissionRecord(
         bounty_id=bounty_id,
         pr_url=data.pr_url,
         submitted_by=data.submitted_by,
         notes=data.notes,
-        ai_score=score,
     )
     bounty.submissions.append(submission)
     bounty.updated_at = datetime.now(timezone.utc)
@@ -239,39 +257,3 @@ def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
     if not bounty:
         return None
     return [_to_submission_response(s) for s in bounty.submissions]
-
-
-def update_submission(
-    bounty_id: str, submission_id: str, status: str
-) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Update a submission's status."""
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
-        return None, "Bounty not found"
-
-    try:
-        new_status = SubmissionStatus(status)
-    except ValueError:
-        return None, f"Invalid submission status: {status}"
-
-    for sub in bounty.submissions:
-        if sub.id == submission_id:
-            allowed = VALID_SUBMISSION_TRANSITIONS.get(sub.status, set())
-            if new_status not in allowed and new_status != sub.status:
-                return None, (
-                    f"Invalid status transition: {sub.status.value} -> {new_status.value}. "
-                    f"Allowed transitions: {[s.value for s in sorted(allowed, key=lambda x: x.value)]}"
-                )
-            sub.status = new_status
-            bounty.updated_at = datetime.now(timezone.utc)
-            
-            audit_event(
-                "submission_status_updated",
-                bounty_id=bounty_id,
-                submission_id=submission_id,
-                new_status=status
-            )
-            
-            return _to_submission_response(sub), None
-
-    return None, "Submission not found"
