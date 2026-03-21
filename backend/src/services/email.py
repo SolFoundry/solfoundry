@@ -8,7 +8,7 @@ import os
 import asyncio
 import time
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import logging
 
 logger = logging.getLogger(__name__)

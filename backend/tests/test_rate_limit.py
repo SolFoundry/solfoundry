@@ -2,8 +2,6 @@
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from backend.src.middleware.rate_limit import RateLimitAndSecurityMiddleware
-import pytest
-import time
 
 app = FastAPI()
 app.add_middleware(
