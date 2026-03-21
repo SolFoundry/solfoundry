@@ -19,13 +19,43 @@ _BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 # Solana tx signature: 64-88 base-58 chars
 _TX_HASH_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
+# Well-known Solana program addresses that must never receive payouts.
+KNOWN_PROGRAM_ADDRESSES: frozenset[str] = frozenset({
+    "11111111111111111111111111111111",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+    "SysvarC1ock11111111111111111111111111111111",
+    "SysvarRent111111111111111111111111111111111",
+    "ComputeBudget111111111111111111111111111111",
+})
+
+
+def validate_solana_wallet(address: str) -> str:
+    """Validate a Solana wallet and reject program addresses."""
+    if not _BASE58_RE.match(address):
+        raise ValueError("Wallet must be a valid Solana base-58 address")
+    if address in KNOWN_PROGRAM_ADDRESSES:
+        raise ValueError(f"Wallet '{address}' is a known program address")
+    return address
+
 
 class PayoutStatus(str, Enum):
-    """Lifecycle states for a payout."""
+    """Lifecycle states for a payout queue entry."""
 
     PENDING = "pending"
+    APPROVED = "approved"
+    PROCESSING = "processing"
     CONFIRMED = "confirmed"
     FAILED = "failed"
+
+
+ALLOWED_TRANSITIONS: dict[PayoutStatus, frozenset[PayoutStatus]] = {
+    PayoutStatus.PENDING: frozenset({PayoutStatus.APPROVED, PayoutStatus.FAILED}),
+    PayoutStatus.APPROVED: frozenset({PayoutStatus.PROCESSING}),
+    PayoutStatus.PROCESSING: frozenset({PayoutStatus.CONFIRMED, PayoutStatus.FAILED}),
+    PayoutStatus.CONFIRMED: frozenset(),
+    PayoutStatus.FAILED: frozenset(),
+}
 
 
 class PayoutRecord(BaseModel):
@@ -41,14 +71,17 @@ class PayoutRecord(BaseModel):
     tx_hash: Optional[str] = None
     status: PayoutStatus = PayoutStatus.PENDING
     solscan_url: Optional[str] = None
+    admin_approved_by: Optional[str] = None
+    retry_count: int = Field(default=0, ge=0)
+    failure_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator("recipient_wallet")
     @classmethod
     def validate_wallet(cls, v: Optional[str]) -> Optional[str]:
-        """Ensure *recipient_wallet* is a valid Solana base-58 address."""
-        if v is not None and not _BASE58_RE.match(v):
-            raise ValueError("recipient_wallet must be a valid Solana base-58 address")
+        """Ensure *recipient_wallet* is a valid, non-program Solana address."""
+        if v is not None:
+            validate_solana_wallet(v)
         return v
 
     @field_validator("tx_hash")
@@ -74,9 +107,9 @@ class PayoutCreate(BaseModel):
     @field_validator("recipient_wallet")
     @classmethod
     def validate_wallet(cls, v: Optional[str]) -> Optional[str]:
-        """Ensure *recipient_wallet* is a valid Solana base-58 address."""
-        if v is not None and not _BASE58_RE.match(v):
-            raise ValueError("recipient_wallet must be a valid Solana base-58 address")
+        """Ensure *recipient_wallet* is a valid, non-program Solana address."""
+        if v is not None:
+            validate_solana_wallet(v)
         return v
 
     @field_validator("tx_hash")
@@ -111,6 +144,38 @@ class PayoutListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class AdminApprovalRequest(BaseModel):
+    """Request body for admin payout approval or rejection."""
+
+    approved: bool = Field(..., description="True to approve, False to reject")
+    admin_id: str = Field(..., min_length=1, max_length=100)
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+class AdminApprovalResponse(BaseModel):
+    """Response after processing an admin approval decision."""
+
+    payout_id: str
+    status: PayoutStatus
+    admin_id: str
+    message: str
+
+
+class WalletValidationRequest(BaseModel):
+    """Request body for wallet address validation."""
+
+    wallet_address: str = Field(..., min_length=1, max_length=50)
+
+
+class WalletValidationResponse(BaseModel):
+    """Result of wallet address validation."""
+
+    wallet_address: str
+    valid: bool
+    is_program_address: bool = False
+    message: str
 
 
 class TreasuryStats(BaseModel):
