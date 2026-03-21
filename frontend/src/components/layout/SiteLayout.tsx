@@ -30,6 +30,7 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
   { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Agents', href: '/agents' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
 ];
 
