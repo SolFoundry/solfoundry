@@ -105,8 +105,8 @@ export function useLeaderboard() {
         if (!c && contribs.length > 0) {
           setContributors(contribs);
         }
-      } catch (e) {
-        if (!c) setError(e instanceof Error ? e.message : 'Failed');
+      } catch (e: unknown) {
+        if (!c) setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
       } finally {
         if (!c) setLoading(false);
       }

@@ -1,10 +1,11 @@
+/**
+ * useBountyBoard — Fetches bounties from the backend API with server-side
+ * search, client-side fallback filtering, hot/recommended lists.
+ * @module hooks/useBountyBoard
+ */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
-import { mockBounties } from '../data/mockBounties';
-
-const REPO = 'SolFoundry/solfoundry';
-const GITHUB_API = 'https://api.github.com';
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
 const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
@@ -93,7 +94,7 @@ function applyLocalFilters(all: Bounty[], f: BountyBoardFilters, sortBy: BountyS
 }
 
 export function useBountyBoard() {
-  const [allBounties, setAllBounties] = useState<Bounty[]>(mockBounties);
+  const [allBounties, setAllBounties] = useState<Bounty[]>([]);
   const [apiResults, setApiResults] = useState<{ items: Bounty[]; total: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
@@ -124,8 +125,8 @@ export function useBountyBoard() {
         if (!res.ok) throw new Error('search failed');
         const data: SearchResponse = await res.json();
         setApiResults({ items: data.items.map(mapApiBounty), total: data.total });
-      } catch (e: any) {
-        if (e.name === 'AbortError') return;
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
         useApiRef.current = false;
         setApiResults(null);
         // Fallback: fetch all bounties once from old list endpoint
@@ -138,7 +139,7 @@ export function useBountyBoard() {
               setAllBounties(items.map(mapApiBounty));
             }
           }
-        } catch { /* keep mock data */ }
+        } catch { /* API unavailable */ }
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }

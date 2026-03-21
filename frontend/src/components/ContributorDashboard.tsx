@@ -57,83 +57,29 @@ interface ContributorDashboardProps {
 }
 
 // ============================================================================
-// Mock Data
+// Data Fetcher — Real backend API with empty-state fallback
 // ============================================================================
 
-const MOCK_STATS: DashboardStats = {
-  totalEarned: 2450000,
-  activeBounties: 3,
-  pendingPayouts: 500000,
-  reputationRank: 42,
-  totalContributors: 256,
-};
+interface DashboardData { stats: DashboardStats; bounties: Bounty[]; activities: Activity[]; notifications: Notification[]; earnings: EarningsData[]; linkedAccounts: { type: string; username: string; connected: boolean }[]; }
+const ES: DashboardStats = { totalEarned: 0, activeBounties: 0, pendingPayouts: 0, reputationRank: 0, totalContributors: 0 };
+const DA = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_URL as string)) || '';
 
-const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub <-> Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
-  { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
-  { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
-];
-
-const MOCK_ACTIVITIES: Activity[] = [
-  { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
-  { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
-  { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub <-> Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
-  { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
-];
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', type: 'success', title: 'PR Merged', message: 'Your PR #109 has been merged!', timestamp: '2026-03-20T10:00:00Z', read: false },
-  { id: '2', type: 'info', title: 'New Bounty', message: 'A new T1 bounty is available: Twitter Post', timestamp: '2026-03-20T03:00:00Z', read: false },
-  { id: '3', type: 'warning', title: 'Deadline Approaching', message: 'WebSocket Server bounty deadline in 2 days', timestamp: '2026-03-20T02:00:00Z', read: true },
-];
-
-const MOCK_EARNINGS: EarningsData[] = [
-  { date: '2026-03-01', amount: 0 },
-  { date: '2026-03-05', amount: 0 },
-  { date: '2026-03-10', amount: 100000 },
-  { date: '2026-03-12', amount: 150000 },
-  { date: '2026-03-15', amount: 500000 },
-  { date: '2026-03-18', amount: 800000 },
-  { date: '2026-03-20', amount: 950000 },
-];
-
-const MOCK_LINKED_ACCOUNTS = [
-  { type: 'github', username: 'HuiNeng6', connected: true },
-  { type: 'twitter', username: '', connected: false },
-];
-
-// ============================================================================
-// Data Fetcher (Simulates API calls)
-// ============================================================================
-
-interface DashboardData {
-  stats: DashboardStats;
-  bounties: Bounty[];
-  activities: Activity[];
-  notifications: Notification[];
-  earnings: EarningsData[];
-  linkedAccounts: { type: string; username: string; connected: boolean }[];
+/** Safe JSON parse from a fulfilled fetch result. */
+async function safeJson(r: PromiseSettledResult<Response>): Promise<unknown> {
+  if (r.status !== 'fulfilled' || !r.value.ok) return null;
+  try { return await r.value.json(); } catch { return null; }
 }
 
+/** Fetch dashboard data from real backend API endpoints. */
 async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  // Simulate network delay (100-300ms)
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-  
-  // In a real app, this would fetch from an API using userId
-  // For now, return mock data but log userId for future integration
-  if (process.env.NODE_ENV !== 'test') {
-    console.log('Fetching dashboard data for user:', userId || 'anonymous');
-  }
-  
-  return {
-    stats: MOCK_STATS,
-    bounties: MOCK_BOUNTIES,
-    activities: MOCK_ACTIVITIES,
-    notifications: MOCK_NOTIFICATIONS,
-    earnings: MOCK_EARNINGS,
-    linkedAccounts: MOCK_LINKED_ACCOUNTS,
-  };
+  const d: DashboardData = { stats: { ...ES }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
+  const rs = await Promise.allSettled([fetch(`${DA}/api/bounties?claimed_by=${userId ?? ''}&limit=10`), fetch(`${DA}/api/notifications?limit=10`), fetch(`${DA}/api/leaderboard?range=all&limit=50`)]);
+  const [bRaw, nRaw, lRaw] = await Promise.all(rs.map(safeJson));
+  if (bRaw) { const items = Array.isArray(bRaw) ? bRaw : ((bRaw as Record<string, unknown>).items ?? []) as Record<string, unknown>[]; d.bounties = items.map((b: Record<string, unknown>) => ({ id: String(b.id ?? ''), title: String(b.title ?? ''), reward: Number(b.reward_amount ?? b.reward ?? 0), deadline: String(b.deadline ?? ''), status: String(b.status ?? 'claimed') as Bounty['status'], progress: Number(b.progress ?? 0) })); }
+  if (nRaw) { const items = Array.isArray(nRaw) ? nRaw : ((nRaw as Record<string, unknown>).items ?? []) as Record<string, unknown>[]; d.notifications = items.map((n: Record<string, unknown>) => ({ id: String(n.id ?? ''), type: String(n.type ?? 'info') as Notification['type'], title: String(n.title ?? ''), message: String(n.message ?? ''), timestamp: String(n.created_at ?? n.timestamp ?? ''), read: Boolean(n.read ?? false) })); }
+  if (Array.isArray(lRaw)) { d.stats.totalContributors = lRaw.length; const me = lRaw.find((e: Record<string, unknown>) => String(e.username ?? '').toLowerCase() === (userId ?? '').toLowerCase()) as Record<string, unknown> | undefined; if (me) { d.stats.totalEarned = Number(me.earningsFndry ?? 0); d.stats.reputationRank = Number(me.rank ?? 0); } }
+  d.stats.activeBounties = d.bounties.length;
+  return d;
 }
 
 // ============================================================================

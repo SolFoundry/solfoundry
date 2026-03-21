@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -46,6 +47,7 @@ function AppLayout() {
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
     >
+      <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Bounties */}
@@ -73,6 +75,7 @@ function AppLayout() {
           <Route path="*" element={<Navigate to="/bounties" replace />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </SiteLayout>
   );
 }
