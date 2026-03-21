@@ -6,6 +6,7 @@ Claim lifecycle is out of scope (see Issue #16).
 
 from datetime import datetime, timezone
 from typing import Optional
+from app.core.audit import audit_event
 
 from app.models.bounty import (
     BountyCreate,
@@ -176,12 +177,24 @@ def update_bounty(
         setattr(bounty, key, value)
 
     bounty.updated_at = datetime.now(timezone.utc)
+    
+    if "status" in updates:
+        audit_event(
+            "bounty_status_updated",
+            bounty_id=bounty_id,
+            new_status=updates["status"],
+            updated_by=bounty.created_by # In a real app, this would be the current user
+        )
+
     return _to_bounty_response(bounty), None
 
 
 def delete_bounty(bounty_id: str) -> bool:
     """Delete a bounty by ID. Returns True if deleted, False if not found."""
-    return _bounty_store.pop(bounty_id, None) is not None
+    deleted = _bounty_store.pop(bounty_id, None) is not None
+    if deleted:
+        audit_event("bounty_deleted", bounty_id=bounty_id)
+    return deleted
 
 
 def submit_solution(
@@ -251,6 +264,14 @@ def update_submission(
                 )
             sub.status = new_status
             bounty.updated_at = datetime.now(timezone.utc)
+            
+            audit_event(
+                "submission_status_updated",
+                bounty_id=bounty_id,
+                submission_id=submission_id,
+                new_status=status
+            )
+            
             return _to_submission_response(sub), None
 
     return None, "Submission not found"

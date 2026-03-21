@@ -60,9 +60,13 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.logging_config import setup_logging
+from app.middleware.logging_middleware import LoggingMiddleware
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -72,10 +76,13 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
-from app.database import init_db, close_db
+from app.database import init_db, close_db, engine
+from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
 
+# Initialize logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -178,7 +185,68 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# ── Route Registration ──────────────────────────────────────────────────────
+app.add_middleware(LoggingMiddleware)
+
+# ── Global Exception Handlers ────────────────────────────────────────────────
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Handle HTTP exceptions with structured JSON."""
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.detail,
+            "request_id": request_id,
+            "code": f"HTTP_{exc.status_code}"
+        }
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all exception handler for unexpected errors."""
+    import structlog
+    log = structlog.get_logger(__name__)
+    
+    request_id = getattr(request.state, "request_id", None)
+    
+    # Log the full traceback for unhandled exceptions
+    log.error("unhandled_exception", exc_info=exc, request_id=request_id)
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "request_id": request_id,
+            "code": "INTERNAL_ERROR"
+        }
+    )
+
+@app.exception_handler(AuthError)
+async def auth_exception_handler(request: Request, exc: AuthError):
+    """Handle Authentication errors with structured JSON."""
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=401,
+        content={
+            "error": str(exc),
+            "request_id": request_id,
+            "code": "AUTH_ERROR"
+        }
+    )
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Handle ValueErrors (validation) with structured JSON."""
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": str(exc),
+            "request_id": request_id,
+            "code": "VALIDATION_ERROR"
+        }
+    )
 # Auth: /auth/* (prefix defined in router)
 app.include_router(auth_router)
 
@@ -232,13 +300,24 @@ async def health_check():
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
+    from sqlalchemy import text
+
+    db_status = "ok"
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error("Health check DB failure: %s", e)
+        db_status = "error"
 
     last_sync = get_last_sync()
     return {
-        "status": "ok",
+        "status": "ok" if db_status == "ok" else "degraded",
+        "database": db_status,
         "bounties": len(_bounty_store),
         "contributors": len(_store),
         "last_sync": last_sync.isoformat() if last_sync else None,
+        "version": "0.1.0",
     }
 
 
