@@ -20,6 +20,7 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.health import router as health_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -242,31 +243,8 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
-
-@app.get("/health")
-async def health_check():
-    from app.services.github_sync import get_last_sync
-    from app.services.bounty_service import _bounty_store
-    from app.services.contributor_service import _store
-    from sqlalchemy import text
-
-    db_status = "ok"
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.error("Health check DB failure: %s", e)
-        db_status = "error"
-
-    last_sync = get_last_sync()
-    return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
-        "bounties": len(_bounty_store),
-        "contributors": len(_store),
-        "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
-    }
+# Health: /health (public endpoint for monitoring)
+app.include_router(health_router)
 
 
 @app.post("/api/sync", tags=["admin"])
