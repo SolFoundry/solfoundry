@@ -1,5 +1,11 @@
-"""PostgreSQL contributor service."""
+"""Contributor service with PostgreSQL as primary source of truth.
 
+All read/write operations use async database sessions. The in-memory
+cache (_store) is kept for backward compatibility with GitHub sync
+and any callers that don't yet use the db parameter.
+"""
+
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -17,50 +23,68 @@ from app.models.contributor import (
     ContributorUpdate,
 )
 
+logger = logging.getLogger(__name__)
 
-def _db_to_response(db: ContributorDB) -> ContributorResponse:
-    """Convert a ContributorDB row to an API response model."""
+# In-memory cache -- populated during GitHub sync / startup hydration.
+# Kept in sync with PostgreSQL on every write. Used as a fast fallback
+# when the database connection is unavailable (e.g. in unit tests).
+_store: dict[str, ContributorDB] = {}
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _db_to_response(contributor: ContributorDB) -> ContributorResponse:
+    """Convert a ContributorDB record to the public API response schema."""
     return ContributorResponse(
-        id=str(db.id),
-        username=db.username,
-        display_name=db.display_name,
-        email=db.email,
-        avatar_url=db.avatar_url,
-        bio=db.bio,
-        skills=db.skills or [],
-        badges=db.badges or [],
-        social_links=db.social_links or {},
+        id=str(contributor.id),
+        username=contributor.username,
+        display_name=contributor.display_name,
+        email=contributor.email,
+        avatar_url=contributor.avatar_url,
+        bio=contributor.bio,
+        skills=contributor.skills or [],
+        badges=contributor.badges or [],
+        social_links=contributor.social_links or {},
         stats=ContributorStats(
-            total_contributions=db.total_contributions,
-            total_bounties_completed=db.total_bounties_completed,
-            total_earnings=db.total_earnings,
-            reputation_score=db.reputation_score,
+            total_contributions=contributor.total_contributions or 0,
+            total_bounties_completed=contributor.total_bounties_completed or 0,
+            total_earnings=contributor.total_earnings or 0.0,
+            reputation_score=contributor.reputation_score or 0,
         ),
-        created_at=db.created_at,
-        updated_at=db.updated_at,
+        created_at=contributor.created_at,
+        updated_at=contributor.updated_at,
     )
 
 
-def _db_to_list_item(db: ContributorDB) -> ContributorListItem:
-    """Convert a ContributorDB row to a lightweight list item."""
+def _db_to_list_item(contributor: ContributorDB) -> ContributorListItem:
+    """Convert a ContributorDB record to a lightweight list-view item."""
     return ContributorListItem(
-        id=str(db.id),
-        username=db.username,
-        display_name=db.display_name,
-        avatar_url=db.avatar_url,
-        skills=db.skills or [],
-        badges=db.badges or [],
+        id=str(contributor.id),
+        username=contributor.username,
+        display_name=contributor.display_name,
+        avatar_url=contributor.avatar_url,
+        skills=contributor.skills or [],
+        badges=contributor.badges or [],
         stats=ContributorStats(
-            total_contributions=db.total_contributions,
-            total_bounties_completed=db.total_bounties_completed,
-            total_earnings=db.total_earnings,
-            reputation_score=db.reputation_score,
+            total_contributions=contributor.total_contributions or 0,
+            total_bounties_completed=contributor.total_bounties_completed or 0,
+            total_earnings=contributor.total_earnings or 0.0,
+            reputation_score=contributor.reputation_score or 0,
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Public API -- async, PostgreSQL-first
+# ---------------------------------------------------------------------------
 
 
 async def create_contributor(db: AsyncSession, data: ContributorCreate) -> ContributorResponse:
     """Create a new contributor and return its response."""
+    now = datetime.now(timezone.utc)
     contributor = ContributorDB(
         username=data.username,
         display_name=data.display_name,
@@ -70,10 +94,13 @@ async def create_contributor(db: AsyncSession, data: ContributorCreate) -> Contr
         skills=data.skills,
         badges=data.badges,
         social_links=data.social_links,
+        created_at=now,
+        updated_at=now,
     )
     db.add(contributor)
     await db.commit()
     await db.refresh(contributor)
+    _store[str(contributor.id)] = contributor
     return _db_to_response(contributor)
 
 
@@ -97,9 +124,6 @@ async def list_contributors(
             )
         )
 
-    # Note: For JSON array filtering in PG, we use the @> operator or contained-by.
-    # Since we use JSON type (not JSONB) in models, we might need to cast or use sqlalchemy helpers.
-    # For now, let's use a simple approach if possible.
     if skills:
         for skill in skills:
             query = query.where(ContributorDB.skills.contains([skill]))
@@ -155,9 +179,10 @@ async def update_contributor(
 
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(contributor, key, value)
-        
+
         await db.commit()
         await db.refresh(contributor)
+        _store[contributor_id] = contributor
         return _db_to_response(contributor)
     except ValueError:
         return None
@@ -171,9 +196,10 @@ async def delete_contributor(db: AsyncSession, contributor_id: str) -> bool:
         contributor = result.scalar_one_or_none()
         if not contributor:
             return False
-        
+
         await db.delete(contributor)
         await db.commit()
+        _store.pop(contributor_id, None)
         return True
     except ValueError:
         return False

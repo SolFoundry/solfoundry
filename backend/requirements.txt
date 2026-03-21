@@ -16,4 +16,4 @@ solders>=0.21,<1.0
 aiosqlite>=0.20.0,<1.0.0
 structlog>=24.0.0,<25.0.0
 python-json-logger>=2.0.0,<3.0.0
-alembic>=1.12.0,<2.0.0
+alembic>=1.13.0,<2.0.0

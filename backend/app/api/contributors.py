@@ -1,4 +1,8 @@
-"""Contributor profiles and reputation API router."""
+"""Contributor profiles and reputation API router.
+
+Provides CRUD endpoints for contributor profiles and reputation tracking
+including per-bounty history, leaderboard rankings, and tier progression.
+"""
 
 import uuid
 from typing import Optional
@@ -37,7 +41,7 @@ async def list_contributors(
 
 @router.post("", response_model=ContributorResponse, status_code=201)
 async def create_contributor(data: ContributorCreate, db: AsyncSession = Depends(get_db)):
-    """Create a new contributor profile."""
+    """Create a new contributor profile after checking username uniqueness."""
     if await contributor_service.get_contributor_by_username(db, data.username):
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
     return await contributor_service.create_contributor(db, data)
@@ -45,7 +49,7 @@ async def create_contributor(data: ContributorCreate, db: AsyncSession = Depends
 
 @router.get("/leaderboard/reputation", response_model=list[ReputationSummary])
 async def get_reputation_leaderboard(
-    limit: int = Query(20, ge=1, le=100), 
+    limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
@@ -55,7 +59,7 @@ async def get_reputation_leaderboard(
 
 @router.get("/{contributor_id}", response_model=ContributorResponse)
 async def get_contributor(contributor_id: str, db: AsyncSession = Depends(get_db)):
-    """Get a single contributor profile by ID."""
+    """Get a single contributor profile by ID from PostgreSQL."""
     c = await contributor_service.get_contributor(db, contributor_id)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
@@ -64,11 +68,11 @@ async def get_contributor(contributor_id: str, db: AsyncSession = Depends(get_db
 
 @router.patch("/{contributor_id}", response_model=ContributorResponse)
 async def update_contributor(
-    contributor_id: str, 
+    contributor_id: str,
     data: ContributorUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Partially update a contributor profile."""
+    """Partially update a contributor profile and persist changes."""
     c = await contributor_service.update_contributor(db, contributor_id, data)
     if not c:
         raise HTTPException(status_code=404, detail="Contributor not found")
@@ -77,14 +81,14 @@ async def update_contributor(
 
 @router.delete("/{contributor_id}", status_code=204)
 async def delete_contributor(contributor_id: str, db: AsyncSession = Depends(get_db)):
-    """Delete a contributor profile by ID."""
+    """Delete a contributor profile from both cache and database."""
     if not await contributor_service.delete_contributor(db, contributor_id):
         raise HTTPException(status_code=404, detail="Contributor not found")
 
 
 @router.get("/{contributor_id}/reputation", response_model=ReputationSummary)
 async def get_contributor_reputation(contributor_id: str, db: AsyncSession = Depends(get_db)):
-    """Return full reputation profile for a contributor."""
+    """Return full reputation profile for a contributor from PostgreSQL."""
     summary = await reputation_service.get_reputation(db, contributor_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Contributor not found")
@@ -106,7 +110,22 @@ async def record_contributor_reputation(
     caller_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Record reputation earned from a completed bounty."""
+    """Record reputation earned from a completed bounty.
+
+    Requires authentication. The caller must be the contributor themselves
+    or the internal system user (all-zeros UUID used by automated pipelines).
+
+    Args:
+        contributor_id: Path parameter -- the contributor receiving reputation.
+        data: Reputation record payload.
+        caller_id: Authenticated user ID injected by the auth dependency.
+
+    Raises:
+        HTTPException 400: Path/body contributor_id mismatch.
+        HTTPException 401: Missing credentials (from auth dependency).
+        HTTPException 403: Caller is not authorized to record for this contributor.
+        HTTPException 404: Contributor not found.
+    """
     if data.contributor_id != contributor_id:
         raise HTTPException(status_code=400, detail="contributor_id in path must match body")
 
