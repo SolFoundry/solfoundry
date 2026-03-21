@@ -24,12 +24,17 @@ _TRANSIENT_HTTP_CODES = frozenset({429, 502, 503, 504})
 
 class SolanaRPCError(Exception):
     """Raised when the Solana JSON-RPC returns an error payload."""
+
     def __init__(self, message: str, code: int | None = None, *, transient: bool = False) -> None:
+        """Initialize with message, optional RPC error code, and transient flag."""
         super().__init__(message); self.code = code; self.transient = transient
+
 
 class SolanaTransientError(SolanaRPCError):
     """Network / rate-limit errors safe to retry."""
+
     def __init__(self, message: str, code: int | None = None) -> None:
+        """Initialize as a transient (retryable) RPC error."""
         super().__init__(message, code, transient=True)
 
 async def _rpc_call(method: str, params: list[Any] | None = None) -> dict[str, Any]:

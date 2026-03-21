@@ -30,16 +30,27 @@ from app.services.escrow_service import process_expired_escrows
 setup_logging()
 logger = logging.getLogger(__name__)
 
-async def _escrow_expiry_loop() -> None:
-    """Auto-refund expired escrows every 5 minutes via SPL transfers.
+# Escrow expiry loop constants
+_ESCROW_BASE_INTERVAL: float = 300.0  # 5 minutes
+_ESCROW_MAX_INTERVAL: float = 3600.0  # 1 hour cap
+_ESCROW_CRITICAL_THRESHOLD: int = 5
 
-    Tracks consecutive sweep failures for monitoring.  Each escrow is
-    processed individually within ``process_expired_escrows`` so a single
-    failure does not block others.
+
+async def _escrow_expiry_loop() -> None:
+    """Auto-refund expired escrows with exponential backoff on failures.
+
+    Uses exponential backoff (base 300s, max 3600s) on consecutive failures
+    to avoid hammering a failing RPC. Resets to base interval on success.
+    Each escrow is processed individually within ``process_expired_escrows``
+    so a single failure does not block others.
+
+    Health metrics are tracked in escrow_service.get_expiry_health() and
+    exposed via the /health endpoint.
     """
     from app.database import get_db_session
 
     consecutive_failures: int = 0
+    interval: float = _ESCROW_BASE_INTERVAL
     while True:
         try:
             async with get_db_session() as session:
@@ -51,20 +62,27 @@ async def _escrow_expiry_loop() -> None:
                         refunded,
                     )
             consecutive_failures = 0
+            interval = _ESCROW_BASE_INTERVAL
         except Exception as exc:
             consecutive_failures += 1
+            # Exponential backoff: base * 2^(failures-1), capped at max
+            interval = min(
+                _ESCROW_BASE_INTERVAL * (2 ** (consecutive_failures - 1)),
+                _ESCROW_MAX_INTERVAL,
+            )
             logger.error(
-                "Escrow expiry sweep failed (consecutive: %d): %s",
+                "Escrow expiry sweep failed (consecutive: %d, next in %.0fs): %s",
                 consecutive_failures,
+                interval,
                 exc,
             )
-            if consecutive_failures >= 5:
+            if consecutive_failures >= _ESCROW_CRITICAL_THRESHOLD:
                 logger.critical(
                     "Escrow expiry loop has failed %d consecutive times — "
                     "manual intervention may be required",
                     consecutive_failures,
                 )
-        await asyncio.sleep(300)
+        await asyncio.sleep(interval)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -283,10 +301,15 @@ app.include_router(escrow_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
-    """Return application health status including database and sync checks."""
+    """Return application health status including database, sync, and escrow health.
+
+    Includes escrow expiry loop metrics (consecutive failures, last success,
+    total processed, total failures) so operators can monitor auto-refund reliability.
+    """
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store
+    from app.services.escrow_service import get_expiry_health
     from sqlalchemy import text
 
     db_status = "ok"
@@ -298,12 +321,14 @@ async def health_check():
         db_status = "error"
 
     last_sync = get_last_sync()
+    escrow_health = get_expiry_health()
     return {
         "status": "ok" if db_status == "ok" else "degraded",
         "database": db_status,
         "bounties": len(_bounty_store),
         "contributors": len(_store),
         "last_sync": last_sync.isoformat() if last_sync else None,
+        "escrow_expiry": escrow_health,
         "version": "0.1.0",
     }
 

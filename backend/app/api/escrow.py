@@ -18,9 +18,17 @@ _E = {EscrowNotFoundError: 404, EscrowAuthorizationError: 403,
     EscrowInvalidStateError: 409, EscrowDoubleSpendError: 409, EscrowAlreadyExistsError: 409}
 
 async def _handle(coro):
-    """Run escrow service call with standard HTTP error mapping."""
-    try: return await coro
-    except tuple(_E) as e: raise HTTPException(_E[type(e)], str(e)) from e
+    """Run escrow service call with standard HTTP error mapping.
+
+    Maps domain exceptions to HTTP status codes. RuntimeError from failed
+    SPL transfers maps to 502 (upstream service failure).
+    """
+    try:
+        return await coro
+    except tuple(_E) as exc:
+        raise HTTPException(_E[type(exc)], str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Solana transfer failed: {exc}") from exc
 
 @router.post("/fund", response_model=EscrowResponse, status_code=status.HTTP_201_CREATED)
 async def fund_escrow_endpoint(data: EscrowCreateRequest, user_id: str = Depends(get_current_user_id),
@@ -56,16 +64,19 @@ async def refund_escrow_endpoint(data: EscrowRefundRequest, user_id: str = Depen
     return await _handle(refund_escrow(session, data, user_id))
 
 @router.get("/{bounty_id}", response_model=EscrowResponse)
-async def get_escrow_status_endpoint(bounty_id: str, session: AsyncSession = Depends(get_db)) -> EscrowResponse:
-    """Escrow state and ledger for a bounty."""
+async def get_escrow_status_endpoint(bounty_id: str,
+                                     user_id: str = Depends(get_current_user_id),
+                                     session: AsyncSession = Depends(get_db)) -> EscrowResponse:
+    """Escrow state and ledger for a bounty. Requires authentication."""
     return await _handle(get_escrow_status(session, bounty_id))
 
 @router.get("", response_model=EscrowListResponse)
 async def list_escrows_endpoint(
     state: Optional[EscrowState] = Query(None), creator_wallet: Optional[str] = Query(None, min_length=32, max_length=44),
     skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100),
+    user_id: str = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_db)) -> EscrowListResponse:
-    """Paginated escrow list with optional filters. Validates creator_wallet as base-58."""
+    """Paginated escrow list with optional filters. Requires authentication. Validates creator_wallet as base-58."""
     if creator_wallet is not None and not _B58.match(creator_wallet):
         raise HTTPException(400, "creator_wallet must be a valid base-58 Solana address")
     return await list_escrows(session, state=state, creator_wallet=creator_wallet, skip=skip, limit=limit)

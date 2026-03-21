@@ -1,6 +1,11 @@
 """$FNDRY escrow models -- Pydantic schemas + SQLAlchemy with PostgreSQL.
 
-State machine: PENDING -> FUNDED -> ACTIVE -> RELEASING -> COMPLETED | REFUNDED
+State machine:
+    PENDING -> FUNDED -> ACTIVE -> RELEASING -> COMPLETED
+                                -> REFUNDING -> REFUNDED
+    RELEASING reverts to ACTIVE on transfer failure.
+    REFUNDING reverts to prior state on transfer failure.
+
 Monetary amounts use Numeric(20,9) in DB and Decimal in Python to avoid float rounding.
 """
 import re, uuid
@@ -29,16 +34,18 @@ def _validate_tx_hash(v: Optional[str]) -> Optional[str]:
     return v
 
 VALID_TRANSITIONS: dict[str, frozenset[str]] = {
-    "PENDING": frozenset({"FUNDED", "REFUNDED"}),
-    "FUNDED": frozenset({"ACTIVE", "RELEASING", "REFUNDED"}),
-    "ACTIVE": frozenset({"RELEASING", "REFUNDED"}),
+    "PENDING": frozenset({"FUNDED", "REFUNDING"}),
+    "FUNDED": frozenset({"ACTIVE", "RELEASING", "REFUNDING"}),
+    "ACTIVE": frozenset({"RELEASING", "REFUNDING"}),
     "RELEASING": frozenset({"COMPLETED", "ACTIVE"}),  # ACTIVE for failure rollback
+    "REFUNDING": frozenset({"REFUNDED", "PENDING", "FUNDED", "ACTIVE"}),  # revert on failure
     "COMPLETED": frozenset(), "REFUNDED": frozenset()}
 
 class EscrowState(str, Enum):
-    """Escrow lifecycle: PENDING -> FUNDED -> ACTIVE -> RELEASING -> COMPLETED | REFUNDED."""
+    """Escrow lifecycle: PENDING -> FUNDED -> ACTIVE -> RELEASING -> COMPLETED | REFUNDING -> REFUNDED."""
     PENDING = "PENDING"; FUNDED = "FUNDED"; ACTIVE = "ACTIVE"
-    RELEASING = "RELEASING"; COMPLETED = "COMPLETED"; REFUNDED = "REFUNDED"
+    RELEASING = "RELEASING"; REFUNDING = "REFUNDING"
+    COMPLETED = "COMPLETED"; REFUNDED = "REFUNDED"
 
 _now = lambda: datetime.now(timezone.utc)
 _uid = lambda: str(uuid.uuid4())
