@@ -13,6 +13,10 @@ on:
         default: 'staging'
         type: choice
         options: [staging, production]
+      image_tag:
+        description: 'Specific image tag to deploy (e.g. for rollback)'
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -138,4 +142,17 @@ jobs:
       url: https://solfoundry.org
     steps:
       - name: Deploy to Production
-        run: echo "Deploying to production environment..."
+        run: |
+          TAG=${{ inputs.image_tag || github.sha }}
+          echo "Deploying image tag $TAG to production environment..."
+
+  # 5. Rollback / Direct Tag Deploy
+  deploy-tag:
+    name: Deploy Specific Tag
+    if: github.event_name == 'workflow_dispatch' && inputs.image_tag != ''
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Deploy Tag
+        run: |
+          echo "Executing direct deployment/rollback of tag ${{ inputs.image_tag }} to ${{ inputs.environment }}..."

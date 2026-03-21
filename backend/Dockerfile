@@ -21,6 +21,10 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
+# Create a non-root user
+RUN groupadd -g 10001 appgroup && \
+    useradd -u 10001 -g appgroup -s /bin/sh -m appuser
+
 # Install runtime system dependencies (libpq for postgres)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
@@ -31,11 +35,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code
-COPY . .
+# Copy application code with correct ownership
+COPY --chown=appuser:appgroup . .
 
-# Create logs directory
-RUN mkdir -p logs && chmod 777 logs
+# Create logs directory with restricted permissions
+RUN mkdir -p logs && chown -R appuser:appgroup logs && chmod 755 logs
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000
