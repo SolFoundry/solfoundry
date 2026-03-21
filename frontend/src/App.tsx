@@ -1,6 +1,6 @@
 /**
  * App — Root component with full routing and layout.
- * All pages wrapped in WalletProvider + SiteLayout.
+ * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
 import { lazy, Suspense } from 'react';
@@ -8,7 +8,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
-import { useTheme } from './hooks/useTheme';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/common/ToastContainer';
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
@@ -21,6 +23,7 @@ const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -40,8 +43,8 @@ function AppLayout() {
   const { publicKey, connect, disconnect } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
   
-  // Theme management
-  const { theme, toggleTheme } = useTheme();
+  // Theme management from ThemeContext
+  const { resolvedTheme, toggleTheme } = useTheme();
 
   return (
     <SiteLayout
@@ -49,7 +52,7 @@ function AppLayout() {
       walletAddress={walletAddress}
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
-      theme={theme}
+      theme={resolvedTheme}
       onToggleTheme={toggleTheme}
     >
       <Suspense fallback={<LoadingSpinner />}>
@@ -70,6 +73,9 @@ function AppLayout() {
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
 
+          {/* How It Works */}
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+
           {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -87,9 +93,14 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider defaultNetwork="mainnet-beta">
-        <AppLayout />
-      </WalletProvider>
+      <ThemeProvider defaultTheme="dark">
+        <ToastProvider>
+          <WalletProvider defaultNetwork="mainnet-beta">
+            <AppLayout />
+          </WalletProvider>
+          <ToastContainer />
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

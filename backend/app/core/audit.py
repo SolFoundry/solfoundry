@@ -1,7 +1,6 @@
 import functools
 import structlog
-from typing import Any, Callable, Optional
-from app.models.errors import AuditLogEntry
+from typing import Callable, Optional
 
 logger = structlog.get_logger("audit")
 

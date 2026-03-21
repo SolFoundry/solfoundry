@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
+import { ThemeToggle } from './ThemeToggle';
 
 // ============================================================================
 // Types
@@ -29,6 +30,7 @@ export interface SiteLayoutProps {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Agents', href: '/agents' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
@@ -275,6 +277,9 @@ function Header({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Wallet Connect Button */}
           {walletAddress ? (
             <div className="relative">
