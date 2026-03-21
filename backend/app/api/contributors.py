@@ -31,6 +31,12 @@ Contributors are users who complete bounties on SolFoundry. Each contributor has
 | total_earnings | float | Total $FNDRY earned |
 | reputation_score | integer | Reputation points |
 
+## Authentication
+
+Mutation endpoints (POST, PATCH, DELETE) require authentication via:
+- Bearer token in Authorization header, or
+- X-User-ID header (development mode)
+
 ## Rate Limits
 
 - List/Search: 100 requests/minute
@@ -39,7 +45,7 @@ Contributors are users who complete bounties on SolFoundry. Each contributor has
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Depends
 from app.models.contributor import (
     ContributorCreate,
     ContributorResponse,
@@ -47,13 +53,24 @@ from app.models.contributor import (
     ContributorUpdate,
 )
 from app.services import contributor_service
-from app.core.errors import NotFoundException, ConflictException
+from app.core.errors import NotFoundException, ConflictException, ForbiddenException
 from app.core.logging_config import get_logger
 from app.core.audit import audit_log, AuditAction
+from app.api.auth import get_current_user_id
 
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/contributors", tags=["contributors"])
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP from request, handling proxies."""
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
 
 
 @router.get(
@@ -201,7 +218,7 @@ Create a new contributor profile.
         422: {"description": "Validation error"}
     }
 )
-async def create_contributor(data: ContributorCreate):
+async def create_contributor(data: ContributorCreate, request: Request):
     """Create a new contributor profile."""
     logger.info(f"Creating contributor: {data.username}")
 
@@ -210,12 +227,13 @@ async def create_contributor(data: ContributorCreate):
 
     contributor = contributor_service.create_contributor(data)
 
-    # Audit log
+    # Audit log with IP address - actor is the new contributor
     audit_log(
         action=AuditAction.CONTRIBUTOR_REGISTERED,
-        actor=data.username,
+        actor=contributor.id,  # Use the new contributor ID as actor
         resource="contributor",
         resource_id=contributor.id,
+        ip_address=_get_client_ip(request),
         metadata={
             "username": data.username,
         },
@@ -288,6 +306,10 @@ async def get_contributor(contributor_id: str):
     description="""
 Update an existing contributor profile.
 
+## Authentication Required
+
+This endpoint requires authentication. Only the contributor owner can update their profile.
+
 ## Updatable Fields
 
 All fields are optional. Only provided fields will be updated.
@@ -314,24 +336,40 @@ Username cannot be changed after creation.
         200: {
             "description": "Contributor updated successfully"
         },
+        401: {"description": "Authentication required"},
+        403: {"description": "Not authorized to update this profile"},
         404: {"description": "Contributor not found"},
         422: {"description": "Validation error"}
     }
 )
-async def update_contributor(contributor_id: str, data: ContributorUpdate):
-    """Update a contributor profile."""
-    logger.info(f"Updating contributor: {contributor_id}")
+async def update_contributor(
+    contributor_id: str,
+    data: ContributorUpdate,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Update a contributor profile.
+    
+    Requires authentication. Only the contributor owner can update their profile.
+    """
+    logger.info(f"Updating contributor: {contributor_id} by user: {user_id}")
+
+    # Authorization check: user can only update their own profile
+    if user_id != contributor_id:
+        raise ForbiddenException("You can only update your own profile")
 
     c = contributor_service.update_contributor(contributor_id, data)
     if not c:
         raise NotFoundException("Contributor", contributor_id)
 
-    # Audit log
+    # Audit log with actual caller and IP address
     audit_log(
         action=AuditAction.CONTRIBUTOR_PROFILE_UPDATED,
-        actor=contributor_id,
+        actor=user_id,
         resource="contributor",
         resource_id=contributor_id,
+        ip_address=_get_client_ip(request),
+        metadata={"updated_fields": list(data.model_dump(exclude_unset=True).keys())},
     )
 
     return c
@@ -344,6 +382,10 @@ async def update_contributor(contributor_id: str, data: ContributorUpdate):
     description="""
 Delete a contributor profile permanently.
 
+## Authentication Required
+
+This endpoint requires authentication. Only the contributor owner can delete their profile.
+
 ## Warning
 
 This action is irreversible. All profile data will be permanently deleted.
@@ -354,20 +396,34 @@ This action is irreversible. All profile data will be permanently deleted.
 """,
     responses={
         204: {"description": "Contributor deleted successfully"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Not authorized to delete this profile"},
         404: {"description": "Contributor not found"}
     }
 )
-async def delete_contributor(contributor_id: str):
-    """Delete a contributor profile."""
-    logger.info(f"Deleting contributor: {contributor_id}")
+async def delete_contributor(
+    contributor_id: str,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Delete a contributor profile.
+    
+    Requires authentication. Only the contributor owner can delete their profile.
+    """
+    logger.info(f"Deleting contributor: {contributor_id} by user: {user_id}")
+
+    # Authorization check: user can only delete their own profile
+    if user_id != contributor_id:
+        raise ForbiddenException("You can only delete your own profile")
 
     if not contributor_service.delete_contributor(contributor_id):
         raise NotFoundException("Contributor", contributor_id)
     
-    # Audit log
+    # Audit log with actual caller and IP address
     audit_log(
         action=AuditAction.CONTRIBUTOR_BANNED,
-        actor="api",
+        actor=user_id,
         resource="contributor",
         resource_id=contributor_id,
+        ip_address=_get_client_ip(request),
     )

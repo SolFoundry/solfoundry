@@ -34,6 +34,12 @@ open → claimed → completed
   └────────┴──→ cancelled
 ```
 
+## Authentication
+
+Mutation endpoints (POST, PATCH, DELETE) require authentication via:
+- Bearer token in Authorization header, or
+- X-User-ID header (development mode)
+
 ## Rate Limits
 
 - Search endpoints: 100 requests/minute
@@ -41,7 +47,7 @@ open → claimed → completed
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -64,10 +70,21 @@ from app.services.bounty_search_service import BountySearchService
 from app.core.errors import NotFoundException
 from app.core.logging_config import get_logger
 from app.core.audit import audit_log, AuditAction
+from app.api.auth import get_current_user_id
 
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/bounties", tags=["bounties"])
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP from request, handling proxies."""
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -110,19 +127,28 @@ Create a new bounty on the platform.
 30 requests per minute.
 """,
 )
-async def create_bounty(data: BountyCreate) -> BountyResponse:
+async def create_bounty(
+    data: BountyCreate,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+) -> BountyResponse:
+    """Create a new bounty on the platform.
+    
+    Requires authentication.
+    """
     logger.info(
         "Creating bounty",
-        extra={"extra_data": {"title": data.title, "tier": str(data.tier)}},
+        extra={"extra_data": {"title": data.title, "tier": str(data.tier), "user_id": user_id}},
     )
     result = bounty_service.create_bounty(data)
 
-    # Audit log
+    # Audit log with actual caller and IP address
     audit_log(
         action=AuditAction.BOUNTY_CREATED,
-        actor="api",
+        actor=user_id,
         resource="bounty",
         resource_id=result.id,
+        ip_address=_get_client_ip(request),
         metadata={"title": data.title, "tier": str(data.tier)},
     )
 
@@ -401,20 +427,30 @@ All fields are optional. Only provided fields will be updated.
 30 requests per minute.
 """,
 )
-async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
-    logger.info(f"Updating bounty: {bounty_id}")
+async def update_bounty(
+    bounty_id: str,
+    data: BountyUpdate,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+) -> BountyResponse:
+    """Update an existing bounty.
+    
+    Requires authentication.
+    """
+    logger.info(f"Updating bounty: {bounty_id} by user: {user_id}")
     result, error = bounty_service.update_bounty(bounty_id, data)
     if error:
         if "not found" in error.lower():
             raise NotFoundException("Bounty", bounty_id)
         raise HTTPException(status_code=400, detail=error)
 
-    # Audit log - use BOUNTY_ESCALATED for status changes, not BOUNTY_COMPLETED
+    # Audit log with actual caller and IP address
     audit_log(
         action=AuditAction.BOUNTY_ESCALATED,
-        actor="api",
+        actor=user_id,
         resource="bounty",
         resource_id=bounty_id,
+        ip_address=_get_client_ip(request),
         metadata={"update_fields": data.model_dump(exclude_unset=True)},
     )
 
@@ -428,6 +464,10 @@ async def update_bounty(bounty_id: str, data: BountyUpdate) -> BountyResponse:
     description="""
 Delete a bounty permanently.
 
+## Authentication Required
+
+This endpoint requires authentication.
+
 ## Warning
 
 This action is irreversible. All bounty data will be permanently deleted.
@@ -437,17 +477,26 @@ This action is irreversible. All bounty data will be permanently deleted.
 30 requests per minute.
 """,
 )
-async def delete_bounty(bounty_id: str) -> None:
-    logger.info(f"Deleting bounty: {bounty_id}")
+async def delete_bounty(
+    bounty_id: str,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+) -> None:
+    """Delete a bounty permanently.
+    
+    Requires authentication.
+    """
+    logger.info(f"Deleting bounty: {bounty_id} by user: {user_id}")
     if not bounty_service.delete_bounty(bounty_id):
         raise NotFoundException("Bounty", bounty_id)
 
-    # Audit log
+    # Audit log with actual caller and IP address
     audit_log(
         action=AuditAction.BOUNTY_CANCELLED,
-        actor="api",
+        actor=user_id,
         resource="bounty",
         resource_id=bounty_id,
+        ip_address=_get_client_ip(request),
     )
 
 
