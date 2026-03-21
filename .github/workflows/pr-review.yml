@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests base58
+        run: pip install openai anthropic requests base58 httpx
 
       - name: Fetch review engine (private)
         env:
