@@ -2,9 +2,30 @@
 
 ## Overview
 
-The E2E test suite validates every major user flow in the SolFoundry marketplace, from bounty creation through payout. It serves as the quality gate before production launch.
+The E2E test suite validates every major user flow in the SolFoundry marketplace, from bounty creation through payout. It covers both the **backend API** (Python/FastAPI) and the **frontend UI** (React/Playwright), serving as the quality gate before production launch.
 
 ## Architecture
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         E2E Test Suite               │
+                    └────────────┬────────────────────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                   │
+   ┌──────────▼──────────┐  ┌───▼──────────┐  ┌────▼───────────┐
+   │  Backend API Tests   │  │  Frontend UI │  │  CI Pipeline   │
+   │  (pytest + httpx)    │  │  (Playwright)│  │  (GitHub       │
+   │                      │  │              │  │   Actions)     │
+   └──────────┬───────────┘  └──────┬───────┘  └────────────────┘
+              │                     │
+   ┌──────────▼───────────┐  ┌──────▼───────────┐
+   │  In-Memory SQLite    │  │  Vite Dev Server  │
+   │  + FastAPI TestClient│  │  + Chromium/FF    │
+   └──────────────────────┘  └──────────────────┘
+```
+
+### File Layout
 
 ```
 backend/tests/e2e/
@@ -13,16 +34,29 @@ backend/tests/e2e/
 ├── factories.py                       # Deterministic data factories
 ├── pytest.ini                         # Markers and configuration
 ├── test_bounty_lifecycle.py           # Req 1: Full lifecycle tests
-├── test_dispute_flow.py               # Req 2: Dispute resolution
+├── test_dispute_flow.py               # Req 2: Dispute resolution (real API)
 ├── test_timeout_refund.py             # Req 3: Timeout & auto-refund
 ├── test_concurrent_submissions.py     # Req 4: Concurrent submissions
 ├── test_auth_flow.py                  # Req 5: Auth flow (OAuth + wallet)
 ├── test_websocket_events.py           # Req 6: WebSocket real-time events
 ├── test_load.py                       # Req 7: Load testing (50+100 concurrent)
 └── test_negative_cases.py             # Req 8: Negative tests & edge cases
+
+frontend/
+├── playwright.config.ts               # Playwright configuration
+└── tests/e2e/
+    ├── bounty-lifecycle.spec.ts       # UI: Bounty board, detail, create
+    ├── auth-flow.spec.ts              # UI: Wallet connect, login, nav
+    └── dispute-flow.spec.ts           # UI: Dispute controls, detail page
+
+docs/
+├── E2E_TESTING.md                     # This document
+└── ci-e2e-workflow.yml                # CI pipeline (copy to .github/workflows/)
 ```
 
 ## Quick Start
+
+### Backend E2E Tests
 
 ```bash
 # Install dependencies
@@ -44,7 +78,29 @@ python -m pytest tests/e2e/ -m "not load" -v  # Skip slow load tests
 python -m pytest tests/e2e/ -v --html=reports/e2e.html --self-contained-html
 ```
 
-## Test Categories
+### Frontend Playwright E2E Tests
+
+```bash
+# Install dependencies
+cd frontend
+npm install
+npx playwright install --with-deps chromium firefox
+
+# Run all Playwright tests
+npx playwright test
+
+# Run specific test file
+npx playwright test tests/e2e/bounty-lifecycle.spec.ts
+
+# Run with UI mode (interactive)
+npx playwright test --ui
+
+# Generate HTML report with screenshots
+npx playwright test --reporter=html
+npx playwright show-report
+```
+
+## Backend Test Categories
 
 ### 1. Full Bounty Lifecycle (`test_bounty_lifecycle.py`)
 Tests the complete happy path: create bounty -> submit PR -> AI review -> approve -> payout -> verify.
@@ -52,17 +108,18 @@ Tests the complete happy path: create bounty -> submit PR -> AI review -> approv
 **Key tests:**
 - `test_complete_bounty_lifecycle_happy_path` — Full flow with all validations
 - `test_lifecycle_with_multiple_submissions` — Multiple contributors scenario
-- `test_payout_verification_via_treasury` — Payout ledger consistency
+- `test_payout_recording_returns_correct_data` — Payout ledger consistency
 - `test_submission_records_persist_through_status_changes` — Data integrity
 
 ### 2. Dispute Resolution (`test_dispute_flow.py`)
-Tests: submit -> reject -> dispute -> mediation -> resolution.
+Tests: submit -> reject -> dispute -> mediation -> resolution. Uses the **real API dispute endpoint** (`POST /api/bounties/{id}/submissions/{sub_id}/dispute`).
 
 **Key tests:**
-- `test_create_dispute_for_rejected_submission` — Dispute payload validation
-- `test_dispute_resolved_approved/rejected/cancelled` — All resolution outcomes
-- `test_bounty_can_reopen_after_dispute_approved` — Post-dispute lifecycle
-- `test_full_dispute_mediation_flow` — Complete mediation flow
+- `test_dispute_submission_via_api` — Files dispute through the REST API
+- `test_dispute_nonexistent_submission_returns_404` — 404 for bad submission IDs
+- `test_dispute_requires_reason` — Validates reason field enforcement
+- `test_bounty_can_reopen_after_dispute_approved` — Post-dispute lifecycle with API calls
+- `test_full_dispute_mediation_flow` — Complete mediation with real API dispute calls
 
 ### 3. Timeout & Auto-Refund (`test_timeout_refund.py`)
 Tests: create bounty -> no submissions -> deadline passes -> auto-refund eligibility.
@@ -77,19 +134,19 @@ Tests: create bounty -> no submissions -> deadline passes -> auto-refund eligibi
 Tests: multiple contributors submit to same bounty -> first to pass wins.
 
 **Key tests:**
-- `test_multiple_contributors_submit_sequentially` — Sequential multi-submit
+- `test_multiple_submissions_sequentially` — Sequential multi-submit
 - `test_first_submission_wins_on_completion` — Winner determination
 - `test_concurrent_submissions_via_async_client` — 10 async concurrent submissions
 - `test_concurrent_duplicate_detection` — Race condition handling
 
 ### 5. Auth Flow (`test_auth_flow.py`)
-Tests: GitHub OAuth -> wallet connect -> link wallet -> create bounty.
+Tests: GitHub OAuth -> wallet connect -> link wallet -> create bounty. All authenticated requests **send auth headers**.
 
 **Key tests:**
 - JWT token lifecycle (create, decode, expiration, type confusion)
-- OAuth state verification (CSRF protection)
+- OAuth state verification (CSRF protection, explicit error handling)
 - Wallet challenge-response (nonce generation, replay prevention)
-- Authenticated bounty creation (auth -> action flow)
+- Authenticated bounty creation (auth headers on every request)
 
 ### 6. WebSocket Events (`test_websocket_events.py`)
 Tests: real-time updates fire for all state transitions.
@@ -122,9 +179,47 @@ Tests: insufficient balance, expired deadline, duplicate submission, invalid wal
 - Invalid contributor operations (duplicate usernames, bad characters)
 - Invalid pagination parameters
 
+## Frontend Playwright Test Categories
+
+### 1. Bounty Lifecycle UI (`bounty-lifecycle.spec.ts`)
+Tests the bounty board page, navigation to detail pages, and create bounty form.
+
+**Key tests:**
+- `bounty board loads and displays heading` — Page renders without errors
+- `bounty board shows bounty cards or empty state` — Content is present
+- `navigation to bounty detail page works` — Click-through navigation
+- `create bounty page is accessible` — Form page loads
+- `home redirects to bounties page` — Route redirect
+- `leaderboard page loads` — Secondary page navigation
+- `tokenomics page loads` — Dashboard page
+
+### 2. Auth Flow UI (`auth-flow.spec.ts`)
+Tests wallet connect button, navigation, and unauthenticated browsing.
+
+**Key tests:**
+- `wallet connect button is visible in header` — Auth UI presence
+- `header shows navigation links` — Nav structure
+- `unauthenticated user can browse bounties` — Public access
+- `dashboard page handles unauthenticated access` — Auth redirect/prompt
+- `wallet connect modal or dropdown appears` — Click interaction
+
+### 3. Dispute Flow UI (`dispute-flow.spec.ts`)
+Tests dispute-related UI elements and bounty detail interactions.
+
+**Key tests:**
+- `bounty detail page loads with submission section` — Detail page content
+- `how-it-works page describes dispute process` — Documentation page
+- `bounty detail shows status information` — Status indicators
+- `back navigation from detail page works` — Navigation flow
+
+### Screenshot Policy
+- Screenshots are captured **on failure** (configured in `playwright.config.ts`).
+- Explicit screenshots are taken at key checkpoints in each test.
+- All screenshots are saved to `frontend/test-results/` and uploaded as CI artifacts.
+
 ## Test Fixtures
 
-### `conftest.py` Fixtures
+### Backend `conftest.py` Fixtures
 
 | Fixture | Scope | Description |
 |---------|-------|-------------|
@@ -133,7 +228,7 @@ Tests: insufficient balance, expired deadline, duplicate submission, invalid wal
 | `client` | function | Synchronous `TestClient` |
 | `async_client` | function | Async `httpx.AsyncClient` for concurrent tests |
 | `authenticated_user_id` | function | Fresh UUID for auth |
-| `auth_headers` | function | `X-User-ID` header dict |
+| `auth_headers` | function | `Authorization: Bearer` header dict |
 | `websocket_manager` | function | Fresh `WebSocketManager` with in-memory pub/sub |
 
 ### Factories (`factories.py`)
@@ -147,10 +242,11 @@ Tests: insufficient balance, expired deadline, duplicate submission, invalid wal
 | `build_payout_create_payload()` | Payout recording JSON |
 | `build_dispute_create_payload()` | Dispute filing JSON |
 | `build_dispute_resolve_payload()` | Dispute resolution JSON |
+| `build_user_id()` | Deterministic counter-based UUID |
 | `build_github_user_data()` | Mock GitHub API response |
 | `future_deadline()` / `past_deadline()` | Timestamp helpers |
 
-All factories use deterministic counters (reset between tests) for reproducibility.
+All factories use deterministic counters (reset between tests) for reproducibility. The `build_user_id()` function generates UUIDs from a counter (`00000000-0000-0000-0000-000000000001`, etc.) to avoid non-determinism.
 
 ## Design Principles
 
@@ -159,28 +255,63 @@ All factories use deterministic counters (reset between tests) for reproducibili
 3. **Fast** — In-memory SQLite, mocked external services, no network calls.
 4. **Independent** — Tests can run in any order.
 5. **Parallelisable** — Markers enable splitting across CI matrix jobs.
+6. **Real API Calls** — Dispute, auth, and lifecycle tests hit real HTTP endpoints (not just payload validation).
+7. **Visual Verification** — Playwright tests capture screenshots for UI regression detection.
 
 ## CI Integration
 
-The E2E suite is designed to run on every PR via GitHub Actions. The workflow file is at `docs/ci-e2e-workflow.yml` — copy it to `.github/workflows/e2e-tests.yml` to activate.
+The E2E suite runs on every PR via GitHub Actions. The workflow file is at `docs/ci-e2e-workflow.yml` — copy it to `.github/workflows/e2e-tests.yml` to activate.
 
-### CI matrix strategy
-Tests are split by marker for parallel execution:
+### CI Matrix Strategy
+
+**Backend tests** are split by marker for parallel execution:
 - `lifecycle`, `dispute`, `timeout`, `concurrent`, `auth`, `websocket`, `load`, `negative`
 
 Each group runs as a separate matrix job, with results aggregated by the `e2e-summary` gate job.
 
-### Test reports
-HTML reports are generated using `pytest-html` and uploaded as GitHub Actions artifacts with 14-day retention.
+**Frontend Playwright tests** run in a single job with Chromium and Firefox browsers.
+
+### Test Reports
+- Backend: HTML reports via `pytest-html`, uploaded as GitHub Actions artifacts (14-day retention).
+- Frontend: Playwright HTML reports with screenshots, uploaded as artifacts (14-day retention).
+
+### Parallelization Strategy
+
+```
+                    CI Pipeline
+                        │
+          ┌─────────────┼───────────────┐
+          │             │               │
+    ┌─────▼─────┐ ┌────▼──────┐ ┌──────▼──────┐
+    │ Backend   │ │ Backend   │ │  Frontend   │
+    │ Matrix    │ │ Full      │ │  Playwright │
+    │ (8 jobs)  │ │ Suite     │ │  (1 job)    │
+    └─────┬─────┘ └────┬──────┘ └──────┬──────┘
+          │            │               │
+          └────────────┼───────────────┘
+                       │
+                ┌──────▼──────┐
+                │  E2E Gate   │
+                │  (pass/fail)│
+                └─────────────┘
+```
 
 ## Adding New Tests
 
-1. Create a new test file in `backend/tests/e2e/` following the naming convention `test_<feature>.py`.
+### Backend
+1. Create a new test file in `backend/tests/e2e/` following `test_<feature>.py`.
 2. Add a marker in `pytest.ini` if creating a new category.
 3. Use factories from `factories.py` for test data.
 4. Use fixtures from `conftest.py` for clients and cleanup.
 5. Add Google-style docstrings to every test class and method.
 6. Update this document with the new test category.
+
+### Frontend (Playwright)
+1. Create a new spec file in `frontend/tests/e2e/` following `<feature>.spec.ts`.
+2. Import `{ test, expect }` from `@playwright/test`.
+3. Capture screenshots at key checkpoints: `await page.screenshot(...)`.
+4. Use `page.waitForLoadState('networkidle')` after navigation.
+5. Update this document with the new test category.
 
 ## PostgreSQL Migration Path
 

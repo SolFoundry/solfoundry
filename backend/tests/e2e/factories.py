@@ -25,6 +25,7 @@ _contributor_counter = itertools.count(1)
 _submission_counter = itertools.count(1)
 _payout_counter = itertools.count(1)
 _user_counter = itertools.count(1)
+_user_id_counter = itertools.count(1)
 
 # A valid Solana base-58 address used as default wallet in tests.
 DEFAULT_WALLET = "97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"
@@ -41,12 +42,13 @@ def reset_counters() -> None:
     so every test begins with a clean sequence.
     """
     global _bounty_counter, _contributor_counter, _submission_counter
-    global _payout_counter, _user_counter
+    global _payout_counter, _user_counter, _user_id_counter
     _bounty_counter = itertools.count(1)
     _contributor_counter = itertools.count(1)
     _submission_counter = itertools.count(1)
     _payout_counter = itertools.count(1)
     _user_counter = itertools.count(1)
+    _user_id_counter = itertools.count(1)
 
 
 # ---------------------------------------------------------------------------
@@ -236,10 +238,14 @@ def build_payout_create_payload(
 def build_user_id() -> str:
     """Generate a deterministic UUID for a test user.
 
+    Uses a counter-based approach to produce reproducible UUIDs across
+    test runs, avoiding the non-determinism of ``uuid.uuid4()``.
+
     Returns:
         A UUID string usable as a user ID in auth headers.
     """
-    return str(uuid.uuid4())
+    sequence_number = next(_user_id_counter)
+    return f"00000000-0000-0000-0000-{sequence_number:012d}"
 
 
 def build_github_user_data(
