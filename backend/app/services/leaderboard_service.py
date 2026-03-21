@@ -14,11 +14,12 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select, func, cast, String
+from sqlalchemy import select, func, cast, String, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
-from app.models.contributor import ContributorTable
+from app.models.contributor import ContributorTable, ReputationHistoryDB
+from app.models.tables import PayoutTable
 from app.models.leaderboard import (
     CategoryFilter,
     LeaderboardEntry,
@@ -31,13 +32,24 @@ from app.models.leaderboard import (
 
 logger = logging.getLogger(__name__)
 
+import redis.asyncio as redis_async
+import os
+import json
+
 # ---------------------------------------------------------------------------
-# TTL-based in-memory cache
+# Redis-based cache
 # ---------------------------------------------------------------------------
 
-_cache: dict[str, tuple[float, LeaderboardResponse]] = {}
-CACHE_TTL = 60  # seconds
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CACHE_TTL = int(os.getenv("LEADERBOARD_CACHE_TTL", "60"))
 
+_redis_client: Optional[redis_async.Redis] = None
+
+def get_redis_client() -> redis_async.Redis:
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = redis_async.from_url(REDIS_URL, decode_responses=True)
+    return _redis_client
 
 def _cache_key(
     period: TimePeriod,
@@ -54,17 +66,27 @@ def _cache_key(
     Returns:
         A colon-separated string uniquely identifying the query.
     """
-    return f"{period.value}:{tier or 'all'}:{category or 'all'}"
+    return f"leaderboard:{period.value}:{tier.value if tier else 'all'}:{category.value if category else 'all'}"
 
 
-def invalidate_cache() -> None:
-    """Clear the entire leaderboard cache.
+async def invalidate_cache() -> None:
+    """Clear the entire leaderboard cache in Redis.
 
     Call after any contributor stat change (reputation update, sync,
     or manual edit) to ensure stale rankings are never served.
     """
-    _cache.clear()
-    logger.debug("Leaderboard cache invalidated")
+    try:
+        r = get_redis_client()
+        cursor = 0
+        while True:
+            cursor, keys = await r.scan(cursor, match="leaderboard:*", count=100)
+            if keys:
+                await r.delete(*keys)
+            if cursor == 0:
+                break
+        logger.debug("Leaderboard Redis cache invalidated")
+    except Exception as e:
+        logger.warning(f"Redis invalidation failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -91,12 +113,19 @@ def _period_cutoff(period: TimePeriod) -> Optional[datetime]:
     return None  # all-time
 
 
-def _to_entry(rank: int, row: ContributorTable) -> LeaderboardEntry:
+def _to_entry(
+    rank: int,
+    row: ContributorTable,
+    period_earnings: Optional[float] = None,
+    period_reputation: Optional[float] = None,
+) -> LeaderboardEntry:
     """Convert a ranked contributor row to a ``LeaderboardEntry``.
 
     Args:
         rank: 1-indexed rank position.
         row: The contributor ORM instance.
+        period_earnings: Earnings for the selected period (if any).
+        period_reputation: Reputation earned in the selected period (if any).
 
     Returns:
         A ``LeaderboardEntry`` Pydantic model.
@@ -106,29 +135,36 @@ def _to_entry(rank: int, row: ContributorTable) -> LeaderboardEntry:
         username=row.username,
         display_name=row.display_name,
         avatar_url=row.avatar_url,
-        total_earned=float(row.total_earnings or 0),
+        total_earned=period_earnings if period_earnings is not None else float(row.total_earnings or 0),
         bounties_completed=row.total_bounties_completed or 0,
-        reputation_score=int(row.reputation_score or 0),
+        reputation_score=int(period_reputation if period_reputation is not None else row.reputation_score or 0),
         top_skills=(row.skills or [])[:3],
     )
 
 
-def _to_top(rank: int, row: ContributorTable) -> TopContributor:
+def _to_top(
+    rank: int,
+    row: ContributorTable,
+    period_earnings: Optional[float] = None,
+    # period_reputation not used in podium yet but available
+) -> TopContributor:
     """Convert a ranked contributor row to a ``TopContributor`` (podium).
 
     Args:
         rank: 1-indexed rank position (expected 1, 2, or 3).
         row: The contributor ORM instance.
+        period_earnings: Earnings for the selected period (if any).
 
     Returns:
         A ``TopContributor`` with medal metadata.
     """
+    earned = period_earnings if period_earnings is not None else float(row.total_earnings or 0)
     return TopContributor(
         rank=rank,
         username=row.username,
         display_name=row.display_name,
         avatar_url=row.avatar_url,
-        total_earned=float(row.total_earnings or 0),
+        total_earned=earned,
         bounties_completed=row.total_bounties_completed or 0,
         reputation_score=int(row.reputation_score or 0),
         top_skills=(row.skills or [])[:3],
@@ -136,7 +172,7 @@ def _to_top(rank: int, row: ContributorTable) -> TopContributor:
             medal=MEDALS.get(rank, ""),
             join_date=row.created_at,
             best_bounty_title=None,
-            best_bounty_earned=float(row.total_earnings or 0),
+            best_bounty_earned=earned,
         ),
     )
 
@@ -151,69 +187,101 @@ async def _query_leaderboard(
     tier: Optional[TierFilter],
     category: Optional[CategoryFilter],
     session: Optional[AsyncSession] = None,
-) -> list[ContributorTable]:
-    """Query the contributors table with filters and return ranked rows.
+) -> list[tuple[ContributorTable, Optional[float], Optional[float]]]:
+    """Query contributors with a mix of all-time and period-specific stats.
 
-    Applies time-period, tier-badge, and skill-category filters, then
-    sorts by earnings descending, reputation descending, username
-    ascending as tiebreaker.
-
-    Args:
-        period: Time period filter.
-        tier: Optional tier filter (matches ``tier-N`` in badges JSON).
-        category: Optional category filter (matches skill in skills JSON).
-        session: Optional externally managed session.
+    If a period (week, month) is specified, joins with PayoutTable and
+    ReputationHistory to compute earnings/reputation earned strictly
+    within that time window. Results are ranked by period stats first.
 
     Returns:
-        A list of ``ContributorTable`` rows sorted by rank.
+        List of (row, period_earnings, period_rep) tuples.
     """
 
-    async def _run(db_session: AsyncSession) -> list[ContributorTable]:
-        """Execute the query inside the given session."""
-        query = select(ContributorTable)
-
+    async def _run(db_session: AsyncSession) -> list[tuple[ContributorTable, Optional[float], Optional[float]]]:
         cutoff = _period_cutoff(period)
-        if cutoff:
-            query = query.where(ContributorTable.created_at >= cutoff)
 
+        if not cutoff:
+            # All-time: Simple query from contributors table
+            query = select(ContributorTable, cast(None, Float), cast(None, Float))
+        else:
+            # Period: Aggregate payouts and reputation history
+            payouts_subquery = (
+                select(
+                    PayoutTable.recipient,
+                    func.sum(PayoutTable.amount).label("p_earnings"),
+                )
+                .where(PayoutTable.created_at >= cutoff)
+                .group_by(PayoutTable.recipient)
+                .subquery()
+            )
+
+            rep_subquery = (
+                select(
+                    ReputationHistoryDB.contributor_id,
+                    func.sum(ReputationHistoryDB.earned_reputation).label("p_rep"),
+                )
+                .where(ReputationHistoryDB.created_at >= cutoff)
+                .group_by(ReputationHistoryDB.contributor_id)
+                .subquery()
+            )
+
+            query = (
+                select(
+                    ContributorTable,
+                    func.coalesce(payouts_subquery.c.p_earnings, 0),
+                    func.coalesce(rep_subquery.c.p_rep, 0),
+                )
+                .outerjoin(
+                    payouts_subquery,
+                    ContributorTable.username == payouts_subquery.c.recipient,
+                )
+                .outerjoin(
+                    rep_subquery,
+                    ContributorTable.id == rep_subquery.c.contributor_id,
+                )
+            )
+
+        # Common filters (tier, category)
         if tier:
             tier_label = f"tier-{tier.value}"
             if db_session.bind and db_session.bind.dialect.name == "postgresql":
-                # Safer check with JSON quotes
+                from sqlalchemy.dialects.postgresql import JSONB
                 query = query.where(
-                    cast(ContributorTable.badges, String).like(
-                        f'%"{tier_label}"%'
-                    )
+                    cast(ContributorTable.badges, JSONB).contains([tier_label])
                 )
             else:
                 query = query.where(
-                    cast(ContributorTable.badges, String).like(
-                        f'%"{tier_label}"%'
-                    )
+                    cast(ContributorTable.badges, String).like(f'%"{tier_label}"%')
                 )
 
         if category:
             if db_session.bind and db_session.bind.dialect.name == "postgresql":
+                from sqlalchemy.dialects.postgresql import JSONB
                 query = query.where(
-                    cast(ContributorTable.skills, String).like(
-                        f'%"{category.value}"%'
-                    )
+                    cast(ContributorTable.skills, JSONB).contains([category.value])
                 )
             else:
                 query = query.where(
-                    cast(ContributorTable.skills, String).like(
-                        f'%"{category.value}"%'
-                    )
+                    cast(ContributorTable.skills, String).like(f'%"{category.value}"%')
                 )
 
-        query = query.order_by(
-            ContributorTable.total_earnings.desc(),
-            ContributorTable.reputation_score.desc(),
-            ContributorTable.username.asc(),
-        )
+        # Ranking: period stats first if period specified, otherwise all-time
+        if cutoff:
+            query = query.order_by(
+                text("p_earnings DESC"),
+                text("p_rep DESC"),
+                ContributorTable.username.asc(),
+            )
+        else:
+            query = query.order_by(
+                ContributorTable.total_earnings.desc(),
+                ContributorTable.reputation_score.desc(),
+                ContributorTable.username.asc(),
+            )
 
         result = await db_session.execute(query)
-        return list(result.scalars().all())
+        return list(result.all())
 
     if session is not None:
         return await _run(session)
@@ -255,13 +323,14 @@ async def get_leaderboard(
     Returns:
         A ``LeaderboardResponse`` with ranked entries and top-3 podium.
     """
-    key = _cache_key(period, tier, category)
-    now = time.time()
+    cache_key = _cache_key(period, tier, category)
+    redis = get_redis_client()
 
     # Check cache
-    if key in _cache:
-        cached_at, cached_response = _cache[key]
-        if now - cached_at < CACHE_TTL:
+    try:
+        cached_data = await redis.get(cache_key)
+        if cached_data:
+            cached_response = LeaderboardResponse.model_validate_json(cached_data)
             paginated = cached_response.entries[offset: offset + limit]
             return LeaderboardResponse(
                 period=cached_response.period,
@@ -271,16 +340,18 @@ async def get_leaderboard(
                 top3=cached_response.top3,
                 entries=paginated,
             )
+    except Exception as e:
+        logger.warning(f"Redis cache read failed: {e}")
 
     # Build fresh from database
     ranked_rows = await _query_leaderboard(
         period, tier, category, session=session
     )
 
-    ranked = [(rank, row) for rank, row in enumerate(ranked_rows, start=1)]
+    ranked = [(rank, row, pe, pr) for rank, (row, pe, pr) in enumerate(ranked_rows, start=1)]
 
-    top3 = [_to_top(rank, row) for rank, row in ranked[:3]]
-    all_entries = [_to_entry(rank, row) for rank, row in ranked]
+    top3 = [_to_top(rank, row, pe) for rank, row, pe, pr in ranked[:3]]
+    all_entries = [_to_entry(rank, row, pe, pr) for rank, row, pe, pr in ranked]
 
     full = LeaderboardResponse(
         period=period.value,
@@ -292,7 +363,11 @@ async def get_leaderboard(
     )
 
     # Store in cache
-    _cache[key] = (now, full)
+    try:
+        redis = get_redis_client()
+        await redis.setex(cache_key, CACHE_TTL, full.model_dump_json())
+    except Exception as e:
+        logger.warning(f"Redis cache write failed: {e}")
 
     # Return paginated slice
     return LeaderboardResponse(

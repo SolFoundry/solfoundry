@@ -209,11 +209,10 @@ async def seed_from_github() -> int:
     Returns:
         The number of contributors seeded.
     """
-    from app.database import init_db
     from app.services import contributor_service
 
-    # Initialize database schema
-    await init_db()
+    # Note: Schema is managed by Alembic. 
+    # Run `alembic upgrade head` before running this script.
 
     # Fetch merged PRs
     prs = await fetch_merged_pull_requests()

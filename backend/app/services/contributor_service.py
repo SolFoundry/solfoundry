@@ -147,6 +147,10 @@ async def create_contributor(
             await auto_session.commit()
             await auto_session.refresh(row)
 
+    # Invalidate leaderboard cache
+    from app.services.leaderboard_service import invalidate_cache
+    await invalidate_cache()
+
     return _row_to_response(row)
 
 
@@ -190,17 +194,12 @@ async def list_contributors(
             base_query = base_query.where(search_filter)
             count_query = count_query.where(search_filter)
 
-        # JSON array containment filters — using `"skill"` to prevent partial word matches
+        # JSON array containment filters
         if skills:
             for skill in skills:
                 if db_session.bind and db_session.bind.dialect.name == "postgresql":
-                    from sqlalchemy import cast
                     from sqlalchemy.dialects.postgresql import JSONB
-                    skill_filter = cast(ContributorTable.skills, JSONB).contained_by(cast([skill], JSONB))
-                    # Actually postgres @> operator is the right one, using cast to string is easier
-                    skill_filter = func.cast(
-                        ContributorTable.skills, String
-                    ).like(f'%"{skill}"%')
+                    skill_filter = func.cast(ContributorTable.skills, JSONB).contains([skill])
                 else:
                     skill_filter = func.cast(
                         ContributorTable.skills, String
@@ -210,9 +209,13 @@ async def list_contributors(
 
         if badges:
             for badge in badges:
-                badge_filter = func.cast(
-                    ContributorTable.badges, String
-                ).like(f'%"{badge}"%')
+                if db_session.bind and db_session.bind.dialect.name == "postgresql":
+                    from sqlalchemy.dialects.postgresql import JSONB
+                    badge_filter = func.cast(ContributorTable.badges, JSONB).contains([badge])
+                else:
+                    badge_filter = func.cast(
+                        ContributorTable.badges, String
+                    ).like(f'%"{badge}"%')
                 base_query = base_query.where(badge_filter)
                 count_query = count_query.where(badge_filter)
 
@@ -347,6 +350,9 @@ async def update_contributor(
     async with async_session_factory() as auto_session:
         resp = await _run(auto_session)
         await auto_session.commit()
+        if resp:
+            from app.services.leaderboard_service import invalidate_cache
+            await invalidate_cache()
         return resp
 
 
@@ -381,6 +387,9 @@ async def delete_contributor(
     async with async_session_factory() as auto_session:
         deleted = await _run(auto_session)
         await auto_session.commit()
+        if deleted:
+            from app.services.leaderboard_service import invalidate_cache
+            await invalidate_cache()
         return deleted
 
 
@@ -458,6 +467,8 @@ async def update_reputation_score(
         async with async_session_factory() as auto_session:
             await _run(auto_session)
             await auto_session.commit()
+            from app.services.leaderboard_service import invalidate_cache
+            await invalidate_cache()
 
 
 async def list_contributor_ids(
@@ -537,6 +548,8 @@ async def upsert_contributor(
     async with async_session_factory() as auto_session:
         result_row = await _run(auto_session)
         await auto_session.commit()
+        from app.services.leaderboard_service import invalidate_cache
+        await invalidate_cache()
         return result_row
 
 

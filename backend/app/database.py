@@ -102,7 +102,7 @@ async def init_db() -> None:
             from app.models.contributor import ContributorTable, ReputationHistoryDB  # noqa: F401
             from app.models.submission import SubmissionDB  # noqa: F401
             from app.models.tables import (  # noqa: F401
-                PayoutTable, BuybackTable, ReputationHistoryTable,
+                PayoutTable, BuybackTable,
                 BountySubmissionTable,
             )
             from app.models.review import AIReviewScoreDB  # noqa: F401

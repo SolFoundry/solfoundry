@@ -81,7 +81,7 @@ def upgrade() -> None:
         sa.Column("total_contributions", sa.Integer(), server_default="0"),
         sa.Column("total_bounties_completed", sa.Integer(), server_default="0"),
         sa.Column("total_earnings", sa.Numeric(precision=20, scale=6), server_default="0"),
-        sa.Column("reputation_score", sa.Integer(), server_default="0"),
+        sa.Column("reputation_score", sa.Float(), server_default="0"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -198,12 +198,11 @@ def upgrade() -> None:
         unique=True,
     )
 
-    # --- reputation_history ---
     op.create_table(
         "reputation_history",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("contributor_id", sa.String(64), nullable=False),
-        sa.Column("bounty_id", sa.String(64), nullable=False),
+        sa.Column("contributor_id", sa.Uuid(), sa.ForeignKey("contributors.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("bounty_id", sa.Uuid(), nullable=False),
         sa.Column("bounty_title", sa.String(200), nullable=False),
         sa.Column("bounty_tier", sa.Integer(), nullable=False),
         sa.Column("review_score", sa.Numeric(precision=5, scale=2), nullable=False),

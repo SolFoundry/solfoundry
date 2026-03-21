@@ -70,39 +70,6 @@ class BuybackTable(Base):
     )
 
 
-class ReputationHistoryTable(Base):
-    """Stores per-bounty reputation events for contributors.
-
-    Each row records the reputation earned (or not) from a single
-    bounty completion. The (contributor_id, bounty_id) pair is unique
-    to prevent duplicate reputation awards.
-    """
-
-    __tablename__ = "reputation_history"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    contributor_id = Column(String(64), nullable=False, index=True)
-    bounty_id = Column(String(64), nullable=False, index=True)
-    bounty_title = Column(String(200), nullable=False)
-    bounty_tier = Column(Integer, nullable=False)
-    review_score = Column(sa.Numeric(precision=5, scale=2), nullable=False)
-    earned_reputation = Column(
-        sa.Numeric(precision=10, scale=2), nullable=False, server_default="0"
-    )
-    anti_farming_applied = Column(
-        sa.Boolean, nullable=False, server_default=sa.false()
-    )
-    created_at = Column(
-        DateTime(timezone=True), nullable=False, default=_now, index=True
-    )
-
-    __table_args__ = (
-        Index(
-            "ix_rep_cid_bid", "contributor_id", "bounty_id", unique=True
-        ),
-    )
-
-
 class BountySubmissionTable(Base):
     """Stores PR submissions for bounties as first-class database rows.
 
