@@ -1,11 +1,65 @@
 """FastAPI application entry point.
 
-This module initializes the FastAPI application with:
-- Structured logging with correlation IDs
-- Global error handling middleware
-- Health check endpoints with dependency status
-- CORS middleware for cross-origin requests
-- API routers for all endpoints
+SolFoundry is the first marketplace where AI agents and human developers
+discover bounties, submit work, get reviewed by multi-LLM pipelines,
+and receive instant on-chain payouts on Solana.
+
+## Key Features
+
+- **Bounty Management**: Create, search, and manage bounties with tiered rewards
+- **Contributor Profiles**: Track reputation, earnings, and completed work
+- **Real-time Notifications**: Stay informed about bounty events
+- **GitHub Integration**: Webhooks for automated bounty creation and PR tracking
+- **On-chain Payouts**: Automatic $FNDRY token rewards to Solana wallets
+- **Structured Logging**: Correlation IDs and separate log streams
+- **Global Error Handling**: Consistent error responses across all endpoints
+
+## Authentication
+
+All authenticated endpoints support two methods:
+
+1. **Bearer Token** (Production): Include `Authorization: Bearer <token>` header
+2. **X-User-ID Header** (Development): Include `X-User-ID: <uuid>` header
+
+## Rate Limits
+
+| Endpoint Group | Rate Limit |
+|----------------|------------|
+| Bounty Search | 100 req/min |
+| Bounty CRUD | 30 req/min |
+| Notifications | 60 req/min |
+| Leaderboard | 100 req/min |
+| Webhooks | Unlimited |
+
+## Error Response Format
+
+All errors follow the ErrorResponse format:
+```json
+{
+  "error": "ERROR_CODE",
+  "message": "Human-readable error message",
+  "correlation_id": "uuid-for-tracing",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "path": "/api/endpoint"
+}
+```
+
+Common error codes:
+- `VALIDATION_ERROR` - Invalid input data (400, 422)
+- `UNAUTHORIZED` - Missing or invalid authentication (401)
+- `FORBIDDEN` - Insufficient permissions (403)
+- `NOT_FOUND` - Resource does not exist (404)
+- `CONFLICT` - Resource already exists (409)
+- `RATE_LIMITED` - Rate limit exceeded (429)
+- `INTERNAL_ERROR` - Server-side error (500)
+- `SERVICE_UNAVAILABLE` - Dependency unavailable (503)
+
+## Response Metadata
+
+All list endpoints include pagination metadata:
+- `total`: Total number of items
+- `skip`: Current offset
+- `limit`: Items per page
 """
 
 import asyncio
@@ -50,6 +104,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown.
 
     Startup:
+    - Set app start time for uptime calculation
     - Initialize database connection and schema
     - Initialize WebSocket manager
     - Sync bounties + contributors from GitHub Issues
@@ -121,14 +176,54 @@ async def lifespan(app: FastAPI):
         logger.info("Database connections closed")
 
 
+# OpenAPI tags metadata
+tags_metadata = [
+    {
+        "name": "bounties",
+        "description": "Bounty management operations. Search, create, and manage bounties with tiered rewards.",
+    },
+    {
+        "name": "contributors",
+        "description": "Contributor profile management. Track reputation, earnings, and skills.",
+    },
+    {
+        "name": "notifications",
+        "description": "Real-time notifications for bounty events. Requires authentication.",
+    },
+    {
+        "name": "leaderboard",
+        "description": "Contributor rankings by $FNDRY earned. Supports time periods and filters.",
+    },
+    {
+        "name": "webhooks",
+        "description": "GitHub webhook integration for automated bounty creation and PR tracking.",
+    },
+    {
+        "name": "health",
+        "description": "Health check endpoints for monitoring and Kubernetes probes.",
+    },
+]
+
+
 # Create FastAPI application
 app = FastAPI(
-    title="SolFoundry Backend",
-    description="Autonomous AI Software Factory on Solana",
-    version="0.1.0",
+    title="SolFoundry API",
+    description=__doc__,
+    version="1.0.0",
     lifespan=lifespan,
+    openapi_tags=tags_metadata,
+    contact={
+        "name": "SolFoundry",
+        "url": "https://solfoundry.org",
+        "email": "support@solfoundry.org",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 # CORS configuration
@@ -350,6 +445,21 @@ app.include_router(websocket_router)
 
 @app.post("/api/sync", tags=["admin"])
 async def trigger_sync():
-    """Manually trigger a GitHub → bounty/leaderboard sync."""
+    """
+    Manually trigger a GitHub → bounty/leaderboard sync.
+
+    ## Use Case
+
+    Force an immediate sync instead of waiting for the periodic sync (every 5 minutes).
+
+    ## Response
+
+    ```json
+    {
+      "bounties": 25,
+      "contributors": 10
+    }
+    ```
+    """
     result = await sync_all()
     return result

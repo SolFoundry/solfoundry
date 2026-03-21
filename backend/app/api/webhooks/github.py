@@ -1,4 +1,50 @@
-"""GitHub webhook receiver endpoint."""
+"""GitHub webhook receiver endpoint.
+
+## Overview
+
+This endpoint receives and processes GitHub webhook events for automated
+bounty management and PR tracking.
+
+## Supported Events
+
+| Event | Description |
+|-------|-------------|
+| pull_request | PR opened, synchronized, closed |
+| issues | Issue opened, labeled, closed |
+| ping | Webhook configuration test |
+
+## Event Processing
+
+### pull_request Events
+
+1. Matches PR to bounty via `Closes #N` in PR body
+2. Updates bounty status based on PR state
+3. Triggers review pipeline when PR is ready
+
+### issues Events
+
+1. Auto-creates bounty when issue gets `bounty` label
+2. Extracts bounty details from issue labels and body
+3. Sets tier, category, and reward based on labels
+
+## Security
+
+All webhooks must include a valid HMAC-SHA256 signature in the
+`X-Hub-Signature-256` header. Webhooks without valid signatures
+are rejected with 401 Unauthorized.
+
+## Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| X-GitHub-Event | Yes | Event type (pull_request, issues, ping) |
+| X-Hub-Signature-256 | Yes | HMAC-SHA256 signature |
+| X-GitHub-Delivery | No | Unique delivery ID for idempotency |
+
+## Rate Limit
+
+No rate limit for webhooks (GitHub controls the rate).
+"""
 
 import json
 import os
@@ -24,7 +70,123 @@ router = APIRouter()
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 
 
-@router.post("/github")
+@router.post(
+    "/github",
+    summary="Receive GitHub webhook",
+    description="""
+Receive and process GitHub webhook events.
+
+## Event Types
+
+### pull_request
+
+Processes pull request events:
+- `opened`: New PR submitted
+- `synchronize`: PR updated with new commits
+- `closed`: PR merged or closed
+
+The PR body is parsed for `Closes #N` to match to bounty issues.
+
+### issues
+
+Processes issue events:
+- `opened` with `bounty` label: Auto-creates bounty
+- `labeled`: Adds/removes bounty labels
+- `closed`: Updates bounty status
+
+### ping
+
+Returns `pong` for webhook configuration testing.
+
+## Signature Verification
+
+All requests must include a valid HMAC-SHA256 signature:
+```
+X-Hub-Signature-256: sha256=<hex_signature>
+```
+
+The signature is computed using the webhook secret configured in GitHub.
+
+## Response Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Event processed successfully |
+| 202 | Event accepted but not handled (unknown event type) |
+| 400 | Invalid JSON payload |
+| 401 | Invalid or missing signature |
+| 503 | Webhook secret not configured |
+
+## Example Payload (pull_request)
+
+```json
+{
+  "action": "opened",
+  "pull_request": {
+    "number": 42,
+    "body": "Closes #123\\n\\nWallet: ABC123..."
+  },
+  "repository": {
+    "full_name": "SolFoundry/solfoundry"
+  },
+  "sender": {
+    "login": "contributor"
+  }
+}
+```
+""",
+    responses={
+        200: {
+            "description": "Event processed successfully",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pull_request": {
+                            "summary": "PR processed",
+                            "value": {"status": "processed", "event": "pull_request", "bounty_id": "550e8400-..."}
+                        },
+                        "ping": {
+                            "summary": "Ping response",
+                            "value": {"msg": "pong"}
+                        }
+                    }
+                }
+            }
+        },
+        202: {
+            "description": "Event accepted but not handled",
+            "content": {
+                "application/json": {
+                    "example": {"status": "accepted", "event": "push", "handled": False}
+                }
+            }
+        },
+        400: {
+            "description": "Invalid JSON payload",
+            "content": {
+                "application/json": {
+                    "example": {"error": "Invalid JSON"}
+                }
+            }
+        },
+        401: {
+            "description": "Invalid signature",
+            "content": {
+                "application/json": {
+                    "example": {"error": "Invalid signature"}
+                }
+            }
+        },
+        503: {
+            "description": "Webhook secret not configured",
+            "content": {
+                "application/json": {
+                    "example": {"error": "Webhook secret not configured"}
+                }
+            }
+        }
+    }
+)
 async def receive_github_webhook(
     request: Request,
     x_github_event: str | None = Header(None, alias="X-GitHub-Event"),

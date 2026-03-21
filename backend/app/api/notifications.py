@@ -1,8 +1,47 @@
 """Notification API endpoints.
 
-This module provides REST endpoints for the notification system.
-All endpoints require authentication to ensure users can only access
-their own notifications.
+## Overview
+
+Notifications keep users informed about bounty-related events. Each notification has:
+- **Type**: Event type (bounty_claimed, pr_submitted, etc.)
+- **Title**: Short title
+- **Message**: Detailed message
+- **Read Status**: Whether the user has read it
+
+## Notification Types
+
+| Type | Description |
+|------|-------------|
+| bounty_claimed | Someone claimed your bounty |
+| pr_submitted | A PR was submitted for your bounty |
+| review_complete | Your PR review is complete |
+| payout_sent | $FNDRY payout was sent to your wallet |
+| bounty_expired | A bounty you're watching expired |
+| rank_changed | Your leaderboard rank changed |
+
+## Authentication Required
+
+All notification endpoints require authentication:
+- Bearer token in `Authorization` header, or
+- `X-User-ID` header (development only)
+
+## Rate Limits
+
+- List notifications: 60 requests/minute
+- Mark as read: 60 requests/minute
+- Create notification: Internal only
+
+## WebSocket Events
+
+Real-time notifications are also available via WebSocket:
+
+```javascript
+const ws = new WebSocket('wss://api.solfoundry.org/ws/notifications');
+ws.onmessage = (event) => {
+  const notification = JSON.parse(event.data);
+  // Handle notification
+};
+```
 """
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
@@ -18,10 +57,64 @@ from app.services.notification_service import NotificationService
 from app.database import get_db
 from app.auth import get_current_user_id, get_authenticated_user, AuthenticatedUser
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
-@router.get("", response_model=NotificationListResponse)
+@router.get(
+    "",
+    response_model=NotificationListResponse,
+    summary="List user notifications",
+    description="""
+Get paginated notifications for the authenticated user.
+
+## Authentication Required
+
+This endpoint requires authentication. Include either:
+- `Authorization: Bearer <token>` header
+- `X-User-ID: <uuid>` header (development only)
+
+## Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| items | array | List of notification objects |
+| total | integer | Total notifications |
+| unread_count | integer | Number of unread notifications |
+| skip | integer | Pagination offset |
+| limit | integer | Results per page |
+
+## Rate Limit
+
+60 requests per minute.
+""",
+    responses={
+        200: {
+            "description": "List of notifications",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "items": [
+                            {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "notification_type": "payout_sent",
+                                "title": "Bounty Payout Received",
+                                "message": "You received 500 $FNDRY for completing 'Implement wallet connection'",
+                                "read": False,
+                                "bounty_id": "660e8400-e29b-41d4-a716-446655440001",
+                                "created_at": "2024-01-15T10:30:00Z"
+                            }
+                        ],
+                        "total": 25,
+                        "unread_count": 3,
+                        "skip": 0,
+                        "limit": 20
+                    }
+                }
+            }
+        },
+        401: {"description": "Unauthorized - missing or invalid authentication"}
+    }
+)
 async def list_notifications(
     unread_only: bool = Query(False, description="Only return unread notifications"),
     skip: int = Query(0, ge=0, description="Pagination offset"),
@@ -32,11 +125,11 @@ async def list_notifications(
     """
     Get paginated notifications for the authenticated user.
 
+    Returns notifications sorted by creation date (newest first).
+
     - **unread_only**: If true, only return unread notifications
     - **skip**: Pagination offset
     - **limit**: Number of results per page
-
-    Returns notifications sorted by creation date (newest first).
 
     **Authentication**: Requires valid Bearer token or X-User-ID header.
     """
@@ -49,7 +142,37 @@ async def list_notifications(
     )
 
 
-@router.get("/unread-count", response_model=UnreadCountResponse)
+@router.get(
+    "/unread-count",
+    response_model=UnreadCountResponse,
+    summary="Get unread notification count",
+    description="""
+Get the number of unread notifications for the authenticated user.
+
+## Authentication Required
+
+This endpoint requires authentication.
+
+## Use Case
+
+Use this endpoint to display a notification badge count in your UI.
+
+## Rate Limit
+
+60 requests per minute.
+""",
+    responses={
+        200: {
+            "description": "Unread count",
+            "content": {
+                "application/json": {
+                    "example": {"unread_count": 5}
+                }
+            }
+        },
+        401: {"description": "Unauthorized"}
+    }
+)
 async def get_unread_count(
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
@@ -65,7 +188,46 @@ async def get_unread_count(
     return await service.get_unread_count(user_id)
 
 
-@router.patch("/{notification_id}/read", response_model=NotificationResponse)
+@router.patch(
+    "/{notification_id}/read",
+    response_model=NotificationResponse,
+    summary="Mark notification as read",
+    description="""
+Mark a specific notification as read.
+
+## Authentication Required
+
+This endpoint requires authentication. Users can only mark their own notifications as read.
+
+## Authorization
+
+Users can only mark notifications that belong to them. Attempting to mark another user's notification will return 404.
+
+## Rate Limit
+
+60 requests per minute.
+""",
+    responses={
+        200: {
+            "description": "Notification marked as read",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "notification_type": "payout_sent",
+                        "title": "Bounty Payout Received",
+                        "message": "You received 500 $FNDRY",
+                        "read": True,
+                        "bounty_id": "660e8400-e29b-41d4-a716-446655440001",
+                        "created_at": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        },
+        401: {"description": "Unauthorized"},
+        404: {"description": "Notification not found"}
+    }
+)
 async def mark_notification_read(
     notification_id: str,
     user: AuthenticatedUser = Depends(get_authenticated_user),
@@ -112,7 +274,36 @@ async def mark_notification_read(
     return NotificationResponse.model_validate(notification)
 
 
-@router.post("/read-all")
+@router.post(
+    "/read-all",
+    summary="Mark all notifications as read",
+    description="""
+Mark all notifications as read for the authenticated user.
+
+## Authentication Required
+
+This endpoint requires authentication.
+
+## Response
+
+Returns the count of notifications marked as read.
+
+## Rate Limit
+
+60 requests per minute.
+""",
+    responses={
+        200: {
+            "description": "All notifications marked as read",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Marked 5 notifications as read", "count": 5}
+                }
+            }
+        },
+        401: {"description": "Unauthorized"}
+    }
+)
 async def mark_all_notifications_read(
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
@@ -130,7 +321,64 @@ async def mark_all_notifications_read(
     return {"message": f"Marked {count} notifications as read", "count": count}
 
 
-@router.post("", response_model=NotificationResponse, status_code=201)
+@router.post(
+    "",
+    response_model=NotificationResponse,
+    status_code=201,
+    summary="Create a notification",
+    description="""
+Create a new notification for a user.
+
+## Internal Use Only
+
+This endpoint is typically called by backend services internally.
+It should be protected by API key or restricted to internal access in production.
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| user_id | string | Yes | User to notify (UUID) |
+| notification_type | string | Yes | Type of notification |
+| title | string | Yes | Short title (max 255 chars) |
+| message | string | Yes | Detailed message |
+| bounty_id | string | No | Related bounty ID |
+| metadata | object | No | Additional context |
+
+## Notification Types
+
+- `bounty_claimed`: Someone claimed a bounty
+- `pr_submitted`: PR submitted for bounty
+- `review_complete`: Review finished
+- `payout_sent`: $FNDRY payout sent
+- `bounty_expired`: Bounty expired
+- `rank_changed`: Leaderboard rank changed
+
+## Rate Limit
+
+This endpoint has special rate limiting for internal services.
+""",
+    responses={
+        201: {
+            "description": "Notification created",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "user_id": "660e8400-e29b-41d4-a716-446655440001",
+                        "notification_type": "payout_sent",
+                        "title": "Bounty Payout",
+                        "message": "You received 500 $FNDRY",
+                        "read": False,
+                        "bounty_id": "770e8400-e29b-41d4-a716-446655440002",
+                        "created_at": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        },
+        400: {"description": "Invalid notification data"}
+    }
+)
 async def create_notification(
     notification: NotificationCreate,
     db: AsyncSession = Depends(get_db),

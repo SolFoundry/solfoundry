@@ -1,4 +1,70 @@
-"""Leaderboard API endpoints."""
+"""Leaderboard API endpoints.
+
+## Overview
+
+The leaderboard ranks contributors by $FNDRY earned. Features:
+- **Time Periods**: Week, month, or all-time
+- **Filters**: By tier, category
+- **Top 3**: Extra metadata including medal, join date, best bounty
+
+## Time Periods
+
+| Period | Description |
+|--------|-------------|
+| week | Last 7 days |
+| month | Last 30 days |
+| all | All time (default) |
+
+## Tier Filters
+
+| Filter | Description |
+|--------|-------------|
+| 1 | Tier 1 bounties only |
+| 2 | Tier 2 bounties only |
+| 3 | Tier 3 bounties only |
+
+## Category Filters
+
+| Filter | Description |
+|--------|-------------|
+| frontend | Frontend work |
+| backend | Backend work |
+| security | Security work |
+| docs | Documentation |
+| devops | DevOps/Infrastructure |
+
+## Response Fields
+
+### Leaderboard Entry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| rank | integer | Position on leaderboard |
+| username | string | GitHub username |
+| display_name | string | Display name |
+| avatar_url | string | Profile picture URL |
+| total_earned | float | Total $FNDRY earned |
+| bounties_completed | integer | Number of bounties |
+| reputation_score | integer | Reputation points |
+| wallet_address | string | Solana wallet address |
+
+### Top 3 Metadata (for podium)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| medal | string | Medal emoji (🥇🥈🥉) |
+| join_date | datetime | When they joined |
+| best_bounty_title | string | Highest earning bounty |
+| best_bounty_earned | float | Amount earned from best bounty |
+
+## Caching
+
+Results are cached for 60 seconds for performance.
+
+## Rate Limit
+
+100 requests per minute.
+"""
 
 from typing import Optional
 
@@ -25,7 +91,45 @@ _RANGE_MAP = {
 }
 
 
-@router.get("/leaderboard")
+@router.get(
+    "/leaderboard",
+    summary="Get contributor leaderboard",
+    description="""
+Ranked list of contributors by $FNDRY earned.
+
+## Features
+
+- **Time Periods**: Filter by week, month, or all-time
+- **Frontend Range**: Also supports `range` param (7d, 30d, 90d, all)
+- **Tier Filter**: Show only specific bounty tier earnings
+- **Category Filter**: Show only specific category earnings
+- **Top 3 Podium**: Extra metadata for top performers
+
+## Example Requests
+
+```
+GET /api/leaderboard?period=week
+GET /api/leaderboard?range=7d
+GET /api/leaderboard?period=month&tier=1
+GET /api/leaderboard?category=frontend&limit=50
+```
+
+## Response Structure
+
+Returns array of contributors in frontend-friendly camelCase format:
+- `rank`, `username`, `avatarUrl`
+- `points`, `bountiesCompleted`, `earningsFndry`
+- `streak`, `topSkills`
+
+## Caching
+
+Results are cached for 60 seconds.
+
+## Rate Limit
+
+100 requests per minute.
+""",
+)
 async def leaderboard(
     period: Optional[TimePeriod] = Query(
         None, description="Time period: week, month, or all"
@@ -38,7 +142,8 @@ async def leaderboard(
     limit: int = Query(50, ge=1, le=100, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
 ):
-    """Ranked list of contributors by $FNDRY earned.
+    """
+    Ranked list of contributors by $FNDRY earned.
 
     Supports both backend format (?period=all) and frontend format (?range=all).
     Returns array of contributors in frontend-friendly camelCase format.
