@@ -117,6 +117,10 @@ async def _load_all_bounties_from_db(
 ) -> Optional[list[BountyDB]]:
     """Load all bounties from PostgreSQL with their submissions.
 
+    Note: submissions are loaded per-bounty (N+1 pattern). For large
+    datasets, this should be replaced with a joined eager-load query.
+    Acceptable for the MVP where bounty count is in the low hundreds.
+
     Returns None on DB failure so callers can fall back to the cache.
 
     Args:
