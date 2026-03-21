@@ -54,7 +54,7 @@ class ReputationHistoryEntry(BaseModel):
     bounty_title: str
     bounty_tier: int = Field(..., ge=1, le=3)
     review_score: float = Field(..., ge=0.0, le=10.0)
-    earned_reputation: float
+    earned_reputation: float = Field(..., ge=0)
     anti_farming_applied: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     model_config = {"from_attributes": True}

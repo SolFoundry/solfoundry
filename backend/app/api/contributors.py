@@ -1,7 +1,8 @@
 """Contributor profiles and reputation API router."""
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from app.auth import get_current_user_id
 from app.models.contributor import (
     ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate,
 )
@@ -86,10 +87,35 @@ async def get_contributor_reputation_history(contributor_id: str):
 
 
 @router.post("/{contributor_id}/reputation", response_model=ReputationHistoryEntry, status_code=201)
-async def record_contributor_reputation(contributor_id: str, data: ReputationRecordCreate):
-    """Record reputation earned from a completed bounty."""
+async def record_contributor_reputation(
+    contributor_id: str,
+    data: ReputationRecordCreate,
+    caller_id: str = Depends(get_current_user_id),
+):
+    """Record reputation earned from a completed bounty.
+
+    Requires authentication. The caller must be the contributor themselves
+    or the internal system user (all-zeros UUID used by automated pipelines).
+
+    Args:
+        contributor_id: Path parameter — the contributor receiving reputation.
+        data: Reputation record payload.
+        caller_id: Authenticated user ID injected by the auth dependency.
+
+    Raises:
+        HTTPException 400: Path/body contributor_id mismatch.
+        HTTPException 401: Missing credentials (from auth dependency).
+        HTTPException 403: Caller is not authorized to record for this contributor.
+        HTTPException 404: Contributor not found.
+    """
     if data.contributor_id != contributor_id:
         raise HTTPException(status_code=400, detail="contributor_id in path must match body")
+
+    # Allow internal system user (automated review pipeline) or the contributor themselves
+    internal_system_user = "00000000-0000-0000-0000-000000000001"
+    if caller_id != contributor_id and caller_id != internal_system_user:
+        raise HTTPException(status_code=403, detail="Not authorized to record reputation for this contributor")
+
     try:
         return reputation_service.record_reputation(data)
     except ValueError as error:

@@ -150,7 +150,7 @@ def test_missing_record_raises():
 def test_cumulative():
     c = _mc()
     _rec(c.id, "b-1", 1, 8.0)
-    _rec(c.id, "b-2", 2, 9.0)
+    _rec(c.id, "b-2", 1, 9.0)
     assert len(reputation_service.get_reputation(c.id).history) == 2
 
 def test_avg_score():
@@ -172,6 +172,9 @@ def test_empty_history():
 def test_leaderboard_sorted():
     a, b = _mc("alice"), _mc("bob")
     _rec(a.id, "b-1", score=7.0)
+    # Bob needs 4 T1 completions to unlock T2
+    for i in range(4):
+        _rec(b.id, f"t1-{i}", tier=1, score=8.0)
     _rec(b.id, "b-2", tier=2, score=10.0)
     lb = reputation_service.get_reputation_leaderboard()
     assert lb[0].reputation_score >= lb[1].reputation_score
@@ -245,3 +248,59 @@ def test_api_get_still_works():
 def test_api_list_still_works():
     _mc()
     assert client.get("/api/contributors").json()["total"] >= 1
+
+# ── Fix validations ───────────────────────────────────────────────────────
+
+def test_idempotent_duplicate_bounty():
+    """Fix 4: duplicate bounty_id for same contributor returns existing entry."""
+    c = _mc()
+    first = _rec(c.id, "dup-1", 1, 8.0)
+    second = _rec(c.id, "dup-1", 1, 9.0)
+    assert first.entry_id == second.entry_id
+    assert len(reputation_service._reputation_store[c.id]) == 1
+
+def test_tier_enforcement_blocks_t2():
+    """Fix 5: T2 bounty rejected when contributor only has T1 access."""
+    c = _mc()
+    with pytest.raises(ValueError, match="not unlocked tier T2"):
+        _rec(c.id, "bad-t2", tier=2, score=9.0)
+
+def test_tier_enforcement_allows_after_progression():
+    """Fix 5: T2 bounty accepted after 4 T1 completions."""
+    c = _mc()
+    for i in range(4):
+        _rec(c.id, f"t1-{i}", tier=1, score=8.0)
+    entry = _rec(c.id, "t2-ok", tier=2, score=9.0)
+    assert entry.bounty_tier == 2
+
+def test_score_precision_consistent():
+    """Fix 6: reputation_score uses float precision, not int rounding."""
+    c = _mc()
+    _rec(c.id, "b-prec", 1, 8.5)
+    contrib = contributor_service._store[c.id]
+    summary = reputation_service.get_reputation(c.id)
+    assert contrib.reputation_score == summary.reputation_score
+
+def test_negative_earned_reputation_rejected():
+    """Fix 2: earned_reputation field rejects negative values."""
+    from app.models.reputation import ReputationHistoryEntry
+    with pytest.raises(Exception):
+        ReputationHistoryEntry(
+            entry_id="x", contributor_id="x", bounty_id="x",
+            bounty_title="x", bounty_tier=1, review_score=5.0,
+            earned_reputation=-1.0,
+        )
+
+def test_api_record_requires_auth():
+    """Fix 1: POST reputation returns 403 when caller is not authorized."""
+    c = _mc()
+    # With X-User-ID set to a non-matching, non-system user
+    r = client.post(
+        f"/api/contributors/{c.id}/reputation",
+        json={
+            "contributor_id": c.id, "bounty_id": "auth-test",
+            "bounty_title": "Fix", "bounty_tier": 1, "review_score": 8.5,
+        },
+        headers={"X-User-ID": "11111111-1111-1111-1111-111111111111"},
+    )
+    assert r.status_code == 403

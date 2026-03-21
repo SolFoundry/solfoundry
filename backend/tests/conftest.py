@@ -8,6 +8,7 @@ import pytest
 # This must be done before any app imports
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
+os.environ["AUTH_ENABLED"] = "false"
 
 # Configure asyncio mode for pytest
 pytest_plugins = ("pytest_asyncio",)

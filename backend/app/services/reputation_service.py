@@ -5,6 +5,7 @@ progression, anti-farming, score history, and badges. In-memory MVP.
 PostgreSQL migration path: reputation_history table on contributor_id.
 """
 
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -24,6 +25,7 @@ from app.models.reputation import (
 from app.services.contributor_service import _store as _contributor_store
 
 _reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
+_reputation_lock = threading.Lock()
 
 
 def calculate_earned_reputation(
@@ -99,37 +101,65 @@ def is_veteran(history: list[ReputationHistoryEntry]) -> bool:
     return sum(1 for e in history if e.bounty_tier == 1) >= ANTI_FARMING_THRESHOLD
 
 
+def _allowed_tier_for_contributor(history: list[ReputationHistoryEntry]) -> int:
+    """Return the highest bounty tier a contributor is allowed to submit."""
+    tier_counts = count_tier_completions(history)
+    current = determine_current_tier(tier_counts)
+    return {"T1": 1, "T2": 2, "T3": 3}[current.value]
+
+
 def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEntry:
-    """Record reputation earned from a completed bounty."""
+    """Record reputation earned from a completed bounty.
+
+    Thread-safe. Rejects duplicates (same contributor_id + bounty_id) by
+    returning the existing entry. Validates that the contributor has
+    unlocked the requested bounty tier before recording.
+    """
     contributor = _contributor_store.get(data.contributor_id)
     if contributor is None:
         raise ValueError(f"Contributor '{data.contributor_id}' not found")
 
-    history = _reputation_store.get(data.contributor_id, [])
-    anti_farming = is_veteran(history) and data.bounty_tier == 1
+    with _reputation_lock:
+        history = _reputation_store.get(data.contributor_id, [])
 
-    earned = calculate_earned_reputation(
-        review_score=data.review_score,
-        bounty_tier=data.bounty_tier,
-        is_veteran_on_tier1=anti_farming,
-    )
+        # Fix 4: idempotency — return existing entry on duplicate bounty_id
+        for existing in history:
+            if existing.bounty_id == data.bounty_id:
+                return existing
 
-    entry = ReputationHistoryEntry(
-        entry_id=str(uuid.uuid4()),
-        contributor_id=data.contributor_id,
-        bounty_id=data.bounty_id,
-        bounty_title=data.bounty_title,
-        bounty_tier=data.bounty_tier,
-        review_score=data.review_score,
-        earned_reputation=earned,
-        anti_farming_applied=anti_farming,
-        created_at=datetime.now(timezone.utc),
-    )
+        # Fix 5: tier enforcement — contributor must have unlocked the tier
+        allowed_tier = _allowed_tier_for_contributor(history)
+        if data.bounty_tier > allowed_tier:
+            raise ValueError(
+                f"Contributor has not unlocked tier T{data.bounty_tier}; "
+                f"current maximum allowed tier is T{allowed_tier}"
+            )
 
-    _reputation_store.setdefault(data.contributor_id, []).append(entry)
+        anti_farming = is_veteran(history) and data.bounty_tier == 1
 
-    total = sum(r.earned_reputation for r in _reputation_store[data.contributor_id])
-    contributor.reputation_score = int(round(total))
+        earned = calculate_earned_reputation(
+            review_score=data.review_score,
+            bounty_tier=data.bounty_tier,
+            is_veteran_on_tier1=anti_farming,
+        )
+
+        entry = ReputationHistoryEntry(
+            entry_id=str(uuid.uuid4()),
+            contributor_id=data.contributor_id,
+            bounty_id=data.bounty_id,
+            bounty_title=data.bounty_title,
+            bounty_tier=data.bounty_tier,
+            review_score=data.review_score,
+            earned_reputation=earned,
+            anti_farming_applied=anti_farming,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        _reputation_store.setdefault(data.contributor_id, []).append(entry)
+
+        # Fix 6: consistent precision — use round(total, 2) everywhere
+        total = sum(r.earned_reputation for r in _reputation_store[data.contributor_id])
+        contributor.reputation_score = round(total, 2)
 
     return entry
 
