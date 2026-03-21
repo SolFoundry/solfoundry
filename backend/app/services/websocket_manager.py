@@ -30,16 +30,10 @@ EVENT_BUFFER_SIZE = int(os.getenv("WS_EVENT_BUFFER_SIZE", "200"))
 
 
 class PubSubAdapter(Protocol):
-        """The publish function."""
-    """The PubSubAdapter class."""
     async def publish(self, channel: str, message: str) -> None: ...
-        """The subscribe function."""
     async def subscribe(self, channel: str) -> None: ...
-        """The unsubscribe function."""
     async def unsubscribe(self, channel: str) -> None: ...
-        """The listen function."""
     async def listen(self) -> None: ...
-        """The close function."""
     async def close(self) -> None: ...
 
 
@@ -47,7 +41,6 @@ class RedisPubSubAdapter:
     """Redis-backed pub/sub for horizontal scaling (default)."""
 
     def __init__(self, redis_url: str, manager: "WebSocketManager") -> None:
-        """The __init__ function."""
         self._redis_url = redis_url
         self._manager = manager
         self._redis = None
@@ -56,7 +49,6 @@ class RedisPubSubAdapter:
         self._listener_task: Optional[asyncio.Task] = None
 
     async def _connect(self):
-        """The _connect function."""
         if self._redis is not None:
             return
         try:
@@ -69,13 +61,11 @@ class RedisPubSubAdapter:
         self._pubsub = self._redis.pubsub()
 
     async def publish(self, channel: str, message: str) -> None:
-        """The publish function."""
         await self._connect()
         assert self._redis is not None
         await self._redis.publish(channel, message)
 
     async def subscribe(self, channel: str) -> None:
-        """The subscribe function."""
         await self._connect()
         assert self._pubsub is not None
         await self._pubsub.subscribe(channel)
@@ -84,13 +74,11 @@ class RedisPubSubAdapter:
             self._listener_task = asyncio.create_task(self.listen())
 
     async def unsubscribe(self, channel: str) -> None:
-        """The unsubscribe function."""
         if self._pubsub and channel in self._channels:
             await self._pubsub.unsubscribe(channel)
             self._channels.discard(channel)
 
     async def listen(self) -> None:
-        """The listen function."""
         assert self._pubsub is not None
         try:
             async for raw in self._pubsub.listen():
@@ -102,7 +90,6 @@ class RedisPubSubAdapter:
             logger.exception("Redis listener error")
 
     async def close(self) -> None:
-        """The close function."""
         if self._listener_task:
             self._listener_task.cancel()
         if self._pubsub:
@@ -116,39 +103,31 @@ class InMemoryPubSubAdapter:
     """In-memory fan-out fallback for single-process dev environments."""
 
     def __init__(self, manager: "WebSocketManager") -> None:
-        """The __init__ function."""
         self._manager = manager
 
     async def publish(self, channel: str, message: str) -> None:
-        """The publish function."""
         await self._manager.dispatch_local(channel, message)
 
     async def subscribe(self, channel: str) -> None:
-        """The subscribe function."""
         pass
 
     async def unsubscribe(self, channel: str) -> None:
-        """The unsubscribe function."""
         pass
 
     async def listen(self) -> None:
-        """The listen function."""
         pass
 
     async def close(self) -> None:
-        """The close function."""
         pass
 
 
 @dataclass
 class _RateBucket:
-    """The _RateBucket class."""
     timestamps: list = field(default_factory=list)
 
 
 @dataclass
 class _Connection:
-    """The _Connection class."""
     ws: WebSocket
     user_id: str
     channels: Set[str] = field(default_factory=set)
@@ -158,7 +137,6 @@ class WebSocketManager:
     """Coordinates WS connections with auth, heartbeat, rate-limit, pub/sub."""
 
     def __init__(self, adapter: Optional[PubSubAdapter] = None) -> None:
-        """The __init__ function."""
         self._connections: Dict[str, _Connection] = {}
         self._subscriptions: Dict[str, Set[str]] = {}
         self._rate_buckets: Dict[str, _RateBucket] = {}
@@ -183,7 +161,6 @@ class WebSocketManager:
             self._adapter = InMemoryPubSubAdapter(self)
 
     async def shutdown(self) -> None:
-        """The shutdown function."""
         for conn in list(self._connections.values()):
             try:
                 await conn.ws.close(code=1001)
@@ -224,7 +201,6 @@ class WebSocketManager:
     # -- rate limiting --
 
     def _check_rate_limit(self, user_id: str) -> bool:
-        """The _check_rate_limit function."""
         now = time.monotonic()
         bucket = self._rate_buckets.setdefault(user_id, _RateBucket())
         bucket.timestamps = [
@@ -277,7 +253,6 @@ class WebSocketManager:
         return connection_id
 
     async def disconnect(self, connection_id: str) -> None:
-        """The disconnect function."""
         conn = self._connections.pop(connection_id, None)
         if conn is None:
             return
@@ -311,7 +286,6 @@ class WebSocketManager:
         return True
 
     async def unsubscribe(self, connection_id: str, channel: str) -> None:
-        """The unsubscribe function."""
         conn = self._connections.get(connection_id)
         if conn is None:
             return
@@ -354,7 +328,6 @@ class WebSocketManager:
             return 0
 
         async def _send(cid: str) -> bool:
-            """The _send function."""
             conn = self._connections.get(cid)
             if conn is None:
                 return False

@@ -12,7 +12,6 @@ from app.database import Base, GUID
 
 
 class DisputeStatus(str, Enum):
-    """The DisputeStatus class."""
     PENDING = "pending"
     UNDER_REVIEW = "under_review"
     RESOLVED = "resolved"
@@ -20,14 +19,12 @@ class DisputeStatus(str, Enum):
 
 
 class DisputeOutcome(str, Enum):
-    """The DisputeOutcome class."""
     APPROVED = "approved"
     REJECTED = "rejected"
     CANCELLED = "cancelled"
 
 
 class DisputeReason(str, Enum):
-    """The DisputeReason class."""
     INCORRECT_REVIEW = "incorrect_review"
     PLAGIARISM = "plagiarism"
     RULE_VIOLATION = "rule_violation"
@@ -37,7 +34,6 @@ class DisputeReason(str, Enum):
 
 
 class DisputeDB(Base):
-    """The DisputeDB class."""
     __tablename__ = "disputes"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -70,7 +66,6 @@ class DisputeDB(Base):
 
 
 class DisputeHistoryDB(Base):
-    """The DisputeHistoryDB class."""
     __tablename__ = "dispute_history"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
@@ -90,14 +85,12 @@ class DisputeHistoryDB(Base):
 
 
 class EvidenceItem(BaseModel):
-    """The EvidenceItem class."""
     type: str
     url: Optional[str] = None
     description: str = Field(..., min_length=1, max_length=500)
 
 
 class DisputeBase(BaseModel):
-    """The DisputeBase class."""
     reason: str
     description: str = Field(..., min_length=10, max_length=5000)
     evidence_links: List[EvidenceItem] = Field(default_factory=list)
@@ -105,7 +98,6 @@ class DisputeBase(BaseModel):
     @field_validator("reason")
     @classmethod
     def validate_reason(cls, v):
-        """The validate_reason function."""
         valid_reasons = {r.value for r in DisputeReason}
         if v not in valid_reasons:
             raise ValueError(f"Invalid reason: {v}")
@@ -113,26 +105,22 @@ class DisputeBase(BaseModel):
 
 
 class DisputeCreate(DisputeBase):
-    """The DisputeCreate class."""
     bounty_id: str = Field(..., description="ID of the bounty being disputed")
 
     @field_validator("bounty_id")
     @classmethod
     def validate_bounty_id(cls, v):
-        """The validate_bounty_id function."""
         if isinstance(v, str):
             return v
         return str(v)
 
 
 class DisputeUpdate(BaseModel):
-    """The DisputeUpdate class."""
     description: Optional[str] = Field(None, min_length=10, max_length=5000)
     evidence_links: Optional[List[EvidenceItem]] = None
 
 
 class DisputeResolve(BaseModel):
-    """The DisputeResolve class."""
     outcome: str
     review_notes: str = Field(..., min_length=1, max_length=5000)
     resolution_action: Optional[str] = Field(None, max_length=2000)
@@ -140,7 +128,6 @@ class DisputeResolve(BaseModel):
     @field_validator("outcome")
     @classmethod
     def validate_outcome(cls, v):
-        """The validate_outcome function."""
         valid_outcomes = {o.value for o in DisputeOutcome}
         if v not in valid_outcomes:
             raise ValueError(f"Invalid outcome: {v}")
@@ -148,7 +135,6 @@ class DisputeResolve(BaseModel):
 
 
 class DisputeResponse(DisputeBase):
-    """The DisputeResponse class."""
     id: str
     bounty_id: str
     submitter_id: str
@@ -164,7 +150,6 @@ class DisputeResponse(DisputeBase):
 
 
 class DisputeListItem(BaseModel):
-    """The DisputeListItem class."""
     id: str
     bounty_id: str
     submitter_id: str
@@ -177,7 +162,6 @@ class DisputeListItem(BaseModel):
 
 
 class DisputeListResponse(BaseModel):
-    """The DisputeListResponse class."""
     items: List[DisputeListItem]
     total: int
     skip: int
@@ -185,7 +169,6 @@ class DisputeListResponse(BaseModel):
 
 
 class DisputeHistoryItem(BaseModel):
-    """The DisputeHistoryItem class."""
     id: str
     dispute_id: str
     action: str
@@ -198,12 +181,10 @@ class DisputeHistoryItem(BaseModel):
 
 
 class DisputeDetailResponse(DisputeResponse):
-    """The DisputeDetailResponse class."""
     history: List[DisputeHistoryItem] = []
 
 
 class DisputeStats(BaseModel):
-    """The DisputeStats class."""
     total_disputes: int = 0
     pending_disputes: int = 0
     resolved_disputes: int = 0

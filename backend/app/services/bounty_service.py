@@ -37,7 +37,6 @@ _bounty_store: dict[str, BountyDB] = {}
 
 
 def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
-    """The _to_submission_response function."""
     return SubmissionResponse(
         id=s.id,
         bounty_id=s.bounty_id,
@@ -51,7 +50,6 @@ def _to_submission_response(s: SubmissionRecord) -> SubmissionResponse:
 
 
 def _to_bounty_response(b: BountyDB) -> BountyResponse:
-    """The _to_bounty_response function."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyResponse(
         id=b.id,
@@ -72,7 +70,6 @@ def _to_bounty_response(b: BountyDB) -> BountyResponse:
 
 
 def _to_list_item(b: BountyDB) -> BountyListItem:
-    """The _to_list_item function."""
     subs = [_to_submission_response(s) for s in b.submissions]
     return BountyListItem(
         id=b.id,
