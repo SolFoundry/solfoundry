@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -277,41 +278,10 @@ app.include_router(agents_router, prefix="/api")
 app.include_router(escrow_router, prefix="/api")
 
 # Stats: /api/stats (public endpoint)
-app.include_router(stats_router)
+app.include_router(stats_router, prefix="/api")
 
-
-@app.get("/health")
-async def health_check():
-    """Return application health status including database connectivity.
-
-    Checks the database connection via a lightweight SELECT query and
-    reports bounty/contributor counts from PostgreSQL when available.
-    """
-    from app.services.github_sync import get_last_sync
-    from app.services.pg_store import count_bounties, count_contributors
-    from sqlalchemy import text
-
-    db_status = "ok"
-    bounty_count = 0
-    contributor_count = 0
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        bounty_count = await count_bounties()
-        contributor_count = await count_contributors()
-    except Exception as e:
-        logger.error("Health check DB failure: %s", e)
-        db_status = "error"
-
-    last_sync = get_last_sync()
-    return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
-        "bounties": bounty_count,
-        "contributors": contributor_count,
-        "last_sync": last_sync.isoformat() if last_sync else None,
-        "version": "0.1.0",
-    }
+# System Health: /health
+app.include_router(health_router)
 
 
 @app.post("/api/sync", tags=["admin"])

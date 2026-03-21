@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency:
       group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - name: Checkout base repo (safe — never runs PR code)
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install openai requests base58
+        run: pip install openai anthropic requests base58
 
       - name: Fetch review engine (private)
         env:
@@ -495,6 +495,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
