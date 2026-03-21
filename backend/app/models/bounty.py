@@ -29,6 +29,7 @@ class BountyTier(int, Enum):
 class BountyStatus(str, Enum):
     """Lifecycle status of a bounty."""
 
+    DRAFT = "draft"
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     UNDER_REVIEW = "under_review"
@@ -39,6 +40,7 @@ class BountyStatus(str, Enum):
 
 
 VALID_STATUS_TRANSITIONS: dict[BountyStatus, set[BountyStatus]] = {
+    BountyStatus.DRAFT: {BountyStatus.OPEN, BountyStatus.CANCELLED},
     BountyStatus.OPEN: {BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED},
     BountyStatus.IN_PROGRESS: {BountyStatus.COMPLETED, BountyStatus.OPEN, BountyStatus.UNDER_REVIEW, BountyStatus.CANCELLED},
     BountyStatus.UNDER_REVIEW: {BountyStatus.COMPLETED, BountyStatus.IN_PROGRESS, BountyStatus.DISPUTED, BountyStatus.CANCELLED},
@@ -94,9 +96,21 @@ class SubmissionRecord(BaseModel):
     bounty_id: str
     pr_url: str
     submitted_by: str
+    contributor_wallet: Optional[str] = None
     notes: Optional[str] = None
     status: SubmissionStatus = SubmissionStatus.PENDING
     ai_score: float = 0.0
+    ai_scores_by_model: dict[str, float] = Field(default_factory=dict)
+    review_complete: bool = False
+    meets_threshold: bool = False
+    auto_approve_eligible: bool = False
+    auto_approve_after: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    payout_tx_hash: Optional[str] = None
+    payout_amount: Optional[float] = None
+    payout_at: Optional[datetime] = None
+    winner: bool = False
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -105,6 +119,7 @@ class SubmissionCreate(BaseModel):
 
     pr_url: str = Field(..., min_length=1)
     submitted_by: str = Field("system", min_length=1, max_length=100)
+    contributor_wallet: Optional[str] = Field(None, min_length=32, max_length=64)
     notes: Optional[str] = Field(None, max_length=1000)
 
     @field_validator("pr_url")
@@ -122,9 +137,21 @@ class SubmissionResponse(BaseModel):
     bounty_id: str
     pr_url: str
     submitted_by: str
+    contributor_wallet: Optional[str] = None
     notes: Optional[str] = None
     status: SubmissionStatus = SubmissionStatus.PENDING
     ai_score: float = 0.0
+    ai_scores_by_model: dict[str, float] = Field(default_factory=dict)
+    review_complete: bool = False
+    meets_threshold: bool = False
+    auto_approve_eligible: bool = False
+    auto_approve_after: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    payout_tx_hash: Optional[str] = None
+    payout_amount: Optional[float] = None
+    payout_at: Optional[datetime] = None
+    winner: bool = False
     submitted_at: datetime
 
 
@@ -266,6 +293,14 @@ class BountyDB(BaseModel):
     deadline: Optional[datetime] = None
     created_by: str = "system"
     submissions: list[SubmissionRecord] = Field(default_factory=list)
+    winner_submission_id: Optional[str] = None
+    winner_wallet: Optional[str] = None
+    payout_tx_hash: Optional[str] = None
+    payout_at: Optional[datetime] = None
+    # Claim fields (T2/T3)
+    claimed_by: Optional[str] = None
+    claimed_at: Optional[datetime] = None
+    claim_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -279,6 +314,14 @@ class BountyResponse(BountyBase):
     updated_at: datetime = Field(..., description="Timestamp of the last update")
     github_issue_number: Optional[int] = Field(None, description="The GitHub issue number", examples=[123])
     github_repo: Optional[str] = Field(None, description="The full repository name (org/repo)", examples=["codebestia/solfoundry"])
+    winner_submission_id: Optional[str] = Field(None, description="ID of the winning submission")
+    winner_wallet: Optional[str] = Field(None, description="Wallet address of the winner")
+    payout_tx_hash: Optional[str] = Field(None, description="Solana transaction hash for the payout")
+    payout_at: Optional[datetime] = Field(None, description="When the payout was made")
+    # Claim fields
+    claimed_by: Optional[str] = Field(None, description="Who claimed this bounty (T2/T3)")
+    claimed_at: Optional[datetime] = Field(None, description="When the bounty was claimed")
+    claim_deadline: Optional[datetime] = Field(None, description="Deadline for the claim")
 
     model_config = {"from_attributes": True}
     submissions: list[SubmissionResponse] = Field(default_factory=list)
