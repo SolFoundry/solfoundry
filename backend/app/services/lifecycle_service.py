@@ -1,22 +1,12 @@
 """Bounty lifecycle state machine and claim management (Issue #164).
 
-State machine: draft -> open -> claimed -> in_review -> completed -> paid.
-T1 bounties use open-race mode (no claim step); T2/T3 require claim with
-a deadline enforced by ``enforce_deadlines``.
-
-PostgreSQL migration path
--------------------------
-Replace in-memory stores with async SQLAlchemy repositories:
-- ``_bounty_store`` -> ``bounties`` table (already modelled in BountyDB).
-- ``_audit_log`` -> ``lifecycle_audit_log`` table:
-    id UUID PK, bounty_id FK, from_status TEXT, to_status TEXT,
-    triggered_by TEXT, action TEXT, reason TEXT, metadata JSONB,
-    created_at TIMESTAMPTZ DEFAULT now().
-- ``_claims`` -> ``bounty_claims`` table:
-    id UUID PK, bounty_id FK UNIQUE, claimed_by TEXT, claimed_at TIMESTAMPTZ,
-    deadline TIMESTAMPTZ, estimated_hours INT, released BOOL DEFAULT FALSE,
-    released_at TIMESTAMPTZ, warning_sent BOOL DEFAULT FALSE.
-- ``_claim_lock`` -> row-level SELECT ... FOR UPDATE on bounty_claims.
+draft -> open -> claimed -> in_review -> completed -> paid.
+T1 open-race, T2/T3 claim with deadline, webhooks, audit log.
+PostgreSQL migration: _bounty_store -> bounties; _audit_log ->
+lifecycle_audit_log(id, bounty_id, from/to_status, triggered_by, action,
+reason, metadata JSONB, created_at); _claims -> bounty_claims(id, bounty_id
+UNIQUE, claimed_by, claimed_at, deadline, estimated_hours, released,
+released_at, warning_sent); _claim_lock -> SELECT ... FOR UPDATE.
 """
 
 import logging
@@ -50,400 +40,244 @@ TRANSITIONS: dict[str, dict[str, str]] = {
 }
 
 
-def _log(
-    bounty_id: str,
-    from_status: str,
-    to_status: str,
-    action: str,
-    triggered_by: str = "system",
-    reason: Optional[str] = None,
-    metadata: Optional[dict[str, Any]] = None,
-) -> AuditLogEntry:
-    """Record an immutable audit log entry for a lifecycle transition."""
-    entry = AuditLogEntry(
-        bounty_id=bounty_id,
-        from_status=from_status,
-        to_status=to_status,
-        action=action,
-        triggered_by=triggered_by,
-        reason=reason,
-        metadata=metadata or {},
-    )
-    _audit_log.append(entry)
-    return entry
+def _log(bid, fr, to, act, by="system", reason=None, meta=None):
+    """Record audit log entry."""
+    e = AuditLogEntry(bounty_id=bid, from_status=fr, to_status=to,
+                      action=act, triggered_by=by, reason=reason, metadata=meta or {})
+    _audit_log.append(e)
+    return e
 
 
-def _check(
-    bounty: BountyDB, action: str
-) -> tuple[Optional[str], Optional[Exception]]:
-    """Validate that *action* is allowed from the bounty's current status.
-
-    Returns (target_status, None) on success or (None, error) on failure.
-    """
-    mapping = TRANSITIONS.get(action)
-    if not mapping:
+def _check(b, act):
+    """Validate transition is allowed from current status."""
+    m = TRANSITIONS.get(act)
+    if not m:
         return None, LifecycleValidationError("Unknown action")
-    target = mapping.get(bounty.status.value)
-    if target:
-        return target, None
-    return None, LifecycleValidationError(
-        f"Not allowed from '{bounty.status.value}'"
-    )
+    t = m.get(b.status.value)
+    return (t, None) if t else (None, LifecycleValidationError(
+        f"Not allowed from '{b.status.value}'"))
 
 
-def _do(
-    bounty_id: str,
-    action: str,
-    triggered_by: str = "system",
-    reason: Optional[str] = None,
-    metadata: Optional[dict[str, Any]] = None,
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Apply a lifecycle transition atomically and record it in the audit log.
-
-    Returns (result_dict, None) on success or (None, error) on failure.
-    """
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
+def _do(bid, act, by="system", reason=None, meta=None):
+    """Apply transition + log. Returns (result_dict, error)."""
+    b = _bounty_store.get(bid)
+    if not b:
         return None, LifecycleNotFoundError("Bounty not found")
-    target, error = _check(bounty, action)
-    if error:
-        return None, error
-    previous = bounty.status.value
-    bounty.status = BountyStatus(target)
-    bounty.updated_at = datetime.now(timezone.utc)
-    entry = _log(bounty_id, previous, target, action, triggered_by, reason, metadata)
-    return {
-        "bounty_id": bounty_id,
-        "previous_status": previous,
-        "new_status": target,
-        "action": action,
-        "triggered_by": triggered_by,
-        "audit_log_id": entry.id,
-    }, None
+    t, err = _check(b, act)
+    if err:
+        return None, err
+    prev = b.status.value
+    b.status = BountyStatus(t)
+    b.updated_at = datetime.now(timezone.utc)
+    e = _log(bid, prev, t, act, by, reason, meta)
+    return {"bounty_id": bid, "previous_status": prev, "new_status": t,
+            "action": act, "triggered_by": by, "audit_log_id": e.id}, None
 
 
-def create_draft_bounty(data: "BountyCreate") -> tuple[dict, Optional[Exception]]:
-    """Create a new bounty in draft status and log the creation event."""
-    bounty = BountyDB(
-        title=data.title,
-        description=data.description,
-        tier=data.tier,
-        reward_amount=data.reward_amount,
-        github_issue_url=data.github_issue_url,
-        required_skills=data.required_skills,
-        deadline=data.deadline,
-        created_by=data.created_by,
-        status=BountyStatus.DRAFT,
-    )
-    _bounty_store[bounty.id] = bounty
-    _log(bounty.id, "", "draft", LifecycleAction.CREATE_DRAFT, data.created_by)
-    return _to_bounty_response(bounty).model_dump(mode="json"), None
+def create_draft_bounty(data):
+    """Create bounty in draft status."""
+    b = BountyDB(title=data.title, description=data.description, tier=data.tier,
+                 reward_amount=data.reward_amount, github_issue_url=data.github_issue_url,
+                 required_skills=data.required_skills, deadline=data.deadline,
+                 created_by=data.created_by, status=BountyStatus.DRAFT)
+    _bounty_store[b.id] = b
+    _log(b.id, "", "draft", LifecycleAction.CREATE_DRAFT, data.created_by)
+    return _to_bounty_response(b).model_dump(mode="json"), None
 
 
-def publish_bounty(
-    bounty_id: str, triggered_by: str = "system"
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Publish a draft bounty, transitioning it to open status."""
-    return _do(bounty_id, LifecycleAction.PUBLISH, triggered_by)
+def publish_bounty(bid, by="system"):
+    """Publish draft -> open."""
+    return _do(bid, LifecycleAction.PUBLISH, by)
 
 
-def claim_bounty(
-    bounty_id: str, request: ClaimRequest
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Claim a T2/T3 bounty with a deadline (atomic via lock).
-
-    T1 bounties use open-race mode and cannot be claimed.
-    """
+def claim_bounty(bid, req):
+    """Claim T2/T3 bounty with deadline (atomic via lock)."""
     with _claim_lock:
-        bounty = _bounty_store.get(bounty_id)
-        if not bounty:
+        b = _bounty_store.get(bid)
+        if not b:
             return None, LifecycleNotFoundError("Bounty not found")
-        if bounty.tier == BountyTier.T1:
+        if b.tier == BountyTier.T1:
             return None, LifecycleValidationError(
-                "T1 bounties use open-race mode and cannot be claimed"
-            )
-        if bounty_id in _claims and not _claims[bounty_id].released:
+                "T1 bounties use open-race mode and cannot be claimed")
+        if bid in _claims and not _claims[bid].released:
             return None, LifecycleValidationError(
-                "Bounty already claimed by " + _claims[bounty_id].claimed_by
-            )
-        target, error = _check(bounty, LifecycleAction.CLAIM)
-        if error:
-            return None, error
+                "Bounty already claimed by " + _claims[bid].claimed_by)
+        t, err = _check(b, LifecycleAction.CLAIM)
+        if err:
+            return None, err
         now = datetime.now(timezone.utc)
-        hours = request.estimated_hours or DEFAULT_CLAIM_DEADLINE_HOURS
-        deadline = now + timedelta(hours=hours)
-        bounty.status = BountyStatus(target)
-        bounty.updated_at = now
-        _claims[bounty_id] = ClaimRecord(
-            bounty_id=bounty_id,
-            claimed_by=request.claimed_by,
-            claimed_at=now,
-            deadline=deadline,
-            estimated_hours=request.estimated_hours,
-        )
-        _log(
-            bounty_id, "open", target, LifecycleAction.CLAIM, request.claimed_by,
-            "Claimed", {"deadline": deadline.isoformat(), "estimated_hours": hours},
-        )
-    return {
-        "bounty_id": bounty_id,
-        "claimed_by": request.claimed_by,
-        "claimed_at": now.isoformat(),
-        "deadline": deadline.isoformat(),
-        "estimated_hours": request.estimated_hours,
-    }, None
+        hrs = req.estimated_hours or DEFAULT_CLAIM_DEADLINE_HOURS
+        dl = now + timedelta(hours=hrs)
+        b.status = BountyStatus(t)
+        b.updated_at = now
+        _claims[bid] = ClaimRecord(bounty_id=bid, claimed_by=req.claimed_by,
+                                   claimed_at=now, deadline=dl, estimated_hours=req.estimated_hours)
+        _log(bid, "open", t, LifecycleAction.CLAIM, req.claimed_by, "Claimed",
+             {"deadline": dl.isoformat(), "estimated_hours": hrs})
+    return {"bounty_id": bid, "claimed_by": req.claimed_by,
+            "claimed_at": now.isoformat(), "deadline": dl.isoformat(),
+            "estimated_hours": req.estimated_hours}, None
 
 
-def release_claim(
-    bounty_id: str, request: ReleaseClaimRequest
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Release an active claim so the bounty reopens for others."""
+def release_claim(bid, req):
+    """Release claim, reopen bounty (atomic via lock)."""
     with _claim_lock:
-        bounty = _bounty_store.get(bounty_id)
-        if not bounty:
+        b = _bounty_store.get(bid)
+        if not b:
             return None, LifecycleNotFoundError("Bounty not found")
-        target, error = _check(bounty, LifecycleAction.RELEASE_CLAIM)
-        if error:
-            return None, error
-        claim = _claims.get(bounty_id)
-        if not claim or claim.released:
-            return None, LifecycleValidationError(
-                "No active claim found for this bounty"
-            )
-        previous = bounty.status.value
-        bounty.status = BountyStatus(target)
-        bounty.updated_at = datetime.now(timezone.utc)
-        claim.released = True
-        claim.released_at = datetime.now(timezone.utc)
-        entry = _log(
-            bounty_id, previous, target, LifecycleAction.RELEASE_CLAIM,
-            request.released_by, request.reason,
-        )
-    return {
-        "bounty_id": bounty_id,
-        "previous_status": previous,
-        "new_status": target,
-        "action": LifecycleAction.RELEASE_CLAIM.value,
-        "triggered_by": request.released_by,
-        "audit_log_id": entry.id,
-    }, None
+        t, err = _check(b, LifecycleAction.RELEASE_CLAIM)
+        if err:
+            return None, err
+        cl = _claims.get(bid)
+        if not cl or cl.released:
+            return None, LifecycleValidationError("No active claim found for this bounty")
+        prev = b.status.value
+        b.status = BountyStatus(t)
+        b.updated_at = datetime.now(timezone.utc)
+        cl.released = True
+        cl.released_at = datetime.now(timezone.utc)
+        e = _log(bid, prev, t, LifecycleAction.RELEASE_CLAIM, req.released_by, req.reason)
+    return {"bounty_id": bid, "previous_status": prev, "new_status": t,
+            "action": LifecycleAction.RELEASE_CLAIM.value,
+            "triggered_by": req.released_by, "audit_log_id": e.id}, None
 
 
-def submit_for_review(
-    bounty_id: str, pr_url: str, submitted_by: str
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Move a bounty to in_review after a PR is submitted."""
-    return _do(
-        bounty_id, LifecycleAction.SUBMIT_FOR_REVIEW, submitted_by,
-        None, {"pr_url": pr_url},
-    )
+def submit_for_review(bid, pr_url, by):
+    """Move bounty to in_review."""
+    return _do(bid, LifecycleAction.SUBMIT_FOR_REVIEW, by, None, {"pr_url": pr_url})
 
 
-def approve_bounty(
-    bounty_id: str, triggered_by: str = "system"
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Approve an in-review bounty, transitioning to completed."""
-    return _do(bounty_id, LifecycleAction.APPROVE, triggered_by)
+def approve_bounty(bid, by="system"):
+    """Approve in-review -> completed."""
+    return _do(bid, LifecycleAction.APPROVE, by)
 
 
-def reject_bounty(
-    bounty_id: str, triggered_by: str = "system", reason: Optional[str] = None
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Reject a submission and reopen the bounty for new attempts."""
+def reject_bounty(bid, by="system", reason=None):
+    """Reject submission, reopen (atomic via lock)."""
     with _claim_lock:
-        bounty = _bounty_store.get(bounty_id)
-        if not bounty:
+        b = _bounty_store.get(bid)
+        if not b:
             return None, LifecycleNotFoundError("Bounty not found")
-        target, error = _check(bounty, LifecycleAction.REJECT)
-        if error:
-            return None, error
-        previous = bounty.status.value
-        bounty.status = BountyStatus(target)
-        bounty.updated_at = datetime.now(timezone.utc)
-        if bounty_id in _claims:
-            _claims[bounty_id].released = True
-        entry = _log(
-            bounty_id, previous, target, LifecycleAction.REJECT,
-            triggered_by, reason or "Rejected",
-        )
-    return {
-        "bounty_id": bounty_id,
-        "previous_status": previous,
-        "new_status": target,
-        "action": LifecycleAction.REJECT.value,
-        "triggered_by": triggered_by,
-        "audit_log_id": entry.id,
-    }, None
+        t, err = _check(b, LifecycleAction.REJECT)
+        if err:
+            return None, err
+        prev = b.status.value
+        b.status = BountyStatus(t)
+        b.updated_at = datetime.now(timezone.utc)
+        if bid in _claims:
+            _claims[bid].released = True
+        e = _log(bid, prev, t, LifecycleAction.REJECT, by, reason or "Rejected")
+    return {"bounty_id": bid, "previous_status": prev, "new_status": t,
+            "action": LifecycleAction.REJECT.value,
+            "triggered_by": by, "audit_log_id": e.id}, None
 
 
-def mark_paid(
-    bounty_id: str,
-    triggered_by: str = "system",
-    transaction_hash: Optional[str] = None,
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Mark a completed bounty as paid on-chain."""
-    return _do(
-        bounty_id, LifecycleAction.MARK_PAID, triggered_by, None,
-        {"transaction_hash": transaction_hash} if transaction_hash else {},
-    )
+def mark_paid(bid, by="system", tx_hash=None):
+    """Mark completed bounty as paid."""
+    return _do(bid, LifecycleAction.MARK_PAID, by, None,
+               {"transaction_hash": tx_hash} if tx_hash else {})
 
 
-def handle_webhook(
-    bounty_id: str, request: WebhookTransitionRequest
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Handle a PR webhook event and apply the appropriate transition.
+def handle_webhook(bid, req):
+    """PR webhook: opened->review, merged->completed, closed->reopen (atomic via lock).
 
-    Mapping: opened -> in_review, merged -> completed, closed -> reopen.
-    For T1 bounties, a ``merged`` event auto-approves (sets
-    ``auto_approved: True`` in metadata) to implement the T1 open-race
-    auto-win flow.
-
-    Fallback: ``opened`` falls back to WEBHOOK_UPDATE if the primary
-    SUBMIT_FOR_REVIEW action is invalid from the current state.
-    ``merged`` and ``closed`` fail immediately if the primary action is
-    invalid -- no silent fallback for terminal transitions.
+    T1 merged sets auto_approved=True. Fallback to WEBHOOK_UPDATE only for
+    'opened'; merged/closed fail immediately if primary action is invalid.
     """
     with _claim_lock:
-        bounty = _bounty_store.get(bounty_id)
-        if not bounty:
+        b = _bounty_store.get(bid)
+        if not b:
             return None, LifecycleNotFoundError("Bounty not found")
-        action_map = {
-            "opened": LifecycleAction.SUBMIT_FOR_REVIEW,
-            "merged": LifecycleAction.APPROVE,
-            "closed": LifecycleAction.REJECT,
-        }
-        action = action_map.get(request.pr_action)
-        if not action:
+        amap = {"opened": LifecycleAction.SUBMIT_FOR_REVIEW,
+                "merged": LifecycleAction.APPROVE, "closed": LifecycleAction.REJECT}
+        act = amap.get(req.pr_action)
+        if not act:
             return None, LifecycleValidationError("Unsupported action")
-        target, error = _check(bounty, action)
-        if error:
-            if request.pr_action == "opened":
-                target, error = _check(bounty, LifecycleAction.WEBHOOK_UPDATE)
-                if error:
-                    return None, error
+        t, err = _check(b, act)
+        if err:
+            if req.pr_action == "opened":
+                t, err = _check(b, LifecycleAction.WEBHOOK_UPDATE)
+                if err:
+                    return None, err
             else:
-                return None, error
-        previous = bounty.status.value
-        bounty.status = BountyStatus(target)
-        bounty.updated_at = datetime.now(timezone.utc)
-        metadata: dict[str, Any] = {
-            "pr_url": request.pr_url,
-            "pr_action": request.pr_action,
-        }
-        if request.pr_action == "merged" and bounty.tier == BountyTier.T1:
-            metadata["auto_approved"] = True
-        entry = _log(
-            bounty_id, previous, target, LifecycleAction.WEBHOOK_UPDATE,
-            request.sender, "PR " + request.pr_action, metadata,
-        )
-    return {
-        "bounty_id": bounty_id,
-        "previous_status": previous,
-        "new_status": target,
-        "action": LifecycleAction.WEBHOOK_UPDATE.value,
-        "triggered_by": request.sender,
-        "audit_log_id": entry.id,
-    }, None
+                return None, err
+        prev = b.status.value
+        b.status = BountyStatus(t)
+        b.updated_at = datetime.now(timezone.utc)
+        meta = {"pr_url": req.pr_url, "pr_action": req.pr_action}
+        if req.pr_action == "merged" and b.tier == BountyTier.T1:
+            meta["auto_approved"] = True
+        e = _log(bid, prev, t, LifecycleAction.WEBHOOK_UPDATE, req.sender,
+                 "PR " + req.pr_action, meta)
+    return {"bounty_id": bid, "previous_status": prev, "new_status": t,
+            "action": LifecycleAction.WEBHOOK_UPDATE.value,
+            "triggered_by": req.sender, "audit_log_id": e.id}, None
 
 
-def enforce_deadlines() -> list[dict[str, Any]]:
-    """Enforce claim deadlines: warn at 80 percent elapsed, auto-release at 100 percent.
-
-    Uses the ``warning_sent`` flag on ClaimRecord to avoid duplicate warnings.
-    """
+def enforce_deadlines():
+    """Warn at 80% elapsed, auto-release at 100%. Uses warning_sent flag (atomic via lock)."""
     now = datetime.now(timezone.utc)
-    results: list[dict[str, Any]] = []
+    out = []
     with _claim_lock:
-        for bounty_id, claim in list(_claims.items()):
-            if claim.released or not claim.deadline:
+        for bid, cl in list(_claims.items()):
+            if cl.released or not cl.deadline:
                 continue
-            bounty = _bounty_store.get(bounty_id)
-            if not bounty or bounty.status != BountyStatus.CLAIMED:
+            b = _bounty_store.get(bid)
+            if not b or b.status != BountyStatus.CLAIMED:
                 continue
-            total = (claim.deadline - claim.claimed_at).total_seconds()
+            total = (cl.deadline - cl.claimed_at).total_seconds()
             if total <= 0:
                 continue
-            percent = min(
-                ((now - claim.claimed_at).total_seconds() / total) * 100, 100
-            )
-            if percent >= 100:
-                bounty.status = BountyStatus.OPEN
-                bounty.updated_at = now
-                claim.released = True
-                claim.released_at = now
-                _log(
-                    bounty_id, "claimed", "open",
-                    LifecycleAction.AUTO_RELEASE, "system",
-                )
-                results.append({
-                    "bounty_id": bounty_id,
-                    "action_taken": "auto_released",
-                    "percent_elapsed": 100.0,
-                    "claimed_by": claim.claimed_by,
-                })
-            elif percent >= 80 and not claim.warning_sent:
-                claim.warning_sent = True
-                _log(
-                    bounty_id, "claimed", "claimed",
-                    LifecycleAction.DEADLINE_WARNING, "system",
-                )
-                results.append({
-                    "bounty_id": bounty_id,
-                    "action_taken": "warning_issued",
-                    "percent_elapsed": round(percent, 1),
-                    "claimed_by": claim.claimed_by,
-                })
-    return results
+            pct = min(((now - cl.claimed_at).total_seconds() / total) * 100, 100)
+            if pct >= 100:
+                b.status = BountyStatus.OPEN
+                b.updated_at = now
+                cl.released = True
+                cl.released_at = now
+                _log(bid, "claimed", "open", LifecycleAction.AUTO_RELEASE, "system")
+                out.append({"bounty_id": bid, "action_taken": "auto_released",
+                            "percent_elapsed": 100.0, "claimed_by": cl.claimed_by})
+            elif pct >= 80 and not cl.warning_sent:
+                cl.warning_sent = True
+                _log(bid, "claimed", "claimed", LifecycleAction.DEADLINE_WARNING, "system")
+                out.append({"bounty_id": bid, "action_taken": "warning_issued",
+                            "percent_elapsed": round(pct, 1), "claimed_by": cl.claimed_by})
+    return out
 
 
-def get_audit_log(bounty_id: str) -> Optional[list[dict]]:
-    """Return the audit log for a bounty (newest first), or None if missing."""
-    if not _bounty_store.get(bounty_id):
+def get_audit_log(bid):
+    """Audit log for bounty (newest first). Returns None if bounty missing."""
+    if not _bounty_store.get(bid):
         return None
-    return [
-        entry.model_dump(mode="json")
-        for entry in sorted(
-            (e for e in _audit_log if e.bounty_id == bounty_id),
-            key=lambda e: e.created_at,
-            reverse=True,
-        )
-    ]
+    return [e.model_dump(mode="json") for e in
+            sorted((e for e in _audit_log if e.bounty_id == bid),
+                   key=lambda e: e.created_at, reverse=True)]
 
 
-def get_active_claim(bounty_id: str) -> Optional[dict]:
-    """Return the active claim for a bounty, or None if bounty is missing."""
-    if not _bounty_store.get(bounty_id):
+def get_active_claim(bid):
+    """Active claim for bounty. Returns None if bounty missing."""
+    if not _bounty_store.get(bid):
         return None
-    claim = _claims.get(bounty_id)
-    if claim and not claim.released:
-        return {
-            "bounty_id": claim.bounty_id,
-            "claimed_by": claim.claimed_by,
-            "claimed_at": claim.claimed_at.isoformat(),
-            "deadline": claim.deadline.isoformat() if claim.deadline else None,
-            "estimated_hours": claim.estimated_hours,
-        }
+    cl = _claims.get(bid)
+    if cl and not cl.released:
+        return {"bounty_id": cl.bounty_id, "claimed_by": cl.claimed_by,
+                "claimed_at": cl.claimed_at.isoformat(),
+                "deadline": cl.deadline.isoformat() if cl.deadline else None,
+                "estimated_hours": cl.estimated_hours}
     return {"active": False}
 
 
-def get_lifecycle_summary(bounty_id: str) -> Optional[dict]:
-    """Return a lifecycle state summary for a bounty."""
-    bounty = _bounty_store.get(bounty_id)
-    if not bounty:
+def get_lifecycle_summary(bid):
+    """Lifecycle state summary for a bounty."""
+    b = _bounty_store.get(bid)
+    if not b:
         return None
-    return {
-        "bounty_id": bounty_id,
-        "current_status": bounty.status.value,
-        "claim": get_active_claim(bounty_id),
-        "audit_log_count": sum(1 for e in _audit_log if e.bounty_id == bounty_id),
-    }
+    return {"bounty_id": bid, "current_status": b.status.value,
+            "claim": get_active_claim(bid),
+            "audit_log_count": sum(1 for e in _audit_log if e.bounty_id == bid)}
 
 
-def dispatch_pr_event(
-    bounty_id: str, pr_action: str, pr_url: str, sender: str
-) -> tuple[Optional[dict], Optional[Exception]]:
-    """Dispatch a PR event from the GitHub webhook handler into the lifecycle engine."""
-    request = WebhookTransitionRequest(
-        pr_url=pr_url, pr_action=pr_action, sender=sender,
-    )
-    return handle_webhook(bounty_id, request)
+def dispatch_pr_event(bid, pr_action, pr_url, sender):
+    """Dispatch PR event from existing GitHub webhook handler."""
+    req = WebhookTransitionRequest(pr_url=pr_url, pr_action=pr_action, sender=sender)
+    return handle_webhook(bid, req)
