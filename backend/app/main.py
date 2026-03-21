@@ -30,6 +30,10 @@ from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
 from app.services.escrow_service import periodic_escrow_refund
+from app.middleware.rate_limit_middleware import RateLimitMiddleware
+from app.middleware.security_headers_middleware import SecurityHeadersMiddleware
+from app.middleware.ip_blocklist_middleware import IPBlocklistMiddleware
+from app.middleware.request_size_limit_middleware import RequestSizeLimitMiddleware
 
 # Initialize logging
 setup_logging()
@@ -177,6 +181,9 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server
 ]
 
+# Security headers middleware (adds security-related response headers)
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -186,6 +193,11 @@ app.add_middleware(
 )
 
 app.add_middleware(LoggingMiddleware)
+
+# Additional security middlewares
+app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(IPBlocklistMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 # ── Global Exception Handlers ────────────────────────────────────────────────
 
