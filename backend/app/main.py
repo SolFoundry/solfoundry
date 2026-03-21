@@ -20,15 +20,27 @@ from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.api.agents import router as agents_router
+from app.api.escrow import router as escrow_router
 from app.database import init_db, close_db, engine
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
+from app.services.escrow_service import process_expired_escrows
 
-# Initialize logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+async def _escrow_expiry_loop() -> None:
+    """Auto-refund expired escrows every 5 min via SPL transfers."""
+    from app.database import get_db_session
+    while True:
+        try:
+            async with get_db_session() as s:
+                r = await process_expired_escrows(s)
+                if r: logger.info("Auto-refunded %d expired escrows", len(r))
+        except Exception as e:
+            logger.error("Escrow expiry sweep failed: %s", e)
+        await asyncio.sleep(300)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,12 +69,19 @@ async def lifespan(app: FastAPI):
     # Start periodic sync in background (every 5 minutes)
     sync_task = asyncio.create_task(periodic_sync())
 
+    escrow_task = asyncio.create_task(_escrow_expiry_loop())
+
     yield
 
-    # Shutdown: Cancel background sync, close connections, then database
+    # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
+    escrow_task.cancel()
     try:
         await sync_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await escrow_task
     except asyncio.CancelledError:
         pass
     await ws_manager.shutdown()
@@ -206,6 +225,7 @@ async def value_error_handler(request: Request, exc: ValueError):
             "code": "VALIDATION_ERROR"
         }
     )
+
 # Auth: /api/auth/*
 app.include_router(auth_router, prefix="/api")
 
@@ -233,9 +253,13 @@ app.include_router(websocket_router)
 # Agents: /api/agents/*
 app.include_router(agents_router, prefix="/api")
 
+# Escrow: /api/escrow/*
+app.include_router(escrow_router, prefix="/api")
+
 
 @app.get("/health")
 async def health_check():
+    """Return application health status including database and sync checks."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store

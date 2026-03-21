@@ -89,6 +89,7 @@ async def init_db() -> None:
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
             from app.models.agent import Agent  # noqa: F401
+            from app.models.escrow import EscrowAccountTable, EscrowLedgerTable  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 
