@@ -72,7 +72,7 @@ class EmailService:
         now = time.time()
         timestamps = _RATE_LIMIT_STORE.get(email, [])
         # Keep only timestamps in the last hour
-        timestamps = [ts for t in timestamps if now - t < 3600]
+        timestamps = [t for t in timestamps if now - t < 3600]
         if len(timestamps) >= 10:
             return False
         
