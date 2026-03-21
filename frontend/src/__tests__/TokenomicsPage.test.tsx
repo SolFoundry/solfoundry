@@ -32,7 +32,7 @@ describe('TokenomicsPage', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/FNDRY Tokenomics/));
     expect(screen.getByText(/Total Supply/)).toBeInTheDocument();
     expect(screen.getByText(/Circulating/)).toBeInTheDocument();
-    expect(screen.getByText(/Treasury/)).toBeInTheDocument();
+    expect(screen.getByText(/^Treasury$/)).toBeInTheDocument();
     expect(screen.getByText(/Distributed/)).toBeInTheDocument();
   });
 

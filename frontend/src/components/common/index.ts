@@ -11,3 +11,5 @@ export type { EmptyStateProps, EmptyStateVariant, NoBountiesProps, NoContributio
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
 export { ToastContainer } from './ToastContainer';
+export { TokenPrice } from './TokenPrice';
+export type { TokenPriceProps } from './TokenPrice';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
+import { TokenPrice } from '../common';
 
 // ============================================================================
 // Types
@@ -265,6 +266,8 @@ function Header({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          <TokenPrice mode="compact" className="hidden lg:inline-flex" />
+
           {/* Theme Toggle */}
           <ThemeToggle />
 

@@ -1,4 +1,5 @@
 import { useTreasuryStats } from '../../hooks/useTreasuryStats';
+import { TokenPrice } from '../common';
 
 /** Format a number for display: 1B / 200M / 10K / locale string. */
 const fmt = (n: number) => n >= 1e9 ? `${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `${(n/1e3).toFixed(1)}K` : n.toLocaleString();
@@ -62,6 +63,9 @@ export function TokenomicsPage() {
         <h1 className="text-2xl font-bold text-white">{t.tokenName} Tokenomics</h1>
         <p className="text-sm text-gray-400 mt-1">Contract: <code className="text-xs">{t.tokenCA}</code></p>
       </div>
+
+      <TokenPrice mode="full" />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Supply" value={fmt(t.totalSupply)} />
         <StatCard label="Circulating" value={fmt(t.circulatingSupply)} sub={`${pct(t.circulatingSupply, t.totalSupply)}% of supply`} />
