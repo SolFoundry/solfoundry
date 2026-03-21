@@ -176,3 +176,51 @@ async def load_reputation() -> Dict[str, List[Any]]:
                 )
             )
     return out
+
+async def persist_bounty(bounty: Any) -> None:
+    """Persist or update a bounty record."""
+    from app.models.tables import BountyTable
+    async with get_db_session() as session:
+        await _upsert(
+            session,
+            BountyTable,
+            bounty.id,
+            title=bounty.title,
+            description=bounty.description,
+            tier=bounty.tier,
+            reward_amount=bounty.reward_amount,
+            status=bounty.status.value if hasattr(bounty.status, "value") else bounty.status,
+            github_issue_url=bounty.github_issue_url,
+            skills=bounty.required_skills,
+            deadline=bounty.deadline,
+            created_by=bounty.created_by,
+            created_at=bounty.created_at,
+        )
+        await session.commit()
+
+async def get_bounty_by_id(bounty_id: str) -> Any:
+    """Retrieve a single bounty row."""
+    from app.models.tables import BountyTable
+    async with get_db_session() as session:
+        return await session.get(BountyTable, _to_uuid(bounty_id))
+
+async def load_bounties(*, offset: int = 0, limit: int = 100) -> List[Any]:
+    """Load all bounty rows."""
+    from app.models.tables import BountyTable
+    async with get_db_session() as session:
+        stmt = select(BountyTable).order_by(BountyTable.created_at.desc()).offset(offset).limit(limit)
+        return list((await session.execute(stmt)).scalars())
+
+async def load_submissions_for_bounty(bounty_id: str) -> List[Any]:
+    """Load all submissions for a specific bounty."""
+    from app.models.tables import SubmissionTable
+    async with get_db_session() as session:
+        stmt = select(SubmissionTable).where(SubmissionTable.bounty_id == _to_uuid(bounty_id))
+        return list((await session.execute(stmt)).scalars())
+
+async def delete_bounty_row(bounty_id: str) -> None:
+    """Delete a bounty row from PostgreSQL."""
+    from app.models.tables import BountyTable
+    async with get_db_session() as session:
+        await session.execute(sa_del(BountyTable).where(BountyTable.id == _to_uuid(bounty_id)))
+        await session.commit()

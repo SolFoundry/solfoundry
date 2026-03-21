@@ -86,7 +86,7 @@ app.include_router(payouts.router, prefix="/api/payouts", tags=["payouts"])
 app.include_router(buybacks.router, prefix="/api/buybacks", tags=["treasury"])
 app.include_router(bounties.router, prefix="/api/bounties", tags=["bounties"])
 app.include_router(leaderboard.router, prefix="/api/leaderboard", tags=["leaderboard"])
-app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(stats.router, tags=["stats"]) # Prefix is inside stats.py already
 
 @app.on_event("startup")
 async def startup_event():
