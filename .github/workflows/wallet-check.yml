@@ -184,14 +184,31 @@ jobs:
                       "labels": ["review-triggered"]
                   })
 
-                  # Trigger AI Code Review via workflow_dispatch (label removal doesn't trigger pull_request_target)
-                  trigger_resp = gh_api(
-                      f"repos/{repo}/actions/workflows/pr-review.yml/dispatches",
-                      method="POST",
-                      data={"ref": "main", "inputs": {"pr_number": str(pr_number)}}
-                  )
-                  review_triggered = trigger_resp[1] == 204
-                  review_status = "🔄 Review triggered" if review_triggered else "⚠️ Review trigger failed"
+                  # Only dispatch review if one hasn't already completed on this PR
+                  # (prevents double reviews burning API credits)
+                  existing_comments, _ = gh_api(f"repos/{repo}/issues/{pr_number}/comments?per_page=100")
+                  has_review = False
+                  if existing_comments:
+                      for c in existing_comments:
+                          if c.get("user", {}).get("login") == "github-actions[bot]":
+                              body_text = c.get("body", "")
+                              if any(kw in body_text for kw in ["Score:", "Multi-LLM", "Final Score", "review-complete"]):
+                                  has_review = True
+                                  break
+
+                  if has_review:
+                      review_triggered = False
+                      review_status = "✅ Review already exists — skipping dispatch"
+                      print(f"PR #{pr_number} already has a review comment — not dispatching duplicate")
+                  else:
+                      # Trigger AI Code Review via workflow_dispatch
+                      trigger_resp = gh_api(
+                          f"repos/{repo}/actions/workflows/pr-review.yml/dispatches",
+                          method="POST",
+                          data={"ref": "main", "inputs": {"pr_number": str(pr_number)}}
+                      )
+                      review_triggered = trigger_resp[1] == 204
+                      review_status = "🔄 Review triggered" if review_triggered else "⚠️ Review trigger failed"
 
                   # Send Telegram with inline View PR button (bot doesn't detect wallet-added immediately)
                   send_telegram_with_button(
