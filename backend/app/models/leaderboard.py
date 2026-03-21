@@ -8,18 +8,21 @@ from pydantic import BaseModel, Field
 
 
 class TimePeriod(str, Enum):
+    """The TimePeriod class."""
     week = "week"
     month = "month"
     all = "all"
 
 
 class TierFilter(str, Enum):
+    """The TierFilter class."""
     t1 = "1"
     t2 = "2"
     t3 = "3"
 
 
 class CategoryFilter(str, Enum):
+    """The CategoryFilter class."""
     frontend = "frontend"
     backend = "backend"
     security = "security"

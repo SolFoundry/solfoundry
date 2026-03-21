@@ -10,25 +10,31 @@ from app.models.payout import BuybackCreate, PayoutCreate, PayoutRecord, PayoutS
 from app.services import bounty_service, payout_service, contributor_service
 
 def _uid(s):
+    """The _uid function."""
     try: return _uuid.UUID(str(s))
     except (ValueError, AttributeError): return s
 
 @pytest.fixture(scope="module")
 def event_loop():
+    """The event_loop function."""
     lp = asyncio.new_event_loop(); yield lp; lp.close()
 @pytest.fixture(scope="module", autouse=True)
 def db(event_loop):
+    """The db function."""
     event_loop.run_until_complete(init_db())
 @pytest.fixture(autouse=True)
 def reset():
+    """The reset function."""
     bounty_service._bounty_store.clear(); payout_service._payout_store.clear()
     payout_service._buyback_store.clear(); contributor_service._store.clear(); yield
 
 def test_tables():
+    """The test_tables function."""
     for t in ("bounties","payouts","buybacks","reputation_history","contributors"):
         assert t in Base.metadata.tables
 
 def test_alembic():
+    """The test_alembic function."""
     b = Path(__file__).parent.parent
     assert list((b/"migrations/alembic/versions").glob("*.py"))
     assert "postgres:postgres" not in (b/"alembic.ini").read_text()
@@ -78,5 +84,6 @@ async def test_contributor_write_read():
         assert row is not None and row.username == "pgtest"
 
 def test_seed():
+    """The test_seed function."""
     from app.seed_data import seed_bounties, LIVE_BOUNTIES
     seed_bounties(); assert len(bounty_service._bounty_store) == len(LIVE_BOUNTIES)

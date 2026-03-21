@@ -10,9 +10,11 @@ from app.models.bounty_table import BountyTable  # noqa
 target_metadata = Base.metadata
 DB = os.getenv("DATABASE_URL", context.config.get_main_option("sqlalchemy.url", ""))
 def offline():
+    """The offline function."""
     context.configure(url=DB, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction(): context.run_migrations()
 async def online():
+    """The online function."""
     e = create_async_engine(DB, poolclass=pool.NullPool)
     async with e.connect() as c:
         await c.run_sync(lambda cn: context.configure(connection=cn, target_metadata=target_metadata))

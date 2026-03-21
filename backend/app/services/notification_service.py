@@ -25,6 +25,7 @@ class NotificationService:
     VALID_TYPES = {t.value for t in NotificationType}
 
     def __init__(self, db: AsyncSession):
+        """The __init__ function."""
         self.db = db
 
     async def get_notification_by_id(

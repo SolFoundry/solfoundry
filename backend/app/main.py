@@ -247,6 +247,7 @@ app.include_router(agents_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
+    """The health_check function."""
     from app.services.github_sync import get_last_sync
     from app.services.bounty_service import _bounty_store
     from app.services.contributor_service import _store

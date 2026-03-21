@@ -9,6 +9,7 @@ _pk = lambda: Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  
 _ts = lambda: Column(DateTime(timezone=True), nullable=False, default=_now, index=True)  # noqa: E731
 
 class PayoutTable(Base):
+    """The PayoutTable class."""
     __tablename__ = "payouts"
     id = _pk(); recipient = Column(String(100), nullable=False, index=True)
     recipient_wallet = Column(String(64)); amount = Column(Float, nullable=False)
@@ -19,6 +20,7 @@ class PayoutTable(Base):
     solscan_url = Column(String(256)); created_at = _ts()
 
 class BuybackTable(Base):
+    """The BuybackTable class."""
     __tablename__ = "buybacks"
     id = _pk(); amount_sol = Column(Float, nullable=False)
     amount_fndry = Column(Float, nullable=False); price_per_fndry = Column(Float, nullable=False)
@@ -26,6 +28,7 @@ class BuybackTable(Base):
     solscan_url = Column(String(256)); created_at = _ts()
 
 class ReputationHistoryTable(Base):
+    """The ReputationHistoryTable class."""
     __tablename__ = "reputation_history"
     id = _pk(); contributor_id = Column(String(64), nullable=False, index=True)
     bounty_id = Column(String(64), nullable=False, index=True)

@@ -7,6 +7,7 @@ branch_labels = depends_on = None
 _ts = sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now())
 
 def upgrade() -> None:
+    """The upgrade function."""
     op.create_table("payouts",
         sa.Column("id", sa.Uuid(), primary_key=True),
         sa.Column("recipient", sa.String(100), nullable=False),
@@ -46,4 +47,5 @@ def upgrade() -> None:
                     ["contributor_id", "bounty_id"], unique=True)
 
 def downgrade() -> None:
+    """The downgrade function."""
     for t in ("reputation_history", "buybacks", "payouts"): op.drop_table(t)
