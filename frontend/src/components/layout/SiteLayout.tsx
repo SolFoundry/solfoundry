@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { ThemeToggle } from './ThemeToggle';
 import { ScrollToTop } from '../common/ScrollToTop';
+import { Footer } from './Footer';
 
 // ============================================================================
 // Types
@@ -34,15 +35,6 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Agents', href: '/agents' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
 ];
-
-const FOOTER_LINKS = [
-  { label: 'GitHub', href: 'https://github.com/SolFoundry/solfoundry' },
-  { label: 'Twitter', href: 'https://twitter.com/foundrysol' },
-  { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme' },
-  { label: 'CA', href: 'https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS' },
-];
-
-const WALLET_ADDRESS = 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7';
 
 // ============================================================================
 // Components
@@ -408,55 +400,6 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
         </p>
       </div>
     </aside>
-  );
-}
-
-// ============================================================================
-// Footer Component
-// ============================================================================
-
-function Footer() {
-  const currentYear = new Date().getFullYear();
-
-  return (
-    <footer className="border-t border-white/10 bg-[#0a0a0a]" role="contentinfo">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Logo + Copyright */}
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
-              <span className="text-white font-bold text-xs">SF</span>
-            </div>
-            <span className="text-sm text-gray-400">
-              © {currentYear} SolFoundry. All rights reserved.
-            </span>
-          </div>
-
-          {/* Footer Links */}
-          <div className="flex items-center gap-6">
-            {FOOTER_LINKS.map((link) => (
-              <a
-                key={link.href + link.label}
-                href={link.href}
-                target={link.href.startsWith('http') ? '_blank' : undefined}
-                rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                className="text-sm text-gray-400 hover:text-[#9945FF] transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          {/* Contract Address */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">CA:</span>
-            <code className="text-xs text-[#14F195] font-mono bg-[#14F195]/10 px-2 py-1 rounded">
-              {WALLET_ADDRESS}
-            </code>
-          </div>
-        </div>
-      </div>
-    </footer>
   );
 }
 
