@@ -1,6 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useFndryBalance } from '../hooks/useFndryToken';
+import { FundBountyButton } from './wallet/FundBountyFlow';
+import { solscanTxUrl } from '../config/constants';
+import { useNetwork } from './wallet/WalletProvider';
 
 // Types
 interface BountyFormData {
@@ -80,11 +85,9 @@ function renderMarkdown(text: string): string {
   return `<div class="prose prose-invert prose-sm max-w-none"><p class="my-2">${html}</p></div>`;
 }
 
-// Auth context types (would be provided by actual auth implementation)
+// Auth context types — GitHub auth is placeholder; wallet state comes from hooks.
 interface AuthState {
   isGithubAuthenticated: boolean;
-  isWalletConnected: boolean;
-  walletBalance: number;
 }
 
 interface StepProps {
@@ -549,28 +552,35 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
   );
 };
 
-// Step 7: Confirm & Publish
+// Step 7: Fund & Publish — real wallet integration
 interface ConfirmPublishProps extends StepProps {
   onPublish: () => Promise<void>;
-  authState: AuthState;
 }
 
-const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, authState }) => {
+const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) => {
+  const { connected, publicKey } = useWallet();
+  const { balance, loading: balanceLoading } = useFndryBalance();
+  const { network } = useNetwork();
   const [agreed, setAgreed] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  
-  const { isGithubAuthenticated, isWalletConnected, walletBalance } = authState;
+  const [fundingSignature, setFundingSignature] = useState<string | null>(null);
+
+  const isWalletConnected = connected && !!publicKey;
+  const walletBalance = balance ?? 0;
   const hasSufficientBalance = walletBalance >= formData.rewardAmount;
-  const canPublish = agreed && isGithubAuthenticated && isWalletConnected && hasSufficientBalance;
-  
+  const isFunded = !!fundingSignature;
+  const canPublish = agreed && isWalletConnected && isFunded;
+
+  const handleFunded = (signature: string) => {
+    setFundingSignature(signature);
+  };
+
   const handlePublish = async () => {
     if (!canPublish) return;
-    
     setIsPublishing(true);
     setError(null);
-    
     try {
       await onPublish();
       setSuccess(true);
@@ -580,45 +590,62 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, au
       setIsPublishing(false);
     }
   };
-  
+
   if (success) {
     return (
       <div className="space-y-6 text-center">
         <div className="text-green-400 text-6xl mb-4">✓</div>
-        <h2 className="text-2xl font-bold text-white">Bounty Published!</h2>
-        <p className="text-gray-400">Your bounty has been created successfully.</p>
+        <h2 className="text-2xl font-bold text-white">Bounty Published & Funded!</h2>
+        <p className="text-gray-400">
+          Your bounty has been created and {formData.rewardAmount.toLocaleString()} $FNDRY is held in escrow.
+        </p>
+        {fundingSignature && (
+          <a
+            href={solscanTxUrl(fundingSignature, network)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-purple-400 hover:text-purple-300 text-sm"
+          >
+            View funding transaction on Solscan ↗
+          </a>
+        )}
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Confirm & Publish</h2>
-      <p className="text-gray-400">Final step — publish your bounty to GitHub.</p>
-      
-      {/* Auth Status */}
+      <h2 className="text-xl font-bold text-white">Fund & Publish</h2>
+      <p className="text-gray-400">Stake $FNDRY to fund the bounty escrow, then publish.</p>
+
+      {/* Wallet & Funding Status */}
       <div className="bg-gray-800 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">GitHub Authentication</span>
-          <span className={isGithubAuthenticated ? 'text-green-400' : 'text-red-400'}>
-            {isGithubAuthenticated ? '✓ Connected' : '✗ Not connected'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Wallet Connection</span>
+          <span className="text-gray-400">Wallet</span>
           <span className={isWalletConnected ? 'text-green-400' : 'text-red-400'}>
             {isWalletConnected ? '✓ Connected' : '✗ Not connected'}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Wallet Balance</span>
-          <span className={hasSufficientBalance ? 'text-green-400' : 'text-red-400'}>
-            {walletBalance.toLocaleString()} $FNDRY
-            {!hasSufficientBalance && ` (Need ${formData.rewardAmount.toLocaleString()})`}
+          <span className="text-gray-400">$FNDRY Balance</span>
+          <span className={!balanceLoading && !hasSufficientBalance && isWalletConnected ? 'text-red-400' : 'text-green-400'}>
+            {balanceLoading
+              ? 'Loading…'
+              : isWalletConnected
+                ? `${walletBalance.toLocaleString()} $FNDRY`
+                : '—'}
+            {!balanceLoading && !hasSufficientBalance && isWalletConnected &&
+              ` (Need ${formData.rewardAmount.toLocaleString()})`}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">Escrow Funding</span>
+          <span className={isFunded ? 'text-green-400' : 'text-yellow-400'}>
+            {isFunded ? '✓ Funded' : '○ Pending'}
           </span>
         </div>
       </div>
-      
+
       {/* Summary */}
       <div className="bg-gray-800 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
@@ -627,10 +654,10 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, au
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Title</span>
-          <span className="text-white font-medium">{formData.title}</span>
+          <span className="text-white font-medium truncate ml-4">{formData.title}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Reward</span>
+          <span className="text-gray-400">Staking Amount</span>
           <span className="text-green-400 font-bold">{formData.rewardAmount.toLocaleString()} $FNDRY</span>
         </div>
         <div className="flex items-center justify-between text-sm">
@@ -642,14 +669,14 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, au
           <span className="text-white font-medium">{formData.requirements.filter(Boolean).length} items</span>
         </div>
       </div>
-      
+
       {/* Error Message */}
       {error && (
         <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 text-red-400 text-sm">
           {error}
         </div>
       )}
-      
+
       <label className="flex items-start gap-3 cursor-pointer">
         <input
           type="checkbox"
@@ -658,32 +685,31 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, au
           className="mt-1 accent-purple-500"
         />
         <span className="text-gray-300 text-sm">
-          I confirm this bounty is accurate and I have sufficient $FNDRY balance for the reward.
-          Publishing will create a GitHub issue and optionally lock funds in escrow.
+          I confirm this bounty is accurate and authorize the staking of{' '}
+          {formData.rewardAmount.toLocaleString()} $FNDRY into escrow.
         </span>
       </label>
-      
-      <button
-        onClick={handlePublish}
-        disabled={!canPublish || isPublishing}
-        className="w-full py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-600 to-green-500 text-white hover:from-purple-500 hover:to-green-400"
-      >
-        {isPublishing ? 'Publishing...' : 'Publish Bounty'}
-      </button>
-      
-      {!isGithubAuthenticated && (
-        <p className="text-yellow-400 text-sm text-center">
-          Please connect your GitHub account to publish.
-        </p>
+
+      {/* Two-phase flow: fund first, then publish */}
+      {!isFunded ? (
+        <FundBountyButton
+          amount={formData.rewardAmount}
+          onFunded={handleFunded}
+          disabled={!agreed || !isWalletConnected}
+        />
+      ) : (
+        <button
+          onClick={handlePublish}
+          disabled={!canPublish || isPublishing}
+          className="w-full py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-linear-to-r from-purple-600 to-green-500 text-white hover:from-purple-500 hover:to-green-400"
+        >
+          {isPublishing ? 'Publishing…' : 'Publish Bounty'}
+        </button>
       )}
-      {!isWalletConnected && isGithubAuthenticated && (
+
+      {!isWalletConnected && (
         <p className="text-yellow-400 text-sm text-center">
-          Please connect your wallet to publish.
-        </p>
-      )}
-      {!hasSufficientBalance && isWalletConnected && (
-        <p className="text-yellow-400 text-sm text-center">
-          Insufficient balance. Need {(formData.rewardAmount - walletBalance).toLocaleString()} more $FNDRY.
+          Please connect your Solana wallet to fund and publish.
         </p>
       )}
     </div>
@@ -692,26 +718,16 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish, au
 
 // Main Wizard Component
 interface BountyCreationWizardProps {
-  // Optional auth state provider (would normally come from context)
-  authState?: AuthState;
   onPublishBounty?: (formData: BountyFormData) => Promise<void>;
 }
 
-export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({ 
-  authState: externalAuthState,
-  onPublishBounty 
+export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
+  onPublishBounty,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<BountyFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  // Default auth state (would normally come from auth context/hook)
-  const [authState] = useState<AuthState>(externalAuthState || {
-    isGithubAuthenticated: false,
-    isWalletConnected: false,
-    walletBalance: 0,
-  });
-  
+
   const totalSteps = 7;
   const progressPercent = (currentStep / totalSteps) * 100;
   const stepTitles = [
@@ -721,7 +737,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
     'Category & Skills',
     'Reward & Deadline',
     'Preview',
-    'Publish',
+    'Fund & Publish',
   ];
   
   // Load draft on mount
@@ -859,10 +875,9 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       case 5: return <RewardDeadline {...props} />;
       case 6: return <PreviewBounty {...props} />;
       case 7: return (
-        <ConfirmPublish 
-          {...props} 
+        <ConfirmPublish
+          {...props}
           onPublish={handlePublish}
-          authState={authState}
         />
       );
       default: return null;

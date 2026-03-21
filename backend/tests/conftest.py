@@ -1,4 +1,7 @@
-"""Pytest configuration for backend tests."""
+"""Pytest configuration for backend tests.
+
+Auth is enabled (the default) so tests must pass proper auth headers.
+"""
 
 import asyncio
 import os
@@ -13,9 +16,9 @@ os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
 pytest_plugins = ("pytest_asyncio",)
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an event loop for the test session."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(scope="session", autouse=True)
+def init_test_db():
+    """Initialize database schema once for the entire test session."""
+    from app.database import init_db
+    asyncio.run(init_db())
+    yield

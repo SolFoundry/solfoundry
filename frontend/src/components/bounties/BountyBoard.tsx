@@ -3,7 +3,8 @@ import { useBountyBoard } from '../../hooks/useBountyBoard';
 import { BountyFilters } from './BountyFilters';
 import { BountySortBar } from './BountySortBar';
 import { BountyGrid } from './BountyGrid';
-import { EmptyState } from './EmptyState';
+import { NoBountiesFound } from '../common/EmptyState';
+import { SkeletonList } from '../common/Skeleton';
 import { HotBounties } from './HotBounties';
 import { RecommendedBounties } from './RecommendedBounties';
 import { Pagination } from './Pagination';
@@ -90,12 +91,7 @@ export function BountyBoard() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-6 h-6 border-2 border-solana-green border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-500 font-mono">Searching...</span>
-          </div>
-        </div>
+        <SkeletonList count={6} showTier showSkills />
       ) : bounties.length > 0 ? (
         <>
           {viewMode === 'grid' ? (
@@ -120,7 +116,7 @@ export function BountyBoard() {
           )}
         </>
       ) : (
-        <EmptyState onReset={resetFilters} />
+        <NoBountiesFound onReset={resetFilters} hasFilters={hasActiveFilters} />
       )}
     </div>
   );
