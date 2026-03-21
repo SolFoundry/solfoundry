@@ -1,53 +1,35 @@
-"""Contributor service with PostgreSQL as primary source of truth (Issue #162).
+"""Async PostgreSQL contributor service.
 
-All read operations query the database first and fall back to the in-memory
-cache only when the DB is unreachable. All write operations await the
-database commit before returning.
+Replaces the former in-memory dict with real database queries using
+SQLAlchemy async sessions and the connection pool defined in
+``app.database``.  All public functions are now ``async`` and accept
+an optional ``session`` parameter for transactional callers.
+
+Backward-compatible: API response schemas are unchanged.
 """
 
 import logging
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy import String, func, or_, select, delete as sa_delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import async_session_factory
 from app.models.contributor import (
-    ContributorDB,
     ContributorCreate,
+    ContributorDB,
     ContributorListItem,
     ContributorListResponse,
     ContributorResponse,
     ContributorStats,
+    ContributorTable,
     ContributorUpdate,
 )
 
 logger = logging.getLogger(__name__)
-
-# In-memory cache -- populated during GitHub sync / startup hydration.
-# Kept in sync with PostgreSQL on every write. Used as a fast fallback
-# when the database connection is unavailable (e.g. in unit tests).
-_store: dict[str, ContributorDB] = {}
-
-
-# ---------------------------------------------------------------------------
-# DB write helper (awaited)
-# ---------------------------------------------------------------------------
-
-
-async def _persist_to_db(contributor: ContributorDB) -> None:
-    """Await a write to PostgreSQL for the given contributor.
-
-    Logs errors but does not propagate them to allow graceful degradation
-    when the database is temporarily unavailable.
-
-    Args:
-        contributor: The ContributorDB ORM-compatible instance to persist.
-    """
-    try:
-        from app.services.pg_store import persist_contributor
-
-        await persist_contributor(contributor)
-    except Exception as exc:
-        logger.error("PostgreSQL contributor write failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -55,117 +37,91 @@ async def _persist_to_db(contributor: ContributorDB) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _db_to_response(contributor: ContributorDB) -> ContributorResponse:
-    """Convert a ContributorDB record to the public API response schema.
+def _row_to_response(row: ContributorTable) -> ContributorResponse:
+    """Convert a SQLAlchemy ``ContributorTable`` row to an API response.
 
-    Maps internal fields to the nested ContributorStats model expected
-    by the API layer.
+    Maps individual stat columns into the nested ``ContributorStats``
+    object expected by the frontend.
 
     Args:
-        contributor: The internal contributor record.
+        row: A contributor ORM instance loaded from the database.
 
     Returns:
-        A ContributorResponse suitable for JSON serialization.
+        A ``ContributorResponse`` ready for JSON serialisation.
     """
     return ContributorResponse(
-        id=str(contributor.id),
-        username=contributor.username,
-        display_name=contributor.display_name,
-        email=contributor.email,
-        avatar_url=contributor.avatar_url,
-        bio=contributor.bio,
-        skills=contributor.skills or [],
-        badges=contributor.badges or [],
-        social_links=contributor.social_links or {},
+        id=str(row.id),
+        username=row.username,
+        display_name=row.display_name,
+        email=row.email,
+        avatar_url=row.avatar_url,
+        bio=row.bio,
+        skills=row.skills or [],
+        badges=row.badges or [],
+        social_links=row.social_links or {},
         stats=ContributorStats(
-            total_contributions=contributor.total_contributions or 0,
-            total_bounties_completed=contributor.total_bounties_completed or 0,
-            total_earnings=contributor.total_earnings or 0.0,
-            reputation_score=contributor.reputation_score or 0,
+            total_contributions=row.total_contributions,
+            total_bounties_completed=row.total_bounties_completed,
+            total_earnings=float(row.total_earnings or 0),
+            reputation_score=float(row.reputation_score or 0),
         ),
-        created_at=contributor.created_at,
-        updated_at=contributor.updated_at,
+        created_at=row.created_at or datetime.now(timezone.utc),
+        updated_at=row.updated_at or datetime.now(timezone.utc),
     )
 
 
-def _db_to_list_item(contributor: ContributorDB) -> ContributorListItem:
-    """Convert a ContributorDB record to a lightweight list-view item.
+def _row_to_list_item(row: ContributorTable) -> ContributorListItem:
+    """Convert a SQLAlchemy row to a lightweight list item.
+
+    Excludes email, bio, and social_links to keep list payloads small.
 
     Args:
-        contributor: The internal contributor record.
+        row: A contributor ORM instance loaded from the database.
 
     Returns:
-        A ContributorListItem for paginated list endpoints.
+        A ``ContributorListItem`` for paginated list responses.
     """
     return ContributorListItem(
-        id=str(contributor.id),
-        username=contributor.username,
-        display_name=contributor.display_name,
-        avatar_url=contributor.avatar_url,
-        skills=contributor.skills or [],
-        badges=contributor.badges or [],
+        id=str(row.id),
+        username=row.username,
+        display_name=row.display_name,
+        avatar_url=row.avatar_url,
+        skills=row.skills or [],
+        badges=row.badges or [],
         stats=ContributorStats(
-            total_contributions=contributor.total_contributions or 0,
-            total_bounties_completed=contributor.total_bounties_completed or 0,
-            total_earnings=contributor.total_earnings or 0.0,
-            reputation_score=contributor.reputation_score or 0,
+            total_contributions=row.total_contributions,
+            total_bounties_completed=row.total_bounties_completed,
+            total_earnings=float(row.total_earnings or 0),
+            reputation_score=float(row.reputation_score or 0),
         ),
     )
 
 
-async def _load_contributor_from_db(contributor_id: str) -> Optional[ContributorDB]:
-    """Load a contributor from PostgreSQL by ID.
-
-    Returns None on DB failure so callers can fall back to the cache.
-
-    Args:
-        contributor_id: The UUID string of the contributor.
-
-    Returns:
-        A ContributorDB ORM instance or None.
-    """
-    try:
-        from app.services.pg_store import get_contributor_by_id
-
-        return await get_contributor_by_id(contributor_id)
-    except Exception as exc:
-        logger.warning("DB read failed for contributor %s: %s", contributor_id, exc)
-        return None
-
-
-async def _load_all_contributors_from_db() -> Optional[list[ContributorDB]]:
-    """Load all contributors from PostgreSQL.
-
-    Returns None on DB failure so callers can fall back to the cache.
-
-    Returns:
-        A list of ContributorDB instances, or None on failure.
-    """
-    try:
-        from app.services.pg_store import load_contributors
-
-        return await load_contributors()
-    except Exception as exc:
-        logger.warning("DB read failed for contributor list: %s", exc)
-        return None
-
-
 # ---------------------------------------------------------------------------
-# Public API -- async where DB reads/writes are involved
+# CRUD operations
 # ---------------------------------------------------------------------------
 
 
-async def create_contributor(data: ContributorCreate) -> ContributorResponse:
-    """Create a new contributor, persist to PostgreSQL, and update the cache.
+async def create_contributor(
+    data: ContributorCreate,
+    session: Optional[AsyncSession] = None,
+) -> ContributorResponse:
+    """Insert a new contributor and return the API response.
+
+    Generates a UUID v4 primary key, sets timestamps to UTC now, and
+    commits the row.  Caller is responsible for checking username
+    uniqueness beforehand (the DB constraint will also catch it).
 
     Args:
         data: Validated contributor creation payload.
+        session: Optional externally managed session.  When ``None``,
+            a fresh session is created and auto-committed.
 
     Returns:
-        The newly created contributor as a ContributorResponse.
+        The newly created contributor as a ``ContributorResponse``.
     """
     now = datetime.now(timezone.utc)
-    contributor = ContributorDB(
+    row = ContributorTable(
         id=uuid.uuid4(),
         username=data.username,
         display_name=data.display_name,
@@ -175,12 +131,27 @@ async def create_contributor(data: ContributorCreate) -> ContributorResponse:
         skills=data.skills,
         badges=data.badges,
         social_links=data.social_links,
+        total_contributions=0,
+        total_bounties_completed=0,
+        total_earnings=Decimal("0"),
+        reputation_score=0.0,
         created_at=now,
         updated_at=now,
     )
-    await _persist_to_db(contributor)
-    _store[str(contributor.id)] = contributor
-    return _db_to_response(contributor)
+
+    if session is not None:
+        session.add(row)
+        await session.flush()
+    else:
+        async with async_session_factory() as auto_session:
+            auto_session.add(row)
+            await auto_session.commit()
+            await auto_session.refresh(row)
+
+    # Keep in-memory cache in sync
+    _store[str(row.id)] = row
+
+    return _row_to_response(row)
 
 
 async def list_contributors(
@@ -189,201 +160,471 @@ async def list_contributors(
     badges: Optional[list[str]] = None,
     skip: int = 0,
     limit: int = 20,
+    session: Optional[AsyncSession] = None,
 ) -> ContributorListResponse:
     """List contributors with optional search, skill, and badge filters.
 
-    Queries PostgreSQL first. Falls back to the in-memory cache when
-    the database is unreachable.
+    Runs two queries -- one ``COUNT(*)`` for the total and one paginated
+    ``SELECT`` -- so the frontend can render pagination controls.
 
     Args:
-        search: Case-insensitive substring to match against username
-            or display_name.
-        skills: Filter by contributors who have any of these skills.
-        badges: Filter by contributors who have any of these badges.
-        skip: Pagination offset.
-        limit: Maximum results per page.
+        search: Case-insensitive substring match on username or display_name.
+        skills: When provided, only contributors whose ``skills`` JSON
+            column contains at least one matching entry are returned.
+        badges: Same as ``skills`` but for the ``badges`` column.
+        skip: Number of rows to skip (pagination offset).
+        limit: Maximum rows to return (page size, capped at 100 by API).
+        session: Optional externally managed session.
 
     Returns:
-        A ContributorListResponse with paginated items and total count.
+        A ``ContributorListResponse`` with items, total count, skip, and limit.
     """
-    db_results = await _load_all_contributors_from_db()
-    # Prefer DB results when available; fall back to cache when DB returns
-    # None (error) or an empty list while the cache has data.
-    results = list(_store.values())
-    if db_results:
-        results = db_results
 
-    if search:
-        query = search.lower()
-        results = [
-            r
-            for r in results
-            if query in r.username.lower() or query in r.display_name.lower()
-        ]
-    if skills:
-        skill_set = set(skills)
-        results = [r for r in results if skill_set & set(r.skills or [])]
-    if badges:
-        badge_set = set(badges)
-        results = [r for r in results if badge_set & set(r.badges or [])]
-    total = len(results)
-    return ContributorListResponse(
-        items=[_db_to_list_item(r) for r in results[skip : skip + limit]],
-        total=total,
-        skip=skip,
-        limit=limit,
-    )
+    async def _run(db_session: AsyncSession) -> ContributorListResponse:
+        """Execute the query inside the given session."""
+        base_query = select(ContributorTable)
+        count_query = select(func.count(ContributorTable.id))
+
+        if search:
+            pattern = f"%{search.lower()}%"
+            search_filter = or_(
+                func.lower(ContributorTable.username).like(pattern),
+                func.lower(ContributorTable.display_name).like(pattern),
+            )
+            base_query = base_query.where(search_filter)
+            count_query = count_query.where(search_filter)
+
+        # JSON array containment filters -- for SQLite test compatibility,
+        # fall back to CAST + LIKE when the JSON operator is unavailable.
+        if skills:
+            for skill in skills:
+                skill_filter = func.cast(
+                    ContributorTable.skills, String
+                ).like(f"%{skill}%")
+                base_query = base_query.where(skill_filter)
+                count_query = count_query.where(skill_filter)
+
+        if badges:
+            for badge in badges:
+                badge_filter = func.cast(
+                    ContributorTable.badges, String
+                ).like(f"%{badge}%")
+                base_query = base_query.where(badge_filter)
+                count_query = count_query.where(badge_filter)
+
+        total_result = await db_session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        rows_result = await db_session.execute(
+            base_query.offset(skip).limit(limit)
+        )
+        rows = rows_result.scalars().all()
+
+        return ContributorListResponse(
+            items=[_row_to_list_item(r) for r in rows],
+            total=total,
+            skip=skip,
+            limit=limit,
+        )
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
 
 
-async def get_contributor(contributor_id: str) -> Optional[ContributorResponse]:
-    """Retrieve a contributor by ID, querying PostgreSQL first.
+async def get_contributor(
+    contributor_id: str,
+    session: Optional[AsyncSession] = None,
+) -> Optional[ContributorResponse]:
+    """Return a contributor response by ID or ``None`` if not found.
 
     Args:
         contributor_id: The UUID string of the contributor.
+        session: Optional externally managed session.
 
     Returns:
-        A ContributorResponse if found, None otherwise.
+        ``ContributorResponse`` or ``None``.
     """
-    db_contributor = await _load_contributor_from_db(contributor_id)
-    if db_contributor is not None:
-        _store[contributor_id] = db_contributor
-        return _db_to_response(db_contributor)
 
-    cached = _store.get(contributor_id)
-    return _db_to_response(cached) if cached else None
+    async def _run(db_session: AsyncSession) -> Optional[ContributorResponse]:
+        """Execute the lookup inside the given session."""
+        try:
+            uid = uuid.UUID(contributor_id)
+        except (ValueError, AttributeError):
+            return None
+        result = await db_session.execute(
+            select(ContributorTable).where(ContributorTable.id == uid)
+        )
+        row = result.scalar_one_or_none()
+        return _row_to_response(row) if row else None
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
 
 
-async def get_contributor_by_username(username: str) -> Optional[ContributorResponse]:
-    """Look up a contributor by their unique username.
-
-    Queries PostgreSQL first, then falls back to a linear scan
-    of the in-memory cache.
+async def get_contributor_by_username(
+    username: str,
+    session: Optional[AsyncSession] = None,
+) -> Optional[ContributorResponse]:
+    """Look up a contributor by username or return ``None``.
 
     Args:
-        username: The username to search for.
+        username: The exact GitHub username to match.
+        session: Optional externally managed session.
 
     Returns:
-        A ContributorResponse if found, None otherwise.
+        ``ContributorResponse`` or ``None``.
     """
-    try:
-        from app.services.pg_store import get_contributor_by_username as db_lookup
 
-        db_result = await db_lookup(username)
-        if db_result is not None:
-            return _db_to_response(db_result)
-    except Exception as exc:
-        logger.warning("DB lookup by username failed: %s", exc)
+    async def _run(db_session: AsyncSession) -> Optional[ContributorResponse]:
+        """Execute the lookup inside the given session."""
+        result = await db_session.execute(
+            select(ContributorTable).where(
+                ContributorTable.username == username
+            )
+        )
+        row = result.scalar_one_or_none()
+        return _row_to_response(row) if row else None
 
-    for contributor in _store.values():
-        if contributor.username == username:
-            return _db_to_response(contributor)
-    return None
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
 
 
 async def update_contributor(
-    contributor_id: str, data: ContributorUpdate
+    contributor_id: str,
+    data: ContributorUpdate,
+    session: Optional[AsyncSession] = None,
 ) -> Optional[ContributorResponse]:
-    """Partially update a contributor and persist the changes.
+    """Partially update a contributor, returning the updated response.
 
-    Loads from the database first to ensure we are modifying the latest
-    state. Only fields present in the update payload are modified.
-    The updated_at timestamp is refreshed automatically.
-
-    Args:
-        contributor_id: The UUID string of the contributor.
-        data: The partial update payload.
-
-    Returns:
-        The updated ContributorResponse, or None if not found.
-    """
-    contributor = await _load_contributor_from_db(contributor_id)
-    if contributor is None:
-        contributor = _store.get(contributor_id)
-    if not contributor:
-        return None
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(contributor, key, value)
-    contributor.updated_at = datetime.now(timezone.utc)
-    await _persist_to_db(contributor)
-    _store[contributor_id] = contributor
-    return _db_to_response(contributor)
-
-
-async def delete_contributor(contributor_id: str) -> bool:
-    """Delete a contributor from both the cache and PostgreSQL.
-
-    The database deletion is awaited to prevent the record from
-    resurrecting on the next startup hydration.
+    Only fields present in ``data`` (``exclude_unset=True``) are applied.
+    The ``updated_at`` timestamp is refreshed automatically.
 
     Args:
         contributor_id: The UUID string of the contributor.
+        data: Partial update payload.
+        session: Optional externally managed session.
 
     Returns:
-        True if the contributor was found and deleted, False otherwise.
+        The updated ``ContributorResponse`` or ``None`` if not found.
     """
-    db_contributor = await _load_contributor_from_db(contributor_id)
-    cache_had = _store.pop(contributor_id, None) is not None
-    found = db_contributor is not None or cache_had
 
-    if found:
+    async def _run(
+        db_session: AsyncSession,
+    ) -> Optional[ContributorResponse]:
+        """Execute the update inside the given session."""
         try:
-            from app.services.pg_store import delete_contributor_row
+            uid = uuid.UUID(contributor_id)
+        except (ValueError, AttributeError):
+            return None
+        result = await db_session.execute(
+            select(ContributorTable).where(ContributorTable.id == uid)
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(row, key, value)
+        row.updated_at = datetime.now(timezone.utc)
+        await db_session.flush()
+        return _row_to_response(row)
 
-            await delete_contributor_row(contributor_id)
-        except Exception as exc:
-            logger.error("PostgreSQL contributor delete failed: %s", exc)
-    return found
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        resp = await _run(auto_session)
+        await auto_session.commit()
+        return resp
 
 
-async def get_contributor_db(contributor_id: str) -> Optional[ContributorDB]:
-    """Return the raw ContributorDB record, querying PostgreSQL first.
-
-    Used by the reputation service to access internal fields that
-    are not exposed in the API response.
+async def delete_contributor(
+    contributor_id: str,
+    session: Optional[AsyncSession] = None,
+) -> bool:
+    """Delete a contributor by ID, returning ``True`` if found.
 
     Args:
         contributor_id: The UUID string of the contributor.
+        session: Optional externally managed session.
 
     Returns:
-        The ContributorDB instance or None.
+        ``True`` if a row was deleted, ``False`` otherwise.
     """
-    db_result = await _load_contributor_from_db(contributor_id)
-    if db_result is not None:
-        _store[contributor_id] = db_result
-        return db_result
-    return _store.get(contributor_id)
+
+    async def _run(db_session: AsyncSession) -> bool:
+        """Execute the delete inside the given session."""
+        try:
+            uid = uuid.UUID(contributor_id)
+        except (ValueError, AttributeError):
+            return False
+        result = await db_session.execute(
+            sa_delete(ContributorTable).where(ContributorTable.id == uid)
+        )
+        return (result.rowcount or 0) > 0
+
+    if session is not None:
+        deleted = await _run(session)
+    else:
+        async with async_session_factory() as auto_session:
+            deleted = await _run(auto_session)
+            await auto_session.commit()
+
+    # Remove from in-memory cache
+    _store.pop(contributor_id, None)
+
+    return deleted
 
 
-async def update_reputation_score(contributor_id: str, score: float) -> None:
-    """Set the reputation_score on the contributor and persist to PostgreSQL.
+async def get_contributor_db(
+    contributor_id: str,
+    session: Optional[AsyncSession] = None,
+) -> Optional[ContributorTable]:
+    """Return the raw ``ContributorTable`` ORM row or ``None``.
 
-    Called by the reputation service after computing a new aggregate score.
+    Used internally by services that need direct column access (e.g.
+    reputation_service updating ``reputation_score``).
+
+    Args:
+        contributor_id: The UUID string of the contributor.
+        session: Optional externally managed session.
+
+    Returns:
+        A detached ``ContributorTable`` instance or ``None``.
+    """
+
+    async def _run(
+        db_session: AsyncSession,
+    ) -> Optional[ContributorTable]:
+        """Execute the lookup inside the given session."""
+        try:
+            uid = uuid.UUID(contributor_id)
+        except (ValueError, AttributeError):
+            return None
+        result = await db_session.execute(
+            select(ContributorTable).where(ContributorTable.id == uid)
+        )
+        return result.scalar_one_or_none()
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        row = await _run(auto_session)
+        if row is not None:
+            _store[contributor_id] = row
+        return row
+
+
+async def update_reputation_score(
+    contributor_id: str,
+    score: float,
+    session: Optional[AsyncSession] = None,
+) -> None:
+    """Set the ``reputation_score`` on a contributor row.
+
+    This is the public API that other services should use instead of
+    reaching into the ORM directly.
 
     Args:
         contributor_id: The UUID string of the contributor.
         score: The new reputation score value.
+        session: Optional externally managed session.
     """
-    contributor = await _load_contributor_from_db(contributor_id)
-    if contributor is None:
-        contributor = _store.get(contributor_id)
-    if contributor is not None:
-        contributor.reputation_score = int(round(score))
-        _store[contributor_id] = contributor
-        await _persist_to_db(contributor)
+
+    async def _run(db_session: AsyncSession) -> None:
+        """Execute the update inside the given session."""
+        try:
+            uid = uuid.UUID(contributor_id)
+        except (ValueError, AttributeError):
+            return
+        result = await db_session.execute(
+            select(ContributorTable).where(ContributorTable.id == uid)
+        )
+        row = result.scalar_one_or_none()
+        if row is not None:
+            row.reputation_score = score
+            row.updated_at = datetime.now(timezone.utc)
+            await db_session.flush()
+
+    if session is not None:
+        await _run(session)
+    else:
+        async with async_session_factory() as auto_session:
+            await _run(auto_session)
+            await auto_session.commit()
+
+    # Update in-memory cache
+    cached = _store.get(contributor_id)
+    if cached is not None:
+        cached.reputation_score = score
 
 
-async def list_contributor_ids() -> list[str]:
-    """Return all contributor IDs, querying PostgreSQL first.
+async def list_contributor_ids(
+    session: Optional[AsyncSession] = None,
+) -> list[str]:
+    """Return all contributor IDs currently in the database.
 
-    Falls back to cache keys when the database is unavailable.
+    Used by the reputation leaderboard to iterate contributors.
+
+    Args:
+        session: Optional externally managed session.
 
     Returns:
-        A list of UUID strings.
+        A list of UUID strings for every contributor row.
     """
-    try:
-        from app.services.pg_store import list_contributor_ids as db_list_ids
 
-        return await db_list_ids()
-    except Exception as exc:
-        logger.warning("DB list_contributor_ids failed: %s", exc)
-        return list(_store.keys())
+    async def _run(db_session: AsyncSession) -> list[str]:
+        """Execute the query inside the given session."""
+        result = await db_session.execute(select(ContributorTable.id))
+        return [str(row_id) for (row_id,) in result.all()]
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
+
+
+async def upsert_contributor(
+    row_data: dict,
+    session: Optional[AsyncSession] = None,
+) -> ContributorTable:
+    """Insert or update a contributor by username.
+
+    Used by the GitHub sync and seed scripts to idempotently populate
+    contributor data.  If a contributor with the same ``username``
+    already exists, its stats and metadata are updated.
+
+    Args:
+        row_data: Dictionary of column values.  Must include ``username``.
+        session: Optional externally managed session.
+
+    Returns:
+        The inserted or updated ``ContributorTable`` row.
+    """
+
+    async def _run(db_session: AsyncSession) -> ContributorTable:
+        """Execute the upsert inside the given session."""
+        username = row_data["username"]
+        result = await db_session.execute(
+            select(ContributorTable).where(
+                ContributorTable.username == username
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            for key, value in row_data.items():
+                if key not in ("id", "created_at"):
+                    setattr(existing, key, value)
+            existing.updated_at = datetime.now(timezone.utc)
+            await db_session.flush()
+            return existing
+
+        row = ContributorTable(**row_data)
+        if not row.created_at:
+            row.created_at = datetime.now(timezone.utc)
+        if not row.updated_at:
+            row.updated_at = datetime.now(timezone.utc)
+        db_session.add(row)
+        await db_session.flush()
+        return row
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        result_row = await _run(auto_session)
+        await auto_session.commit()
+        return result_row
+
+
+async def get_all_contributors(
+    session: Optional[AsyncSession] = None,
+) -> list[ContributorTable]:
+    """Return all contributor rows from the database.
+
+    Used by the leaderboard service and health endpoint.  Avoid calling
+    this with very large tables -- the leaderboard service applies its
+    own ORDER BY and LIMIT via ``get_leaderboard_contributors()``.
+
+    Args:
+        session: Optional externally managed session.
+
+    Returns:
+        A list of all ``ContributorTable`` ORM instances.
+    """
+
+    async def _run(db_session: AsyncSession) -> list[ContributorTable]:
+        """Execute the query inside the given session."""
+        result = await db_session.execute(select(ContributorTable))
+        return list(result.scalars().all())
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
+
+
+async def count_contributors(
+    session: Optional[AsyncSession] = None,
+) -> int:
+    """Return the total number of contributors in the database.
+
+    Args:
+        session: Optional externally managed session.
+
+    Returns:
+        An integer count of all contributor rows.
+    """
+
+    async def _run(db_session: AsyncSession) -> int:
+        """Execute the count inside the given session."""
+        result = await db_session.execute(
+            select(func.count(ContributorTable.id))
+        )
+        return result.scalar() or 0
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatible in-memory store for callers that import ``_store``
+# ---------------------------------------------------------------------------
+# Several modules (github_sync, seed_leaderboard, tests, health endpoint)
+# directly import ``_store``.  We keep this dict as a read-through cache
+# that is populated on startup sync.  The authoritative data lives in
+# PostgreSQL; ``_store`` is a convenience reference only.
+_store: dict[str, ContributorTable] = {}
+
+
+async def refresh_store_cache(
+    session: Optional[AsyncSession] = None,
+) -> None:
+    """Reload ``_store`` from the database.
+
+    Called after bulk operations (GitHub sync, seed) to keep the
+    in-memory cache consistent with PostgreSQL.
+
+    Args:
+        session: Optional externally managed session.
+    """
+    rows = await get_all_contributors(session=session)
+    _store.clear()
+    for row in rows:
+        _store[str(row.id)] = row
+    logger.info("Refreshed in-memory contributor cache: %d entries", len(_store))

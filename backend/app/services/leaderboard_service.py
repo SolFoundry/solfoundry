@@ -1,12 +1,24 @@
-"""Leaderboard service — cached ranked contributor data."""
+"""Leaderboard service -- cached ranked contributor data from PostgreSQL.
+
+Queries the ``contributors`` table for ranked results and applies a
+time-to-live (TTL) in-memory cache so that repeated requests within
+``CACHE_TTL`` seconds are served without hitting the database.
+
+Performance target: leaderboard responses under 100 ms with caching.
+"""
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from app.models.contributor import ContributorDB
+from sqlalchemy import select, func, cast, String
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import async_session_factory
+from app.models.contributor import ContributorTable
 from app.models.leaderboard import (
     CategoryFilter,
     LeaderboardEntry,
@@ -16,10 +28,11 @@ from app.models.leaderboard import (
     TopContributor,
     TopContributorMeta,
 )
-from app.services.contributor_service import _store
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# In-memory cache (replaces materialized view for the MVP)
+# TTL-based in-memory cache
 # ---------------------------------------------------------------------------
 
 _cache: dict[str, tuple[float, LeaderboardResponse]] = {}
@@ -31,24 +44,45 @@ def _cache_key(
     tier: Optional[TierFilter],
     category: Optional[CategoryFilter],
 ) -> str:
-    """Build a cache key from filter parameters."""
+    """Build a deterministic cache key from the filter parameters.
+
+    Args:
+        period: Time period filter (week, month, all).
+        tier: Optional bounty tier filter.
+        category: Optional skill category filter.
+
+    Returns:
+        A colon-separated string uniquely identifying the query.
+    """
     return f"{period.value}:{tier or 'all'}:{category or 'all'}"
 
 
 def invalidate_cache() -> None:
-    """Call after any contributor stat change."""
+    """Clear the entire leaderboard cache.
+
+    Call after any contributor stat change (reputation update, sync,
+    or manual edit) to ensure stale rankings are never served.
+    """
     _cache.clear()
+    logger.debug("Leaderboard cache invalidated")
 
 
 # ---------------------------------------------------------------------------
 # Core ranking logic
 # ---------------------------------------------------------------------------
 
-MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
+MEDALS = {1: "\U0001f947", 2: "\U0001f948", 3: "\U0001f949"}
 
 
 def _period_cutoff(period: TimePeriod) -> Optional[datetime]:
-    """Return the UTC cutoff datetime for a time period."""
+    """Return the earliest ``created_at`` value for a given time period.
+
+    Args:
+        period: The time period to compute the cutoff for.
+
+    Returns:
+        A UTC ``datetime`` cutoff or ``None`` for all-time.
+    """
     now = datetime.now(timezone.utc)
     if period == TimePeriod.week:
         return now - timedelta(days=7)
@@ -57,79 +91,118 @@ def _period_cutoff(period: TimePeriod) -> Optional[datetime]:
     return None  # all-time
 
 
-def _matches_tier(contributor: ContributorDB, tier: Optional[TierFilter]) -> bool:
-    """Check if contributor has completed bounties in the given tier."""
-    if tier is None:
-        return True
-    tier_label = f"tier-{tier.value}"
-    return tier_label in (contributor.badges or [])
+def _to_entry(rank: int, row: ContributorTable) -> LeaderboardEntry:
+    """Convert a ranked contributor row to a ``LeaderboardEntry``.
+
+    Args:
+        rank: 1-indexed rank position.
+        row: The contributor ORM instance.
+
+    Returns:
+        A ``LeaderboardEntry`` Pydantic model.
+    """
+    return LeaderboardEntry(
+        rank=rank,
+        username=row.username,
+        display_name=row.display_name,
+        avatar_url=row.avatar_url,
+        total_earned=float(row.total_earnings or 0),
+        bounties_completed=row.total_bounties_completed or 0,
+        reputation_score=int(row.reputation_score or 0),
+    )
 
 
-def _matches_category(
-    contributor: ContributorDB, category: Optional[CategoryFilter]
-) -> bool:
-    """Check if contributor has skills in the given category."""
-    if category is None:
-        return True
-    return category.value in (contributor.skills or [])
+def _to_top(rank: int, row: ContributorTable) -> TopContributor:
+    """Convert a ranked contributor row to a ``TopContributor`` (podium).
+
+    Args:
+        rank: 1-indexed rank position (expected 1, 2, or 3).
+        row: The contributor ORM instance.
+
+    Returns:
+        A ``TopContributor`` with medal metadata.
+    """
+    return TopContributor(
+        rank=rank,
+        username=row.username,
+        display_name=row.display_name,
+        avatar_url=row.avatar_url,
+        total_earned=float(row.total_earnings or 0),
+        bounties_completed=row.total_bounties_completed or 0,
+        reputation_score=int(row.reputation_score or 0),
+        meta=TopContributorMeta(
+            medal=MEDALS.get(rank, ""),
+            join_date=row.created_at,
+            best_bounty_title=None,
+            best_bounty_earned=float(row.total_earnings or 0),
+        ),
+    )
 
 
-def _build_leaderboard(
+# ---------------------------------------------------------------------------
+# Database query builder
+# ---------------------------------------------------------------------------
+
+
+async def _query_leaderboard(
     period: TimePeriod,
     tier: Optional[TierFilter],
     category: Optional[CategoryFilter],
-) -> list[tuple[int, ContributorDB]]:
-    """Return ranked list of (rank, contributor) tuples."""
-    cutoff = _period_cutoff(period)
-    candidates = list(_store.values())
+    session: Optional[AsyncSession] = None,
+) -> list[ContributorTable]:
+    """Query the contributors table with filters and return ranked rows.
 
-    # Filter by time period (created_at as proxy — full payout history would
-    # allow per-period earnings, but this is the MVP in-memory approach).
-    if cutoff:
-        candidates = [c for c in candidates if c.created_at and c.created_at >= cutoff]
+    Applies time-period, tier-badge, and skill-category filters, then
+    sorts by earnings descending, reputation descending, username
+    ascending as tiebreaker.
 
-    # Filter by tier / category
-    candidates = [c for c in candidates if _matches_tier(c, tier)]
-    candidates = [c for c in candidates if _matches_category(c, category)]
+    Args:
+        period: Time period filter.
+        tier: Optional tier filter (matches ``tier-N`` in badges JSON).
+        category: Optional category filter (matches skill in skills JSON).
+        session: Optional externally managed session.
 
-    # Sort by total_earnings desc, then reputation desc, then username asc
-    candidates.sort(
-        key=lambda c: (-c.total_earnings, -c.reputation_score, c.username),
-    )
+    Returns:
+        A list of ``ContributorTable`` rows sorted by rank.
+    """
 
-    return [(rank, c) for rank, c in enumerate(candidates, start=1)]
+    async def _run(db_session: AsyncSession) -> list[ContributorTable]:
+        """Execute the query inside the given session."""
+        query = select(ContributorTable)
 
+        cutoff = _period_cutoff(period)
+        if cutoff:
+            query = query.where(ContributorTable.created_at >= cutoff)
 
-def _to_entry(rank: int, c: ContributorDB) -> LeaderboardEntry:
-    """Convert a ranked contributor to a LeaderboardEntry."""
-    return LeaderboardEntry(
-        rank=rank,
-        username=c.username,
-        display_name=c.display_name,
-        avatar_url=c.avatar_url,
-        total_earned=c.total_earnings,
-        bounties_completed=c.total_bounties_completed,
-        reputation_score=c.reputation_score,
-    )
+        if tier:
+            tier_label = f"tier-{tier.value}"
+            query = query.where(
+                cast(ContributorTable.badges, String).like(
+                    f"%{tier_label}%"
+                )
+            )
 
+        if category:
+            query = query.where(
+                cast(ContributorTable.skills, String).like(
+                    f"%{category.value}%"
+                )
+            )
 
-def _to_top(rank: int, c: ContributorDB) -> TopContributor:
-    """Convert a ranked contributor to a TopContributor."""
-    return TopContributor(
-        rank=rank,
-        username=c.username,
-        display_name=c.display_name,
-        avatar_url=c.avatar_url,
-        total_earned=c.total_earnings,
-        bounties_completed=c.total_bounties_completed,
-        reputation_score=c.reputation_score,
-        meta=TopContributorMeta(
-            medal=MEDALS.get(rank, ""),
-            join_date=c.created_at,
-            best_bounty_title=None,  # placeholder — extend when payout history exists
-            best_bounty_earned=c.total_earnings,
-        ),
-    )
+        query = query.order_by(
+            ContributorTable.total_earnings.desc(),
+            ContributorTable.reputation_score.desc(),
+            ContributorTable.username.asc(),
+        )
+
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
+    if session is not None:
+        return await _run(session)
+
+    async with async_session_factory() as auto_session:
+        return await _run(auto_session)
 
 
 # ---------------------------------------------------------------------------
@@ -137,38 +210,60 @@ def _to_top(rank: int, c: ContributorDB) -> TopContributor:
 # ---------------------------------------------------------------------------
 
 
-def get_leaderboard(
+async def get_leaderboard(
     period: TimePeriod = TimePeriod.all,
     tier: Optional[TierFilter] = None,
     category: Optional[CategoryFilter] = None,
     limit: int = 20,
     offset: int = 0,
+    session: Optional[AsyncSession] = None,
 ) -> LeaderboardResponse:
-    """Return the leaderboard, served from cache when possible."""
+    """Return the leaderboard, served from cache when possible.
 
+    First checks the TTL cache for a matching (period, tier, category)
+    key.  On a cache miss, queries PostgreSQL, builds the full response,
+    caches it, and returns the requested pagination window.
+
+    Performance: cached responses are returned in <1 ms.  Cache misses
+    incur a single DB round-trip (~5-50 ms depending on row count).
+
+    Args:
+        period: Time period filter (week, month, all).
+        tier: Optional tier filter.
+        category: Optional category filter.
+        limit: Maximum entries to return.
+        offset: Pagination offset.
+        session: Optional externally managed database session.
+
+    Returns:
+        A ``LeaderboardResponse`` with ranked entries and top-3 podium.
+    """
     key = _cache_key(period, tier, category)
     now = time.time()
 
     # Check cache
     if key in _cache:
-        cached_at, cached_resp = _cache[key]
+        cached_at, cached_response = _cache[key]
         if now - cached_at < CACHE_TTL:
-            # Apply pagination on cached full result
-            paginated = cached_resp.entries[offset : offset + limit]
+            paginated = cached_response.entries[offset: offset + limit]
             return LeaderboardResponse(
-                period=cached_resp.period,
-                total=cached_resp.total,
+                period=cached_response.period,
+                total=cached_response.total,
                 offset=offset,
                 limit=limit,
-                top3=cached_resp.top3,
+                top3=cached_response.top3,
                 entries=paginated,
             )
 
-    # Build fresh
-    ranked = _build_leaderboard(period, tier, category)
+    # Build fresh from database
+    ranked_rows = await _query_leaderboard(
+        period, tier, category, session=session
+    )
 
-    top3 = [_to_top(rank, c) for rank, c in ranked[:3]]
-    all_entries = [_to_entry(rank, c) for rank, c in ranked]
+    ranked = [(rank, row) for rank, row in enumerate(ranked_rows, start=1)]
+
+    top3 = [_to_top(rank, row) for rank, row in ranked[:3]]
+    all_entries = [_to_entry(rank, row) for rank, row in ranked]
 
     full = LeaderboardResponse(
         period=period.value,
@@ -189,5 +284,5 @@ def get_leaderboard(
         offset=offset,
         limit=limit,
         top3=top3,
-        entries=all_entries[offset : offset + limit],
+        entries=all_entries[offset: offset + limit],
     )

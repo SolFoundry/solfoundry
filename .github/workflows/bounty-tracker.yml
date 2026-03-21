@@ -94,9 +94,8 @@ jobs:
                       print(f"PR #{pr_number}: already tracked, skipping duplicate")
                       exit(0)
 
-              # Find "Closes #N" patterns in body AND title
-              combined_text = (pr_body + " " + pr_title).lower()
-              closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', combined_text)
+              # Find "Closes #N" patterns
+              closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_body.lower())
 
               keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
 
@@ -138,12 +137,10 @@ jobs:
                           if str(opr_num) == str(pr_number):
                               continue  # Skip the merged PR itself
                           opr_body = (opr.get("body", "") or "").lower()
-                          opr_title = (opr.get("title", "") or "").lower()
                           opr_author = opr.get("user", {}).get("login", "unknown")
 
-                          # Check if this PR targets the same issue (body OR title)
-                          opr_combined = opr_body + " " + opr_title
-                          opr_closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', opr_combined)
+                          # Check if this PR targets the same issue
+                          opr_closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', opr_body)
                           if issue_num in opr_closes:
                               # Close competing PR with explanation
                               close_body = json.dumps({
@@ -172,85 +169,6 @@ jobs:
 
                   except Exception as e:
                       print(f"Error auto-closing competing PRs for #{issue_num}: {e}")
-
-          # ── Sweep: when a bounty ISSUE is closed, auto-close all competing PRs ──
-          if event == "issues":
-              import urllib.request
-              issue_number = os.environ.get("ISSUE_NUMBER", "")
-              issue_title = os.environ.get("ISSUE_TITLE", "")
-              repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
-              gh_token = os.environ.get("GH_TOKEN", "")
-
-              # Check if this is actually a bounty issue
-              if not issue_number or "bounty" not in (issue_title or "").lower():
-                  print(f"Issue #{issue_number} is not a bounty — skipping sweep")
-              else:
-                  print(f"Bounty issue #{issue_number} closed — sweeping competing PRs...")
-                  try:
-                      req = urllib.request.Request(
-                          f"https://api.github.com/repos/{repo}/pulls?state=open&per_page=100",
-                          headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"}
-                      )
-                      resp = urllib.request.urlopen(req, timeout=15)
-                      open_prs = json.loads(resp.read().decode())
-                      closed_count = 0
-
-                      for opr in open_prs:
-                          opr_num = opr["number"]
-                          opr_body = (opr.get("body", "") or "").lower()
-                          opr_title = (opr.get("title", "") or "").lower()
-                          opr_author = opr.get("user", {}).get("login", "unknown")
-                          opr_combined = opr_body + " " + opr_title
-
-                          # Match: "Closes #N" / "Fixes #N" / "Resolves #N" in body or title
-                          opr_targets = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', opr_combined)
-                          # Also match: "(bounty #N)" or "bounty #N" in title
-                          opr_targets += re.findall(r'bounty\s+#(\d+)', opr_combined)
-                          # Also match: "#N" where N is the issue number in title (e.g. "- 50,000 $FNDRY")
-                          # Check if issue number appears as standalone ref
-                          if re.search(rf'#\s*{issue_number}\b', opr_combined):
-                              opr_targets.append(issue_number)
-
-                          if issue_number in opr_targets:
-                              try:
-                                  # Post comment
-                                  comment_body = json.dumps({
-                                      "body": (
-                                          f"🏭 **Bounty #{issue_number} has been completed** — this issue is now closed.\n\n"
-                                          f"Thank you for your submission @{opr_author}! "
-                                          f"Check out our open bounties for new opportunities.\n\n"
-                                          f"---\n*SolFoundry Bot*"
-                                      )
-                                  }).encode()
-                                  comment_req = urllib.request.Request(
-                                      f"https://api.github.com/repos/{repo}/issues/{opr_num}/comments",
-                                      data=comment_body, method="POST",
-                                      headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json", "Content-Type": "application/json"}
-                                  )
-                                  urllib.request.urlopen(comment_req, timeout=15)
-
-                                  # Close PR
-                                  close_data = json.dumps({"state": "closed"}).encode()
-                                  close_req = urllib.request.Request(
-                                      f"https://api.github.com/repos/{repo}/pulls/{opr_num}",
-                                      data=close_data, method="PATCH",
-                                      headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json", "Content-Type": "application/json"}
-                                  )
-                                  urllib.request.urlopen(close_req, timeout=15)
-                                  closed_count += 1
-                                  print(f"Sweep: closed PR #{opr_num} by @{opr_author} (bounty #{issue_number} completed)")
-                              except Exception as e:
-                                  print(f"Error closing PR #{opr_num}: {e}")
-
-                      if closed_count > 0:
-                          send_telegram(
-                              f"🧹 <b>Bounty #{issue_number} closed</b> — auto-closed {closed_count} competing PR(s)",
-                          )
-                      else:
-                          print(f"No competing PRs found for bounty #{issue_number}")
-
-                  except Exception as e:
-                      print(f"Error sweeping PRs for bounty #{issue_number}: {e}")
 
           print("Bounty tracking complete")
           PYEOF

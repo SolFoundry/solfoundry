@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-# ── API Documentation Metadata ────────────────────────────────────────────────
+# -- API Documentation Metadata ------------------------------------------------
 
 API_DESCRIPTION = """
 ## Welcome to the SolFoundry Developer Portal
@@ -187,7 +187,7 @@ app.add_middleware(
 
 app.add_middleware(LoggingMiddleware)
 
-# ── Global Exception Handlers ────────────────────────────────────────────────
+# -- Global Exception Handlers ------------------------------------------------
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -207,12 +207,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler for unexpected errors."""
     import structlog
     log = structlog.get_logger(__name__)
-    
+
     request_id = getattr(request.state, "request_id", None)
-    
+
     # Log the full traceback for unhandled exceptions
     log.error("unhandled_exception", exc_info=exc, request_id=request_id)
-    
+
     return JSONResponse(
         status_code=500,
         content={
