@@ -28,6 +28,9 @@ API_BASE = "https://api.github.com"
 # Sync interval in seconds
 SYNC_INTERVAL = 300  # 5 minutes
 
+# Banned users — reverted contributions, blocked from repo
+BANNED_USERS = {"yuzengbaao"}
+
 # Track sync state
 _last_sync: Optional[datetime] = None
 _sync_lock = asyncio.Lock()
@@ -341,12 +344,12 @@ async def sync_bounties() -> int:
         return len(new_store)
 
 
-# ── Known Phase 1 payout data (on-chain payouts, not tracked via labels) ──
-# Maps GitHub username → {bounties_completed, total_fndry, skills}
+# ── Known Phase 1 payout data (on-chain payouts before GitHub sync existed) ──
+# Phase 2 data is computed dynamically from merged PRs → closed bounty issues.
+# This only covers Phase 1 payouts that can't be derived from GitHub.
 KNOWN_PAYOUTS: dict[str, dict] = {
     "HuiNeng6": {
-        "bounties_completed": 12,
-        "total_fndry": 1_800_000,
+        "total_fndry": 1_800_000,  # Phase 1 on-chain payouts
         "skills": [
             "Python",
             "FastAPI",
@@ -359,22 +362,29 @@ KNOWN_PAYOUTS: dict[str, dict] = {
         "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
     },
     "ItachiDevv": {
-        "bounties_completed": 8,
-        "total_fndry": 1_750_000,
-        "skills": ["React", "TypeScript", "Tailwind", "Solana", "Frontend"],
-        "bio": "Frontend specialist. React, TypeScript, Tailwind, Solana wallet integration.",
+        "total_fndry": 1_750_000,  # Phase 1 on-chain payouts
+        "skills": ["React", "TypeScript", "Tailwind", "Solana", "Frontend", "Docker", "DevOps"],
+        "bio": "Full-stack specialist. React, TypeScript, Solana, CI/CD, WebSocket.",
     },
     "LaphoqueRC": {
-        "bounties_completed": 1,
         "total_fndry": 150_000,
         "skills": ["Frontend", "React", "TypeScript"],
         "bio": "Frontend contributor. Landing page & animations.",
     },
     "zhaog100": {
-        "bounties_completed": 1,
         "total_fndry": 150_000,
         "skills": ["Backend", "Python", "FastAPI"],
         "bio": "Backend contributor. API development.",
+    },
+    "KodeSage": {
+        "total_fndry": 0,  # Phase 2 only — computed from merged PRs
+        "skills": ["React", "TypeScript", "FastAPI", "Python", "Solana"],
+        "bio": "Full-stack developer. Marketplace, staking, dashboards.",
+    },
+    "codebestia": {
+        "total_fndry": 0,  # Phase 2 only
+        "skills": ["Python", "FastAPI", "React", "TypeScript"],
+        "bio": "Backend + frontend contributor. Onboarding, lifecycle, logging.",
     },
 }
 
@@ -400,6 +410,9 @@ async def sync_contributors() -> int:
         avatar = pr.get("user", {}).get("avatar_url", "")
         if author.endswith("[bot]") or author in ("dependabot", "github-actions"):
             continue
+        # Skip banned contributors (reverted code, blocked from repo)
+        if author in BANNED_USERS:
+            continue
         if author not in author_pr_counts:
             author_pr_counts[author] = {"avatar_url": avatar, "prs": 0}
         author_pr_counts[author]["prs"] += 1
@@ -424,12 +437,29 @@ async def sync_contributors() -> int:
     # All known contributors (from payouts + anyone with merged PRs)
     all_authors = set(KNOWN_PAYOUTS.keys()) | set(author_pr_counts.keys())
 
+    # Count actual bounty completions per author from merged PRs → closed bounty issues
+    author_bounty_counts: dict[str, int] = {}
+    for pr in prs:
+        author = pr.get("user", {}).get("login", "unknown")
+        if author in BANNED_USERS:
+            continue
+        linked_issue = _extract_bounty_number_from_pr(pr)
+        if linked_issue:
+            bounty_id = f"gh-{linked_issue}"
+            bounty = _bounty_store.get(bounty_id)
+            if bounty and bounty.status == BountyStatus.COMPLETED:
+                author_bounty_counts[author] = author_bounty_counts.get(author, 0) + 1
+
     for author in all_authors:
+        if author in BANNED_USERS:
+            continue
+
         known = KNOWN_PAYOUTS.get(author, {})
         pr_data = author_pr_counts.get(author, {"avatar_url": "", "prs": 0})
 
         total_prs = pr_data["prs"]
-        bounties = known.get("bounties_completed", total_prs)  # fallback to PR count
+        # Use actual bounty count from merged PRs, fall back to known payouts, then PR count
+        bounties = author_bounty_counts.get(author, known.get("bounties_completed", total_prs))
         earnings = known.get("total_fndry", 0) + phase2_earnings.get(author, 0)
         skills = known.get("skills", [])
         bio = known.get("bio", f"SolFoundry contributor — {total_prs} merged PRs")
@@ -451,11 +481,11 @@ async def sync_contributors() -> int:
         if total_prs >= 5:
             badges.append("phase-1-og")
 
-        # Reputation score
+        # Reputation score — uncapped, scales with actual contributions
         rep = 0
-        rep += min(total_prs * 5, 40)
-        rep += min(bounties * 5, 40)
-        rep += min(len(skills) * 3, 20)
+        rep += min(total_prs * 5, 40)    # Up to 40 pts for PRs
+        rep += min(bounties * 10, 40)     # Up to 40 pts for bounties
+        rep += min(len(skills) * 2, 20)   # Up to 20 pts for skill breadth
         rep = min(rep, 100)
 
         contrib = ContribDB(
