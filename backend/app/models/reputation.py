@@ -48,10 +48,10 @@ VETERAN_SCORE_BUMP = 0.5
 class ReputationHistoryEntry(BaseModel):
     """Single reputation event tied to a completed bounty."""
 
-    entry_id: str
-    contributor_id: str
-    bounty_id: str
-    bounty_title: str
+    entry_id: str = Field(..., min_length=1)
+    contributor_id: str = Field(..., min_length=1)
+    bounty_id: str = Field(..., min_length=1)
+    bounty_title: str = Field(..., min_length=1)
     bounty_tier: int = Field(..., ge=1, le=3)
     review_score: float = Field(..., ge=0.0, le=10.0)
     earned_reputation: float = Field(..., ge=0)
@@ -86,6 +86,20 @@ class ReputationSummary(BaseModel):
     average_review_score: float = 0.0
     history: list[ReputationHistoryEntry] = Field(default_factory=list)
     model_config = {"from_attributes": True}
+
+
+MAX_SUMMARY_HISTORY = 10
+"""Maximum number of history entries returned in ReputationSummary."""
+
+
+def truncate_history(
+    history: list[ReputationHistoryEntry],
+) -> list[ReputationHistoryEntry]:
+    """Return the most recent entries, capped at MAX_SUMMARY_HISTORY.
+
+    Full history is available via the dedicated history endpoint.
+    """
+    return history[:MAX_SUMMARY_HISTORY]
 
 
 class ReputationRecordCreate(BaseModel):

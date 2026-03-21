@@ -3,6 +3,8 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user_id
+from app.constants import INTERNAL_SYSTEM_USER_ID
+from app.exceptions import ContributorNotFoundError, TierNotUnlockedError
 from app.models.contributor import (
     ContributorCreate, ContributorResponse, ContributorListResponse, ContributorUpdate,
 )
@@ -112,11 +114,12 @@ async def record_contributor_reputation(
         raise HTTPException(status_code=400, detail="contributor_id in path must match body")
 
     # Allow internal system user (automated review pipeline) or the contributor themselves
-    internal_system_user = "00000000-0000-0000-0000-000000000001"
-    if caller_id != contributor_id and caller_id != internal_system_user:
+    if caller_id != contributor_id and caller_id != INTERNAL_SYSTEM_USER_ID:
         raise HTTPException(status_code=403, detail="Not authorized to record reputation for this contributor")
 
     try:
         return reputation_service.record_reputation(data)
-    except ValueError as error:
+    except ContributorNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error))
+    except TierNotUnlockedError as error:
+        raise HTTPException(status_code=400, detail=str(error))
