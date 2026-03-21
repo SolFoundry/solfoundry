@@ -14,3 +14,5 @@ pyjwt>=2.8,<3.0
 python-jose[cryptography]>=3.3,<4.0
 solders>=0.21,<1.0
 aiosqlite>=0.20.0,<1.0.0
+structlog>=24.0.0,<25.0.0
+python-json-logger>=2.0.0,<3.0.0
