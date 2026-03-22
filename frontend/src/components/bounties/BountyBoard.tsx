@@ -7,7 +7,7 @@ import { BountyListView } from './BountyListView';
 import { ViewToggle } from './ViewToggle';
 import type { ViewMode } from './ViewToggle';
 import { NoBountiesFound } from '../common/EmptyState';
-import { SkeletonList } from '../common/Skeleton';
+import { SkeletonBountyCard, SkeletonBountyListRows } from '../common/Skeleton';
 import { HotBounties } from './HotBounties';
 import { RecommendedBounties } from './RecommendedBounties';
 import { Pagination } from './Pagination';
@@ -99,12 +99,27 @@ export function BountyBoard() {
       </div>
 
       {loading ? (
-        <SkeletonList count={6} showTier showSkills />
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Loading bounties"
+          data-testid="bounty-board-skeleton"
+        >
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }, (_, i) => (
+                <SkeletonBountyCard key={i} />
+              ))}
+            </div>
+          ) : (
+            <SkeletonBountyListRows count={6} />
+          )}
+        </div>
       ) : bounties.length > 0 ? (
         <div className="relative">
           {isFetching && !loading && (
             <div className="absolute inset-0 z-10 bg-white/70 dark:bg-surface/60 rounded-xl flex items-center justify-center" data-testid="page-loading-overlay">
-              <div className="w-6 h-6 border-2 border-solana-green border-t-transparent rounded-full animate-spin" />
+              <div className="h-9 w-9 rounded-full animate-shimmer bg-gray-200 dark:bg-surface-200" aria-hidden />
             </div>
           )}
           {viewMode === 'grid' ? (

@@ -3,6 +3,11 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
+import {
+  Skeleton,
+  SkeletonStatCard,
+  SkeletonActivityFeed,
+} from './common/Skeleton';
 
 // ============================================================================
 // Types
@@ -650,7 +655,7 @@ export function ContributorDashboard({
 
   const handleRetry = useCallback(() => { refetch(); }, [refetch]);
 
-  // Loading state UI
+  // Loading state UI — skeleton layout mirrors loaded dashboard (stats, actions, two-column content)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
@@ -659,10 +664,53 @@ export function ContributorDashboard({
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
             <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
           </div>
-          <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+          <div
+            className="space-y-6"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading dashboard"
+          >
+            <div className="flex gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
+              {[0, 1, 2].map(i => (
+                <Skeleton key={i} height="2.25rem" width="5.5rem" rounded="md" className="shrink-0" />
+              ))}
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map(i => (
+                <SkeletonStatCard key={i} />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {[0, 1, 2].map(i => (
+                <Skeleton key={i} height="2.75rem" width="10rem" rounded="lg" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton height="1rem" width="8rem" rounded="md" />
+                    <Skeleton height="0.75rem" width="4rem" rounded="md" />
+                  </div>
+                  <div className="space-y-3">
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="rounded-lg border border-gray-200 dark:border-white/5 p-4 space-y-2">
+                        <Skeleton height="0.9rem" width="75%" rounded="md" />
+                        <Skeleton height="0.75rem" width="50%" rounded="md" />
+                        <Skeleton height="0.5rem" width="100%" rounded="full" variant="pill" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton height="1rem" width="10rem" rounded="md" />
+                    <Skeleton height="0.75rem" width="3.5rem" rounded="md" />
+                  </div>
+                  <Skeleton height="7.5rem" width="100%" rounded="lg" />
+                </div>
+              </div>
+              <SkeletonActivityFeed count={4} />
             </div>
           </div>
         </div>

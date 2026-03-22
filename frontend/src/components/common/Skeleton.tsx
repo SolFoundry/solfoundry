@@ -10,6 +10,8 @@ import React from 'react';
 // Types
 // ============================================================================
 
+export type SkeletonRounded = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+
 export interface SkeletonProps {
   /** Additional CSS classes */
   className?: string;
@@ -17,7 +19,9 @@ export interface SkeletonProps {
   width?: string | number;
   /** Height of the skeleton (CSS value) */
   height?: string | number;
-  /** Border radius variant */
+  /** Border radius preset (overridden by circle/pill variants) */
+  rounded?: SkeletonRounded;
+  /** Semantic shape presets */
   variant?: 'default' | 'circle' | 'pill';
   /** Number of times to repeat the skeleton */
   count?: number;
@@ -27,16 +31,18 @@ export interface SkeletonProps {
   animation?: 'pulse' | 'shimmer' | 'none';
 }
 
-export interface SkeletonTextProps extends Omit<SkeletonProps, 'variant'> {
+export interface SkeletonTextProps extends Omit<SkeletonProps, 'variant' | 'rounded'> {
   /** Number of lines to render */
   lines?: number;
   /** Line height */
   lineHeight?: string | number;
   /** Last line width percentage (0-100) */
   lastLineWidth?: number;
+  /** Border radius for each line */
+  rounded?: SkeletonRounded;
 }
 
-export interface SkeletonCardProps extends SkeletonProps {
+export interface SkeletonCardProps {
   /** Show avatar in card */
   showAvatar?: boolean;
   /** Show header line */
@@ -45,21 +51,35 @@ export interface SkeletonCardProps extends SkeletonProps {
   bodyLines?: number;
   /** Show footer */
   showFooter?: boolean;
+  /** Additional classes */
+  className?: string;
 }
 
-export interface SkeletonAvatarProps extends SkeletonProps {
+export interface SkeletonAvatarProps extends Omit<SkeletonProps, 'variant'> {
   /** Size preset */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export interface SkeletonTableRowProps extends SkeletonProps {
+export interface SkeletonTableRowProps {
   /** Number of columns */
   columns?: number;
-  /** Show avatar in first column */
+  /** Show avatar in first data column (e.g. contributor name) */
   showAvatar?: boolean;
   /** Column widths (percentages) */
   columnWidths?: number[];
+  /** Row class */
+  className?: string;
 }
+
+const ROUNDED_MAP: Record<SkeletonRounded, string> = {
+  none: 'rounded-none',
+  sm: 'rounded-sm',
+  md: 'rounded-md',
+  lg: 'rounded-lg',
+  xl: 'rounded-xl',
+  '2xl': 'rounded-2xl',
+  full: 'rounded-full',
+};
 
 // ============================================================================
 // Base Skeleton Component
@@ -72,16 +92,14 @@ export function Skeleton({
   className = '',
   width,
   height,
+  rounded = 'lg',
   variant = 'default',
-  animation = 'pulse',
+  animation = 'shimmer',
 }: SkeletonProps) {
   const baseClasses = 'bg-gray-200 dark:bg-surface-200';
-  
-  const variantClasses: Record<string, string> = {
-    default: 'rounded-lg',
-    circle: 'rounded-full!',
-    pill: 'rounded-full!',
-  };
+
+  const radiusClass =
+    variant === 'circle' || variant === 'pill' ? 'rounded-full' : ROUNDED_MAP[rounded];
 
   const animationClasses: Record<string, string> = {
     pulse: 'animate-pulse',
@@ -90,12 +108,12 @@ export function Skeleton({
   };
 
   const style: React.CSSProperties = {};
-  if (width) style.width = typeof width === 'number' ? `${width}px` : width;
-  if (height) style.height = typeof height === 'number' ? `${height}px` : height;
+  if (width !== undefined) style.width = typeof width === 'number' ? `${width}px` : width;
+  if (height !== undefined) style.height = typeof height === 'number' ? `${height}px` : height;
 
   return (
     <div
-      className={`${baseClasses} ${variantClasses[variant]} ${animationClasses[animation]} ${className}`}
+      className={`${baseClasses} ${radiusClass} ${animationClasses[animation]} ${className}`.trim()}
       style={style}
       role="presentation"
       aria-hidden="true"
@@ -116,22 +134,31 @@ export function SkeletonText({
   lastLineWidth = 70,
   className = '',
   gap = '0.5rem',
-  ...props
+  rounded = 'md',
+  animation = 'shimmer',
+  ...rest
 }: SkeletonTextProps) {
   const gapValue = typeof gap === 'number' ? `${gap}px` : gap;
-  
+
   return (
-    <div className={`space-y-[${gapValue}] ${className}`} role="presentation" aria-hidden="true">
+    <div
+      className={`flex flex-col ${className}`.trim()}
+      style={{ gap: gapValue }}
+      role="presentation"
+      aria-hidden="true"
+    >
       {Array.from({ length: lines }, (_, i) => {
         const isLast = i === lines - 1 && lines > 1;
-        const width = isLast ? `${lastLineWidth}%` : '100%';
-        
+        const w = isLast ? `${lastLineWidth}%` : '100%';
+
         return (
           <Skeleton
             key={i}
             height={lineHeight}
-            width={width}
-            {...props}
+            width={w}
+            rounded={rounded}
+            animation={animation}
+            {...rest}
           />
         );
       })}
@@ -144,7 +171,7 @@ export function SkeletonText({
 // ============================================================================
 
 /**
- * Skeleton for card content - matches BountyCard, AgentCard layouts
+ * Skeleton for generic card content
  */
 export function SkeletonCard({
   showAvatar = false,
@@ -152,40 +179,35 @@ export function SkeletonCard({
   bodyLines = 2,
   showFooter = false,
   className = '',
-  ...props
 }: SkeletonCardProps) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-surface-300 dark:bg-surface-50 ${className}`}
+      className={`rounded-xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-surface-300 dark:bg-surface-50 ${className}`.trim()}
       role="presentation"
       aria-hidden="true"
-      {...props}
     >
-      {/* Header with optional avatar */}
       {showHeader && (
         <div className="flex items-start gap-3 mb-3">
           {showAvatar && (
-            <Skeleton variant="circle" width={40} height={40} className="shrink-0" />
+            <SkeletonAvatar size="md" className="shrink-0" />
           )}
-          <div className="flex-1 space-y-2">
-            <Skeleton height="1.25rem" width="60%" />
-            <Skeleton height="0.875rem" width="40%" />
+          <div className="flex-1 flex flex-col gap-2">
+            <Skeleton height="1.25rem" width="60%" rounded="md" />
+            <Skeleton height="0.875rem" width="40%" rounded="md" />
           </div>
         </div>
       )}
-      
-      {/* Body lines */}
+
       {bodyLines > 0 && (
-        <div className="space-y-2 mb-3">
-          <SkeletonText lines={bodyLines} lineHeight="0.875rem" lastLineWidth={75} />
+        <div className="mb-3">
+          <SkeletonText lines={bodyLines} lineHeight="0.875rem" lastLineWidth={75} rounded="md" />
         </div>
       )}
-      
-      {/* Footer */}
+
       {showFooter && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-300">
-          <Skeleton height="1.5rem" width="5rem" />
-          <Skeleton height="1.5rem" width="4rem" />
+          <Skeleton height="1.5rem" width="5rem" rounded="md" />
+          <Skeleton height="1.5rem" width="4rem" rounded="md" />
         </div>
       )}
     </div>
@@ -202,7 +224,8 @@ export function SkeletonCard({
 export function SkeletonAvatar({
   size = 'md',
   className = '',
-  ...props
+  animation = 'shimmer',
+  ...rest
 }: SkeletonAvatarProps) {
   const sizeMap: Record<string, { width: number; height: number }> = {
     xs: { width: 24, height: 24 },
@@ -220,7 +243,8 @@ export function SkeletonAvatar({
       width={width}
       height={height}
       className={className}
-      {...props}
+      animation={animation}
+      {...rest}
     />
   );
 }
@@ -237,22 +261,20 @@ export function SkeletonTableRow({
   showAvatar = false,
   columnWidths,
   className = '',
-  ...props
 }: SkeletonTableRowProps) {
   const defaultWidths = Array.from({ length: columns }, (_, i) => {
-    if (i === 0) return 40; // Rank/index column
-    if (i === columns - 1) return 80; // Last column
+    if (i === 0) return 40;
+    if (i === columns - 1) return 80;
     return 100 / columns;
   });
-  
-  const widths = columnWidths || defaultWidths;
+
+  const widths = columnWidths ?? defaultWidths;
 
   return (
     <tr
-      className={`border-b border-gray-200 dark:border-surface-300 ${className}`}
+      className={`border-b border-gray-200 dark:border-surface-300 ${className}`.trim()}
       role="presentation"
       aria-hidden="true"
-      {...props}
     >
       {Array.from({ length: columns }, (_, i) => (
         <td key={i} className="py-3 px-2">
@@ -263,11 +285,142 @@ export function SkeletonTableRow({
             <Skeleton
               height="1rem"
               width={`${widths[i]}%`}
+              rounded="md"
             />
           </div>
         </td>
       ))}
     </tr>
+  );
+}
+
+// ============================================================================
+// Dashboard stat card (matches ContributorDashboard SummaryCard)
+// ============================================================================
+
+export function SkeletonStatCard({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none ${className}`.trim()}
+      role="presentation"
+      aria-hidden="true"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <Skeleton height="0.875rem" width="45%" rounded="md" />
+        <Skeleton height={40} width={40} rounded="lg" className="shrink-0" />
+      </div>
+      <Skeleton height="1.75rem" width="55%" rounded="md" />
+      <Skeleton height="0.75rem" width="35%" rounded="md" className="mt-3" />
+    </div>
+  );
+}
+
+// ============================================================================
+// Bounty marketplace — matches BountyCard (grid)
+// ============================================================================
+
+export function SkeletonBountyCard({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`relative w-full rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 p-5 ${className}`.trim()}
+      role="presentation"
+      aria-hidden="true"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Skeleton height="1.25rem" width="2rem" rounded="md" />
+          <Skeleton height="1rem" width="3.5rem" rounded="full" variant="pill" />
+        </div>
+        <Skeleton height="1.25rem" width="4.5rem" rounded="md" />
+      </div>
+      <Skeleton height="0.875rem" width="88%" rounded="md" className="mb-2" />
+      <Skeleton height="0.75rem" width="38%" rounded="md" className="mb-3" />
+      <div className="flex items-baseline gap-2 mb-3">
+        <Skeleton height="1.35rem" width="3.25rem" rounded="md" />
+        <Skeleton height="0.7rem" width="2.25rem" rounded="md" />
+      </div>
+      <div className="flex flex-wrap gap-2 mb-1">
+        {[0, 1, 2].map(i => (
+          <Skeleton key={i} height="1.25rem" width="3.25rem" rounded="full" variant="pill" />
+        ))}
+      </div>
+      <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 dark:border-surface-300">
+        <Skeleton height="0.75rem" width="4.5rem" rounded="md" />
+        <Skeleton height="0.75rem" width="5.5rem" rounded="md" />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Bounty marketplace — matches BountyListView rows
+// ============================================================================
+
+export function SkeletonBountyListRows({ count = 6, className = '' }: { count?: number; className?: string }) {
+  return (
+    <div className={`flex flex-col gap-2 ${className}`.trim()} role="presentation" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 px-4 py-3 rounded-lg border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50"
+        >
+          <div className="flex gap-2 shrink-0">
+            <Skeleton height="1.25rem" width="2rem" rounded="md" />
+            <Skeleton height="1rem" width="3.25rem" rounded="full" variant="pill" />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <Skeleton height="0.875rem" width="72%" rounded="md" />
+            <div className="flex flex-wrap gap-1">
+              {[0, 1, 2].map(j => (
+                <Skeleton key={j} height="1rem" width="2.75rem" rounded="full" variant="pill" />
+              ))}
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-5 shrink-0">
+            <Skeleton height="1rem" width="48px" rounded="md" />
+            <Skeleton height="1rem" width="40px" rounded="md" />
+            <Skeleton height="1rem" width="52px" rounded="md" />
+            <Skeleton height="1rem" width="44px" rounded="md" />
+            <Skeleton height="1.25rem" width="72px" rounded="md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// Contributor profile page (matches ContributorProfile dark card)
+// ============================================================================
+
+export function SkeletonContributorProfile({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`bg-gray-900 rounded-lg p-4 sm:p-6 space-y-6 ${className}`.trim()}
+      role="presentation"
+      aria-hidden="true"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <Skeleton
+          variant="circle"
+          className="w-16 h-16 sm:w-20 sm:h-20 mx-auto sm:mx-0 shrink-0"
+        />
+        <div className="flex-1 flex flex-col gap-2 items-center sm:items-start">
+          <Skeleton height="1.5rem" width="200px" rounded="md" className="max-w-[60%] bg-gray-700 dark:bg-gray-700" />
+          <Skeleton height="0.8rem" width="160px" rounded="md" className="max-w-[50%] bg-gray-700 dark:bg-gray-700" />
+        </div>
+        <Skeleton height="2rem" width="5rem" rounded="full" variant="pill" className="self-center sm:self-start bg-gray-700 dark:bg-gray-700" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="bg-gray-800 rounded-lg p-4 space-y-2">
+            <Skeleton height="0.75rem" width="50%" rounded="md" className="bg-gray-700 dark:bg-gray-700" />
+            <Skeleton height="1.35rem" width="70%" rounded="md" className="bg-gray-700 dark:bg-gray-700" />
+          </div>
+        ))}
+      </div>
+      <Skeleton height="3rem" width="100%" rounded="lg" className="bg-gray-700 dark:bg-gray-700" />
+    </div>
   );
 }
 
@@ -310,7 +463,7 @@ export function SkeletonGrid({
 
   if (variant === 'list') {
     return (
-      <div className={`space-y-3 ${className}`} role="status" aria-label="Loading content">
+      <div className={`space-y-3 ${className}`.trim()} role="presentation" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
           <SkeletonCard
             key={i}
@@ -325,24 +478,20 @@ export function SkeletonGrid({
 
   return (
     <div
-      className={`grid ${columnClasses[columns]} gap-[${gap}] ${className}`}
-      role="status"
-      aria-label="Loading content"
+      className={`grid ${columnClasses[columns]} ${className}`.trim()}
+      style={{ gap }}
+      role="presentation"
+      aria-hidden="true"
     >
       {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard
-          key={i}
-          showAvatar={showAvatar}
-          bodyLines={2}
-          showFooter
-        />
+        <SkeletonBountyCard key={i} />
       ))}
     </div>
   );
 }
 
 // ============================================================================
-// Skeleton List (for Bounty List)
+// Skeleton List (legacy layout — prefer SkeletonBountyCard grid / SkeletonBountyListRows)
 // ============================================================================
 
 export interface SkeletonListProps {
@@ -357,44 +506,20 @@ export interface SkeletonListProps {
 }
 
 /**
- * Skeleton list matching BountyCard layout
+ * Vertical list placeholder; marketplace uses SkeletonBountyCard in a grid for parity with BountyCard.
  */
 export function SkeletonList({
   count = 5,
-  showTier = true,
-  showSkills = true,
   className = '',
 }: SkeletonListProps) {
   return (
-    <div className={`space-y-4 ${className}`} role="status" aria-label="Loading bounties">
+    <div
+      className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 ${className}`.trim()}
+      role="presentation"
+      aria-hidden="true"
+    >
       {Array.from({ length: count }, (_, i) => (
-        <div
-          key={i}
-          className="rounded-xl border border-gray-200 bg-white p-4 hover:border-solana-purple/30 transition-colors dark:border-surface-300 dark:bg-surface-50"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <Skeleton height="1.25rem" width="70%" className="mb-2" />
-              <Skeleton height="0.875rem" width="50%" />
-            </div>
-            {showTier && (
-              <Skeleton height="1.5rem" width="3rem" className="ml-3 shrink-0" />
-            )}
-          </div>
-          
-          {showSkills && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {Array.from({ length: 3 }, (_, j) => (
-                <Skeleton key={j} height="1.5rem" width="4rem" variant="pill" />
-              ))}
-            </div>
-          )}
-          
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-300">
-            <Skeleton height="1.25rem" width="5rem" />
-            <Skeleton height="1.25rem" width="4rem" />
-          </div>
-        </div>
+        <SkeletonBountyCard key={i} />
       ))}
     </div>
   );
@@ -425,12 +550,12 @@ export function SkeletonTable({
   className = '',
 }: SkeletonTableProps) {
   return (
-    <table className={`w-full text-sm ${className}`} role="status" aria-label="Loading data">
+    <table className={`w-full text-sm ${className}`.trim()} role="presentation" aria-hidden="true">
       <thead>
         <tr className="border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 text-left text-xs">
           {Array.from({ length: columns }, (_, i) => (
             <th key={i} className="py-2">
-              <Skeleton height="0.75rem" width="3rem" />
+              <Skeleton height="0.75rem" width="3rem" rounded="md" />
             </th>
           ))}
         </tr>
@@ -464,27 +589,25 @@ export function SkeletonActivityFeed({
 }: SkeletonActivityFeedProps) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 ${className}`}
-      role="status"
-      aria-label="Loading activity"
+      className={`rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 ${className}`.trim()}
+      role="presentation"
+      aria-hidden="true"
     >
-      {/* Header */}
       <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-surface-300">
         <div className="flex items-center gap-2">
           <Skeleton height="0.5rem" width="0.5rem" variant="circle" />
-          <Skeleton height="1rem" width="6rem" />
+          <Skeleton height="1rem" width="6rem" rounded="md" />
         </div>
-        <Skeleton height="0.75rem" width="4rem" />
+        <Skeleton height="0.75rem" width="4rem" rounded="md" />
       </div>
-      
-      {/* Items */}
+
       <div className="divide-y divide-gray-200 dark:divide-surface-300">
         {Array.from({ length: count }, (_, i) => (
           <div key={i} className="flex items-start gap-3 p-4">
-            <Skeleton height="2rem" width="2rem" className="shrink-0 rounded-lg" />
-            <div className="flex-1 space-y-2">
-              <Skeleton height="0.875rem" width="80%" />
-              <Skeleton height="0.625rem" width="4rem" />
+            <Skeleton height="2rem" width="2rem" rounded="lg" className="shrink-0" />
+            <div className="flex-1 flex flex-col gap-2">
+              <Skeleton height="0.875rem" width="80%" rounded="md" />
+              <Skeleton height="0.625rem" width="4rem" rounded="md" />
             </div>
           </div>
         ))}
@@ -492,9 +615,5 @@ export function SkeletonActivityFeed({
     </div>
   );
 }
-
-// ============================================================================
-// Exports
-// ============================================================================
 
 export default Skeleton;

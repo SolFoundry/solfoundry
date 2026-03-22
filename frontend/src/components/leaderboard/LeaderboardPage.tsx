@@ -6,7 +6,7 @@
  * @module components/leaderboard/LeaderboardPage
  */
 import { useLeaderboard } from '../../hooks/useLeaderboard';
-import { SkeletonTable } from '../common/Skeleton';
+import { Skeleton, SkeletonTable } from '../common/Skeleton';
 import { NoDataAvailable } from '../common/EmptyState';
 import type { TimeRange, SortField } from '../../types/leaderboard';
 
@@ -25,16 +25,19 @@ export function LeaderboardPage() {
   if (loading) {
     return (
       <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
-        <div className="h-8 w-64 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="h-10 w-64 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-          <div className="flex gap-1">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-8 w-16 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-            ))}
+        <div role="status" aria-live="polite" aria-label="Loading leaderboard" className="space-y-6">
+          <Skeleton height="2rem" width="16rem" rounded="lg" />
+          <div className="flex flex-wrap gap-3 items-center">
+            <Skeleton height="2.5rem" width="16rem" rounded="lg" />
+            <div className="flex flex-wrap gap-1">
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} height="2rem" width="4rem" rounded="lg" />
+              ))}
+            </div>
+            <Skeleton height="2.5rem" width="7rem" rounded="lg" />
           </div>
+          <SkeletonTable rows={10} columns={6} showAvatar />
         </div>
-        <SkeletonTable rows={10} columns={6} showAvatar />
       </div>
     );
   }

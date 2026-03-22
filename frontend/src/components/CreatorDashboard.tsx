@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreatorBountyCard } from './bounties/CreatorBountyCard';
+import { Skeleton, SkeletonStatCard, SkeletonCard } from './common/Skeleton';
 
 interface CreatorDashboardProps {
     userId?: string;
@@ -94,12 +95,24 @@ export function CreatorDashboard({
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div
-                    role="status"
-                    aria-label="Loading"
-                    className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin"
-                />
+            <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-8" role="status" aria-live="polite" aria-label="Loading creator dashboard">
+                    <div className="space-y-2">
+                        <Skeleton height="2.25rem" width="14rem" rounded="lg" className="max-w-full" />
+                        <Skeleton height="1rem" width="min(100%, 28rem)" rounded="md" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[0, 1, 2].map(i => (
+                            <SkeletonStatCard key={i} />
+                        ))}
+                    </div>
+                    <Skeleton height="3rem" width="100%" rounded="lg" className="max-w-2xl" />
+                    <div className="space-y-4">
+                        {[0, 1, 2].map(i => (
+                            <SkeletonCard key={i} showHeader bodyLines={2} showFooter />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
