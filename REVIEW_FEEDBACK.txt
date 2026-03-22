@@ -1,0 +1,1377 @@
+## ❌ Multi-LLM Code Review — REQUEST CHANGES
+
+**Aggregated Score: 5.8/10** (trimmed mean of 5 models)
+**Tier:** tier-2 | **Threshold:** 6.5/10
+
+📊 **Method:** trimmed_mean
+### Model Verdicts
+| Model | Score | Verdict |
+|-------|-------|--------|
+| Sonnet 4.6 | 5.5/10 | ⚠️ |
+| DeepSeek V3.2 | 6.7/10 | ✅ |
+| GPT-5.4 | 4.7/10 | ⚠️ |
+| Gemini 3.1 Pro | 5.6/10 | ⚠️ |
+| Grok 4 | 6.3/10 | ⚠️ |
+
+### Category Scores (Median)
+| Category | Score |
+|----------|-------|
+| Quality | ███████░░░ 7.1/10 |
+| Correctness | ████░░░░░░ 4.9/10 |
+| Security | ████░░░░░░ 4.6/10 |
+| Completeness | ██████░░░░ 6.5/10 |
+| Tests | █████░░░░░ 5.9/10 |
+| Integration | ██████░░░░ 6.4/10 |
+
+### Warning: CodeRabbit Critical Issues
+CodeRabbit flagged **4 critical issues** that appear unresolved.
+These must be addressed before approval.
+
+### Warning: Bounty Spec Compliance: PARTIAL
+This submission partially meets the acceptance criteria. Review the issues above for gaps.
+
+### Summary
+**Sonnet 4.6:** This PR implements a comprehensive milestone payout system with good test coverage and proper API design, but has critical security vulnerabilities that prevent production deployment. The authorization checks are fundamentally broken, allowing unauthorized users to submit milestones and creating race conditions in approval logic.
+**DeepSeek V3.2:** The PR implements a comprehensive milestone payout system with good structure and integration, but has critical security flaws in authorization and atomicity, and misses key acceptance criteria like Telegram notifications and proper contributor verification.
+**GPT-5.4:** This PR delivers a substantial milestone payout feature with migration, models, API routes, service logic, and a broad test file, but it falls short of T2 quality due to multiple unresolved critical issues in authorization and payout safety. The most serious problems are that milestone submission does not verify the assigned contributor, payout uses the submitter identifier as the wallet recipient, and approval is non-atomic and vulnerable to double release under concurrency.
+**Gemini 3.1 Pro:** The PR implements the requested milestone features with clean code and good test coverage for the happy path. However, it contains critical security and correctness flaws, including an authorization bypass, a double-spend vulnerability, and incorrect payout recipient resolution.
+**Grok 4:** This PR implements a solid foundation for milestone-based payouts with comprehensive tests and API endpoints, but it falls short due to unresolved critical issues identified by CodeRabbit, including missing authorization checks and non-atomic operations. While it meets most bounty acceptance criteria, the security vulnerabilities and incomplete error handling prevent it from achieving production quality. Overall, it's a strong T2 submission that needs fixes to address the critical findings.
+
+### Issues
+- [Sonnet 4.6] CRITICAL: submit_milestone never verifies the caller is the assigned contributor - any authenticated user can submit any milestone
+- [Sonnet 4.6] CRITICAL: Approval process has race condition allowing double payouts due to non-atomic status transitions without row locking
+- [Sonnet 4.6] CRITICAL: Payout recipient field confusion - submitted_by is used as both submitter ID and wallet address for transfers
+- [Sonnet 4.6] Major: Missing contributor authorization check allows anyone to submit milestones for any bounty
+- [Sonnet 4.6] Database schema uses String(100) for user IDs instead of UUID type, creating referential integrity issues
+- [DeepSeek V3.2] Critical security: submit_milestone doesn't verify caller is the assigned contributor (CodeRabbit finding)
+- [DeepSeek V3.2] Critical security: approval is non-atomic and can release funds twice (CodeRabbit finding)
+- [DeepSeek V3.2] Missing acceptance criteria: Telegram notification to owner on milestone submission not implemented
+- [DeepSeek V3.2] Missing acceptance criteria: Milestone progress visible on bounty detail page not implemented
+- [DeepSeek V3.2] Schema issue: User reference fields use String instead of UUID causing referential integrity problems
+- [GPT-5.4] Critical: submit_milestone does not verify that the caller is the assigned contributor for the bounty, so any authenticated user can submit milestones.
+- [GPT-5.4] Critical: approve_milestone uses row.submitted_by as recipient_wallet, but submitted_by is a user identifier/caller token, not a guaranteed Solana wallet address.
+- [GPT-5.4] Critical: approve_milestone performs status check, transition, and payout without row locking or compare-and-swap semantics, so concurrent approvals can double-pay the same milestone.
+- [GPT-5.4] Tests do not meaningfully cover the critical auth and payout-recipient bugs; current tests even pass because contributor identity is never validated.
+- [GPT-5.4] Service layer raises FastAPI HTTPException directly, which leaks transport concerns into business logic and weakens layering consistency.
+
+### Suggestions
+- [Sonnet 4.6] Add proper contributor verification in submit_milestone by loading the parent bounty and checking assigned contributor
+- [Sonnet 4.6] Implement atomic approval with row-level locking or compare-and-swap operations to prevent race conditions
+- [Sonnet 4.6] Separate submitted_by (user ID) from recipient_wallet (Solana address) fields in the schema
+- [Sonnet 4.6] Add proper authorization middleware to verify milestone submission rights
+- [Sonnet 4.6] Use UUID type for user reference fields in the database migration
+- [DeepSeek V3.2] Add contributor verification in submit_milestone by checking bounty.assigned_contributor
+- [DeepSeek V3.2] Implement row-level locking or optimistic concurrency control for milestone approval
+- [DeepSeek V3.2] Integrate Telegram notification service for milestone submission events
+- [DeepSeek V3.2] Update bounty detail API to include milestone progress data
+- [DeepSeek V3.2] Fix database schema to use UUID for user reference fields for proper foreign key relationships
+
+
+_Contributor stats: 4 merged bounty PRs, rep score 52_
+
+🎯 **Expected scope:** ~20 files | This change spans new milestone persistence, API routes, payout and notification business logic, mig
+
+---
+*SolFoundry Multi-LLM Review Pipeline v3.1 — GPT-5.4 + Gemini 3.1 Pro + Grok 4 + Sonnet 4.6 + DeepSeek V3.2*
+*Scoring: trimmed_mean across 5 models*
+
+### Next Steps
+Please address the issues above and push updated commits. The review will re-run automatically.
+
+=== backend/alembic/versions/003_create_milestones_table.py:34 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if other migrations in the project use CHECK constraints
+rg -n "CheckConstraint|sa\.check" backend/alembic/versions/
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 47
+
+---
+
+🏁 Script executed:
+
+```shell
+cat -n backend/alembic/versions/003_create_milestones_table.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 3842
+
+---
+
+🏁 Script executed:
+
+```shell
+find backend -type f -name "*.py" | xargs rg -l "class Milestone" | grep -E "(model|schema)"
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 96
+
+---
+
+🏁 Script executed:
+
+```shell
+cat -n backend/app/models/milestone.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 13163
+
+---
+
+
+
+</details>
+
+**Add CHECK constraints to the milestones table in the migration.**
+
+The model docstring (backend/app/models/milestone.py lines 19-21) documents the expected constraints (`milestone_number >= 1`, `percentage > 0 AND percentage <= 100`), but the migration doesn't enforce them at the database level. While Pydantic validates the percentage field in MilestoneCreate, milestone_number has no server-side validation, and direct SQL manipulation would bypass application checks. Add CHECK constraints to lines 32 and 34 of the migration for defense-in-depth protection.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/alembic/versions/003_create_milestones_table.py` around lines 32 -
+34, Add database-level CHECK constraints to the milestones table migration so
+milestone_number >= 1 and percentage > 0 AND percentage <= 100; update the
+sa.Column definitions for "milestone_number" and "percentage" in the
+003_create_milestones_table.py migration to include server-side
+CheckConstraint(s) (or inline check=...) referencing the "milestone_number" and
+"percentage" columns so the DB enforces milestone_number >= 1 and 0 < percentage
+<= 100.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/alembic/versions/003_create_milestones_table.py:39 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**User reference fields use String instead of UUID.**
+
+`submitted_by`, `approved_by`, and `created_by` are `String(100)` while the application uses UUID user IDs. This mismatch could cause referential integrity issues and makes it harder to join with the users table if needed later.
+
+
+
+Also applies to: 43-43
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/alembic/versions/003_create_milestones_table.py` around lines 36 -
+39, Update the three user ID columns to use a UUID column type instead of
+String: replace sa.Column("submitted_by", sa.String(100), ...),
+sa.Column("approved_by", sa.String(100), ...), and the similarly defined
+"created_by" column with a UUID column (e.g., sa.Column("submitted_by",
+postgresql.UUID(as_uuid=True), nullable=True), etc.). Import the dialect UUID
+type (from sqlalchemy.dialects import postgresql) at the top of the migration if
+not present and keep nullable=True to preserve existing behavior so the
+migration matches the application’s UUID user IDs and supports joins/referential
+integrity.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/alembic/versions/003_create_milestones_table.py:63 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Redundant index: `ix_milestones_bounty_id` is covered by the composite unique index.**
+
+The composite unique index `ix_milestone_bounty_number` on `(bounty_id, milestone_number)` already serves queries filtering by `bounty_id` since it's the leading column. This separate index adds storage and write overhead without benefit.
+
+<details>
+<summary>♻️ Remove redundant index</summary>
+
+```diff
+-    # Index on bounty_id for fast lookups
+-    op.create_index(
+-        "ix_milestones_bounty_id",
+-        "milestones",
+-        ["bounty_id"],
+-    )
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/alembic/versions/003_create_milestones_table.py` around lines 58 -
+63, Remove the redundant single-column index created by op.create_index named
+"ix_milestones_bounty_id" on table "milestones" because the composite unique
+index "ix_milestone_bounty_number" on (bounty_id, milestone_number) already
+covers queries filtering by bounty_id; locate the op.create_index call that
+defines "ix_milestones_bounty_id" and delete that block so only the composite
+unique index remains, avoiding extra storage and write overhead.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/api/milestones.py:72 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Validate `bounty_id` as UUID format.**
+
+The `bounty_id` path parameter is typed as `str` but should be validated as a valid UUID to fail fast with a 422 instead of passing invalid IDs to the database layer.
+
+<details>
+<summary>🛡️ Add UUID type annotation</summary>
+
+```diff
++from uuid import UUID
++
+ `@router.post`(
+     "/bounties/{bounty_id}/milestones",
+     ...
+ )
+ async def create_milestones(
+-    bounty_id: str,
++    bounty_id: UUID,
+     data: MilestoneBatchCreate,
+     ...
+ ) -> MilestoneListResponse:
+```
+</details>
+
+
+Also applies to: 90-90
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/api/milestones.py` around lines 71 - 72, Change the bounty_id
+parameter type from str to UUID so FastAPI validates the path param as a UUID
+(returning 422 on invalid values) — import UUID from the uuid module and update
+the function signatures where you currently have "bounty_id: str" (both
+occurrences in this file, including the handler that accepts
+MilestoneBatchCreate) to "bounty_id: UUID"; adjust any related type hints or
+pydantic annotations/DocStrings if present so they reflect the UUID type.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/api/milestones.py:90 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Extract repeated caller_id derivation to helper.**
+
+The pattern `user.wallet_address or str(user.id)` is repeated in 4 endpoints. Extract to a helper function for consistency and maintainability.
+
+<details>
+<summary>♻️ Extract helper function</summary>
+
+```diff
++def _get_caller_id(user: UserResponse) -> str:
++    """Extract caller identifier from authenticated user."""
++    return user.wallet_address or str(user.id)
++
+ async def create_milestones(...):
+-    caller_id = user.wallet_address or str(user.id)
++    caller_id = _get_caller_id(user)
+```
+</details>
+
+
+Also applies to: 185-185, 241-241, 305-305
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/api/milestones.py` at line 90, Extract the repeated expression
+user.wallet_address or str(user.id) into a small helper (e.g., def
+get_caller_id(user): return user.wallet_address or str(user.id)) and use that
+helper wherever caller_id is assigned (replace the existing caller_id =
+user.wallet_address or str(user.id) occurrences). Add the helper to the same
+module (milestones.py) and update all four endpoints that set caller_id to call
+get_caller_id(user) to ensure consistency and easier maintenance.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/api/milestones.py:270 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**`MilestoneRejectRequest` is identical to `MilestoneSubmitRequest`.**
+
+The class inherits from `MilestoneSubmitRequest` and only adds `pass`. This is semantically correct for type distinction but the docstring mentions "optional reason" while the inherited field is required. Consider renaming the field or making it optional for rejection.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/api/milestones.py` around lines 263 - 270, MilestoneRejectRequest
+currently inherits MilestoneSubmitRequest and therefore uses the required
+evidence field, but the docstring expects an optional rejection reason; override
+the field in MilestoneRejectRequest to make it optional (e.g., evidence:
+Optional[str] = None or rename to reason: Optional[str] = None) and update the
+class docstring to match; ensure any downstream usages, validators or type
+checks that reference MilestoneRejectRequest, MilestoneSubmitRequest, or the
+evidence field are adjusted to accept None.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/database.py:127 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check UUID column type usage across all models
+echo "=== Models using GUID() ==="
+rg -n "Column\(GUID\(\)" backend/app/models/
+
+echo ""
+echo "=== Models using UUID(as_uuid=True) directly ==="
+rg -n "UUID\(as_uuid=True\)" backend/app/models/
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1924
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check imports for UUID types in affected model files
+echo "=== Imports in models using UUID(as_uuid=True) ==="
+for file in backend/app/models/milestone.py backend/app/models/submission.py backend/app/models/webhook_log.py; do
+  echo "--- $file ---"
+  head -20 "$file" | grep -E "^(from|import).*UUID"
+done
+
+echo ""
+echo "=== Check MilestoneTable definition and foreign keys ==="
+grep -A 30 "class.*MilestoneTable" backend/app/models/milestone.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1586
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check imports in dispute.py to see how GUID is imported
+echo "=== Imports in dispute.py ==="
+head -20 backend/app/models/dispute.py
+
+echo ""
+echo "=== Check if SQLite is actually used for tests ==="
+rg -n "sqlite" backend/app/database.py -A 2 -B 2
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1054
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if there are foreign key constraints involving UUID columns
+echo "=== Foreign key relationships with UUID columns in milestone.py ==="
+rg -n "ForeignKey\|relationship" backend/app/models/milestone.py -A 2 -B 2
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 132
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check full imports section of milestone.py
+echo "=== Complete imports in milestone.py ==="
+head -50 backend/app/models/milestone.py
+
+echo ""
+echo "=== Check if UUID is imported from anywhere ==="
+rg -n "from.*import.*UUID\|import.*UUID" backend/app/models/milestone.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 2009
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check other affected models for their imports
+echo "=== Check imports in all affected model files ==="
+for file in backend/app/models/notification.py backend/app/models/contributor.py backend/app/models/bounty_table.py; do
+  echo "--- $file ---"
+  rg -n "from.*import.*UUID\|import.*UUID" "$file"
+done
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 242
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check test files to see if they use SQLite
+echo "=== Check for test database setup ==="
+fd -e py tests/ -o test/ | head -20 | xargs -I {} grep -l "sqlite\|SQLite" {}
+
+echo ""
+echo "=== Check if these models are imported/used in tests ==="
+rg -l "MilestoneTable\|SubmissionTable" tests/ backend/tests/ 2>/dev/null | head -5
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 307
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Verify the issue: UUID from PostgreSQL dialect will fail with SQLite
+echo "=== Check how UUID from dialects.postgresql behaves with SQLite ==="
+cat backend/app/database.py | grep -A 20 "is_sqlite"
+
+echo ""
+echo "=== Verify GUID is indeed the solution ==="
+rg -n "class GUID" backend/app/database.py -A 5
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1378
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# List all models and their UUID column usage patterns
+echo "=== All model files and their UUID patterns ==="
+for file in backend/app/models/*.py; do
+  guid_count=$(rg -c "GUID\(\)" "$file" 2>/dev/null || echo 0)
+  uuid_count=$(rg -c "UUID\(as_uuid=True\)" "$file" 2>/dev/null || echo 0)
+  if [ "$guid_count" -gt 0 ] || [ "$uuid_count" -gt 0 ]; then
+    echo "$(basename $file): GUID=$guid_count, UUID=$uuid_count"
+  fi
+done
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 348
+
+---
+
+
+
+</details>
+
+**Multiple models incorrectly use PostgreSQL-specific UUID type with no SQLite fallback.**
+
+The `GUID` TypeDecorator correctly handles cross-database UUID compatibility, but only `DisputeDB` uses it. All other models—`MilestoneTable`, `SubmissionTable`, `NotificationModel`, `WebhookLogTable`, `BountyTable`, `ContributorTable`, and `UserTable`—use `UUID(as_uuid=True)` directly from `sqlalchemy.dialects.postgresql`. This PostgreSQL-specific type has no fallback for SQLite, causing these models to fail in SQLite test environments despite the app explicitly configuring StaticPool for SQLite testing. All UUID columns in these 7 models must use `GUID()` instead to match the pattern established in `dispute.py`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/database.py` around lines 70 - 127, Replace all uses of the
+PostgreSQL-only UUID(as_uuid=True) type in the models MilestoneTable,
+SubmissionTable, NotificationModel, WebhookLogTable, BountyTable,
+ContributorTable, and UserTable with the cross-dialect GUID() TypeDecorator
+(same pattern used in DisputeDB). Locate columns declared with
+UUID(as_uuid=True) inside those classes and change them to GUID(), ensure GUID
+is imported/available in that module, and remove or stop relying on
+sqlalchemy.dialects.postgresql.UUID for those columns so SQLite tests will use
+the CHAR(36) fallback.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/exceptions.py:111 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Duplicate section header comment.**
+
+Lines 105-107 and 160-162 both contain "# Escrow exceptions" comment blocks. The first appears to be misplaced (between payout and milestone sections).
+
+<details>
+<summary>♻️ Remove duplicate comment block</summary>
+
+```diff
+-# ---------------------------------------------------------------------------
+-# Escrow exceptions
+-# ---------------------------------------------------------------------------
+-
+ # ---------------------------------------------------------------------------
+ # Milestone exceptions
+ # ---------------------------------------------------------------------------
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+# ---------------------------------------------------------------------------
+# Milestone exceptions
+# ---------------------------------------------------------------------------
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/exceptions.py` around lines 105 - 111, Remove the misplaced
+duplicate "# Escrow exceptions" comment block that appears between the payout
+and milestone sections so only the correctly placed escrow header remains before
+the escrow-related exception classes; locate the duplicate header text "# Escrow
+exceptions" (the one currently sitting between the payout and "# Milestone
+exceptions" block) and delete that misplaced comment so the file has a single
+escrow comment immediately adjacent to the escrow exception class definitions.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/main.py:306 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Move structlog import to module level.**
+
+Importing `structlog` inside the exception handler (line 291) adds overhead on every unhandled exception. Move it to the module-level imports.
+
+<details>
+<summary>♻️ Move import to top of file</summary>
+
+```diff
+ import asyncio
+ import logging
++import structlog
+ from contextlib import asynccontextmanager
+ 
+ ...
+ 
+ `@app.exception_handler`(Exception)
+ async def global_exception_handler(request: Request, exc: Exception):
+     """Catch-all exception handler for unexpected errors."""
+-    import structlog
+     log = structlog.get_logger(__name__)
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/main.py` around lines 288 - 306, The structlog import and logger
+instantiation inside global_exception_handler should be moved to module-level to
+avoid repeated imports on each exception; remove the in-function "import
+structlog" and the local "log = structlog.get_logger(__name__)" and instead add
+a module-level import and logger (e.g., import structlog and module_logger =
+structlog.get_logger(__name__)) then update global_exception_handler to use that
+module_logger (or the chosen module-level name) when calling .error with
+exc_info and request_id.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/main.py:332 ===
+_⚠️ Potential issue_ | _🟡 Minor_
+
+**ValueError handler may expose internal validation details.**
+
+Returning `str(exc)` directly could leak internal validation messages from libraries (e.g., Pydantic's internal errors if not properly caught). Consider sanitizing or using a generic message for unexpected ValueErrors.
+
+<details>
+<summary>🛡️ Sanitize error message</summary>
+
+```diff
+ `@app.exception_handler`(ValueError)
+ async def value_error_handler(request: Request, exc: ValueError):
+     """Handle ValueErrors (validation) with structured JSON."""
+     request_id = getattr(request.state, "request_id", None)
++    # Sanitize message to avoid leaking internal details
++    message = str(exc) if len(str(exc)) < 200 else "Validation error"
+     return JSONResponse(
+         status_code=400,
+         content={
+-            "message": str(exc),
++            "message": message,
+             "request_id": request_id,
+             "code": "VALIDATION_ERROR"
+         }
+     )
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/main.py` around lines 321 - 332, The value_error_handler
+currently returns str(exc) directly which may leak internal validation details;
+update value_error_handler to sanitize the message before returning JSONResponse
+by replacing raw exc text with a generic safe message (e.g., "Invalid request
+input") for unknown ValueErrors and only include minimal, safe details for known
+validation error types (e.g., Pydantic's ValidationError) after extracting and
+normalizing fields/messages; ensure you still set request_id and code
+("VALIDATION_ERROR") in the response and reference the value_error_handler
+function and the JSONResponse content structure when making this change.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/models/milestone.py:13 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Documentation mismatch: state diagram vs. description.**
+
+The lifecycle diagram shows `REJECTED → (re-submit as PENDING)` but the actual `ALLOWED_MILESTONE_TRANSITIONS` (line 89) allows `REJECTED → SUBMITTED` directly. The comment should match the implementation.
+
+<details>
+<summary>📝 Correct the docstring</summary>
+
+```diff
+ Lifecycle::
+ 
+     PENDING → SUBMITTED → APPROVED → PAID
+                   |
+-                  +→ REJECTED → (re-submit as PENDING)
++                  +→ REJECTED → (can re-submit as SUBMITTED)
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+Lifecycle::
+
+    PENDING → SUBMITTED → APPROVED → PAID
+                  |
+                  → REJECTED → (can re-submit as SUBMITTED)
+
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/models/milestone.py` around lines 8 - 13, The docstring lifecycle
+diagram is out of sync with the code: the implementation in
+ALLOWED_MILESTONE_TRANSITIONS permits REJECTED → SUBMITTED but the diagram shows
+REJECTED → (re-submit as PENDING); update the docstring at the top of the
+Milestone module (the lifecycle diagram) to reflect the actual state flow used
+by ALLOWED_MILESTONE_TRANSITIONS (i.e., show REJECTED → SUBMITTED), or
+alternatively change ALLOWED_MILESTONE_TRANSITIONS to match the original
+diagram—pick the docstring change to keep behavior intact and ensure the comment
+matches the implementation.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/models/milestone.py:116 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+**UUID type inconsistency with other models.**
+
+`MilestoneTable` uses `UUID(as_uuid=True)` directly while `DisputeDB` (per relevant snippets) uses the cross-database `GUID()` type from `app.database`. This will cause `MilestoneTable` to fail with SQLite in tests.
+
+<details>
+<summary>🔧 Use GUID for cross-database compatibility</summary>
+
+```diff
++from app.database import Base, GUID
+-from app.database import Base
+ 
+ ...
+ 
+ class MilestoneTable(Base):
+     __tablename__ = "milestones"
+ 
+-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
++    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+     bounty_id = Column(
+-        UUID(as_uuid=True),
++        GUID(),
+         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
+         nullable=False,
+         index=True,
+     )
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    bounty_id = Column(
+        GUID(),
+        sa.ForeignKey("bounties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/models/milestone.py` around lines 110 - 116, The Milestone model
+is using SQLAlchemy's UUID(as_uuid=True) which breaks SQLite tests; replace both
+UUID(...) usages with the cross-db GUID type from app.database (e.g., GUID) used
+elsewhere (like in DisputeDB): import GUID from app.database if not already
+present and change id = Column(UUID(as_uuid=True), ...) to id = Column(GUID(),
+primary_key=True, default=uuid.uuid4) and change bounty_id =
+Column(UUID(as_uuid=True), sa.ForeignKey(...)) to bounty_id = Column(GUID(),
+sa.ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False, index=True).
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/services/milestone_service.py:191 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+**The duplicate-milestone guard is racy.**
+
+Lines 181-185 do a count check, then Lines 201-218 insert in a separate step with no transactional guard. Two create requests can both observe zero and proceed. If the table has a uniqueness constraint, one request will surface as a raw integrity failure instead of `DuplicateMilestoneError`; if it does not, duplicate milestone batches can be persisted for the same bounty.
+
+
+
+Also applies to: 201-218
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/services/milestone_service.py` around lines 181 - 191, The
+count-then-insert flow using existing_count_query against MilestoneTable is racy
+and must be protected: wrap the existence check and the subsequent insert batch
+in a single database transaction (using your session/transaction context) and
+perform the check with a locking read (e.g., SELECT ... FOR UPDATE on the bounty
+row or relevant parent row) before inserting, or alternatively keep a DB
+uniqueness constraint and catch the DB integrity exception during the insert and
+translate it into DuplicateMilestoneError; update the code around the
+existing_count_query and the insert block that creates milestones so they run
+inside the same transaction and convert any IntegrityError into
+DuplicateMilestoneError.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:grasshopper -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/services/milestone_service.py:336 ===
+_⚠️ Potential issue_ | _🔴 Critical_
+
+**`submit_milestone` never verifies that the caller is the assigned contributor.**
+
+This service promises contributor-only submission, but Lines 318-336 never load the parent bounty or compare `submitted_by` with its assigned contributor. Line 331 trusts the caller-supplied identity and persists it directly, so a non-contributor reaching this code can move the milestone to `SUBMITTED`, overwrite the recorded submitter, and trigger the owner notification flow.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/services/milestone_service.py` around lines 318 - 336,
+submit_milestone currently trusts the caller-supplied submitted_by and never
+verifies the caller is the assigned contributor; update the logic in
+submit_milestone after fetching row = await _get_milestone_or_raise(db,
+milestone_id) to load the parent bounty (e.g., call something like bounty =
+await _get_bounty_or_raise(db, row.bounty_id) or query the Bounty model),
+compare bounty.assigned_contributor_id (or the appropriate field) with the
+submitted_by argument, and if they do not match raise an Unauthorized/Permission
+error (or InvalidMilestoneTransitionError if your codebase uses that for
+permission checks) before mutating row.status/row.submitted_by; only persist
+submitted_by when the identity check succeeds.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:grasshopper -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/services/milestone_service.py:331 ===
+_⚠️ Potential issue_ | _🔴 Critical_
+
+**The payout recipient field is wrong for the transfer contract.**
+
+Line 331 stores the caller-supplied `submitted_by` value, which this function documents as the submitting user's identifier, while Line 449 reuses that same field as `recipient_wallet`. Those are different domain objects. In the success path this can direct tokens to the wrong identifier; in the failure path it leaves the milestone stuck in `APPROVED` because the transfer service rejects a non-wallet value.
+
+
+
+Also applies to: 448-450
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/services/milestone_service.py` around lines 329 - 331, The code
+incorrectly overwrites row.submitted_by with the payout recipient causing
+transfers to use the submitter ID; instead preserve the submitting user in
+row.submitted_by and set the payout field (row.recipient_wallet) from the proper
+recipient variable used by the transfer flow. Update the assignment around where
+target_status is set so it does not reuse submitted_by for the recipient (assign
+row.recipient_wallet = recipient_wallet or the function's payout/recipient
+param), and ensure the transfer call reads row.recipient_wallet (not
+row.submitted_by); also apply the same fix to the other occurrence that
+reassigns submitted_by in the success/failure paths so milestone status and
+transfer inputs remain correct.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:grasshopper -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/services/milestone_service.py:348 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+**The owner notification is emitted before the submission state is durable.**
+
+The only database synchronization here is `flush()` at Line 337, but the notification is sent at Lines 347-348. If the surrounding transaction rolls back afterward, the owner has already received a submission alert for a milestone state change that never committed.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/services/milestone_service.py` around lines 337 - 348, The owner
+notification is being sent after only db.flush() so it can be emitted even if
+the surrounding transaction later rolls back; move the audit_event and the call
+to _notify_owner_milestone_submitted until after the database transaction is
+committed (or use the session/ORM on_commit/after_commit hook) so notifications
+are only sent for durable state changes — ensure you reference the same
+milestone_id, row.milestone_number and submitted_by when scheduling the
+post-commit action and remove the immediate call to
+_notify_owner_milestone_submitted that currently follows db.flush().
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:grasshopper -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/services/milestone_service.py:423 ===
+_⚠️ Potential issue_ | _🔴 Critical_
+
+**Approval is non-atomic and can release funds twice.**
+
+Line 383 reads the milestone with plain `db.get()`, and the transition check plus payout execution at Lines 397-460 happen without any row lock or compare-and-swap on `status`. Two concurrent approval requests can both observe `submitted`, both pass the sequencing checks, and both call `_execute_milestone_payout()`. Because the transfer is initiated before any durable transaction boundary in this method, a later rollback or commit failure also leaves the on-chain payout ahead of PostgreSQL state.
+
+
+
+Also applies to: 433-460
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/services/milestone_service.py` around lines 383 - 423, The
+approval flow is vulnerable to race conditions because _get_milestone_or_raise
+reads the milestone without a lock and the code calls _execute_milestone_payout
+before any durable DB update; fix by performing the status check and state
+transition inside a DB transaction with a row lock or an atomic update, then
+only initiate the on-chain payout after the DB change is durably recorded.
+Concretely: start a transaction, SELECT the milestone row FOR UPDATE (or perform
+an UPDATE ... WHERE id=? AND status=Submitted and check rows affected) using
+MilestoneTable and the same bounty checks (revalidate
+ALLOWED_MILESTONE_TRANSITIONS and prior milestones while locked), set status to
+APPROVED (persist and commit), and only after the commit call
+_execute_milestone_payout; alternatively record a payment-intent row inside the
+same transaction and process the payout from that committed state to prevent
+double transfers.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:grasshopper -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/tests/test_milestones.py:67 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**UserResponse instantiation uses strings for datetime fields.**
+
+`UserResponse` defines `created_at` and `updated_at` as `datetime` per `backend/app/models/user.py` (lines 54-55), but the mock users pass ISO strings. This works due to Pydantic's coercion but is implicit behavior. Consider using actual `datetime` objects for explicitness.
+
+<details>
+<summary>♻️ Use datetime objects</summary>
+
+```diff
++from datetime import datetime, timezone
++
++_TEST_DT = datetime(2026, 3, 20, 22, 0, 0, tzinfo=timezone.utc)
++
+ OWNER_USER = UserResponse(
+     id="owner-user-id",
+     ...
+-    created_at="2026-03-20T22:00:00Z",
+-    updated_at="2026-03-20T22:00:00Z",
++    created_at=_TEST_DT,
++    updated_at=_TEST_DT,
+ )
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/tests/test_milestones.py` around lines 33 - 67, The test user
+fixtures OWNER_USER, CONTRIBUTOR_USER and OTHER_USER pass ISO strings for the
+created_at and updated_at fields but UserResponse expects datetime objects;
+replace those string values with actual datetime instances (e.g., use
+datetime.fromisoformat or datetime(...)) when constructing UserResponse so
+created_at and updated_at are real datetime objects and explicit rather than
+relying on Pydantic coercion.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/tests/test_milestones.py:76 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Global mutable state for auth override may cause test isolation issues.**
+
+The global `_active_user` pattern works for synchronous `TestClient` execution but could cause race conditions if tests run in parallel with pytest-xdist. Consider using a thread-local or test-scoped fixture.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/tests/test_milestones.py` around lines 69 - 76, The global mutable
+_active_user used by override_get_current_user risks race conditions in parallel
+tests; replace it with a test-scoped mechanism (e.g., a contextvar or a pytest
+fixture) so each test sets its own current user without mutating global state.
+Update override_get_current_user to read from that context-local storage (or
+accept the fixture-provided value) and adjust tests to set the contextvar or use
+the fixture to supply the desired user for the duration of the test; reference
+symbols: _active_user and override_get_current_user.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/tests/test_milestones.py:473 ===
+_⚠️ Potential issue_ | _🔴 Critical_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if milestone_service enforces contributor-only submission
+rg -n -A10 "async def submit_milestone" backend/app/services/milestone_service.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 437
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get full implementation of submit_milestone to see the validation logic
+sed -n '290,330p' backend/app/services/milestone_service.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1504
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Find all test methods related to milestone submission in the test file
+rg -n "def test.*submit" backend/tests/test_milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 379
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if there are tests for owner-submitting or non-contributor submitting scenarios
+rg -n -B2 -A15 "test.*submit.*milestone|test.*milestone.*submit" backend/tests/test_milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 3184
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get full submit_milestone implementation including the contributor check
+sed -n '290,360p' backend/app/services/milestone_service.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 2294
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get full test_submit_milestone_success test
+sed -n '320,345p' backend/tests/test_milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 972
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search for any tests that check non-contributor submission or unauthorized submission
+rg -n "test.*contributor|test.*unauthorized.*submit|test.*submit.*401|test.*submit.*403" backend/tests/test_milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 47
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search for the endpoint handler for milestone submission to see how submitted_by is determined
+rg -n -B5 -A20 "POST.*submit|@.*submit.*milestone" backend/app/routes/milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 137
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Find the routes/handler files
+fd -type f "milestones" backend/app --extension py | head -20
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 235
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search for where submit_milestone is called (endpoint handler)
+rg -n "submit_milestone" backend/app --type py -B5 -A5 | head -100
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 2348
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if there's validation for contributor in the route handler or middleware
+rg -n "assigned_contributor|bounty.*contributor|verify.*contributor" backend/app --type py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 484
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get more of submit_milestone implementation to see if contributor check exists after status check
+sed -n '330,370p' backend/app/services/milestone_service.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1245
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check if there's a get_bounty call or contributor validation in submit_milestone
+rg -n -A50 "async def submit_milestone" backend/app/services/milestone_service.py | head -70
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1980
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Look for any test that tries to submit with unauthorized user
+rg -n "OTHER_USER.*submit|OWNER_USER.*submit" backend/tests/test_milestones.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 47
+
+---
+
+
+
+</details>
+
+**Critical authorization bypass in milestone submission: any authenticated user can submit any milestone.**
+
+The docstring for `submit_milestone` claims validation for "The submitter is the bounty's assigned contributor," but this check does not exist in the implementation (backend/app/services/milestone_service.py:290–347). The function only validates milestone status transitions; it accepts any `submitted_by` value passed from the endpoint handler without verification that the submitter matches the bounty's assigned contributor.
+
+The endpoint handler (backend/app/api/milestones.py:165–192) passes the authenticated user's ID directly to the service with no authorization check. This allows any authenticated user to submit any milestone for any bounty.
+
+Additionally, no tests attempt to verify this authorization boundary. There are no tests for non-contributor submission attempts (owner, other user, or unassigned contributor).
+
+The test at lines 449–473 correctly validates 403 for non-owners on approve/reject, but the corresponding protection is missing for milestone submission.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/tests/test_milestones.py` around lines 449 - 473, The submit path
+currently allows any authenticated user to submit any milestone; update the
+authorization so the submitter must be the bounty's assigned contributor: in the
+API endpoint that passes the authenticated user ID to submit_milestone, add a
+check that the caller's user ID equals the bounty.assigned_contributor_id (or,
+alternatively, enforce this inside the service function submit_milestone) and
+return/raise a 403 if not; update or add tests mirroring test_approve_not_owner
+to assert non-contributors (owner, other user, unaffiliated) get 403 while the
+assigned contributor can submit successfully.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
