@@ -4,15 +4,14 @@
  * @module pages/NotFoundPage
  */
 import { Link } from 'react-router-dom';
+import { SolFoundryLogoMark } from '../components/common/SolFoundryLogoMark';
 
 export default function NotFoundPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-16 text-center">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center shadow-lg shadow-solana-purple/20">
-          <span className="text-white font-bold text-xl">SF</span>
-        </div>
+        <SolFoundryLogoMark size="lg" className="shadow-lg shadow-solana-purple/20" />
         <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">SolFoundry</span>
       </div>
 

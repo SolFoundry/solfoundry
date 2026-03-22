@@ -13,6 +13,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
+import { SolFoundryLogoMark } from './components/common/SolFoundryLogoMark';
 
 /** Catches render errors with retry. */
 /**
@@ -84,8 +85,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 function LoadingSpinner() {
   return (
     <div className="flex min-h-[60vh] w-full items-center justify-center bg-surface-light dark:bg-surface">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-8 h-8 border-2 border-solana-purple border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center gap-4" role="status" aria-live="polite" aria-label="Loading page">
+        <SolFoundryLogoMark size="md" className="opacity-90 animate-pulse shadow-lg shadow-solana-purple/20" />
+        <div className="h-8 w-8 border-2 border-solana-purple border-t-transparent rounded-full animate-spin" aria-hidden />
         <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">Loading...</p>
       </div>
     </div>

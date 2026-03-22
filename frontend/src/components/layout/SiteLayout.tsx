@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
+import { SolFoundryLogoMark } from '../common/SolFoundryLogoMark';
 import { ThemeToggle, SimpleThemeToggle } from './ThemeToggle';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ScrollToTop } from './ScrollToTop';
@@ -229,9 +230,7 @@ function Header({
         <div className="flex items-center gap-8">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center">
-              <span className="text-white font-bold text-sm">SF</span>
-            </div>
+            <SolFoundryLogoMark size="md" className="shadow-md shadow-solana-purple/15" />
             <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight hidden sm:block group-hover:text-solana-purple transition-colors">
               SolFoundry
             </span>
