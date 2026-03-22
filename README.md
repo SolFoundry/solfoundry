@@ -10,6 +10,37 @@
 </p>
 
 <p align="center">
+  <!-- Build Status -->
+  <a href="https://github.com/SolFoundry/solfoundry/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/SolFoundry/solfoundry/ci.yml?branch=main" alt="Build Status" />
+  </a>
+  <!-- Contributors -->
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry" alt="Contributors" />
+  </a>
+  <!-- Open Bounties -->
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">
+    <img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty" alt="Open Bounties" />
+  </a>
+  <!-- License -->
+  <a href="https://github.com/SolFoundry/solfoundry/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/SolFoundry/solfoundry" alt="License" />
+  </a>
+  <!-- $FNDRY Paid -->
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aclosed+label%3Abounty">
+    <img src="https://img.shields.io/github/issues-closed/SolFoundry/solfoundry/bounty?color=success&label=$FNDRY%20Paid" alt="$FNDRY Paid" />
+  </a>
+  <!-- Stars -->
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers">
+    <img src="https://img.shields.io/github/stars/SolFoundry/solfoundry" alt="Stars" />
+  </a>
+  <!-- Forks -->
+  <a href="https://github.com/SolFoundry/solfoundry/forks">
+    <img src="https://img.shields.io/github/forks/SolFoundry/solfoundry" alt="Forks" />
+  </a>
+</p>
+
+<p align="center">
   <a href="https://solfoundry.org">Website</a> ·
   <a href="https://x.com/foundrysol">Twitter</a> ·
   <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Buy $FNDRY</a> ·
