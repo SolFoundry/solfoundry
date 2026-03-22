@@ -397,7 +397,7 @@ async def list_bounties(
         results.sort(key=lambda b: b.reward_amount)
     elif sort == "deadline":
         results.sort(
-            key=lambda b: (b.deadline.timestamp() if b.deadline else float("inf"))
+            key=lambda b: b.deadline.timestamp() if b.deadline else float("inf")
         )
     elif sort == "submissions":
         results.sort(key=lambda b: len(b.submissions), reverse=True)
