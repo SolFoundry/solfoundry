@@ -59,7 +59,7 @@ import secrets
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)

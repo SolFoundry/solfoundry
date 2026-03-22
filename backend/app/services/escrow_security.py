@@ -16,7 +16,6 @@ References:
     - Double-Spend Prevention: https://solana.com/docs/advanced/confirmation
 """
 
-import hashlib
 import logging
 import os
 import threading

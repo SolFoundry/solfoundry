@@ -189,10 +189,10 @@ def handle_pr_deny(pr_num):
 
     # Post rejection comment
     comment = (
-        f"❌ **Submission Rejected**\n\n"
-        f"The project owner has reviewed this submission and decided not to accept it.\n\n"
-        f"The bounty is now unlocked for other submissions.\n\n"
-        f"*— SolFoundry Bot 🏭*"
+        "❌ **Submission Rejected**\n\n"
+        "The project owner has reviewed this submission and decided not to accept it.\n\n"
+        "The bounty is now unlocked for other submissions.\n\n"
+        "*— SolFoundry Bot 🏭*"
     )
     gh_api(f"repos/{REPO}/issues/{pr_num}/comments", "POST", {"body": comment})
 
@@ -372,7 +372,7 @@ def main():
         count = poll_once()
         print(f"Processed {count} callback(s)")
     else:
-        print(f"SolFoundry callback handler started — polling for T3 claims + PR approvals...")
+        print("SolFoundry callback handler started — polling for T3 claims + PR approvals...")
         while True:
             try:
                 poll_once()

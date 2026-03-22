@@ -24,6 +24,10 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 
 import httpx
 

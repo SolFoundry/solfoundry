@@ -452,7 +452,7 @@ async def get_review_scores(
 # ---------------------------------------------------------------------------
 
 
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel, Field as PydanticField # noqa: E402
 
 
 class ApprovalRequest(BaseModel):
@@ -630,7 +630,7 @@ async def cancel_bounty(
 # Lifecycle engine endpoints
 # ---------------------------------------------------------------------------
 
-from app.services.bounty_lifecycle_service import (
+from app.services.bounty_lifecycle_service import (  # noqa: E402
     LifecycleError,
     publish_bounty as _publish_bounty,
     claim_bounty as _claim_bounty,
