@@ -17,9 +17,11 @@ const AGENTS: Agent[] = [
 const BOUNTIES = ['Fix staking (#101)', 'Audit pool (#102)', 'Optimize CU (#103)'];
 const SC: Record<Status, string> = { available: 'bg-green-500', working: 'bg-yellow-500', offline: 'bg-gray-500' };
 const ROLES: Role[] = ['auditor', 'developer', 'researcher', 'optimizer'];
-const OV = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+const OV =
+  'fixed inset-0 z-50 flex items-stretch justify-center bg-black/50 p-0 sm:items-center sm:p-4';
 const MP =
-  'bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700 shadow-xl';
+  'flex w-full max-w-none flex-col bg-white dark:bg-gray-800 border-0 sm:border border-gray-200 dark:border-gray-700 shadow-xl ' +
+  'h-full min-h-0 max-h-none overflow-y-auto overscroll-contain p-6 rounded-none sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-lg';
 
 const Badge = ({ status }: { status: Status }) => (
   <span
@@ -75,7 +77,7 @@ export function AgentMarketplacePage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Agent Marketplace</h1>
           <button
             type="button"
-            className="px-4 py-2 rounded-lg bg-solana-purple text-white text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-solana-purple px-4 py-2 text-base font-medium text-white hover:opacity-90 transition-opacity"
             data-testid="register-cta"
           >
             Register Your Agent
@@ -87,7 +89,7 @@ export function AgentMarketplacePage() {
             onChange={e => setRoleFilter(e.target.value as Role | '')}
             aria-label="Filter by role"
             data-testid="role-filter"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
           >
             <option value="">All roles</option>
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -97,13 +99,13 @@ export function AgentMarketplacePage() {
             onChange={e => setMinRate(Number(e.target.value))}
             aria-label="Minimum success rate"
             data-testid="rate-filter"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
           >
             <option value={0}>Any rate</option>
             <option value={85}>85%+</option><option value={90}>90%+</option><option value={95}>95%+</option>
           </select>
-          <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-300 cursor-pointer select-none">
-            <input type="checkbox" checked={availOnly} onChange={e => setAvailOnly(e.target.checked)} data-testid="avail-filter" className="rounded border-gray-300 text-solana-purple focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800" />
+          <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 text-base text-gray-800 dark:text-gray-300">
+            <input type="checkbox" checked={availOnly} onChange={e => setAvailOnly(e.target.checked)} data-testid="avail-filter" className="h-5 w-5 shrink-0 rounded border-gray-300 text-solana-purple focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-800" />
             Available only
           </label>
         </div>
@@ -154,7 +156,7 @@ export function AgentMarketplacePage() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   to={`/agents/${a.id}`}
-                  className="flex-1 min-w-[4.5rem] px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-900 text-center hover:bg-gray-200 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="flex min-h-11 flex-1 min-w-[5.5rem] items-center justify-center rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-center text-sm font-medium text-gray-900 hover:bg-gray-200 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   data-testid={`profile-btn-${a.id}`}
                 >
                   Profile
@@ -162,7 +164,7 @@ export function AgentMarketplacePage() {
                 <button
                   type="button"
                   onClick={() => setSelected(a)}
-                  className="flex-1 min-w-[4.5rem] px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="flex min-h-11 flex-1 min-w-[5.5rem] items-center justify-center rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   data-testid={`detail-btn-${a.id}`}
                 >
                   Details
@@ -171,7 +173,7 @@ export function AgentMarketplacePage() {
                   <button
                     type="button"
                     onClick={() => setHiring(a)}
-                    className="flex-1 min-w-[4.5rem] px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-solana-purple to-solana-green text-white shadow-sm hover:opacity-90 transition-opacity"
+                    className="flex min-h-11 flex-1 min-w-[5.5rem] items-center justify-center rounded-lg bg-gradient-to-r from-solana-purple to-solana-green px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                     data-testid={`hire-btn-${a.id}`}
                   >
                     Hire
@@ -180,7 +182,7 @@ export function AgentMarketplacePage() {
                 <button
                   type="button"
                   onClick={() => toggleCompare(a.id)}
-                  className={`min-w-[4.5rem] px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${compareIds.includes(a.id) ? 'bg-solana-purple/15 border-solana-purple/40 text-solana-purple dark:bg-purple-600 dark:border-purple-500 dark:text-white' : 'border-gray-200 bg-gray-100 text-gray-800 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}`}
+                  className={`flex min-h-11 min-w-[5.5rem] items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${compareIds.includes(a.id) ? 'bg-solana-purple/15 border-solana-purple/40 text-solana-purple dark:bg-purple-600 dark:border-purple-500 dark:text-white' : 'border-gray-200 bg-gray-100 text-gray-800 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}`}
                   aria-pressed={compareIds.includes(a.id)}
                   data-testid={`compare-btn-${a.id}`}
                 >
@@ -196,7 +198,7 @@ export function AgentMarketplacePage() {
         )}
         {selected && (
           <div className={OV} data-testid="detail-modal" role="dialog" aria-label={`${selected.name} details`}>
-            <div className={`${MP} max-w-lg`}>
+            <div className={MP}>
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-full bg-solana-purple/15 text-solana-purple dark:bg-solana-purple/20 flex items-center justify-center font-bold shrink-0">
                   {selected.avatar}
@@ -217,7 +219,7 @@ export function AgentMarketplacePage() {
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="w-full py-2 rounded-lg border border-gray-200 bg-gray-100 text-gray-900 font-medium hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="mt-auto flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-200 bg-gray-100 py-2 text-base font-medium text-gray-900 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 data-testid="close-modal"
               >
                 Close
@@ -226,14 +228,14 @@ export function AgentMarketplacePage() {
           </div>)}
         {hiring && (
           <div className={OV} data-testid="hire-modal" role="dialog" aria-label={`Hire ${hiring.name}`}>
-            <div className={`${MP} max-w-md`}>
+            <div className={`${MP} sm:max-w-md`}>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Hire {hiring.name}</h2>
               <select
                 value={selBounty}
                 onChange={e => setSelBounty(e.target.value)}
                 aria-label="Select bounty"
                 data-testid="bounty-select"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 mb-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">Choose bounty...</option>
                 {BOUNTIES.map(b => <option key={b} value={b}>{b}</option>)}
@@ -242,7 +244,7 @@ export function AgentMarketplacePage() {
                 <button
                   type="button"
                   onClick={() => { setHiring(null); setSelBounty(''); }}
-                  className="flex-1 py-2 rounded-lg border border-gray-200 bg-gray-100 text-gray-900 font-medium hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-200 bg-gray-100 py-2 text-base font-medium text-gray-900 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   data-testid="cancel-hire"
                 >
                   Cancel
@@ -251,7 +253,7 @@ export function AgentMarketplacePage() {
                   type="button"
                   onClick={confirmHire}
                   disabled={!selBounty}
-                  className="flex-1 py-2 rounded-lg bg-solana-purple text-white font-medium hover:opacity-90 disabled:opacity-50"
+                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-solana-purple py-2 text-base font-medium text-white hover:opacity-90 disabled:opacity-50"
                   data-testid="confirm-hire"
                 >
                   Confirm

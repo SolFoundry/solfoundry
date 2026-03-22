@@ -191,7 +191,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="h-9 w-9 rounded-lg" aria-hidden="true" />
+      <div className="h-11 w-11 shrink-0 rounded-lg" aria-hidden="true" />
     );
   }
 
@@ -202,7 +202,7 @@ export function ThemeToggle() {
         type="button"
         onClick={() => { setIsOpen(!isOpen); if (!isOpen) setFocusedIndex(0); }}
         onKeyDown={handleTriggerKeyDown}
-        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
+        className="flex h-11 min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
         aria-label={`Theme: ${theme === 'system' ? `system (${resolvedTheme})` : theme}. Click to change.`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -230,7 +230,7 @@ export function ThemeToggle() {
               tabIndex={focusedIndex === index ? 0 : -1}
               onClick={() => { setTheme(option.value); closeMenu(); }}
               onKeyDown={(e) => handleOptionKeyDown(e, index)}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors outline-none
+              className={`flex w-full min-h-11 items-center gap-3 px-3 py-2 text-base transition-colors outline-none
                 ${theme === option.value
                   ? 'text-solana-green bg-solana-green/10'
                   : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'
@@ -291,7 +291,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     return (
       <button
         type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple"
+        className="h-11 w-11 min-h-11 min-w-11 shrink-0 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple"
         aria-label="Toggle theme"
       />
     );
@@ -301,7 +301,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     <button
       type="button"
       onClick={cycleTheme}
-      className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
+      className="flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
       aria-label={`Current theme: ${theme}. Click to change.`}
     >
       {theme === 'system' ? (

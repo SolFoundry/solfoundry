@@ -17,7 +17,8 @@ export interface SolFoundryLogoMarkProps {
 
 /**
  * Official SolFoundry anvil mark (`/logo-icon.svg`). Use beside visible “SolFoundry” text
- * so the image stays decorative (`alt=""`).
+ * so the image stays decorative (`alt=""`). SVG scales via CSS `SIZE_CLASSES` (no raster
+ * `srcset` needed); keep width/height attributes for aspect ratio hints.
  */
 export function SolFoundryLogoMark({ size = 'md', className = '' }: SolFoundryLogoMarkProps) {
   return (

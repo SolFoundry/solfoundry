@@ -9,7 +9,7 @@ const DOCS_HREF = `${GITHUB_REPO}#readme`;
 const X_HREF = 'https://x.com/SolFoundry';
 
 const footerLinkClass =
-  'text-sm text-gray-600 dark:text-gray-400 hover:text-solana-purple dark:hover:text-solana-green transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple/40 rounded';
+  'inline-flex min-h-11 items-center text-base text-gray-600 dark:text-gray-400 hover:text-solana-purple dark:hover:text-solana-green transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple/40 rounded py-1';
 
 // ============================================================================
 // Footer Component
@@ -93,7 +93,7 @@ export function Footer() {
               href={X_HREF}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 dark:border-white/10
+              className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-200 dark:border-white/10
                          bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400
                          hover:text-solana-purple dark:hover:text-solana-green hover:border-solana-purple/30 transition-colors"
               aria-label="X / Twitter (@SolFoundry)"
@@ -209,7 +209,7 @@ export function Footer() {
               onClick={handleCopy}
               aria-label={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy contract address'}
               title={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy CA'}
-              className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded border transition-colors
+              className={`inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded border transition-colors
                          ${copyFailed
                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
                            : 'bg-gray-100 dark:bg-white/5 hover:bg-solana-green/20 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-solana-green'

@@ -126,7 +126,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
     f.searchQuery.trim() !== '' || f.rewardMin !== '' || f.rewardMax !== '' ||
     f.creatorType !== 'all' || f.category !== 'all' || f.deadlineBefore !== '';
 
-  const chipBase = 'rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors';
+  const chipBase = 'inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors';
   const chipActive = 'bg-solana-green/15 text-solana-green border-solana-green/30';
   const chipInactive =
     'bg-gray-100 text-gray-600 border-gray-300 hover:text-gray-900 hover:border-gray-400 ' +
@@ -154,7 +154,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             value={localQuery}
             onChange={e => handleSearch(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-20 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
+            className="min-h-11 w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-20 text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             aria-label="Search bounties"
             data-testid="bounty-search"
           />
@@ -171,11 +171,11 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-500 hover:text-gray-900 transition-colors dark:hover:text-white"
+              className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 transition-colors dark:hover:text-white"
               aria-label="Clear search"
               data-testid="clear-search"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -190,7 +190,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
                 key={i}
                 type="button"
                 onClick={() => selectSuggestion(item)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors dark:hover:bg-surface-200"
+                className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-base hover:bg-gray-100 transition-colors dark:hover:bg-surface-200"
               >
                 <span className={
                   'rounded px-1.5 py-0.5 text-[10px] font-medium ' +
