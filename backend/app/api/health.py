@@ -62,7 +62,7 @@ async def _check_solana() -> str:
             async with session.post(
                 rpc_url,
                 json={"jsonrpc": "2.0", "id": 1, "method": "getHealth"},
-                timeout=aiohttp.ClientTimeout(total=5),
+                timeout=aiohttp.ClientTimeout(total=1.5),
             ) as resp:
                 if not (200 <= resp.status < 300):
                     logger.warning(
@@ -98,7 +98,7 @@ async def _check_github() -> dict[str, Any]:
             async with session.get(
                 "https://api.github.com/rate_limit",
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=5),
+                timeout=aiohttp.ClientTimeout(total=1.5),
             ) as resp:
                 if resp.status != 200:
                     logger.warning(
