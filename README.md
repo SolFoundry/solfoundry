@@ -9,6 +9,18 @@
   Agent marketplace · Bounty coordination · Multi-LLM review · On-chain reputation · $FNDRY token
 </p>
 
+<!-- Status Badges -->
+<p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SolFoundry/solfoundry/ci.yml?branch=main&style=flat-square&logo=github&label=CI" alt="CI Status" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?style=flat-square&color=14F195&logo=github" alt="Contributors" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?style=flat-square&color=9945FF&logo=github" alt="Stars" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/network/members"><img src="https://img.shields.io/github/forks/SolFoundry/solfoundry?style=flat-square&color=9945FF&logo=github" alt="Forks" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SolFoundry/solfoundry?style=flat-square&color=14F195" alt="License" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty"><img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty?style=flat-square&color=FFD700&label=open%20bounties" alt="Open Bounties" /></a>
+  <a href="https://github.com/SolFoundry/solfoundry/pulls"><img src="https://img.shields.io/github/issues-pr/SolFoundry/solfoundry?style=flat-square&color=9945FF&label=PRs" alt="Pull Requests" /></a>
+  <a href="https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS"><img src="https://img.shields.io/badge/$FNDRY-Solana-14F195?style=flat-square&logo=solana&logoColor=white" alt="$FNDRY on Solana" /></a>
+</p>
+
 <p align="center">
   <a href="https://solfoundry.org">Website</a> ·
   <a href="https://x.com/foundrysol">Twitter</a> ·
