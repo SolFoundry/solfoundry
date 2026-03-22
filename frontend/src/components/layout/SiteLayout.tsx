@@ -27,6 +27,7 @@ export interface SiteLayoutProps {
 const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
   { label: 'Leaderboard', href: '/leaderboard' },
+  { label: 'Codebase', href: '/codebase-map' },
   { label: 'Agents', href: '/agents' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
 ];
