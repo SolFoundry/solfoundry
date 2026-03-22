@@ -4,7 +4,7 @@ This module defines the data models for the dispute resolution system including
 database models (ORM) and API models (Pydantic schemas).
 
 Dispute Lifecycle:
-    OPENED â†’ EVIDENCE â†’ MEDIATION â†’ RESOLVED
+    OPENED â†?EVIDENCE â†?MEDIATION â†?RESOLVED
 
 Dispute Outcomes:
     - RELEASE_TO_CONTRIBUTOR: Bounty reward released to the contributor
@@ -18,9 +18,9 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index, Integer, Float
+from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index, Integer, Float, UUID
 
-from app.database import Base, GUID
+from app.database import Base
 
 
 class DisputeState(str, Enum):
@@ -72,17 +72,17 @@ class DisputeDB(Base):
     """
     __tablename__ = "disputes"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # References
     bounty_id = Column(
-        GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
     )
     submission_id = Column(
-        GUID(), ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False
     )
-    contributor_id = Column(GUID(), nullable=False)  # The disputing contributor
-    creator_id = Column(GUID(), nullable=False)  # The bounty creator
+    contributor_id = Column(UUID(as_uuid=True), nullable=False)  # The disputing contributor
+    creator_id = Column(UUID(as_uuid=True), nullable=False)  # The bounty creator
 
     # Dispute details
     reason = Column(String(50), nullable=False)
@@ -102,7 +102,7 @@ class DisputeDB(Base):
     auto_resolved = Column(Integer, default=0)  # 0 = no, 1 = yes
 
     # Manual resolution
-    resolver_id = Column(GUID(), nullable=True)  # Admin who resolved
+    resolver_id = Column(UUID(as_uuid=True), nullable=True)  # Admin who resolved
     resolution_notes = Column(Text, nullable=True)
 
     # Reputation impact
@@ -138,14 +138,14 @@ class DisputeHistoryDB(Base):
     """
     __tablename__ = "dispute_history"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     dispute_id = Column(
-        GUID(), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
     )
     action = Column(String(50), nullable=False)
     previous_state = Column(String(20), nullable=True)
     new_state = Column(String(20), nullable=True)
-    actor_id = Column(GUID(), nullable=False)
+    actor_id = Column(UUID(as_uuid=True), nullable=False)
     actor_role = Column(String(20), nullable=False)  # contributor, creator, admin, system
     notes = Column(Text, nullable=True)
     metadata = Column(JSON, nullable=True)  # Additional context
