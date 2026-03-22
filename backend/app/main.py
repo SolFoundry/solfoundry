@@ -50,6 +50,7 @@ from app.api.disputes import router as disputes_router
 from app.api.stats import router as stats_router
 from app.api.escrow import router as escrow_router
 from app.api.og import router as og_router
+from app.api.contributor_webhooks import router as contributor_webhooks_router
 from app.database import init_db, close_db
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
@@ -386,6 +387,9 @@ app.include_router(escrow_router, prefix="/api")
 
 # Stats: /api/stats (public endpoint)
 app.include_router(stats_router, prefix="/api")
+
+# Contributor Webhooks: /api/webhooks/*
+app.include_router(contributor_webhooks_router, prefix="/api")
 
 # Open Graph previews: /og/*
 app.include_router(og_router)
