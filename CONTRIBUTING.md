@@ -64,9 +64,25 @@ Your PR is automatically reviewed by **5 AI models in parallel** (GPT-5.4, Gemin
 Your PR will be **instantly closed** if:
 - Missing `Closes #N` in the description
 - Empty or trivial diff (< 5 lines of real code)
-- Contains binary files or `node_modules/`
+- Contains binary files or the **`node_modules/` directory** (or a `vendor/` dependency dump) as committed files
 - Excessive TODOs/placeholders (AI slop)
 - Duplicate — another PR for the same bounty was already merged
+
+#### “Includes node_modules/ or vendor/ (dependency dump)” — what it means
+
+- **Do not commit** `node_modules/`, nested `**/node_modules/`, or a top-level `vendor/` folder. They belong in `.gitignore` and are installed locally with `npm install` / `pnpm install` / `yarn`.
+- **Do commit** `package-lock.json` (or `pnpm-lock.yaml` / `yarn.lock`) when you add or upgrade npm packages. Lockfiles reference `node_modules/...` *inside JSON text*; that is normal and is not the same as committing the folder.
+
+If the review pipeline still flags your PR after you confirm **no `node_modules` or `vendor` paths appear under “Files changed”** on GitHub, the diff may be misclassified — comment on the PR or open a discussion so maintainers can adjust the filter.
+
+**If you accidentally committed `node_modules` or `vendor`**, remove them from git (keeps files on disk) and amend or push a fix commit:
+
+```bash
+git rm -r --cached frontend/node_modules 2>/dev/null || true
+git rm -r --cached node_modules 2>/dev/null || true
+git rm -r --cached vendor 2>/dev/null || true
+git commit -m "chore: remove tracked node_modules/vendor from git index"
+```
 
 Your PR gets a **24-hour warning** if:
 - Missing Solana wallet address — add it within 24 hours or it's auto-closed

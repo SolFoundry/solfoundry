@@ -38,8 +38,9 @@ venv/
 ENV/
 env/
 
-# Node
+# Node — never commit dependency trees (review bot rejects PRs that include these paths)
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 .next/
@@ -63,6 +64,9 @@ htmlcov/
 # Rust/Anchor
 target/
 *.so
+
+# Vendored third-party trees (Go, PHP, copied deps, etc.)
+vendor/
 
 # Logs
 *.log
