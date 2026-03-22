@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# generate-favicons.sh — Regenerates favicon assets from frontend/public/favicon.svg
-# Run: ./scripts/generate-favicons.sh
-# Requires: Inkscape (or rsvg-convert) and ImageMagick
+# generate-favicons.sh — Regenerates favicon assets from assets/logo-icon.svg
+# Run: ./scripts/generate-favicons.sh  (from repo root)
+# Requires: rsvg-convert (librsvg) or inkscape, and ImageMagick
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PUBLIC_DIR="$SCRIPT_DIR/../frontend/public"
-SVG_SRC="$PUBLIC_DIR/favicon.svg"
+REPO_ROOT="$SCRIPT_DIR/.."
+PUBLIC_DIR="$REPO_ROOT/frontend/public"
+# Use the canonical source SVG
+SVG_SRC="$REPO_ROOT/assets/logo-icon.svg"
+
+if [ ! -f "$SVG_SRC" ]; then
+  echo "Error: Source SVG not found at $SVG_SRC" >&2
+  exit 1
+fi
 
 # Check dependencies
 for cmd in convert; do
@@ -37,19 +44,19 @@ rasterize() {
 
 echo "Generating favicons from $SVG_SRC ..."
 
-# PNG sizes
+# Small PNG sizes for browser tab (explicit per spec)
+rasterize 16 "$PUBLIC_DIR/favicon-16x16.png"
+rasterize 32 "$PUBLIC_DIR/favicon-32x32.png"
+
+# Larger PNG sizes
 rasterize 180 "$PUBLIC_DIR/apple-touch-icon.png"
 rasterize 192 "$PUBLIC_DIR/favicon-192x192.png"
 rasterize 512 "$PUBLIC_DIR/favicon-512x512.png"
 
 # Multi-size ICO (16x16 + 32x32 embedded)
-TMP16=$(mktemp /tmp/favicon-16-XXXXXX.png)
-TMP32=$(mktemp /tmp/favicon-32-XXXXXX.png)
-rasterize 16 "$TMP16"
-rasterize 32 "$TMP32"
-convert "$TMP16" "$TMP32" "$PUBLIC_DIR/favicon.ico"
-rm -f "$TMP16" "$TMP32"
+convert "$PUBLIC_DIR/favicon-16x16.png" "$PUBLIC_DIR/favicon-32x32.png" "$PUBLIC_DIR/favicon.ico"
 
 echo "Done. Generated files:"
-ls -lh "$PUBLIC_DIR"/apple-touch-icon.png "$PUBLIC_DIR"/favicon-192x192.png \
+ls -lh "$PUBLIC_DIR"/favicon-16x16.png "$PUBLIC_DIR"/favicon-32x32.png \
+        "$PUBLIC_DIR"/apple-touch-icon.png "$PUBLIC_DIR"/favicon-192x192.png \
         "$PUBLIC_DIR"/favicon-512x512.png "$PUBLIC_DIR"/favicon.ico
