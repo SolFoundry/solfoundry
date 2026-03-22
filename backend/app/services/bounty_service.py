@@ -27,6 +27,7 @@ from app.models.bounty import (
     VALID_SUBMISSION_TRANSITIONS,
     VALID_STATUS_TRANSITIONS,
 )
+from app.models.milestone import MilestoneResponse, MilestoneStatus
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,11 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
         A BountyDB instance with submissions attached, or None if not found.
     """
     try:
-        from app.services.pg_store import get_bounty_by_id, load_submissions_for_bounty
+        from app.services.pg_store import (
+            get_bounty_by_id,
+            load_submissions_for_bounty,
+            load_milestones_for_bounty,
+        )
 
         row = await get_bounty_by_id(bounty_id)
         if row is None:
@@ -89,7 +94,22 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
                 ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
                 submitted_at=sr.submitted_at,
             )
-            for sr in sub_rows
+        ]
+
+        milestone_rows = await load_milestones_for_bounty(bounty_id)
+        milestones = [
+            MilestoneResponse(
+                id=mr.id,
+                bounty_id=mr.bounty_id,
+                milestone_number=mr.milestone_number,
+                description=mr.description,
+                percentage=float(mr.percentage),
+                status=MilestoneStatus(mr.status),
+                submitted_at=mr.submitted_at,
+                approved_at=mr.approved_at,
+                payout_tx_hash=mr.payout_tx_hash,
+            )
+            for mr in milestone_rows
         ]
 
         return BountyDB(
@@ -106,6 +126,7 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
             deadline=row.deadline,
             created_by=row.created_by,
             submissions=submissions,
+            milestones=milestones,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -133,7 +154,11 @@ async def _load_all_bounties_from_db(
         A list of BountyDB Pydantic models, or None on failure.
     """
     try:
-        from app.services.pg_store import load_bounties, load_submissions_for_bounty
+        from app.services.pg_store import (
+            load_bounties,
+            load_submissions_for_bounty,
+            load_milestones_for_bounty,
+        )
 
         rows = await load_bounties(offset=offset, limit=limit)
         result = []
@@ -167,6 +192,7 @@ async def _load_all_bounties_from_db(
                 deadline=row.deadline,
                 created_by=row.created_by,
                 submissions=submissions,
+                milestones=[], # Submissions list view doesn't need full milestones
                 created_at=row.created_at,
                 updated_at=row.updated_at,
             ))
@@ -227,6 +253,7 @@ def _to_bounty_response(bounty: BountyDB) -> BountyResponse:
         created_by=bounty.created_by,
         submissions=subs,
         submission_count=len(subs),
+        milestones=bounty.milestones,
         created_at=bounty.created_at,
         updated_at=bounty.updated_at,
     )
@@ -298,6 +325,17 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
         created_by=data.created_by,
     )
     await _persist_to_db(bounty)
+    
+    # If milestones are provided in creation, save them
+    if data.milestones:
+        from app.services.milestone_service import MilestoneService
+        from app.database import get_db_session
+        async with get_db_session() as session:
+            svc = MilestoneService(session)
+            await svc.create_milestones(bounty.id, data.milestones, data.created_by)
+            # Re-load to get updated milestones with proper IDs and fields
+            bounty = await _load_bounty_from_db(bounty.id)
+
     _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 

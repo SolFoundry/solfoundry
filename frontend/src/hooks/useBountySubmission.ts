@@ -139,6 +139,51 @@ export function useBountySubmission(bountyId: string) {
     }
   }, [bountyId]);
 
+  const submitMilestone = useCallback(async (milestoneId: string, notes?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/bounties/${bountyId}/milestones/${milestoneId}/submit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.detail || err.message || 'Failed to submit milestone');
+        return null;
+      }
+      return await res.json();
+    } catch (e: any) {
+      setError(e.message || 'Network error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [bountyId]);
+
+  const approveMilestone = useCallback(async (milestoneId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/bounties/${bountyId}/milestones/${milestoneId}/approve`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.detail || err.message || 'Failed to approve milestone');
+        return null;
+      }
+      return await res.json();
+    } catch (e: any) {
+      setError(e.message || 'Network error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [bountyId]);
+
   return {
     submissions,
     reviewScores,
@@ -151,5 +196,7 @@ export function useBountySubmission(bountyId: string) {
     approveSubmission,
     disputeSubmission,
     fetchLifecycle,
+    submitMilestone,
+    approveMilestone,
   };
 }
