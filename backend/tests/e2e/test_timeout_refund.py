@@ -137,7 +137,7 @@ class TestAutoRefundMechanism:
             json={"bounty_id": bounty_id},
         )
         # 404 (no escrow exists since we didn't fund it) or 200 (refunded)
-        assert refund_response.status_code in (200, 404, 500), (
+        assert refund_response.status_code in (200, 404), (
             f"Escrow refund returned: "
             f"{refund_response.status_code} -- {refund_response.text}"
         )

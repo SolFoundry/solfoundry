@@ -20,6 +20,7 @@ from tests.e2e.conftest import (
     create_bounty_via_api,
 )
 from tests.e2e.factories import (
+    DEFAULT_WALLET,
     build_bounty_create_payload,
     build_dispute_create_payload,
     build_dispute_resolve_payload,
@@ -71,8 +72,8 @@ class TestDisputeViaAPI:
             },
         )
         # The endpoint is routed and processes the request.
-        # 200 = disputed, 400 = business rule, 500 = service not yet wired.
-        assert dispute_response.status_code in (200, 400, 500), (
+        # 200 = disputed, 400 = business rule violation.
+        assert dispute_response.status_code in (200, 400), (
             f"Dispute endpoint returned unexpected status: "
             f"{dispute_response.status_code} -- {dispute_response.text}"
         )
@@ -172,8 +173,8 @@ class TestDisputeCreation:
             },
         )
         # The endpoint is routed and processes the request.
-        # 200 = disputed, 400 = business rule, 500 = service not yet wired.
-        assert dispute_response.status_code in (200, 400, 500), (
+        # 200 = disputed, 400 = business rule violation.
+        assert dispute_response.status_code in (200, 400), (
             f"Dispute failed unexpectedly: {dispute_response.status_code}"
         )
 
@@ -422,7 +423,7 @@ class TestDisputeIntegrationWithBountyLifecycle:
         assert final["submission_count"] == 2
         # Both submissions use the authenticated user's wallet
         assert all(
-            s["submitted_by"] == "97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"
+            s["submitted_by"] == DEFAULT_WALLET
             for s in final["submissions"]
         )
 

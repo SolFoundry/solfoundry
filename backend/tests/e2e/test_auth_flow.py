@@ -9,8 +9,9 @@ creates a bounty.
 Requirement: Issue #196 item 5.
 """
 
+import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +20,6 @@ from tests.e2e.conftest import create_bounty_via_api
 from tests.e2e.factories import (
     DEFAULT_WALLET,
     build_bounty_create_payload,
-    build_github_user_data,
 )
 
 
@@ -31,49 +31,40 @@ class TestGitHubOAuthFlow:
 
         The endpoint should return an ``authorize_url`` pointing to GitHub's
         OAuth authorization page with the correct client_id parameter.
-        If GITHUB_CLIENT_ID is not configured, the endpoint returns a 500
-        error, which we explicitly verify as a configuration error rather
-        than treating it as a silent pass.
+        If GITHUB_CLIENT_ID is not configured, the test is skipped because
+        OAuth cannot be tested without credentials.
         """
-        response = client.get("/api/auth/github/authorize")
+        if not os.environ.get("GITHUB_CLIENT_ID"):
+            pytest.skip("GITHUB_CLIENT_ID not configured; skipping OAuth URL test")
 
-        if response.status_code == 200:
-            data = response.json()
-            assert "authorize_url" in data
-            assert "state" in data
-            assert "github.com" in data["authorize_url"]
-        else:
-            # Explicitly verify this is a configuration-related error,
-            # not an unexpected application failure.
-            assert response.status_code == 500, (
-                f"Expected 200 (configured) or 500 (unconfigured), "
-                f"got {response.status_code}"
-            )
-            # Verify the error is related to missing OAuth configuration
-            error_body = response.json()
-            assert "message" in error_body or "detail" in error_body, (
-                "OAuth failure should return a structured error response"
-            )
+        response = client.get("/api/auth/github/authorize")
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code} -- {response.text}"
+        )
+        data = response.json()
+        assert "authorize_url" in data
+        assert "state" in data
+        assert "github.com" in data["authorize_url"]
 
     def test_github_authorize_with_custom_state(
         self, client: TestClient
     ) -> None:
         """Verify custom CSRF state is passed through the authorization URL.
 
-        When GITHUB_CLIENT_ID is not configured, the endpoint returns 500.
-        We verify that unrelated state-handling logic is not silently skipped.
+        Requires GITHUB_CLIENT_ID to be configured; otherwise skipped.
         """
+        if not os.environ.get("GITHUB_CLIENT_ID"):
+            pytest.skip("GITHUB_CLIENT_ID not configured; skipping OAuth state test")
+
         response = client.get(
             "/api/auth/github/authorize",
             params={"state": "custom-csrf-token"},
         )
-        if response.status_code == 200:
-            data = response.json()
-            assert data["state"] == "custom-csrf-token"
-        else:
-            assert response.status_code == 500, (
-                f"Expected 200 or 500 (OAuth not configured), got {response.status_code}"
-            )
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code} -- {response.text}"
+        )
+        data = response.json()
+        assert data["state"] == "custom-csrf-token"
 
 
 class TestWalletAuthFlow:
@@ -216,7 +207,6 @@ class TestOAuthStateVerification:
             GitHubOAuthError,
         )
 
-        import os
         github_configured = bool(os.environ.get("GITHUB_CLIENT_ID"))
 
         if github_configured:
