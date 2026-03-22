@@ -414,20 +414,20 @@ jobs:
             echo "skip=true" >> $GITHUB_OUTPUT
 
             # Check if PR is now mergeable (conflict resolved after rebase)
-            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null)
-            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null)
-            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null)
+            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null || echo "false")
+            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null || echo "Unknown")
+            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null || echo "unknown")
             PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
 
             if [ "$MERGEABLE" = "true" ]; then
               # Extract bounty info for payout context
-              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null)
+              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null || echo "")
               BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "
               import sys, re
               text = sys.stdin.read()
               m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
               print(m.group(1) if m else '')
-              " 2>/dev/null)
+              " 2>/dev/null || echo "")
 
               WALLET=$(echo "$PR_BODY" | python3 -c "
               import sys, re
@@ -436,7 +436,7 @@ jobs:
               if not m:
                   m = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', text)
               print(m.group(1) if m else 'not found')
-              " 2>/dev/null)
+              " 2>/dev/null || echo "not found")
 
               BOUNTY_INFO=""
               if [ -n "$BOUNTY_NUM" ]; then
@@ -445,7 +445,7 @@ jobs:
               text = sys.stdin.read()
               m = re.search(r'(\d[\d,]*)\s*(?:\\\$FNDRY|FNDRY|\\\$)', text)
               print(m.group(1) if m else 'unknown')
-              " 2>/dev/null)
+              " 2>/dev/null || echo "unknown")
                 BOUNTY_INFO="Bounty: #${BOUNTY_NUM} (${REWARD} \$FNDRY)"
               fi
 
@@ -458,9 +458,10 @@ jobs:
                   -d "chat_id=${TELEGRAM_CHAT}" \
                   -d "text=${MSG}" \
                   -d "parse_mode=HTML" \
-                  -d "disable_web_page_preview=true" > /dev/null 2>&1
+                  -d "disable_web_page_preview=true" > /dev/null 2>&1 || true
               fi
             fi
+            exit 0
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
