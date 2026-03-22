@@ -414,13 +414,53 @@ describe('Pagination component', () => {
 });
 
 describe('Keyboard navigation', () => {
-  it('ArrowRight advances page when not in input', () => {
-    const onPageChange = vi.fn();
-    renderWithRouter(<Pagination page={2} totalPages={5} total={54} onPageChange={onPageChange} />);
+  beforeEach(() => {
+    mockBountyApis();
+    // jsdom doesn't implement scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+  });
 
+  it('ArrowRight advances page via BountyBoard', async () => {
+    // Need >1 page so pagination renders and arrow keys work
+    const many = Array.from({ length: 24 }, (_, i) => ({
+      ...mockBounties[0],
+      id: `kb-${i}`,
+      title: `KB Bounty ${i}`,
+    }));
+    mockBountyApis(many);
+
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
+
+    // Page 1 initially — ArrowRight should navigate to page 2
     fireEvent.keyDown(document, { key: 'ArrowRight' });
-    // Keyboard nav is on BountyBoard, not Pagination directly, so this tests no interference
-    // The actual keyboard handler is in BountyBoard, tested via integration below
+    await waitFor(() => {
+      expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 2 of 2');
+    });
+
+    // ArrowLeft should go back to page 1
+    fireEvent.keyDown(document, { key: 'ArrowLeft' });
+    await waitFor(() => {
+      expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 1 of 2');
+    });
+  });
+
+  it('arrow keys are ignored when typing in an input', async () => {
+    const many = Array.from({ length: 24 }, (_, i) => ({
+      ...mockBounties[0],
+      id: `kb-${i}`,
+      title: `KB Bounty ${i}`,
+    }));
+    mockBountyApis(many);
+
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
+
+    // Focus the search input and press ArrowRight — page should NOT change
+    const searchInput = screen.getByPlaceholderText(/search/i);
+    searchInput.focus();
+    fireEvent.keyDown(searchInput, { key: 'ArrowRight' });
+    expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 1 of 2');
   });
 });
 
