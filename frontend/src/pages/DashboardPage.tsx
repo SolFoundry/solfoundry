@@ -15,6 +15,7 @@ export default function DashboardPage() {
       onBrowseBounties={() => navigate('/bounties')}
       onViewLeaderboard={() => navigate('/leaderboard')}
       onCheckTreasury={() => navigate('/tokenomics')}
+      onStakeFndry={() => navigate('/staking')}
       onConnectAccount={() => {}}
       onDisconnectAccount={() => {}}
     />

@@ -52,6 +52,7 @@ interface ContributorDashboardProps {
   onBrowseBounties?: () => void;
   onViewLeaderboard?: () => void;
   onCheckTreasury?: () => void;
+  onStakeFndry?: () => void;
   onConnectAccount?: (accountType: string) => void;
   onDisconnectAccount?: (accountType: string) => void;
 }
@@ -493,11 +494,13 @@ interface QuickActionsProps {
   onBrowseBounties?: () => void;
   onViewLeaderboard?: () => void;
   onCheckTreasury?: () => void;
+  onStakeFndry?: () => void;
 }
 
-function QuickActions({ onBrowseBounties, onViewLeaderboard, onCheckTreasury }: QuickActionsProps) {
+function QuickActions({ onBrowseBounties, onViewLeaderboard, onCheckTreasury, onStakeFndry }: QuickActionsProps) {
   const actions = [
     { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-[#9945FF] to-[#9945FF]' },
+    { label: 'Stake $FNDRY', icon: '🔒', onClick: onStakeFndry, color: 'from-[#14F195] to-[#9945FF]' },
     { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-[#14F195] to-[#14F195]' },
     { label: 'Check Treasury', icon: '💰', onClick: onCheckTreasury, color: 'from-yellow-500 to-yellow-500' },
   ];
@@ -620,6 +623,7 @@ export function ContributorDashboard({
   onBrowseBounties,
   onViewLeaderboard,
   onCheckTreasury,
+  onStakeFndry,
   onConnectAccount,
   onDisconnectAccount,
 }: ContributorDashboardProps) {
@@ -859,6 +863,7 @@ export function ContributorDashboard({
               onBrowseBounties={onBrowseBounties}
               onViewLeaderboard={onViewLeaderboard}
               onCheckTreasury={onCheckTreasury}
+              onStakeFndry={onStakeFndry}
             />
 
             {/* Main Content Grid */}
