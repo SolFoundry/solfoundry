@@ -255,20 +255,11 @@ class NotificationService:
         if not contributor or not contributor.email:
             return
 
-        # 2. Check preferences
+        # 2. Check preferences (before rate limit to avoid wasting rate limit capacity)
         if not contributor.email_notifications_enabled:
             return
 
-        # Check specific preference
-        prefs = contributor.notification_preferences or {}
-        if not prefs.get(notification_type, True):
-            return
-
-        # 3. Check rate limit
-        if not await can_send_email(user_id):
-            return
-
-        # 4. Route to type-specific template
+        # Route to type-specific template first (before preference check on template name)
         TEMPLATE_MAP = {
             "bounty_claimed": "bounty_claimed",
             "pr_submitted": "pr_submitted",
@@ -280,7 +271,19 @@ class NotificationService:
         }
         template_name = TEMPLATE_MAP.get(notification_type, "notification")
 
-        # 5. Build context
+        # Check specific preference using resolved template name (not raw notification_type).
+        # This ensures aliased types like payout_initiated/payout_confirmed respect
+        # the user's payout_sent preference setting.
+        prefs = contributor.notification_preferences or {}
+        pref_key = template_name if template_name != "notification" else notification_type
+        if not prefs.get(pref_key, True):
+            return
+
+        # 3. Check rate limit
+        if not await can_send_email(user_id):
+            return
+
+        # 4. Build context
         context = {
             "title": title,
             "message": message,
