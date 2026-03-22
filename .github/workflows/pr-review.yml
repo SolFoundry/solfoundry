@@ -45,7 +45,7 @@ jobs:
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
           # Blocked users — hard block at workflow level
-          BLOCKED_USERS="AlexChen31337,xidik12"
+          BLOCKED_USERS="AlexChen31337,xidik12,chulinhcql-art"
           if echo ",$BLOCKED_USERS," | grep -qi ",$PR_AUTHOR,"; then
             echo "BLOCKED USER: $PR_AUTHOR"
             curl -sf -X POST \
