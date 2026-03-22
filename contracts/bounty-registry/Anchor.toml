@@ -1,0 +1,19 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+bounty_registry = "DwCJkFvRD7NJqzUnPo1njptVScDJsMS6ezZPNXxRrQxe"
+
+[programs.devnet]
+bounty_registry = "DwCJkFvRD7NJqzUnPo1njptVScDJsMS6ezZPNXxRrQxe"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
