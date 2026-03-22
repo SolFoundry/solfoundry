@@ -132,7 +132,7 @@ Every PR **must** include a Solana wallet address in the PR description. Use the
 
 ## PR Rules
 
-1. **Max 5 submissions per bounty per person.** Make each attempt count — iterate on review feedback.
+1. **Max 50 submissions per bounty per person.** Make each attempt count — iterate on review feedback.
 2. **Reference the bounty issue** with `Closes #N` in the PR description.
 3. **Follow the PR template.** Description, wallet address, checklist. All of it.
 4. **Code must be clean, tested, and match the issue spec exactly.** Don't over-engineer, don't under-deliver.
@@ -199,7 +199,7 @@ These actions run automatically on your PR:
 
 We take this seriously.
 
-- **Max 5 submissions per bounty.** After 5 failed attempts on the same bounty, you're locked out. Make each one count.
+- **Max 50 submissions per bounty.** After 50 failed attempts on the same bounty, you're locked out. Make each one count.
 - **Bulk-dumped AI slop is auto-filtered.** The spam detector catches copy-pasted ChatGPT output. If you didn't write it, don't submit it.
 - **One open PR per bounty per person.** Close your old PR before opening a new one for the same bounty.
 - **Sybil resistance** via on-chain reputation tied to your Solana wallet. Alt accounts don't work here.

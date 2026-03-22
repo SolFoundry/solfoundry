@@ -15,6 +15,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -55,6 +56,19 @@ class ContributorTable(Base):
     skills = Column(JSON, default=list, nullable=False)
     badges = Column(JSON, default=list, nullable=False)
     social_links = Column(JSON, default=dict, nullable=False)
+    email_notifications_enabled = Column(Boolean, default=True, nullable=False)
+    notification_preferences = Column(
+        JSON,
+        default=lambda: {
+            "bounty_claimed": True,
+            "pr_submitted": True,
+            "review_complete": True,
+            "payout_sent": True,
+            "new_bounty_matching_skills": True,
+        },
+        nullable=False,
+    )
+    unsubscribe_token = Column(String(100), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     total_contributions = Column(Integer, default=0, nullable=False)
     total_bounties_completed = Column(Integer, default=0, nullable=False)
     total_earnings = Column(Numeric(precision=18, scale=2), default=0, nullable=False)
@@ -106,6 +120,14 @@ class ContributorBase(BaseModel):
     skills: list[str] = []
     badges: list[str] = []
     social_links: dict = {}
+    email_notifications_enabled: bool = True
+    notification_preferences: dict = {
+        "bounty_claimed": True,
+        "pr_submitted": True,
+        "review_complete": True,
+        "payout_sent": True,
+        "new_bounty_matching_skills": True,
+    }
 
 
 class ContributorCreate(ContributorBase):
@@ -132,6 +154,8 @@ class ContributorUpdate(BaseModel):
     skills: Optional[list[str]] = None
     badges: Optional[list[str]] = None
     social_links: Optional[dict] = None
+    email_notifications_enabled: Optional[bool] = None
+    notification_preferences: Optional[dict] = None
 
 
 class ContributorStats(BaseModel):
@@ -156,6 +180,9 @@ class ContributorResponse(ContributorBase):
 
     id: str
     username: str
+    unsubscribe_token: str
+    email_notifications_enabled: bool
+    notification_preferences: dict
     stats: ContributorStats
     created_at: datetime
     updated_at: datetime

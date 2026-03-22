@@ -5,7 +5,7 @@ All endpoints require authentication to ensure users can only access
 their own notifications.
 """
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import (
@@ -166,28 +166,18 @@ async def mark_all_notifications_read(
 @router.post("", response_model=NotificationResponse, status_code=201)
 async def create_notification(
     notification: NotificationCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new notification.
-
-    This endpoint is typically called by other services internally.
-    It does not require authentication as it's used by backend services.
-
-    - **user_id**: User to notify
-    - **notification_type**: Type of notification (bounty_claimed, pr_submitted, etc.)
-    - **title**: Short title
-    - **message**: Detailed message
-    - **bounty_id**: Related bounty ID (optional)
-    - **metadata**: Additional context (optional)
-
-    Note: This endpoint should be protected by API key or internal-only access
-    in production.
+    Create a new notification and trigger delivery channels.
     """
     service = NotificationService(db)
 
     try:
-        notification_db = await service.create_notification(notification)
+        notification_db = await service.create_notification(
+            notification, background_tasks=background_tasks
+        )
 
         # Refresh to get generated fields
         await db.refresh(notification_db)
