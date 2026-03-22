@@ -13,6 +13,7 @@ from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
+from app.api.bounty_specs import router as bounty_specs_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
 from app.database import init_db, close_db
@@ -98,6 +99,9 @@ app.include_router(leaderboard_router)
 
 # Payouts: router has /api prefix — mounts at /api/payouts/*
 app.include_router(payouts_router)
+
+# Bounty Specs: /api/bounty-specs/*
+app.include_router(bounty_specs_router)
 
 # GitHub Webhooks: router prefix handled internally
 app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhooks"])

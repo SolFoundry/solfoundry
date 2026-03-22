@@ -14,3 +14,4 @@ pyjwt>=2.8,<3.0
 python-jose[cryptography]>=3.3,<4.0
 solders>=0.21,<1.0
 aiosqlite>=0.20.0,<1.0.0
+pyyaml>=6.0,<7.0
