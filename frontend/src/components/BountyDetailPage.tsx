@@ -9,6 +9,7 @@ import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
 import CreatorApprovalPanel from './bounties/CreatorApprovalPanel';
 import LifecycleTimeline from './bounties/LifecycleTimeline';
+import { BountyTags } from './bounties/BountyTags';
 
 interface BountyDetail {
   id: string;
@@ -24,6 +25,8 @@ interface BountyDetail {
   githubIssueUrl: string;
   github_issue_url?: string;
   githubIssueNumber: number;
+  required_skills?: string[];
+  skills?: string[];
   views: number;
   submissions: any[];
   activities: Activity[];
@@ -44,12 +47,6 @@ interface Activity {
   timestamp: string;
 }
 
-const tierColors = {
-  T1: 'bg-green-500/20 text-green-800 border-green-500/40 dark:text-green-400 dark:border-green-500/30',
-  T2: 'bg-yellow-500/20 text-yellow-800 border-yellow-500/40 dark:text-yellow-400 dark:border-yellow-500/30',
-  T3: 'bg-purple-500/20 text-purple-800 border-purple-500/40 dark:text-purple-400 dark:border-purple-500/30',
-};
-
 const statusColors: Record<string, string> = {
   open: 'bg-blue-500/20 text-blue-800 dark:text-blue-400',
   in_progress: 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-400',
@@ -68,6 +65,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
   const rewardAmount = bounty.reward_amount ?? bounty.reward;
   const githubUrl = bounty.github_issue_url ?? bounty.githubIssueUrl;
+  const stackSkills = bounty.required_skills ?? bounty.skills ?? [];
 
   const {
     submissions,
@@ -136,18 +134,21 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
           <div className="lg:col-span-2 space-y-6">
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
-                <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${tierColors[bounty.tier] || tierColors.T2}`}>
-                  {bounty.tier}
-                </span>
-                <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusColors[bounty.status] || statusColors.open}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <BountyTags
+                  tier={bounty.tier}
+                  skills={stackSkills}
+                  category={bounty.category}
+                  interactive
+                  showTier
+                  className="min-w-0 flex-1"
+                  data-testid="bounty-detail"
+                />
+                <span
+                  className={`shrink-0 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusColors[bounty.status] || statusColors.open}`}
+                >
                   {bounty.status.replace('_', ' ').toUpperCase()}
                 </span>
-                {bounty.category && (
-                  <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                    {bounty.category}
-                  </span>
-                )}
               </div>
 
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 break-words text-gray-900 dark:text-white">

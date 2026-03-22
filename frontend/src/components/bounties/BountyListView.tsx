@@ -1,6 +1,8 @@
+import type { KeyboardEvent } from 'react';
 import type { Bounty } from '../../types/bounty';
 import { TierBadge } from './TierBadge';
 import { StatusIndicator } from './StatusIndicator';
+import { BountyTags } from './BountyTags';
 import { formatTimeRemaining, formatReward } from './BountyCard';
 import { TimeAgo } from '../common/TimeAgo';
 
@@ -24,66 +26,79 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
   const exp = new Date(b.deadline).getTime() <= Date.now();
   const urg = b.status === 'open' && !exp && new Date(b.deadline).getTime() - Date.now() < 2 * 864e5;
 
-  const row = (
-    <div className={'flex items-center gap-4 px-4 py-3 rounded-lg border border-gray-200 bg-white hover:border-solana-green/40 transition-all dark:border-surface-300 dark:bg-surface-50' + (exp ? ' opacity-60' : '')}>
-      <div className="flex items-center gap-2 shrink-0">
-        <TierBadge tier={b.tier} />
-        <CreatorBadgeInline type={b.creatorType || 'platform'} />
-      </div>
+  const activate = () => {
+    if (b.githubIssueUrl) window.open(b.githubIssueUrl, '_blank', 'noopener,noreferrer');
+    else onClick(b.id);
+  };
 
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{b.title}</h3>
-        <div className="flex items-center gap-3 mt-1">
-          <span className="text-xs text-gray-500">{b.projectName}</span>
-          <div className="flex flex-wrap gap-1">
-            {b.skills.slice(0, 3).map(s => (
-              <span key={s} className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-surface-200 dark:text-gray-400">{s}</span>
-            ))}
-            {b.skills.length > 3 && <span className="text-[10px] text-gray-500">+{b.skills.length - 3}</span>}
+  const onRowKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    activate();
+  };
+
+  return (
+    <div
+      onClick={activate}
+      onKeyDown={onRowKeyDown}
+      tabIndex={0}
+      role="group"
+      className="block w-full text-left rounded-lg focus-visible:ring-2 focus-visible:ring-solana-green focus-visible:outline-none cursor-pointer"
+    >
+      <div
+        className={
+          'flex items-center gap-4 px-4 py-3 rounded-lg border border-gray-200 bg-white hover:border-solana-green/40 transition-all dark:border-surface-300 dark:bg-surface-50' +
+          (exp ? ' opacity-60' : '')
+        }
+      >
+        <div className="flex items-center gap-2 shrink-0">
+          <TierBadge tier={b.tier} />
+          <CreatorBadgeInline type={b.creatorType || 'platform'} />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{b.title}</h3>
+          <div className="mt-1 space-y-1.5 min-w-0">
+            <span className="text-xs text-gray-500">{b.projectName}</span>
+            <BountyTags
+              tier={b.tier}
+              skills={b.skills}
+              category={b.category}
+              interactive
+              showTier={false}
+              maxSkills={4}
+              data-testid={'bounty-tags-row-' + b.id}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 shrink-0 text-right">
+          <div>
+            <span className="text-sm font-bold text-solana-green">{formatReward(b.rewardAmount)}</span>
+            <span className="text-[10px] text-gray-500 ml-1">{b.currency}</span>
+          </div>
+          <div className="w-16 text-center">
+            <span className="text-xs text-gray-500">{b.submissionCount}</span>
+            <p className="text-[10px] text-gray-600">subs</p>
+          </div>
+          <div className="w-20 text-center">
+            <span className={'text-xs ' + (urg ? 'text-accent-red' : 'text-gray-500')}>
+              {formatTimeRemaining(b.deadline)}
+            </span>
+          </div>
+          <div className="w-16 text-center">
+            {b.createdAt ? (
+              <TimeAgo date={b.createdAt} className="text-[10px] text-gray-500" />
+            ) : (
+              <span className="text-[10px] text-gray-400">-</span>
+            )}
+          </div>
+          <div className="w-20">
+            <StatusIndicator status={b.status} />
           </div>
         </div>
       </div>
-
-      <div className="flex items-center gap-6 shrink-0 text-right">
-        <div>
-          <span className="text-sm font-bold text-solana-green">{formatReward(b.rewardAmount)}</span>
-          <span className="text-[10px] text-gray-500 ml-1">{b.currency}</span>
-        </div>
-        <div className="w-16 text-center">
-          <span className="text-xs text-gray-500">{b.submissionCount}</span>
-          <p className="text-[10px] text-gray-600">subs</p>
-        </div>
-        <div className="w-20 text-center">
-          <span className={'text-xs ' + (urg ? 'text-accent-red' : 'text-gray-500')}>
-            {formatTimeRemaining(b.deadline)}
-          </span>
-        </div>
-        <div className="w-16 text-center">
-          {b.createdAt ? (
-            <TimeAgo date={b.createdAt} className="text-[10px] text-gray-500" />
-          ) : (
-            <span className="text-[10px] text-gray-400">-</span>
-          )}
-        </div>
-        <div className="w-20">
-          <StatusIndicator status={b.status} />
-        </div>
-      </div>
     </div>
-  );
-
-  if (b.githubIssueUrl) {
-    return (
-      <a href={b.githubIssueUrl} target="_blank" rel="noopener noreferrer" className="block">
-        {row}
-      </a>
-    );
-  }
-
-  return (
-    <button type="button" onClick={() => onClick(b.id)} className="block w-full text-left focus-visible:ring-2 focus-visible:ring-solana-green rounded-lg">
-      {row}
-    </button>
   );
 }
 

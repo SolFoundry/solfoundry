@@ -425,8 +425,10 @@ class BountyListResponse(BaseModel):
 
 VALID_SORT_FIELDS = {
     "newest",
+    "oldest",
     "reward_high",
     "reward_low",
+    "tier_high",
     "deadline",
     "submissions",
     "best_match",

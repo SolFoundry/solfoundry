@@ -1,6 +1,14 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'under_review' | 'completed' | 'disputed' | 'paid' | 'cancelled';
-export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+export type BountySortBy =
+  | 'newest'
+  | 'oldest'
+  | 'reward_high'
+  | 'reward_low'
+  | 'tier_high'
+  | 'deadline'
+  | 'submissions'
+  | 'best_match';
 export type SubmissionStatus = 'pending' | 'approved' | 'disputed' | 'paid' | 'rejected';
 
 export interface ModelReviewScore {
@@ -82,6 +90,8 @@ export interface Bounty {
   projectName: string;
   creatorType: CreatorType;
   githubIssueUrl?: string;
+  /** Search / display category (API `category`). */
+  category?: BountyCategory;
   relevanceScore?: number;
   skillMatchCount?: number;
   submissions?: BountySubmission[];
@@ -92,6 +102,17 @@ export interface Bounty {
 }
 
 export type BountyCategory = 'smart-contract' | 'frontend' | 'backend' | 'design' | 'content' | 'security' | 'devops' | 'documentation';
+
+const BOUNTY_CATEGORY_VALUES: BountyCategory[] = [
+  'smart-contract', 'frontend', 'backend', 'design', 'content', 'security', 'devops', 'documentation',
+];
+
+/** Normalize API/category strings (underscores, casing) to a known category. */
+export function normalizeBountyCategory(raw: string | null | undefined): BountyCategory | undefined {
+  if (raw == null || typeof raw !== 'string') return undefined;
+  const r = raw.trim().toLowerCase().replace(/_/g, '-');
+  return (BOUNTY_CATEGORY_VALUES as string[]).includes(r) ? (r as BountyCategory) : undefined;
+}
 
 export interface BountyBoardFilters {
   tier: BountyTier | 'all';
@@ -117,7 +138,10 @@ export const DEFAULT_FILTERS: BountyBoardFilters = {
   deadlineBefore: '',
 };
 
-export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content'];
+export const SKILL_OPTIONS = [
+  'React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content',
+  'Solidity', 'JavaScript',
+];
 
 export const TIER_OPTIONS: { value: BountyTier | 'all'; label: string }[] = [
   { value: 'all', label: 'All Tiers' },
@@ -137,14 +161,29 @@ export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = 
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+/** Primary sort modes (acceptance) plus extra board options. Order = dropdown order. */
 export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [
   { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
   { value: 'reward_high', label: 'Highest Reward' },
   { value: 'reward_low', label: 'Lowest Reward' },
+  { value: 'tier_high', label: 'Tier (high to low)' },
   { value: 'deadline', label: 'Ending Soon' },
   { value: 'submissions', label: 'Most Submissions' },
   { value: 'best_match', label: 'Best Match' },
 ];
+
+/** Arrow hint for the active sort (ascending vs descending primary key). */
+export function bountySortDirection(sort: BountySortBy): 'asc' | 'desc' {
+  switch (sort) {
+    case 'oldest':
+    case 'reward_low':
+    case 'deadline':
+      return 'asc';
+    default:
+      return 'desc';
+  }
+}
 
 export const CREATOR_TYPE_OPTIONS: { value: 'all' | 'platform' | 'community'; label: string }[] = [
   { value: 'all', label: 'All Creators' },

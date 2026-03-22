@@ -6,7 +6,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse, BountyTier, BountyStatus, BountyCategory } from '../types/bounty';
-import { DEFAULT_FILTERS } from '../types/bounty';
+import { DEFAULT_FILTERS, normalizeBountyCategory } from '../types/bounty';
 import { apiClient } from '../services/apiClient';
 
 export const PER_PAGE = 12;
@@ -27,7 +27,16 @@ const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
 const VALID_TIERS = new Set<string>(['all', 'T1', 'T2', 'T3']);
 const VALID_STATUSES = new Set<string>(['all', 'open', 'in-progress', 'under_review', 'completed', 'disputed', 'paid', 'cancelled']);
 const VALID_CATEGORIES = new Set<string>(['all', 'smart-contract', 'frontend', 'backend', 'design', 'content', 'security', 'devops', 'documentation']);
-const VALID_SORTS = new Set<string>(['newest', 'reward_high', 'reward_low', 'deadline', 'submissions', 'best_match']);
+const VALID_SORTS = new Set<string>([
+  'newest',
+  'oldest',
+  'reward_high',
+  'reward_low',
+  'tier_high',
+  'deadline',
+  'submissions',
+  'best_match',
+]);
 
 /** Parse URLSearchParams into partial filter + sort + page state. */
 function parseUrlParams(params: URLSearchParams): Partial<BountyBoardFilters> & { sortBy?: BountySortBy; page?: number } {
@@ -77,6 +86,9 @@ function mapApiBounty(raw: Record<string, unknown>): Bounty {
     projectName: String(raw.created_by || raw.projectName || 'SolFoundry'),
     creatorType: (String(raw.creator_type || raw.creatorType || 'platform')) as Bounty['creatorType'],
     githubIssueUrl: raw.github_issue_url || raw.githubIssueUrl ? String(raw.github_issue_url || raw.githubIssueUrl) : undefined,
+    category: normalizeBountyCategory(
+      raw.category != null ? String(raw.category) : undefined,
+    ),
     relevanceScore: Number(raw.relevance_score ?? 0),
     skillMatchCount: Number(raw.skill_match_count ?? 0),
   };
@@ -108,14 +120,21 @@ function buildApiParams(
   return params;
 }
 
+const tierRank: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
+
 /** Sort bounties by the given field, returning a new sorted array. */
 function localSort(bounties: Bounty[], sortBy: BountySortBy): Bounty[] {
   const sorted = [...bounties];
   switch (sortBy) {
     case 'reward_high': return sorted.sort((left, right) => right.rewardAmount - left.rewardAmount);
     case 'reward_low': return sorted.sort((left, right) => left.rewardAmount - right.rewardAmount);
+    case 'tier_high':
+      return sorted.sort(
+        (left, right) => (tierRank[right.tier] ?? 0) - (tierRank[left.tier] ?? 0),
+      );
     case 'deadline': return sorted.sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime());
     case 'submissions': return sorted.sort((left, right) => right.submissionCount - left.submissionCount);
+    case 'oldest': return sorted.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
     case 'best_match':
     case 'newest':
     default: return sorted.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
@@ -128,6 +147,9 @@ function applyLocalFilters(allBounties: Bounty[], activeFilters: BountyBoardFilt
   if (activeFilters.tier !== 'all') results = results.filter(bounty => bounty.tier === activeFilters.tier);
   if (activeFilters.status !== 'all') results = results.filter(bounty => bounty.status === activeFilters.status);
   if (activeFilters.skills.length) results = results.filter(bounty => activeFilters.skills.some(skill => bounty.skills.map(bountySkill => bountySkill.toLowerCase()).includes(skill.toLowerCase())));
+  if (activeFilters.category !== 'all') {
+    results = results.filter(bounty => bounty.category === activeFilters.category);
+  }
   if (activeFilters.searchQuery.trim()) {
     const query = activeFilters.searchQuery.toLowerCase();
     results = results.filter(bounty =>
@@ -192,16 +214,27 @@ export function useBountyBoard() {
     const urlState = parseUrlParams(searchParams);
     const urlSort = urlState.sortBy ? (SORT_COMPAT[urlState.sortBy] || urlState.sortBy) as BountySortBy : 'newest';
     const urlPage = urlState.page ?? 1;
-    const urlFilters = { ...DEFAULT_FILTERS, ...urlState };
+    const { sortBy: _urlSortField, page: _urlPageField, ...filterFromUrl } = urlState;
+    const urlFilters = { ...DEFAULT_FILTERS, ...filterFromUrl };
 
     let changed = false;
     if (urlPage !== page) { changed = true; setPageRaw(urlPage); }
     if (urlSort !== sortBy) { changed = true; setSortByRaw(urlSort); }
-    if (urlFilters.searchQuery !== filters.searchQuery ||
-        urlFilters.tier !== filters.tier ||
-        urlFilters.status !== filters.status) {
+    const skillKey = (s: string[]) => [...s].sort().join('\0');
+    const filtersOutOfSync =
+      urlFilters.searchQuery !== filters.searchQuery ||
+      urlFilters.tier !== filters.tier ||
+      urlFilters.status !== filters.status ||
+      urlFilters.category !== filters.category ||
+      urlFilters.creatorType !== filters.creatorType ||
+      urlFilters.rewardMin !== filters.rewardMin ||
+      urlFilters.rewardMax !== filters.rewardMax ||
+      urlFilters.deadlineBefore !== filters.deadlineBefore ||
+      skillKey(urlFilters.skills) !== skillKey(filters.skills);
+
+    if (filtersOutOfSync) {
       changed = true;
-      setFilters(prev => ({ ...prev, ...urlState }));
+      setFilters(urlFilters);
     }
     if (changed) {
       isSyncingFromUrl.current = true;

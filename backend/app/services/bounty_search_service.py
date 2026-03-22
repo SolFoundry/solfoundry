@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 
 _SORT_SQL = {
     "newest": "b.created_at DESC",
+    "oldest": "b.created_at ASC",
     "reward_high": "b.reward_amount DESC",
     "reward_low": "b.reward_amount ASC",
+    "tier_high": "b.tier DESC",
     "deadline": "b.deadline ASC NULLS LAST",
     "submissions": "b.submission_count DESC",
     "best_match": "rank DESC, b.created_at DESC",
@@ -311,6 +313,8 @@ def _sort_key(b: BountyDB, sort: str, query: str):
         return (-b.reward_amount,)
     if sort == "reward_low":
         return (b.reward_amount,)
+    if sort == "tier_high":
+        return (-int(b.tier),)
     if sort == "deadline":
         dl = b.deadline.timestamp() if b.deadline else float("inf")
         return (dl,)
@@ -318,6 +322,8 @@ def _sort_key(b: BountyDB, sort: str, query: str):
         return (-len(b.submissions),)
     if sort == "best_match":
         return (-_match_text(query, b.title, b.description),)
+    if sort == "oldest":
+        return (b.created_at.timestamp(),)
     return (-b.created_at.timestamp(),)
 
 
