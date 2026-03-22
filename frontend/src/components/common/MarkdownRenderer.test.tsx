@@ -92,10 +92,44 @@ describe('MarkdownRenderer', () => {
     expect(bq?.textContent?.trim()).toBe('quoted text');
   });
 
-  it('does not render GFM pipe markdown as an HTML table without GFM plugin', () => {
+  it('renders GFM pipe tables', () => {
     const md = '| A | B |\n|---|---|\n| 1 | 2 |';
     const { container } = render(<MarkdownRenderer content={md} />);
-    expect(container.querySelector('table')).toBeNull();
+    const table = container.querySelector('table');
+    expect(table).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'A' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument();
+  });
+
+  it('renders GFM task lists with disabled checkboxes', () => {
+    const md = '- [x] Done\n- [ ] Todo';
+    render(<MarkdownRenderer content={md} />);
+    const boxes = document.querySelectorAll('input[type="checkbox"]');
+    expect(boxes.length).toBe(2);
+    boxes.forEach((el) => {
+      expect(el).toBeDisabled();
+    });
+    expect((boxes[0] as HTMLInputElement).checked).toBe(true);
+    expect((boxes[1] as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('renders images with alt text', () => {
+    render(<MarkdownRenderer content="![cap](https://example.com/x.png)" />);
+    const img = document.querySelector('img');
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('src')).toBe('https://example.com/x.png');
+    expect(img?.getAttribute('alt')).toBe('cap');
+  });
+
+  it('strips javascript: URLs so no navigable link remains', () => {
+    render(<MarkdownRenderer content="[bad](javascript:alert(1))" />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('bad')).toBeInTheDocument();
+  });
+
+  it('highlights Solidity fenced blocks', () => {
+    render(<MarkdownRenderer content={'```solidity\ncontract C {}\n```'} />);
+    expect(document.body.textContent).toContain('contract C {}');
   });
 
   it('applies custom className to wrapper', () => {
