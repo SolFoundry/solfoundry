@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useToast } from '../../hooks/useToast';
 
 interface Submission {
     id: string;
@@ -22,6 +23,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
     const [isCancelling, setIsCancelling] = useState(false);
     const [extendDays, setExtendDays] = useState(7);
     const bountyId = bounty.id;
+    const toast = useToast();
 
     const handleCancel = async () => {
         if (!window.confirm("Are you sure you want to cancel this bounty? This will trigger a refund.")) return;
@@ -31,7 +33,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
             if (res.ok) {
                 onUpdate();
             } else {
-                alert("Failed to cancel bounty");
+                toast.error("Failed to cancel bounty");
             }
         } catch (err) {
             console.error(err);
@@ -55,7 +57,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
             if (res.ok) {
                 onUpdate();
             } else {
-                alert("Failed to extend deadline");
+                toast.error("Failed to extend deadline");
             }
         } catch (err) {
             console.error(err);
@@ -74,7 +76,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
             if (res.ok) {
                 onUpdate();
             } else {
-                alert("Failed to update submission");
+                toast.error("Failed to update submission");
             }
         } catch (err) {
             console.error(err);
