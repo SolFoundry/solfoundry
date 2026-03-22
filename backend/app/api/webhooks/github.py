@@ -14,6 +14,12 @@ from app.services.webhook_service import (
     verify_signature,
 )
 from app.services.webhook_processor import WebhookProcessor
+from app.services.github_event_receiver import (
+    process_pull_request_event,
+    process_issue_event,
+    process_review_event,
+    process_issue_comment_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +101,20 @@ async def receive_github_webhook(
                 payload=payload,
             )
 
+            # Ingest into event indexer (non-blocking, errors logged)
+            try:
+                indexer_event = process_pull_request_event(
+                    action=action,
+                    pr_data=pr,
+                    repository=repo.get("full_name", ""),
+                    sender=body.get("sender", {}).get("login", ""),
+                )
+                if indexer_event:
+                    from app.services.event_indexer_service import ingest_event
+                    await ingest_event(indexer_event)
+            except Exception as idx_err:
+                logger.warning("Indexer ingestion failed for PR event: %s", idx_err)
+
             logger.info(
                 "Processed pull_request.%s (PR #%d, delivery=%s)",
                 action,
@@ -122,6 +142,25 @@ async def receive_github_webhook(
                 payload=payload,
             )
 
+            # Ingest into event indexer (non-blocking, errors logged)
+            try:
+                label_names = [
+                    lbl.get("name", "") if isinstance(lbl, dict) else str(lbl)
+                    for lbl in labels
+                ]
+                indexer_event = process_issue_event(
+                    action=action,
+                    issue_data=issue,
+                    repository=repo.get("full_name", ""),
+                    sender=body.get("sender", {}).get("login", ""),
+                    labels=label_names,
+                )
+                if indexer_event:
+                    from app.services.event_indexer_service import ingest_event
+                    await ingest_event(indexer_event)
+            except Exception as idx_err:
+                logger.warning("Indexer ingestion failed for issue event: %s", idx_err)
+
             logger.info(
                 "Processed issues.%s (issue #%d, delivery=%s)",
                 action,
@@ -129,6 +168,54 @@ async def receive_github_webhook(
                 delivery_id,
             )
             return JSONResponse(status_code=200, content=result)
+
+        elif event_type == "pull_request_review":
+            # Ingest review events into the indexer
+            try:
+                review = body.get("review", {})
+                pr = body.get("pull_request", {})
+                repo = body.get("repository", {})
+                indexer_event = process_review_event(
+                    action=body.get("action", ""),
+                    review_data=review,
+                    pr_data=pr,
+                    repository=repo.get("full_name", ""),
+                    sender=body.get("sender", {}).get("login", ""),
+                )
+                if indexer_event:
+                    from app.services.event_indexer_service import ingest_event
+                    await ingest_event(indexer_event)
+            except Exception as idx_err:
+                logger.warning("Indexer ingestion failed for review event: %s", idx_err)
+
+            return JSONResponse(
+                status_code=200,
+                content={"status": "processed", "event": "pull_request_review"},
+            )
+
+        elif event_type == "issue_comment":
+            # Ingest claim comments into the indexer
+            try:
+                comment = body.get("comment", {})
+                issue = body.get("issue", {})
+                repo = body.get("repository", {})
+                indexer_event = process_issue_comment_event(
+                    action=body.get("action", ""),
+                    comment_data=comment,
+                    issue_data=issue,
+                    repository=repo.get("full_name", ""),
+                    sender=body.get("sender", {}).get("login", ""),
+                )
+                if indexer_event:
+                    from app.services.event_indexer_service import ingest_event
+                    await ingest_event(indexer_event)
+            except Exception as idx_err:
+                logger.warning("Indexer ingestion failed for comment event: %s", idx_err)
+
+            return JSONResponse(
+                status_code=200,
+                content={"status": "processed", "event": "issue_comment"},
+            )
 
         else:
             # Unhandled event type
