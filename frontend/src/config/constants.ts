@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 
 export const FNDRY_TOKEN_MINT = new PublicKey('C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS');
+export const FNDRY_TOKEN_CA = 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS';
 export const FNDRY_DECIMALS = 9;
 
 export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQEcnVcP3xLFiSKskQ4K73zYS5168Ry2hY');
