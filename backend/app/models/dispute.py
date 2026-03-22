@@ -189,9 +189,7 @@ class DisputeHistoryDB(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    __table_args__ = (
-        Index("ix_dispute_history_dispute_id", dispute_id),
-    )
+    __table_args__ = (Index("ix_dispute_history_dispute_id", dispute_id),)
 
 
 # -- Pydantic Schemas ----------------------------------------------------------

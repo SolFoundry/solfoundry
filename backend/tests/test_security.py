@@ -66,6 +66,7 @@ from app.services.config_validator import (
 
 # ── Test client setup ──────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def client():
     """Create a test client for the FastAPI application."""
@@ -157,9 +158,7 @@ class TestSecretsManagement:
         for py_file in backend_dir.rglob("*.py"):
             findings = audit_source_for_secrets(str(py_file))
             if findings:
-                critical_findings.extend(
-                    [(str(py_file), f) for f in findings]
-                )
+                critical_findings.extend([(str(py_file), f) for f in findings])
 
         # Allow no critical findings (test/mock files are excluded by the function)
         assert len(critical_findings) == 0, (
@@ -216,11 +215,16 @@ class TestInputSanitization:
 
     def test_detect_sql_benchmark(self):
         """Verify SQL injection detection catches BENCHMARK-based blind injection."""
-        assert detect_sql_injection("'; BENCHMARK(10000000, SHA1('test')); --") is not None
+        assert (
+            detect_sql_injection("'; BENCHMARK(10000000, SHA1('test')); --") is not None
+        )
 
     def test_safe_text_passes_sql_check(self):
         """Verify normal text passes SQL injection detection without false positives."""
-        assert detect_sql_injection("Fix the dropdown selection on the bounty page") is None
+        assert (
+            detect_sql_injection("Fix the dropdown selection on the bounty page")
+            is None
+        )
 
     def test_sanitize_html_escapes_tags(self):
         """Verify HTML sanitization escapes angle brackets."""
@@ -342,7 +346,9 @@ class TestEscrowSecurity:
         """Verify that reusing a transaction hash raises DoubleSpendError."""
         valid_hash = "5" * 88  # Valid base58 format
         self.verifier.check_double_spend(valid_hash)
-        self.verifier.record_processed_transaction(valid_hash, "release", 100.0, "A" * 44)
+        self.verifier.record_processed_transaction(
+            valid_hash, "release", 100.0, "A" * 44
+        )
 
         with pytest.raises(DoubleSpendError):
             self.verifier.check_double_spend(valid_hash)
@@ -445,7 +451,9 @@ class TestEscrowSecurity:
         self.verifier.record_processed_transaction(valid_hash, "fund")
 
         # Manually age the record
-        self.verifier._processed_transactions[valid_hash].processed_at = time.time() - 100000
+        self.verifier._processed_transactions[valid_hash].processed_at = (
+            time.time() - 100000
+        )
 
         # Cleanup should remove it
         removed = self.verifier.cleanup_old_records(max_age_seconds=1)
@@ -465,11 +473,15 @@ class TestAuthHardening:
 
         # Record failures
         for i in range(3):
-            protector.check_and_record_attempt("user@test.com", success=False, ip_address="1.2.3.4")
+            protector.check_and_record_attempt(
+                "user@test.com", success=False, ip_address="1.2.3.4"
+            )
 
         # Next attempt should be blocked
         with pytest.raises(BruteForceProtectionError) as exc_info:
-            protector.check_and_record_attempt("user@test.com", success=False, ip_address="1.2.3.4")
+            protector.check_and_record_attempt(
+                "user@test.com", success=False, ip_address="1.2.3.4"
+            )
 
         assert exc_info.value.retry_after > 0
 
@@ -659,7 +671,10 @@ class TestRateLimiting:
         response = client.post(
             "/api/bounties",
             content=json.dumps({"title": large_body, "reward_amount": 1.0, "tier": 1}),
-            headers={"Content-Type": "application/json", "Content-Length": str(2 * 1024 * 1024)},
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": str(2 * 1024 * 1024),
+            },
         )
         assert response.status_code == 413
 
@@ -681,19 +696,25 @@ class TestDependencyAudit:
 
     def test_audit_script_exists(self):
         """Verify the audit_deps.py script exists."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        )
         assert script_path.exists(), f"Audit script not found at {script_path}"
 
     def test_audit_script_is_executable_python(self):
         """Verify the audit script is valid Python that can be imported."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        )
         content = script_path.read_text(encoding="utf-8")
         # Should compile without syntax errors
         compile(content, str(script_path), "exec")
 
     def test_audit_script_has_main_function(self):
         """Verify the audit script has a main() entry point."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "audit_deps.py"
+        )
         content = script_path.read_text(encoding="utf-8")
         assert "def main()" in content
         assert "if __name__" in content
@@ -769,12 +790,16 @@ class TestBackupStrategy:
 
     def test_backup_script_exists(self):
         """Verify the pg_backup.py script exists."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        )
         assert script_path.exists(), f"Backup script not found at {script_path}"
 
     def test_backup_script_has_required_functions(self):
         """Verify the backup script has all required functions."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        )
         content = script_path.read_text(encoding="utf-8")
 
         required_functions = [
@@ -791,7 +816,9 @@ class TestBackupStrategy:
 
     def test_backup_script_is_valid_python(self):
         """Verify the backup script is valid Python."""
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        script_path = (
+            Path(__file__).resolve().parent.parent.parent / "scripts" / "pg_backup.py"
+        )
         content = script_path.read_text(encoding="utf-8")
         compile(content, str(script_path), "exec")
 
@@ -863,4 +890,6 @@ class TestSecurityIntegration:
             headers={"X-GitHub-Event": "ping"},
         )
         # Should get a webhook-specific error, not a sanitization block
-        assert response.status_code != 400 or "prohibited" not in response.json().get("detail", "")
+        assert response.status_code != 400 or "prohibited" not in response.json().get(
+            "detail", ""
+        )
