@@ -8,3 +8,6 @@ export { TierBadge } from './TierBadge';
 export { StatusIndicator } from './StatusIndicator';
 export { SkillTags } from './SkillTags';
 export { EmptyState } from './EmptyState';
+export { BountyTag } from './BountyTag';
+export type { TagType } from './BountyTag';
+export { BountyTagList } from './BountyTagList';

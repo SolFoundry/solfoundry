@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Bounty } from '../../types/bounty';
+import type { TagType } from './BountyTag';
 import { TierBadge } from './TierBadge';
 import { StatusIndicator } from './StatusIndicator';
 import { SkillTags } from './SkillTags';
@@ -35,7 +36,15 @@ function CreatorBadge({ type }: { type: 'platform' | 'community' }) {
   );
 }
 
-export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: string) => void }) {
+export function BountyCard({
+  bounty: b,
+  onClick,
+  onTagClick,
+}: {
+  bounty: Bounty;
+  onClick: (id: string) => void;
+  onTagClick?: (type: TagType, value: string) => void;
+}) {
   const [tr, setTr] = useState(() => formatTimeRemaining(b.deadline));
   useEffect(() => { const i = setInterval(() => setTr(formatTimeRemaining(b.deadline)), 6e4); return () => clearInterval(i); }, [b.deadline]);
   const exp = new Date(b.deadline).getTime() <= Date.now();
@@ -55,7 +64,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
         <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
         <p className="text-xs text-gray-500 mb-3">{b.projectName}</p>
         <div className="flex items-baseline gap-1 mb-3"><span className="text-lg font-bold text-solana-green">{formatReward(b.rewardAmount)}</span><span className="text-xs text-gray-500">{b.currency}</span></div>
-        <SkillTags skills={b.skills} maxVisible={3} />
+        <SkillTags skills={b.skills} maxVisible={3} onTagClick={onTagClick} />
         <div className="flex justify-between pt-3 mt-3 border-t border-surface-300">
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
           <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
