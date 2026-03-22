@@ -5,6 +5,7 @@
  * pages/LeaderboardPage.tsx re-export.
  * @module components/leaderboard/LeaderboardPage
  */
+import { Link } from 'react-router-dom';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
 import { SkeletonTable } from '../common/Skeleton';
 import { NoDataAvailable } from '../common/EmptyState';
@@ -77,7 +78,7 @@ export function LeaderboardPage() {
                 <td className="py-3 font-bold text-gray-400">{c.rank <= 3 ? ['\u{1F947}','\u{1F948}','\u{1F949}'][c.rank-1] : c.rank}</td>
                 <td className="py-3 flex items-center gap-2">
                   <img src={c.avatarUrl} alt={c.username} className="h-6 w-6 rounded-full" width={24} height={24} />
-                  <span className="text-white font-medium">{c.username}</span>
+                  <Link to={`/contributor/${c.username}`} className="text-white font-medium hover:text-solana-green transition-colors">{c.username}</Link>
                   <span className="text-xs text-gray-500">{c.topSkills.slice(0,2).join(', ')}</span>
                 </td>
                 <td className="py-3 text-right text-[#00FF88] font-semibold">{c.points.toLocaleString()}</td>

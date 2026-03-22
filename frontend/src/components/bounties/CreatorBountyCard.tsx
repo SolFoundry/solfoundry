@@ -214,7 +214,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                             </span>
                                             {sub.status === 'paid' && (
                                                 <button
-                                                    onClick={() => window.open(`/profile/${sub.submitted_by}`, '_blank')}
+                                                    onClick={() => window.open(`/contributor/${sub.submitted_by}`, '_blank')}
                                                     className="text-[#14F195] hover:underline text-xs flex items-center gap-1"
                                                 >
                                                     View Winner Profile ↗
