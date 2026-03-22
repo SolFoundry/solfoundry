@@ -1,0 +1,149 @@
+# Full local development Docker Compose stack for SolFoundry.
+#
+# Includes all platform services plus a local Solana test validator
+# for end-to-end blockchain integration testing.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Services:
+#   - postgres: PostgreSQL 16 database (source of truth)
+#   - redis: Redis 7 for caching, rate limiting, and pub/sub
+#   - solana-validator: Local Solana test validator for program testing
+#   - backend: FastAPI application server
+#   - frontend: React/Vite frontend served by nginx
+#   - indexer: Solana transaction indexer (watches validator for events)
+#
+# Prerequisites:
+#   - Docker Engine 24+ and Docker Compose v2
+#   - At least 4 GB RAM allocated to Docker
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-solfoundry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solfoundry_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-solfoundry}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-solfoundry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis Cache & Queue ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Solana Test Validator ────────────────────────────────────────────────
+  # Runs a local Solana validator for program deployment and testing.
+  # RPC at localhost:8899, WebSocket at localhost:8900.
+  solana-validator:
+    image: solanalabs/solana:v1.18.26
+    restart: unless-stopped
+    command: >
+      solana-test-validator
+        --reset
+        --quiet
+        --rpc-port 8899
+        --limit-ledger-size 50000000
+    ports:
+      - "${SOLANA_RPC_PORT:-8899}:8899"
+      - "${SOLANA_WS_PORT:-8900}:8900"
+    volumes:
+      - solana_ledger:/root/.config/solana
+    healthcheck:
+      test: ["CMD-SHELL", "solana cluster-version --url http://localhost:8899 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+  # ── FastAPI Backend ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      SOLANA_RPC_URL: http://solana-validator:8899
+      SOLANA_WS_URL: ws://solana-validator:8900
+      ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      solana-validator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ── React Frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ── Solana Indexer ───────────────────────────────────────────────────────
+  # Watches the Solana validator for transaction events and syncs them
+  # to the backend database. Uses the same backend image with a different
+  # entrypoint.
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.services.solana_client"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
+      REDIS_URL: redis://redis:6379/0
+      SOLANA_RPC_URL: http://solana-validator:8899
+      SOLANA_WS_URL: ws://solana-validator:8900
+      ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      solana-validator:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  solana_ledger:
