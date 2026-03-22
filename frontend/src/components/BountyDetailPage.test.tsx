@@ -82,6 +82,19 @@ describe('BountyDetailPage', () => {
     expect(screen.getByText(/This is a test bounty description/)).toBeInTheDocument();
   });
 
+  it('renders description as Markdown (e.g. bold)', () => {
+    renderDetail(
+      <BountyDetailPage
+        bounty={{
+          ...mockBounty,
+          description: 'Use **bold** requirements in the PR.',
+        }}
+      />,
+    );
+    const strong = document.querySelector('strong');
+    expect(strong?.textContent).toBe('bold');
+  });
+
   it('renders requirements', () => {
     renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('Requirement 1: Implement the component')).toBeInTheDocument();

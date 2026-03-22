@@ -94,10 +94,53 @@ describe("MarkdownRenderer", () => {
     expect(bq?.textContent?.trim()).toBe("quoted text");
   });
 
-  it("does not render GFM pipe markdown as an HTML table without GFM plugin", () => {
+  it("renders GFM pipe tables", () => {
     const md = "| A | B |\n|---|---|\n| 1 | 2 |";
     const { container } = render(<MarkdownRenderer content={md} />);
-    expect(container.querySelector("table")).toBeNull();
+    const table = container.querySelector("table");
+    expect(table).toBeTruthy();
+    expect(table?.textContent).toContain("1");
+    expect(table?.textContent).toContain("2");
+  });
+
+  it("renders GFM task list items with checkboxes", () => {
+    render(
+      <MarkdownRenderer
+        content={`- [x] Done\n- [ ] Todo`}
+      />,
+    );
+    const boxes = document.querySelectorAll('input[type="checkbox"]');
+    expect(boxes.length).toBe(2);
+    expect((boxes[0] as HTMLInputElement).checked).toBe(true);
+    expect((boxes[1] as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("maps ```ts to TypeScript highlighting", () => {
+    render(
+      <MarkdownRenderer
+        content={"```ts\nconst x: number = 1;\n```"}
+      />,
+    );
+    expect(document.body.textContent).toContain("const x: number = 1;");
+  });
+
+  it("renders Solidity fenced blocks", () => {
+    render(
+      <MarkdownRenderer
+        content={'```solidity\npragma solidity ^0.8.0;\n```'}
+      />,
+    );
+    expect(document.body.textContent).toContain("pragma solidity ^0.8.0;");
+  });
+
+  it("strips dangerous javascript: URLs from link hrefs (sanitized)", () => {
+    const { container } = render(
+      <MarkdownRenderer content="[click me](javascript:alert(1))" />,
+    );
+    const anchor = container.querySelector("a");
+    expect(anchor?.textContent).toBe("click me");
+    const href = anchor?.getAttribute("href");
+    expect(href === null || !/^javascript:/i.test(href)).toBe(true);
   });
 
   it("applies custom className to wrapper", () => {
