@@ -6,6 +6,7 @@ implemented in the database layer.
 """
 
 from typing import Optional
+from urllib.parse import urlparse
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,9 +20,97 @@ from app.models.notification import (
 )
 
 
-class NotificationService:
-    """Service for notification operations."""
+# Module-level constants
+#: Maps notification types to their email template names.
+TEMPLATE_MAP = {
+    "bounty_claimed": "bounty_claimed",
+    "pr_submitted": "pr_submitted",
+    "review_complete": "review_complete",
+    "payout_sent": "payout_sent",
+    "payout_initiated": "payout_sent",
+    "payout_confirmed": "payout_sent",
+    "new_bounty_matching_skills": "new_bounty",
+}
 
+#: Allowed URL schemes for outbound email links.
+ALLOWED_URL_SCHEMES = {"http", "https"}
+#: Allowed URL hosts for outbound email links (whitelist).
+ALLOWED_URL_HOSTS = {
+    "github.com",
+    "solscan.io",
+    "solfoundry.app",
+    "solfoundry.org",
+}
+
+#: Per-template required fields for context validation before sending emails.
+REQUIRED_CONTEXT_FIELDS = {
+    "bounty_claimed": ["bounty_id"],
+    "pr_submitted": ["bounty_id"],
+    "review_complete": ["bounty_id"],
+    "payout_sent": ["bounty_id"],
+    "new_bounty": [],
+    "notification": [],
+}
+
+
+def _validate_url(url: Optional[str]) -> Optional[str]:
+    """Validate and sanitize an outbound URL for email context.
+
+    Returns the URL only if it uses a safe scheme (http/https) and points
+    to a trusted host. Returns None for invalid or malicious URLs.
+
+    Args:
+        url: The URL string to validate.
+
+    Returns:
+        The validated URL string, or None if the URL is invalid or untrusted.
+    """
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return None
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        return None
+    # Strip www. prefix for comparison
+    host = parsed.netloc.lower().removeprefix("www.")
+    if not any(
+        host == allowed or host.endswith(f".{allowed}") for allowed in ALLOWED_URL_HOSTS
+    ):
+        return None
+    return url
+
+
+def _validate_context_fields(template_name: str, extra_data: Optional[dict]) -> None:
+    """Validate that required fields are present in extra_data for a given template.
+
+    Args:
+        template_name: The email template name being used.
+        extra_data: The extra_data dictionary from the notification.
+
+    Raises:
+        ValueError: If any required fields are missing for the template.
+    """
+    if not extra_data:
+        extra_data = {}
+    required = REQUIRED_CONTEXT_FIELDS.get(template_name, [])
+    missing = [f for f in required if not extra_data.get(f)]
+    if missing:
+        raise ValueError(
+            f"Missing required fields for template '{template_name}': {missing}"
+        )
+
+
+class NotificationService:
+    """Service for notification operations.
+
+    Provides methods to create, retrieve, update, and delete notifications
+    for users. Handles email routing, preference checking, rate limiting,
+    and template selection for outbound notifications.
+    """
+
+    #: Set of valid notification type values.
     VALID_TYPES = {t.value for t in NotificationType}
 
     def __init__(self, db: AsyncSession):
@@ -260,15 +349,6 @@ class NotificationService:
             return
 
         # Route to type-specific template first (before preference check on template name)
-        TEMPLATE_MAP = {
-            "bounty_claimed": "bounty_claimed",
-            "pr_submitted": "pr_submitted",
-            "review_complete": "review_complete",
-            "payout_sent": "payout_sent",
-            "payout_initiated": "payout_sent",
-            "payout_confirmed": "payout_sent",
-            "new_bounty_matching_skills": "new_bounty",
-        }
         template_name = TEMPLATE_MAP.get(notification_type, "notification")
 
         # Check specific preference using resolved template name (not raw notification_type).
@@ -283,7 +363,14 @@ class NotificationService:
         if not await can_send_email(user_id):
             return
 
-        # 4. Build context
+        # 4. Validate context fields for the template
+        try:
+            _validate_context_fields(template_name, extra_data)
+        except ValueError:
+            # Log and abort gracefully if required fields are missing
+            return
+
+        # 5. Build context with validated/sanitized fields
         context = {
             "title": title,
             "message": message,
@@ -296,8 +383,8 @@ class NotificationService:
             "reward_amount": extra_data.get("reward_amount") if extra_data else None,
             "tier": extra_data.get("tier") if extra_data else None,
             "skills": extra_data.get("skills", []) if extra_data else [],
-            "bounty_url": extra_data.get("bounty_url") if extra_data else None,
-            "pr_url": extra_data.get("pr_url") if extra_data else None,
+            "bounty_url": _validate_url(extra_data.get("bounty_url")) if extra_data else None,
+            "pr_url": _validate_url(extra_data.get("pr_url")) if extra_data else None,
             "pr_number": extra_data.get("pr_number") if extra_data else None,
             "review_status": extra_data.get("review_status") if extra_data else None,
             "ai_score": extra_data.get("ai_score") if extra_data else None,

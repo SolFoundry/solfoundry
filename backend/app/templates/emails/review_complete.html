@@ -16,7 +16,7 @@
         {% if extra_data.review_status %}
             <strong>Status:</strong> {{ extra_data.review_status }}<br>
         {% endif %}
-        {% if extra_data.ai_score %}
+        {% if extra_data.ai_score is not none %}
             <strong>AI Score:</strong> {{ extra_data.ai_score }}/10<br>
         {% endif %}
         {% if extra_data.feedback %}
