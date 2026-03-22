@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './common/Modal';
+import { SolFoundryLogoMark } from './common/SolFoundryLogoMark';
 
 interface OnboardingWizardProps {
     isOpen: boolean;
@@ -68,8 +69,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
             case 1:
                 return (
                     <div className="space-y-6 py-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-solana-purple to-solana-green rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-purple-500/20">
-                            <span className="text-2xl font-bold text-white">SF</span>
+                        <div className="mx-auto mb-6 flex justify-center">
+                            <SolFoundryLogoMark
+                                size="xl"
+                                className="shadow-lg shadow-purple-500/25"
+                            />
                         </div>
                         <div className="text-center space-y-3">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome to SolFoundry</h2>

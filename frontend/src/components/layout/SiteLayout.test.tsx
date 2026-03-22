@@ -80,8 +80,17 @@ describe('SiteLayout', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       expect(screen.getAllByText('SolFoundry').length).toBeGreaterThanOrEqual(1);
-      // Header and footer both contain "SF" logo
-      expect(screen.getAllByText('SF').length).toBeGreaterThanOrEqual(1);
+      const marks = screen.getAllByTestId('solfoundry-logo-mark');
+      expect(marks.length).toBeGreaterThanOrEqual(2);
+      marks.forEach((img) => {
+        expect(img).toHaveAttribute('src', '/logo-icon.svg');
+      });
+    });
+
+    it('header brand link points to home', () => {
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
+      const banner = screen.getByRole('banner');
+      expect(within(banner).getByRole('link', { name: 'SolFoundry' })).toHaveAttribute('href', '/');
     });
 
     it('renders all navigation links', () => {

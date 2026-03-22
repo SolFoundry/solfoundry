@@ -28,7 +28,8 @@ describe('NotFoundPage', () => {
   it('renders the SolFoundry branding', () => {
     renderWithRouter(<NotFoundPage />);
     expect(screen.getByText('SolFoundry')).toBeTruthy();
-    expect(screen.getByText('SF')).toBeTruthy();
+    const mark = screen.getByTestId('solfoundry-logo-mark');
+    expect(mark).toHaveAttribute('src', '/logo-icon.svg');
   });
 
   it('renders a "Back to Home" link pointing to /', () => {

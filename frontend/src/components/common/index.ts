@@ -40,3 +40,5 @@ export { TierProgressBar } from './TierProgressBar';
 export type { TierProgressBarProps } from './TierProgressBar';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export type { MarkdownRendererProps } from './MarkdownRenderer';
+export { SolFoundryLogoMark } from './SolFoundryLogoMark';
+export type { SolFoundryLogoMarkProps, SolFoundryLogoMarkSize } from './SolFoundryLogoMark';

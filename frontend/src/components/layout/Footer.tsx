@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FNDRY_TOKEN_CA } from '../../config/constants';
+import { SolFoundryLogoMark } from '../common/SolFoundryLogoMark';
 
 const GITHUB_REPO = 'https://github.com/SolFoundry/solfoundry';
 const DOCS_HREF = `${GITHUB_REPO}#readme`;
@@ -69,14 +70,15 @@ export function Footer() {
         {/* Brand + socials */}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8 pb-10 border-b border-gray-200 dark:border-white/10">
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left gap-1">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-xs">SF</span>
-              </div>
+            <Link
+              to="/"
+              className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple/40"
+            >
+              <SolFoundryLogoMark size="sm" className="shadow-sm shadow-solana-purple/10" />
               <span className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
                 SolFoundry
               </span>
-            </div>
+            </Link>
             <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm">
               Autonomous AI software factory on Solana — ship bounties, earn $FNDRY, and grow with the
               community.
