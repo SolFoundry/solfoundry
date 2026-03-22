@@ -25,16 +25,69 @@ jobs:
       group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
-      - name: Trigger private review pipeline
+      - name: Check if bounty is still open
+        id: bounty_check
         env:
-          REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
-          # Determine PR number from either trigger
           if [ -n "${{ inputs.pr_number }}" ]; then
             PR_NUM="${{ inputs.pr_number }}"
           else
             PR_NUM="${{ github.event.pull_request.number }}"
           fi
+          echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
+
+          # Extract linked issue from PR title + body
+          PR_JSON=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM")
+          PR_TITLE=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title',''))" 2>/dev/null)
+          PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
+          PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
+
+          ISSUE_NUM=$(python3 -c "
+          import re
+          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
+          " 2>/dev/null)
+
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "No linked issue — proceeding to dispatch"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if the bounty issue is closed
+          ISSUE_STATE=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM" \
+            | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('state','open'))" 2>/dev/null)
+
+          if [ "$ISSUE_STATE" = "closed" ]; then
+            echo "BLOCKED: Bounty #$ISSUE_NUM is closed — closing PR #$PR_NUM"
+            # Post comment
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"❌ **Bounty Closed**\n\n@$PR_AUTHOR, bounty #$ISSUE_NUM has already been completed and closed.\n\nThis PR cannot be reviewed because the bounty is no longer active. Please check the [open bounties](https://github.com/${{ github.repository }}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) for available work.\n\n---\n*SolFoundry Review Bot*\"}"
+            # Close PR
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Bounty #$ISSUE_NUM is open — proceeding"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger private review pipeline
+        if: steps.bounty_check.outputs.skip != 'true'
+        env:
+          REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
 
           # Determine action type for smart dedup in private pipeline
           if [ -n "${{ github.event.action }}" ]; then
