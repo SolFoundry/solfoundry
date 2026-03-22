@@ -20,9 +20,21 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
+  // Cmd/Ctrl+K keyboard shortcut to focus the search input
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
   const handleSearch = useCallback((v: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onFilterChange('searchQuery', v), 150);
+    debounceRef.current = setTimeout(() => onFilterChange('searchQuery', v), 300);
 
     // Fetch autocomplete suggestions
     if (v.trim().length >= 2) {
@@ -182,7 +194,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         )}
 
         <span className="ml-auto text-xs text-gray-500" data-testid="result-count">
-          {resultCount} of {totalCount} bounties
+          Showing {resultCount} of {totalCount} bounties
         </span>
       </div>
 

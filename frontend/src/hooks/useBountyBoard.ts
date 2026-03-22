@@ -2,11 +2,55 @@
  * Bounty fetching via apiClient + React Query with search and fallback.
  * @module hooks/useBountyBoard
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
 import { apiClient } from '../services/apiClient';
+
+/** Read initial filter values from the current URL search params. */
+function readFiltersFromURL(): Partial<BountyBoardFilters> {
+  if (typeof window === 'undefined') return {};
+  const params = new URLSearchParams(window.location.search);
+  const partial: Partial<BountyBoardFilters> = {};
+  const q = params.get('q');
+  if (q) partial.searchQuery = q;
+  const tier = params.get('tier');
+  if (tier === 'T1' || tier === 'T2' || tier === 'T3') partial.tier = tier;
+  const status = params.get('status');
+  if (status) partial.status = status as BountyBoardFilters['status'];
+  const skills = params.get('skills');
+  if (skills) partial.skills = skills.split(',').filter(Boolean);
+  const rewardMin = params.get('reward_min');
+  if (rewardMin) partial.rewardMin = rewardMin;
+  const rewardMax = params.get('reward_max');
+  if (rewardMax) partial.rewardMax = rewardMax;
+  const creatorType = params.get('creator_type');
+  if (creatorType) partial.creatorType = creatorType as BountyBoardFilters['creatorType'];
+  const category = params.get('category');
+  if (category) partial.category = category as BountyBoardFilters['category'];
+  const deadlineBefore = params.get('deadline_before');
+  if (deadlineBefore) partial.deadlineBefore = deadlineBefore;
+  return partial;
+}
+
+/** Sync current filters back to the URL without triggering a navigation. */
+function syncFiltersToURL(filters: BountyBoardFilters): void {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams();
+  if (filters.searchQuery.trim()) params.set('q', filters.searchQuery.trim());
+  if (filters.tier !== 'all') params.set('tier', filters.tier);
+  if (filters.status !== 'all') params.set('status', filters.status);
+  if (filters.skills.length) params.set('skills', filters.skills.join(','));
+  if (filters.rewardMin) params.set('reward_min', filters.rewardMin);
+  if (filters.rewardMax) params.set('reward_max', filters.rewardMax);
+  if (filters.creatorType !== 'all') params.set('creator_type', filters.creatorType);
+  if (filters.category !== 'all') params.set('category', filters.category);
+  if (filters.deadlineBefore) params.set('deadline_before', filters.deadlineBefore);
+  const newSearch = params.toString();
+  const url = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+  window.history.replaceState(null, '', url);
+}
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
 import type { BountyStatus } from '../types/bounty';
@@ -105,11 +149,19 @@ function applyLocalFilters(allBounties: Bounty[], activeFilters: BountyBoardFilt
 
 /** Bounty board hook with React Query caching, server-side search, and client-side fallback. */
 export function useBountyBoard() {
-  const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<BountyBoardFilters>(() => ({
+    ...DEFAULT_FILTERS,
+    ...readFiltersFromURL(),
+  }));
   const [sortBy, setSortByRaw] = useState<BountySortBy>('newest');
   const [page, setPage] = useState(1);
   const perPage = 20;
   const searchAvailableRef = useRef(true);
+
+  // Sync filter state to URL whenever filters change
+  useEffect(() => {
+    syncFiltersToURL(filters);
+  }, [filters]);
 
   const setSortBy = useCallback((sortField: BountySortBy | string) => {
     setSortByRaw((SORT_COMPAT[sortField] || sortField) as BountySortBy);
