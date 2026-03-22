@@ -31,8 +31,12 @@ def upgrade() -> None:
         sa.Column("avatar_url", sa.String(512), nullable=True),
         sa.Column("wallet_address", sa.String(64), unique=True, nullable=True),
         sa.Column("wallet_verified", sa.Boolean(), server_default=sa.false()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("last_login_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_users_github_id", "users", ["github_id"])
@@ -55,8 +59,12 @@ def upgrade() -> None:
         sa.Column("created_by", sa.String(100), server_default="system"),
         sa.Column("submission_count", sa.Integer(), server_default="0"),
         sa.Column("popularity", sa.Integer(), server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("search_vector", sa.Text(), nullable=True),
     )
     op.create_index("ix_bounties_tier_status", "bounties", ["tier", "status"])
@@ -80,10 +88,16 @@ def upgrade() -> None:
         sa.Column("social_links", sa.JSON(), server_default="{}"),
         sa.Column("total_contributions", sa.Integer(), server_default="0"),
         sa.Column("total_bounties_completed", sa.Integer(), server_default="0"),
-        sa.Column("total_earnings", sa.Numeric(precision=20, scale=6), server_default="0"),
+        sa.Column(
+            "total_earnings", sa.Numeric(precision=20, scale=6), server_default="0"
+        ),
         sa.Column("reputation_score", sa.Integer(), server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_contributors_username", "contributors", ["username"])
 
@@ -117,8 +131,12 @@ def upgrade() -> None:
         sa.Column("payout_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("evidence", sa.JSON(), server_default="[]"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_submissions_contributor", "submissions", ["contributor_id"])
     op.create_index("ix_submissions_bounty", "submissions", ["bounty_id"])
@@ -153,7 +171,9 @@ def upgrade() -> None:
         sa.Column("tx_hash", sa.String(128), unique=True, nullable=True),
         sa.Column("status", sa.String(20), server_default="pending"),
         sa.Column("solscan_url", sa.String(256), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_payouts_recipient", "payouts", ["recipient"])
     op.create_index("ix_payouts_tx_hash", "payouts", ["tx_hash"])
@@ -165,10 +185,14 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), primary_key=True),
         sa.Column("amount_sol", sa.Numeric(precision=20, scale=6), nullable=False),
         sa.Column("amount_fndry", sa.Numeric(precision=20, scale=6), nullable=False),
-        sa.Column("price_per_fndry", sa.Numeric(precision=20, scale=10), nullable=False),
+        sa.Column(
+            "price_per_fndry", sa.Numeric(precision=20, scale=10), nullable=False
+        ),
         sa.Column("tx_hash", sa.String(128), unique=True, nullable=True),
         sa.Column("solscan_url", sa.String(256), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_buybacks_created_at", "buybacks", ["created_at"])
 
@@ -187,7 +211,9 @@ def upgrade() -> None:
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
         sa.Column("ai_score", sa.Numeric(precision=5, scale=2), server_default="0"),
-        sa.Column("submitted_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "submitted_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_bsub_bounty", "bounty_submissions", ["bounty_id"])
     op.create_index("ix_bsub_submitted_at", "bounty_submissions", ["submitted_at"])
@@ -218,7 +244,9 @@ def upgrade() -> None:
             server_default=sa.false(),
             nullable=False,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
     )
     op.create_index("ix_rh_contributor", "reputation_history", ["contributor_id"])
     op.create_index("ix_rh_bounty", "reputation_history", ["bounty_id"])
