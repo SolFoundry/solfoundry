@@ -250,7 +250,7 @@ export function useBountyBoard() {
   const fallbackQuery = useQuery({
     queryKey: ['bounties', 'all'],
     queryFn: async () => {
-      const data = await apiClient<{ items?: unknown[] }>('/api/bounties?limit=200');
+      const data = await apiClient<{ items?: unknown[] }>('/api/bounties?limit=10000');
       const items = (data.items || data) as unknown[];
       return Array.isArray(items) ? items.map(item => mapApiBounty(item as Record<string, unknown>)) : [];
     },
@@ -262,7 +262,8 @@ export function useBountyBoard() {
   const localFiltered = useMemo(() => applyLocalFilters(allBounties, filters, sortBy), [allBounties, filters, sortBy]);
 
   const localPaginated = useMemo(() => {
-    const start = (page - 1) * PER_PAGE;
+    const safePage = Math.max(1, Math.min(page, Math.max(1, Math.ceil(localFiltered.length / PER_PAGE) || 1)));
+    const start = (safePage - 1) * PER_PAGE;
     return localFiltered.slice(start, start + PER_PAGE);
   }, [localFiltered, page]);
 
