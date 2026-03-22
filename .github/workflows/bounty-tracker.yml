@@ -95,7 +95,7 @@ jobs:
                       exit(0)
 
               # Find "Closes #N" patterns
-              closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_body.lower())
+              closes = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', pr_body.lower())
 
               keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
 
@@ -140,7 +140,7 @@ jobs:
                           opr_author = opr.get("user", {}).get("login", "unknown")
 
                           # Check if this PR targets the same issue
-                          opr_closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', opr_body)
+                          opr_closes = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', opr_body)
                           if issue_num in opr_closes:
                               # Close competing PR with explanation
                               close_body = json.dumps({
