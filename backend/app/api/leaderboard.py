@@ -93,8 +93,8 @@ async def leaderboard(
                 "username": entry.username,
                 "avatarUrl": entry.avatar_url
                 or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
-                "points": int(entry.reputation_score * 100)
-                if entry.reputation_score
+                "points": int(entry.total_earned)
+                if entry.total_earned
                 else 0,
                 "bountiesCompleted": entry.bounties_completed,
                 "earningsFndry": entry.total_earned,

@@ -29,7 +29,9 @@ API_BASE = "https://api.github.com"
 SYNC_INTERVAL = 300  # 5 minutes
 
 # Banned users — reverted contributions, blocked from repo
-BANNED_USERS = {"yuzengbaao"}
+# Blocked from repo — still shown on leaderboard for past contributions
+# but excluded from future sync updates
+BANNED_USERS: set[str] = set()  # Don't exclude anyone from leaderboard display
 
 # Track sync state
 _last_sync: Optional[datetime] = None
@@ -283,14 +285,16 @@ async def fetch_merged_prs() -> list[dict]:
 
 
 def _extract_bounty_number_from_pr(pr: dict) -> Optional[int]:
-    """Extract linked issue number from PR body (Closes #N)."""
+    """Extract linked issue number from PR title + body (Closes #N)."""
+    title = pr.get("title") or ""
     body = pr.get("body") or ""
+    text = title + " " + body
     patterns = [
         r"(?i)(?:closes|fixes|resolves|implements)\s*#(\d+)",
         r"(?i)(?:closes|fixes|resolves|implements)\s+https://github\.com/[^/]+/[^/]+/issues/(\d+)",
     ]
     for pattern in patterns:
-        m = re.search(pattern, body)
+        m = re.search(pattern, text)
         if m:
             return int(m.group(1))
     return None
