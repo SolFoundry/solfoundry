@@ -152,4 +152,44 @@ describe('TimeAgo component', () => {
     render(<TimeAgo date={new Date('2026-03-22T10:00:00Z').getTime()} />);
     expect(screen.getByText('2h ago')).toBeInTheDocument();
   });
+
+  it('handles invalid date strings gracefully', () => {
+    render(<TimeAgo date="not-a-date" />);
+    expect(screen.getByText('Invalid date')).toBeInTheDocument();
+    
+    // Should not have datetime attribute for invalid dates
+    const time = screen.getByText('Invalid date');
+    expect(time).not.toHaveAttribute('datetime');
+    // Title shows fallback date info
+    expect(time.getAttribute('title')).toBeTruthy();
+  });
+
+  it('handles invalid numeric timestamps gracefully', () => {
+    render(<TimeAgo date={NaN} />);
+    expect(screen.getByText('Invalid date')).toBeInTheDocument();
+  });
+
+  it('does not set interval for invalid dates even with updateInterval', () => {
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
+    render(<TimeAgo date="invalid" updateInterval={60000} />);
+    
+    // setInterval should not be called for invalid dates
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    
+    setIntervalSpy.mockRestore();
+  });
+
+  it('verifies no setInterval called for dates older than 7 days', () => {
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
+    render(<TimeAgo date="2026-03-12T12:00:00Z" updateInterval={60000} />);
+    
+    // setInterval should not be called for old dates
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    
+    // Advance timers and verify no change
+    vi.advanceTimersByTime(60000);
+    expect(screen.getByText('Mar 12')).toBeInTheDocument();
+    
+    setIntervalSpy.mockRestore();
+  });
 });

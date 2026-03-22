@@ -22,6 +22,10 @@ export interface TimeAgoProps {
  * Returns true if the date is valid, false otherwise.
  */
 function isValidDate(date: string | Date | number): boolean {
+  // Check for NaN input first
+  if (typeof date === 'number' && isNaN(date)) {
+    return false;
+  }
   const d = new Date(date);
   return !isNaN(d.getTime());
 }
@@ -66,8 +70,8 @@ export function formatTimeAgo(date: string | Date | number): string {
   if (hours < 24) return `${hours}h ago`;
   if (days <= 7) return `${days}d ago`;
 
-  // More than 7 days: show date
-  return new Date(then).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // More than 7 days: show date (use UTC for deterministic output)
+  return new Date(then).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 /**
@@ -84,6 +88,7 @@ export function formatFullDate(date: string | Date | number): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC',
     timeZoneName: 'short',
   });
 }
@@ -100,15 +105,23 @@ export function TimeAgo({
   className = '',
   updateInterval = 60000, // 1 minute default
 }: TimeAgoProps) {
-  // Handle invalid dates gracefully
-  const safeDate = isValidDate(date) ? date : new Date().toISOString();
+  const isValid = isValidDate(date);
   
-  const [timeAgo, setTimeAgo] = useState(() => formatTimeAgo(safeDate));
+  // Use safe date for display (fallback to current time if invalid)
+  const safeDate = isValid ? date : new Date().toISOString();
+  
+  // Use original date for formatting (to show "Invalid date" when invalid)
+  const [timeAgo, setTimeAgo] = useState(() => formatTimeAgo(date));
   const fullDate = useMemo(() => formatFullDate(safeDate), [safeDate]);
 
   useEffect(() => {
     // Update immediately when date changes
-    setTimeAgo(formatTimeAgo(safeDate));
+    setTimeAgo(formatTimeAgo(date));
+
+    // Skip interval for invalid dates
+    if (!isValid) {
+      return;
+    }
 
     // Set up interval for auto-updates (only for recent items)
     const then = new Date(safeDate).getTime();
@@ -117,16 +130,16 @@ export function TimeAgo({
     // Only auto-update if 7 days or less old
     if (diffDays <= 7) {
       const interval = setInterval(() => {
-        setTimeAgo(formatTimeAgo(safeDate));
+        setTimeAgo(formatTimeAgo(date));
       }, updateInterval);
 
       return () => clearInterval(interval);
     }
-  }, [safeDate, updateInterval]);
+  }, [date, updateInterval, isValid, safeDate]);
 
   return (
     <time
-      dateTime={new Date(safeDate).toISOString()}
+      dateTime={isValid ? new Date(safeDate).toISOString() : undefined}
       title={fullDate}
       className={`cursor-help ${className}`}
     >
