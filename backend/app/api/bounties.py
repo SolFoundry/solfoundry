@@ -39,6 +39,14 @@ from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
+from pydantic import BaseModel, Field as PydanticField
+from app.services.bounty_lifecycle_service import (
+    LifecycleError,
+    publish_bounty as _publish_bounty,
+    claim_bounty as _claim_bounty,
+    unclaim_bounty as _unclaim_bounty,
+    transition_status as _transition_status,
+)
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
     """Check that the authenticated user owns the bounty before modification.
@@ -452,7 +460,6 @@ async def get_review_scores(
 # ---------------------------------------------------------------------------
 
 
-from pydantic import BaseModel, Field as PydanticField
 
 
 class ApprovalRequest(BaseModel):
@@ -630,13 +637,7 @@ async def cancel_bounty(
 # Lifecycle engine endpoints
 # ---------------------------------------------------------------------------
 
-from app.services.bounty_lifecycle_service import (
-    LifecycleError,
-    publish_bounty as _publish_bounty,
-    claim_bounty as _claim_bounty,
-    unclaim_bounty as _unclaim_bounty,
-    transition_status as _transition_status,
-)
+
 
 
 class ClaimRequest(BaseModel):

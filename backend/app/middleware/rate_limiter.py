@@ -28,7 +28,7 @@ import os
 import threading
 import time
 from collections import defaultdict
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
