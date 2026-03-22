@@ -65,9 +65,10 @@ jobs:
           # Rate limiting disabled during maintenance
 
           # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
-          ALL_ISSUES=$(python3 -c "
-          import re
-          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          # NOTE: Use env vars (not shell interpolation) to prevent injection via PR title/body
+          ALL_ISSUES=$(PR_TITLE_SAFE="$PR_TITLE" PR_BODY_SAFE="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_SAFE', '') + ' ' + os.environ.get('PR_BODY_SAFE', '')
           matches = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
           # Deduplicate
           seen = []
@@ -145,9 +146,10 @@ jobs:
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
           # Extract linked issue number
-          ISSUE_NUM=$(python3 -c "
-          import re
-          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          # NOTE: Use env vars (not shell interpolation) to prevent injection via PR title/body
+          ISSUE_NUM=$(PR_TITLE_SAFE="$PR_TITLE" PR_BODY_SAFE="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_SAFE', '') + ' ' + os.environ.get('PR_BODY_SAFE', '')
           m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:\S+#)?(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           " 2>/dev/null)
@@ -319,9 +321,37 @@ jobs:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
-          APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
-            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")] | length' 2>/dev/null || echo 0)
-          if [ "$APPROVED" -gt "0" ]; then
+          APPROVED_REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
+            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")]' 2>/dev/null || echo "[]")
+          APPROVED=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; print(len(json.loads(sys.stdin.read())))" 2>/dev/null || echo 0)
+
+          # If new commits pushed after approval (synchronize event), dismiss the
+          # APPROVED review and force re-review — prevents bait-and-switch attacks
+          ACTION="${{ github.event.action }}"
+          if [ "$APPROVED" -gt "0" ] && [ "$ACTION" = "synchronize" ]; then
+            echo "⚠️ New commits pushed after approval — dismissing review and forcing re-review"
+            # Dismiss each APPROVED review
+            REVIEW_IDS=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; [print(r['id']) for r in json.loads(sys.stdin.read())]" 2>/dev/null)
+            for RID in $REVIEW_IDS; do
+              curl -sf -X PUT \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUM}/reviews/${RID}/dismissals" \
+                -d '{"message":"⚠️ New commits pushed after approval — re-review required for security. Previous approval dismissed.","event":"DISMISS"}' || true
+            done
+            # Remove escrow lock since approval is invalidated
+            curl -sf -X DELETE \
+              -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUM}/labels/review-passed" 2>/dev/null || true
+            # Post comment warning
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUM}/comments" \
+              -d "{\"body\":\"⚠️ **Review Invalidated**\n\nNew commits were pushed after approval. The previous approval has been dismissed and a fresh review will run.\n\nFor security, the escrow lock has been removed.\n\n---\n*SolFoundry Review Bot*\"}" || true
+            # Don't skip — force re-review
+            echo "skip=false" >> $GITHUB_OUTPUT
+          elif [ "$APPROVED" -gt "0" ]; then
             echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
             echo "skip=true" >> $GITHUB_OUTPUT
 
@@ -365,7 +395,7 @@ jobs:
               TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
               TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
               if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
-                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
+                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AUse /prs in Telegram to see the Merge button."
                 curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
                   -d "chat_id=${TELEGRAM_CHAT}" \
                   -d "text=${MSG}" \
