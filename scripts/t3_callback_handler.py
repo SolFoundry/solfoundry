@@ -123,6 +123,24 @@ def handle_approve(issue_num, username):
     return True, f"Approved {username} for T3 #{issue_num}"
 
 
+def cleanup_lock_comment(issue_num, pr_num):
+    """Delete the <!-- escrow-lock-pr-N --> tracking comment from a bounty issue.
+
+    These comments accumulate if not cleaned up and can confuse lock detection.
+    """
+    comments = gh_api(f"repos/{REPO}/issues/{issue_num}/comments")
+    if not comments:
+        return
+    marker = f"<!-- escrow-lock-pr-{pr_num} -->"
+    for comment in comments:
+        if marker in (comment.get("body") or ""):
+            comment_id = comment.get("id")
+            if comment_id:
+                gh_api(f"repos/{REPO}/issues/comments/{comment_id}", "DELETE")
+                print(f"Deleted lock comment {comment_id} for PR #{pr_num} on issue #{issue_num}")
+            return
+
+
 def get_bounty_issue_from_pr(pr_num):
     """Extract the linked bounty issue number from a PR's title + body."""
     import re
@@ -157,6 +175,7 @@ def handle_pr_approve(pr_num):
     # Remove escrow lock from the bounty issue
     if issue_num:
         gh_api(f"repos/{REPO}/issues/{issue_num}/labels/review-passed", "DELETE")
+        cleanup_lock_comment(issue_num, pr_num)
 
     return True, f"PR #{pr_num} merged"
 
@@ -184,6 +203,7 @@ def handle_pr_deny(pr_num):
     issue_num = get_bounty_issue_from_pr(pr_num)
     if issue_num:
         gh_api(f"repos/{REPO}/issues/{issue_num}/labels/review-passed", "DELETE")
+        cleanup_lock_comment(issue_num, pr_num)
         # Post unlock comment on the bounty issue
         gh_api(f"repos/{REPO}/issues/{issue_num}/comments", "POST", {
             "body": "🔓 **Escrow unlocked** — submission was rejected. Bounty is open for new submissions.\n\n---\n*SolFoundry Review Bot*"

@@ -1,7 +1,7 @@
 """AI review integration service.
 
-Manages per-model review scores (GPT, Gemini, Grok) from GitHub Actions
-and computes aggregated scores for submissions.
+Manages per-model review scores (GPT, Gemini, Grok, Sonnet, DeepSeek)
+from GitHub Actions and computes aggregated scores for submissions.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def get_scores_by_model(submission_id: str) -> dict[str, float]:
 
 
 def is_review_complete(submission_id: str) -> bool:
-    """Check whether all three models have submitted scores."""
+    """Check whether all models have submitted scores."""
     with _lock:
         model_map = _review_store.get(submission_id, {})
         all_models = {m.value for m in ReviewModel}

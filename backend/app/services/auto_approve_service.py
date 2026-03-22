@@ -18,7 +18,7 @@ from app.models.review import AI_REVIEW_SCORE_THRESHOLD, AUTO_APPROVE_TIMEOUT_HO
 from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service
-from app.models.bounty import BountyStatus, SubmissionStatus
+from app.models.bounty import BountyStatus, BountyTier, SubmissionStatus
 from app.models.lifecycle import LifecycleEventType
 from app.core.audit import audit_event
 
@@ -35,6 +35,11 @@ def check_auto_approve_candidates() -> list[dict]:
 
     for bounty_id, bounty in list(bounty_service._bounty_store.items()):
         if bounty.status not in (BountyStatus.UNDER_REVIEW, BountyStatus.IN_PROGRESS):
+            continue
+
+        # T3 bounties must NEVER be auto-approved — they require explicit
+        # owner approval via Telegram callback.
+        if bounty.tier == BountyTier.T3:
             continue
 
         for sub in bounty.submissions:

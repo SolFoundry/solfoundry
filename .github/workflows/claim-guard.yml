@@ -26,7 +26,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           python3 << 'PYEOF'
-          import os, re, json, urllib.request
+          import os, re, json, urllib.request, unicodedata
 
           labels = os.environ.get("ISSUE_LABELS", "")
           issue_title = os.environ.get("ISSUE_TITLE", "").lower()
@@ -91,11 +91,30 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          lower = comment.lower()
+          # Minimal comment filter — delete comments shorter than 5 chars
+          if len(comment.strip()) < 5:
+              print(f"Tiny comment from {user} on #{issue} — deleting")
+              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+              exit(0)
+
+          # Normalize unicode + replace Cyrillic/Greek lookalikes with Latin equivalents
+          normalized = unicodedata.normalize('NFKC', comment).lower()
+          confusables = str.maketrans('аеорсухіјёАЕОРСУХІ', 'aeopcyxijeAEOPCYXI')
+          lower = normalized.translate(confusables)
+          stripped = re.sub(r'[*_`~>\[\]()]', '', lower)
 
           # --- REPEAT OFFENDER CHECK (all tiers) ---
           # If the bot already warned this user on this issue, auto-delete further claim attempts
-          comments_data, _ = gh_get(f"repos/{repo}/issues/{issue}/comments?per_page=100")
+          comments_data = []
+          cpage = 1
+          while True:
+              cpage_data, _ = gh_get(f"repos/{repo}/issues/{issue}/comments?per_page=100&page={cpage}")
+              if not cpage_data:
+                  break
+              comments_data.extend(cpage_data)
+              if len(cpage_data) < 100:
+                  break
+              cpage += 1
           if comments_data:
               already_warned = False
               for c in comments_data:
@@ -123,8 +142,9 @@ jobs:
               r"(dm me|contact me at|whatsapp|telegram.*@)",
               r"(upvote|follow me|subscribe|check out my)",
               r"(great (project|repo|work).*star|nice repo.*followed)",
+              r"https?://\S+\.(click|xyz|top|buzz|gq|ml|tk|ga|cf)\b",
           ]
-          is_spam = any(re.search(p, lower) for p in spam_patterns)
+          is_spam = any(re.search(p, stripped) for p in spam_patterns)
 
           if is_spam:
               print(f"SPAM detected from {user} on #{issue} — deleting")
@@ -132,8 +152,8 @@ jobs:
               exit(0)
 
           # --- CLAIM DETECTION ---
-          claim_re = r"(/attempt|attempt|claim|dibs|i.?ll take|assigning myself|assign.*(me|this)|can i (take|work)|i want to (take|work)|want to work|working on this|taking this|claiming this|want to implement|i.?d like to (work|take|build|implement)|interested in this|please assign|let me work|i.?ll work on|i.?ll build|i.?ll implement)"
-          is_claim = bool(re.search(claim_re, lower))
+          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this)"
+          is_claim = bool(re.search(claim_re, stripped))
 
           if not is_claim:
               print("Not a claim attempt — ignoring")
@@ -172,28 +192,33 @@ jobs:
 
           # ── Shared helper: count user's merged bounty PRs by tier ──
           def count_user_bounty_prs(username):
-              url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
-              req = urllib.request.Request(url)
-              req.add_header("Authorization", f"token {token}")
-              req.add_header("Accept", "application/vnd.github.v3+json")
-              resp = urllib.request.urlopen(req)
-              all_prs = json.loads(resp.read().decode())
               t1_count = 0
               t2_count = 0
               t3_count = 0
-              for pr in all_prs:
-                  if pr["user"]["login"] != username or not pr.get("merged_at"):
-                      continue
-                  pr_body = pr.get("body", "") or ""
-                  linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
-                  for linked_num in linked:
-                      tier = get_issue_tier(linked_num)
-                      if tier == "tier-1":
-                          t1_count += 1
-                      elif tier == "tier-2":
-                          t2_count += 1
-                      elif tier == "tier-3":
-                          t3_count += 1
+              page = 1
+              while True:
+                  url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100&page={page}"
+                  req = urllib.request.Request(url)
+                  req.add_header("Authorization", f"token {token}")
+                  req.add_header("Accept", "application/vnd.github.v3+json")
+                  resp = urllib.request.urlopen(req)
+                  page_prs = json.loads(resp.read().decode())
+                  for pr in page_prs:
+                      if pr["user"]["login"] != username or not pr.get("merged_at"):
+                          continue
+                      pr_body = pr.get("body", "") or ""
+                      linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
+                      for linked_num in linked:
+                          tier = get_issue_tier(linked_num)
+                          if tier == "tier-1":
+                              t1_count += 1
+                          elif tier == "tier-2":
+                              t2_count += 1
+                          elif tier == "tier-3":
+                              t3_count += 1
+                  if len(page_prs) < 100:
+                      break
+                  page += 1
               return t1_count, t2_count, t3_count
 
           # ══════════════════════════════════════════════════════════════
@@ -282,22 +307,26 @@ jobs:
                   t1_count, t2_count, t3_count = count_user_bounty_prs(user)
                   print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
 
-                  # Gate: T3 requires 3+ completed T2 bounties
-                  if t2_count < 3:
-                      remaining = 3 - t2_count
-                      print(f"Only {t2_count} T2 completions — {user} not eligible for T3")
+                  # Gate: T3 requires EITHER 3+ T2 completions OR (5+ T1 AND 1+ T2)
+                  t3_standard = t2_count >= 3
+                  t3_alt = t1_count >= 5 and t2_count >= 1
+                  if not t3_standard and not t3_alt:
+                      print(f"Only T1={t1_count}, T2={t2_count} — {user} not eligible for T3")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
+                      remaining_std = 3 - t2_count
                       body = (
-                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed Tier 2 bounties.**\n\n"
-                          f"You have **{t2_count}** merged T2 bounty PR(s) — "
-                          f"**{remaining} more** to unlock T3.\n\n"
+                          f"⚠️ @{user} — **Tier 3 bounties are reputation-gated.** "
+                          f"You need one of the following:\n\n"
+                          f"- **Standard path:** 3+ completed Tier 2 bounties (you have {t2_count}, need {remaining_std} more)\n"
+                          f"- **Alternative path:** 5+ completed Tier 1 AND 1+ completed Tier 2 bounties "
+                          f"(you have {t1_count} T1, {t2_count} T2)\n\n"
                           f"### Tier 3 rules:\n"
-                          f"- You must have **3+ merged T2 PRs** to be eligible\n"
+                          f"- Meet one of the above requirements to be eligible\n"
                           f"- Comment with a brief plan/proposal to claim\n"
                           f"- The project owner reviews and approves/denies your claim\n"
                           f"- Once approved: 14-day deadline, AI review ≥7/10\n\n"
-                          f"Keep building through T2 — the top-tier bounties will open up.\n\n"
+                          f"Keep building — the top-tier bounties will open up.\n\n"
                           f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
@@ -306,7 +335,7 @@ jobs:
 
                   # Bulk claiming check: max 2 concurrent T3 claims per user
                   # Search for open T3 issues assigned to or claimed by this user
-                  t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3,claimed&per_page=50")
+                  t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3,claimed&per_page=100")
                   user_t3_claims = set()
                   if t3_issues:
                       for t3_issue in t3_issues:

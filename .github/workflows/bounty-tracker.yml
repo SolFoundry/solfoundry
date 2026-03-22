@@ -147,8 +147,8 @@ jobs:
                                   "body": (
                                       f"🏭 **Bounty #{issue_num} completed** — PR #{pr_number} by @{pr_author} was merged first.\n\n"
                                       f"Thank you for your submission @{opr_author}! "
-                                      f"New bounties are launching soon — stay tuned for Phase 2.\n\n"
-                                      f"---\n*SolFoundry Bot*"
+                                      f"Check out the other [open bounties](https://github.com/{repo}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) for more opportunities.\n\n"
+                                      f"---\n*SolFoundry Bot 🏭*"
                                   )
                               }).encode()
                               comment_req = urllib.request.Request(
