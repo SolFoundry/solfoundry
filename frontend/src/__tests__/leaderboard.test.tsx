@@ -49,7 +49,9 @@ function renderWithProviders(element: React.ReactElement) {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      {element}
+      <MemoryRouter>
+        {element}
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

@@ -175,9 +175,9 @@ describe('ContributorProfilePage with React Query', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/profile/testuser']}>
+        <MemoryRouter initialEntries={['/contributor/testuser']}>
           <Routes>
-            <Route path="/profile/:username" element={<ContributorProfilePage />} />
+            <Route path="/contributor/:username" element={<ContributorProfilePage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -200,9 +200,9 @@ describe('ContributorProfilePage with React Query', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/profile/baduser']}>
+        <MemoryRouter initialEntries={['/contributor/baduser']}>
           <Routes>
-            <Route path="/profile/:username" element={<ContributorProfilePage />} />
+            <Route path="/contributor/:username" element={<ContributorProfilePage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -235,7 +235,9 @@ describe('LeaderboardPage with React Query', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <LeaderboardPage />
+        <MemoryRouter>
+          <LeaderboardPage />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -256,7 +258,9 @@ describe('LeaderboardPage with React Query', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <LeaderboardPage />
+        <MemoryRouter>
+          <LeaderboardPage />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
