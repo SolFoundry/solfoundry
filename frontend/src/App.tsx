@@ -133,6 +133,7 @@ function AppLayout() {
 
           {/* Contributor and Creator */}
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
+          <Route path="/contributor/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
 
