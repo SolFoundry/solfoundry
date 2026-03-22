@@ -334,6 +334,34 @@ jobs:
                       f"*— SolFoundry Bot 🏭*"
                   )
                   blocked = True
+              else:
+                  # Eligible by reputation — but T3 also requires approved claim
+                  # Check if contributor is assigned to the bounty issue (claim approved)
+                  issue_data = gh_get(f"repos/{repo}/issues/{issue_num}")
+                  assignees = [a["login"].lower() for a in issue_data.get("assignees", [])]
+
+                  if user.lower() not in assignees:
+                      # Check issue comments for bot approval message as fallback
+                      comments = gh_get(f"repos/{repo}/issues/{issue_num}/comments?per_page=100")
+                      has_approval = False
+                      for c in comments:
+                          cbody = (c.get("body") or "")
+                          cauthor = c.get("user", {}).get("login", "")
+                          # Look for our bot's claim approval comment mentioning this user
+                          if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and ("approved" in cbody.lower() or "assigned" in cbody.lower()):
+                              has_approval = True
+                              break
+
+                      if not has_approval:
+                          msg = (
+                              f"⚠️ @{user} — **Tier 3 bounties require claiming before submitting.**\n\n"
+                              f"You meet the reputation requirements ✅ but you haven't claimed this bounty yet.\n\n"
+                              f"**To claim:** Comment on [issue #{issue_num}](https://github.com/{repo}/issues/{issue_num}) "
+                              f"with why you're a good fit. A maintainer will review and assign you.\n\n"
+                              f"Once assigned, resubmit your PR.\n\n"
+                              f"*— SolFoundry Bot 🏭*"
+                          )
+                          blocked = True
 
           if blocked:
               gh_post(f"repos/{repo}/issues/{pr_num}/comments", {"body": msg})
