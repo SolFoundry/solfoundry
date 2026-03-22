@@ -64,29 +64,9 @@ Your PR is automatically reviewed by **5 AI models in parallel** (GPT-5.4, Gemin
 Your PR will be **instantly closed** if:
 - Missing `Closes #N` in the description
 - Empty or trivial diff (< 5 lines of real code)
-- Contains binary files or `node_modules/` (see **False positive: “dependency dump”** below)
+- Contains binary files or `node_modules/`
 - Excessive TODOs/placeholders (AI slop)
 - Duplicate — another PR for the same bounty was already merged
-
-### False positive: “Includes node_modules/ or vendor/ (dependency dump)”
-
-The automated review may reject a PR if the **patch or description** contains many occurrences of `node_modules/` — even when you did **not** commit that folder. Common causes:
-
-1. **`package-lock.json` / `yarn.lock` / `pnpm-lock.yaml` changed** — Lockfiles list every package under keys like `"node_modules/foo"`. If you didn’t mean to change dependencies, **restore the lockfile from `main`** and keep only your source changes:
-   ```bash
-   git fetch origin main
-   git checkout origin/main -- frontend/package-lock.json
-   git add frontend/package-lock.json && git commit -m "chore: restore package-lock.json from main (review bot)"
-   git push
-   ```
-2. **PR title or body** — Don’t paste npm error logs, full lockfile snippets, or tooling output that mentions `node_modules/` in the GitHub description (the bot may scan the PR text).
-3. **Actually committed `node_modules/` or `vendor/`** — Remove from git history and ensure they stay ignored:
-   ```bash
-   git rm -r --cached node_modules vendor 2>/dev/null || true
-   ```
-   Then commit; `vendor/` and `node_modules/` belong in `.gitignore` only.
-
-After fixing, push again and **reopen** the PR (or open a **new PR** from a branch that only contains intended files — check the **Files changed** tab on GitHub).
 
 Your PR gets a **24-hour warning** if:
 - Missing Solana wallet address — add it within 24 hours or it's auto-closed
