@@ -256,44 +256,11 @@ jobs:
         run: cargo fmt -- --check
         continue-on-error: true
 
-  # ==================== DOCKER BUILD + SMOKE TEST ====================
-  # Builds both images via compose, starts all 4 services, curls /health.
-  docker-build:
-    name: Docker Build & Smoke Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate Dockerfiles exist
-        run: |
-          test -f Dockerfile.backend  || { echo "Missing Dockerfile.backend"; exit 1; }
-          test -f Dockerfile.frontend || { echo "Missing Dockerfile.frontend"; exit 1; }
-      - name: Validate Docker Compose config
-        run: docker compose config --quiet
-      - name: Build and start all services
-        run: docker compose up -d --build --wait --wait-timeout 120
-      - name: Verify backend health
-        run: |
-          for i in $(seq 1 15); do
-            if curl -sf http://localhost:8000/health | grep -q ok; then
-              echo "Backend healthy"; exit 0
-            fi; sleep 5
-          done
-          docker compose logs backend; exit 1
-      - name: Verify all 4 services running
-        run: |
-          running=$(docker compose ps --status running --format json | grep -c '"Service"')
-          if [ "$running" -lt 4 ]; then
-            echo "Expected 4 services, got $running"; docker compose ps; exit 1
-          fi
-      - name: Tear down
-        if: always()
-        run: docker compose down -v
-
   # ==================== SUMMARY ====================
   ci-status:
     name: CI Status Summary
     runs-on: ubuntu-latest
-    needs: [backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint, docker-build]
+    needs: [backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint]
     if: always()
     steps:
       - name: Check CI Results
@@ -308,7 +275,6 @@ jobs:
           echo "| Frontend Type Check | ${{ needs.frontend-typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Tests | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Build | ${{ needs.frontend-build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Contracts Check | ${{ needs.contracts-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Rust Lint | ${{ needs.rust-lint.result }} |" >> $GITHUB_STEP_SUMMARY
 

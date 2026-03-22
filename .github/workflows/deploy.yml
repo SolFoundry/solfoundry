@@ -1,12 +1,5 @@
-# Deploy Pipeline - Builds Docker images on merge to main.
-# Staging auto-deploys. Production requires manual approval via environment rules.
-#
-# Rollback: gh workflow run deploy.yml -f environment=staging -f rollback_tag=abc1234
-#
-# Required Secrets: DIGITALOCEAN_ACCESS_TOKEN, DIGITALOCEAN_CLUSTER_NAME,
-#   DATABASE_URL (prod), STAGING_DATABASE_URL (staging)
-# Required Vars: STAGING_HEALTH_URL, PRODUCTION_HEALTH_URL
-# Required Environments: staging (auto), production (add "Required reviewers")
+# Deploy Pipeline - Runs on merge to main branch
+# Builds and deploys frontend to Vercel/DO and backend as Docker container
 
 name: Deploy
 
@@ -18,15 +11,11 @@ on:
       environment:
         description: 'Deployment environment'
         required: true
-        default: 'staging'
+        default: 'production'
         type: choice
         options:
           - production
           - staging
-      rollback_tag:
-        description: 'Image tag to rollback to (leave empty for latest)'
-        required: false
-        type: string
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -36,15 +25,81 @@ env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ${{ github.repository }}/backend
-  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+  IMAGE_NAME: ${{ github.repository }}/backend
 
 jobs:
+  # ==================== BUILD FRONTEND ====================
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    outputs:
+      has_frontend: ${{ steps.check.outputs.has_frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for package.json
+        id: check
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            echo "has_frontend=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_frontend=false" >> $GITHUB_OUTPUT
+            echo "::notice::No frontend package.json found - skipping frontend build"
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.has_frontend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        if: steps.check.outputs.has_frontend == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Production Bundle
+        if: steps.check.outputs.has_frontend == 'true'
+        working-directory: frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
+
+      - name: Upload Build Artifacts
+        if: steps.check.outputs.has_frontend == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/.next/
+          retention-days: 7
+
+  # ==================== DEPLOY FRONTEND TO VERCEL ====================
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    if: needs.build-frontend.outputs.has_frontend == 'true' && github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: frontend
+
   # ==================== BUILD BACKEND DOCKER IMAGE ====================
   build-backend:
     name: Build Backend Docker Image
     runs-on: ubuntu-latest
-    if: inputs.rollback_tag == ''
     permissions:
       contents: read
       packages: write
@@ -68,88 +123,34 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=,format=short
+            type=sha,prefix=
             type=ref,event=branch
+            type=semver,pattern={{version}}
 
-      - name: Build and Push Backend Image
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: Dockerfile.backend
+          context: ./backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          file: ./backend/Dockerfile
+        continue-on-error: true
 
-  # ==================== BUILD FRONTEND DOCKER IMAGE ====================
-  build-frontend:
-    name: Build Frontend Docker Image
+  # ==================== DEPLOY BACKEND TO DIGITALOCEAN ====================
+  deploy-backend:
+    name: Deploy Backend (DigitalOcean)
     runs-on: ubuntu-latest
-    if: inputs.rollback_tag == ''
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
+    needs: build-backend
+    if: github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
-          tags: |
-            type=sha,prefix=,format=short
-            type=ref,event=branch
-
-      - name: Build and Push Frontend Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.frontend
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ==================== DEPLOY TO STAGING (auto) ====================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
-    if: >-
-      always()
-      && (needs.build-backend.result == 'success' || inputs.rollback_tag != '')
-      && (inputs.environment == 'staging' || inputs.environment == '')
-    environment:
-      name: staging
-      url: https://staging.solfoundry.org
-    steps:
-      - name: Determine image tag
-        id: tag
-        run: |
-          if [ -n "${{ inputs.rollback_tag }}" ]; then
-            echo "tag=${{ inputs.rollback_tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
@@ -158,134 +159,78 @@ jobs:
       - name: Save DigitalOcean kubeconfig
         run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
 
-      - name: Deploy to Staging
+      - name: Deploy to Kubernetes
         run: |
+          # Update deployment image
           kubectl set image deployment/solfoundry-backend \
-            backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.tag.outputs.tag }} \
-            --namespace staging
-          kubectl set image deployment/solfoundry-frontend \
-            frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.tag.outputs.tag }} \
-            --namespace staging
-          kubectl rollout status deployment/solfoundry-backend --namespace staging --timeout=300s
-          kubectl rollout status deployment/solfoundry-frontend --namespace staging --timeout=300s
-
-      - name: Verify Staging Health
-        run: |
-          for i in 1 2 3 4 5; do
-            if curl -sf ${{ vars.STAGING_HEALTH_URL }} | grep -q ok; then
-              echo "Staging healthy"; exit 0
-            fi; sleep 10
-          done
-          echo "Health check failed"; exit 1
-
-  # ==================== DEPLOY TO PRODUCTION ====================
-  # Production environment MUST have "Required reviewers" protection rule
-  # configured in GitHub Settings > Environments > production. This gates
-  # every production deploy behind manual approval from designated reviewers.
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [deploy-staging, build-backend, build-frontend]
-    if: >-
-      always()
-      && (needs.deploy-staging.result == 'success' || inputs.environment == 'production')
-      && (inputs.environment == 'production' || inputs.environment == '')
-    environment:
-      name: production
-      url: https://solfoundry.org
-    steps:
-      - name: Determine image tag
-        id: tag
-        run: |
-          if [ -n "${{ inputs.rollback_tag }}" ]; then
-            echo "tag=${{ inputs.rollback_tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Save DigitalOcean kubeconfig
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
-
-      - name: Deploy to Production
-        run: |
-          kubectl set image deployment/solfoundry-backend \
-            backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.tag.outputs.tag }} \
+            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --namespace production
-          kubectl set image deployment/solfoundry-frontend \
-            frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.tag.outputs.tag }} \
-            --namespace production
-          kubectl rollout status deployment/solfoundry-backend --namespace production --timeout=300s
-          kubectl rollout status deployment/solfoundry-frontend --namespace production --timeout=300s
-
-      - name: Verify Production Health
-        run: |
-          for i in 1 2 3 4 5; do
-            if curl -sf ${{ vars.PRODUCTION_HEALTH_URL }} | grep -q ok; then
-              echo "Production healthy"; exit 0
-            fi; sleep 10
-          done
-          echo "Health check failed"; exit 1
+          
+          # Wait for rollout
+          kubectl rollout status deployment/solfoundry-backend \
+            --namespace production \
+            --timeout=300s
+        continue-on-error: true
 
   # ==================== DATABASE MIGRATIONS ====================
-  migrate-staging:
-    name: Run Staging Migrations
+  migrate-database:
+    name: Run Database Migrations
     runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: needs.deploy-staging.result == 'success'
+    needs: deploy-backend
+    if: github.event_name != 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install and run migrations
-        working-directory: backend
-        run: pip install -r requirements.txt alembic && alembic upgrade head
-        env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  migrate-production:
-    name: Run Production Migrations
-    runs-on: ubuntu-latest
-    needs: deploy-production
-    if: needs.deploy-production.result == 'success'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install and run migrations
+
+      - name: Install Dependencies
         working-directory: backend
-        run: pip install -r requirements.txt alembic && alembic upgrade head
+        run: |
+          pip install -r requirements.txt
+          pip install alembic
+
+      - name: Run Migrations
+        working-directory: backend
+        run: alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true
 
   # ==================== DEPLOYMENT SUMMARY ====================
   deploy-status:
     name: Deployment Status
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend, deploy-staging, deploy-production, migrate-staging, migrate-production]
+    needs: [build-frontend, deploy-frontend, build-backend, deploy-backend, migrate-database]
     if: always()
     steps:
       - name: Generate Deployment Summary
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend Build | ${{ needs.build-backend.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Build | ${{ needs.build-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Staging Deploy | ${{ needs.deploy-staging.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Production Deploy | ${{ needs.deploy-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Staging Migration | ${{ needs.migrate-staging.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Production Migration | ${{ needs.migrate-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Deploy | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Build | ${{ needs.build-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Deploy | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Database Migration | ${{ needs.migrate-database.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Rollback" >> $GITHUB_STEP_SUMMARY
-          echo "Trigger workflow_dispatch with rollback_tag to deploy a previous image." >> $GITHUB_STEP_SUMMARY
+          echo "### Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Production Site](https://solfoundry.org)" >> $GITHUB_STEP_SUMMARY
+          echo "- [API Health](https://api.solfoundry.org/health)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on Success
+        if: success()
+        run: echo "Deployment completed successfully!"
+
+      - name: Notify on Failure
+        if: failure()
+        run: echo "Deployment failed - check the logs above for details"

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../services/apiClient';
 
 // ============================================================================
 // Types
@@ -57,54 +59,7 @@ interface ContributorDashboardProps {
 }
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_STATS: DashboardStats = {
-  totalEarned: 2450000,
-  activeBounties: 3,
-  pendingPayouts: 500000,
-  reputationRank: 42,
-  totalContributors: 256,
-};
-
-const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub <-> Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
-  { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
-  { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
-];
-
-const MOCK_ACTIVITIES: Activity[] = [
-  { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
-  { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
-  { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub <-> Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
-  { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
-];
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', type: 'success', title: 'PR Merged', message: 'Your PR #109 has been merged!', timestamp: '2026-03-20T10:00:00Z', read: false },
-  { id: '2', type: 'info', title: 'New Bounty', message: 'A new T1 bounty is available: Twitter Post', timestamp: '2026-03-20T03:00:00Z', read: false },
-  { id: '3', type: 'warning', title: 'Deadline Approaching', message: 'WebSocket Server bounty deadline in 2 days', timestamp: '2026-03-20T02:00:00Z', read: true },
-];
-
-const MOCK_EARNINGS: EarningsData[] = [
-  { date: '2026-03-01', amount: 0 },
-  { date: '2026-03-05', amount: 0 },
-  { date: '2026-03-10', amount: 100000 },
-  { date: '2026-03-12', amount: 150000 },
-  { date: '2026-03-15', amount: 500000 },
-  { date: '2026-03-18', amount: 800000 },
-  { date: '2026-03-20', amount: 950000 },
-];
-
-const MOCK_LINKED_ACCOUNTS = [
-  { type: 'github', username: 'HuiNeng6', connected: true },
-  { type: 'twitter', username: '', connected: false },
-];
-
-// ============================================================================
-// Data Fetcher (Simulates API calls)
+// Data Fetcher — Real API with empty-state fallback
 // ============================================================================
 
 interface DashboardData {
@@ -115,25 +70,49 @@ interface DashboardData {
   earnings: EarningsData[];
   linkedAccounts: { type: string; username: string; connected: boolean }[];
 }
-
+const EMPTY_STATS: DashboardStats = { totalEarned: 0, activeBounties: 0, pendingPayouts: 0, reputationRank: 0, totalContributors: 0 };
+/** Fetch endpoint, logging errors instead of swallowing. */
+async function safeFetch<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T | null> {
+  try { return await apiClient<T>(endpoint, { params, retries: 0 }); }
+  catch (error) { console.warn(`[Dashboard] ${endpoint} failed:`, error); return null; }
+}
+/** Fetch user-specific dashboard data from real API endpoints. */
 async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  // Simulate network delay (100-300ms)
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-  
-  // In a real app, this would fetch from an API using userId
-  // For now, return mock data but log userId for future integration
-  if (process.env.NODE_ENV !== 'test') {
-    console.log('Fetching dashboard data for user:', userId || 'anonymous');
+  const data: DashboardData = { stats: { ...EMPTY_STATS }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
+  const encodedId = userId ? encodeURIComponent(userId) : '';
+  const [bountiesRaw, notificationsRaw, leaderboardRaw] = await Promise.all([
+    safeFetch<{ items?: unknown[] }>('/api/bounties', { limit: 10, ...(userId ? { assignee: encodedId } : {}) }),
+    safeFetch<{ items?: unknown[] }>('/api/notifications', { limit: 10 }),
+    safeFetch<unknown[]>('/api/leaderboard', { range: 'all', limit: 50 }),
+  ]);
+  if (bountiesRaw) {
+    const items = (Array.isArray(bountiesRaw) ? bountiesRaw : (bountiesRaw.items ?? [])) as Record<string, unknown>[];
+    data.bounties = items.map(entry => ({
+      id: String(entry.id ?? ''), title: String(entry.title ?? ''),
+      reward: Number(entry.reward_amount ?? entry.reward ?? 0), deadline: String(entry.deadline ?? ''),
+      status: String(entry.status ?? 'claimed') as Bounty['status'], progress: Number(entry.progress ?? 0),
+    }));
   }
-  
-  return {
-    stats: MOCK_STATS,
-    bounties: MOCK_BOUNTIES,
-    activities: MOCK_ACTIVITIES,
-    notifications: MOCK_NOTIFICATIONS,
-    earnings: MOCK_EARNINGS,
-    linkedAccounts: MOCK_LINKED_ACCOUNTS,
-  };
+  if (notificationsRaw) {
+    const items = (Array.isArray(notificationsRaw) ? notificationsRaw : (notificationsRaw.items ?? [])) as Record<string, unknown>[];
+    data.notifications = items.map(entry => ({
+      id: String(entry.id ?? ''), type: String(entry.type ?? 'info') as Notification['type'],
+      title: String(entry.title ?? ''), message: String(entry.message ?? ''),
+      timestamp: String(entry.created_at ?? entry.timestamp ?? ''), read: Boolean(entry.read ?? false),
+    }));
+  }
+  if (Array.isArray(leaderboardRaw)) {
+    data.stats.totalContributors = leaderboardRaw.length;
+    const currentUser = (leaderboardRaw as Record<string, unknown>[]).find(
+      entry => String(entry.username ?? '').toLowerCase() === (userId ?? '').toLowerCase()
+    );
+    if (currentUser) {
+      data.stats.totalEarned = Number(currentUser.earningsFndry ?? 0);
+      data.stats.reputationRank = Number(currentUser.rank ?? 0);
+    }
+  }
+  data.stats.activeBounties = data.bounties.length;
+  return data;
 }
 
 // ============================================================================
@@ -624,19 +603,32 @@ export function ContributorDashboard({
   onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
-  
-  // Data states
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [earnings, setEarnings] = useState<EarningsData[]>([]);
-  const [linkedAccounts, setLinkedAccounts] = useState<{ type: string; username: string; connected: boolean }[]>([]);
-  
-  // UI states
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
+
+  // React Query handles fetching, caching, and retry for dashboard data
+  const { data: dashboardData, isLoading, isError, error: queryError, refetch } = useQuery({
+    queryKey: ['dashboard', userId],
+    queryFn: () => fetchDashboardData(userId),
+    staleTime: 30_000,
+  });
+
+  const stats = dashboardData?.stats ?? null;
+  const bounties = dashboardData?.bounties ?? [];
+  const activities = dashboardData?.activities ?? [];
+  const rawNotifications = dashboardData?.notifications ?? [];
+  const earnings = dashboardData?.earnings ?? [];
+  const linkedAccounts = dashboardData?.linkedAccounts?.length
+    ? dashboardData.linkedAccounts
+    : [
+        { type: 'github', username: userId ?? walletAddress ?? '', connected: Boolean(userId || walletAddress) },
+        { type: 'twitter', username: '', connected: false },
+      ];
+  const error = isError ? (queryError instanceof Error ? queryError.message : 'Failed to load dashboard data') : null;
+
+  // Local read-state overlay for notifications (mark-as-read without mutating query cache)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const notifications = rawNotifications.map(notification => readIds.has(notification.id) ? { ...notification, read: true } : notification);
+  const unreadNotifications = notifications.filter(notification => !notification.read).length;
+
   const [notificationPrefs, setNotificationPrefs] = useState([
     { type: 'Payout Alerts', enabled: true },
     { type: 'Review Updates', enabled: true },
@@ -644,77 +636,19 @@ export function ContributorDashboard({
     { type: 'New Bounties', enabled: false },
   ]);
 
-  // Fetch data on mount and when userId changes
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const data = await fetchDashboardData(userId);
-        
-        if (!isMounted) return;
-        
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-      } catch (err) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [userId]);
-
-  const unreadNotifications = notifications.filter(n => !n.read).length;
-
   const handleMarkAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setReadIds(prev => new Set(prev).add(id));
   }, []);
 
   const handleMarkAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    setReadIds(new Set(rawNotifications.map(notification => notification.id)));
+  }, [rawNotifications]);
 
   const handleToggleNotification = useCallback((type: string) => {
-    setNotificationPrefs(prev => prev.map(p => p.type === type ? { ...p, enabled: !p.enabled } : p));
+    setNotificationPrefs(prev => prev.map(pref => pref.type === type ? { ...pref, enabled: !pref.enabled } : pref));
   }, []);
 
-  const handleRetry = useCallback(() => {
-    // Trigger a re-render by clearing error and setting loading
-    setError(null);
-    setIsLoading(true);
-    
-    // Re-fetch data
-    fetchDashboardData(userId)
-      .then(data => {
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-        setIsLoading(false);
-      });
-  }, [userId]);
+  const handleRetry = useCallback(() => { refetch(); }, [refetch]);
 
   // Loading state UI
   if (isLoading) {
@@ -927,7 +861,7 @@ export function ContributorDashboard({
             ) : (
               <div className="space-y-1">
                 {notifications.map((notification) => (
-                  <NotificationItem 
+                  <NotificationItem
                     key={notification.id} 
                     notification={notification} 
                     onMarkAsRead={handleMarkAsRead}
