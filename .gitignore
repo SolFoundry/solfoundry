@@ -72,6 +72,3 @@ data/
 *.sqlite
 *.db
 *.sqlite3
-
-# Matches any directory named "vendor" at any depth (no trailing slash — avoids CI false positives)
-**/vendor

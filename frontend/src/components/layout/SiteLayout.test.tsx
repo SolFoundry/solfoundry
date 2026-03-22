@@ -24,7 +24,7 @@ Object.defineProperty(window, 'matchMedia', {
 function renderWithTheme(element: React.ReactElement) {
   return render(
     <MemoryRouter>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="system">
         {element}
       </ThemeProvider>
     </MemoryRouter>,
@@ -448,6 +448,15 @@ describe('SiteLayout', () => {
   // =========================================================================
 
   describe('Theme', () => {
+    it('renders theme menu control in the header', async () => {
+      renderWithTheme(<SiteLayout><div /></SiteLayout>);
+      const banner = screen.getByRole('banner');
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', { name: /theme:/i });
+        expect(banner).toContainElement(toggle);
+      });
+    });
+
     it('uses dark theme colors', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 

@@ -5,8 +5,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ThemeMode } from '../../../contexts/ThemeContext';
 import { ThemeProvider } from '../../../contexts/ThemeContext';
 import { ThemeToggle, SimpleThemeToggle } from '../ThemeToggle';
+
+function themeTrigger() {
+  return screen.getByRole('button', { name: /theme:/i });
+}
 
 // ============================================================================
 // Helpers
@@ -28,9 +33,9 @@ const mockMatchMedia = (matches: boolean) => {
   });
 };
 
-const renderWithProvider = (component: React.ReactNode, defaultTheme = 'dark') => {
+const renderWithProvider = (component: React.ReactNode, defaultTheme: ThemeMode = 'system') => {
   return render(
-    <ThemeProvider defaultTheme={defaultTheme as any}>
+    <ThemeProvider defaultTheme={defaultTheme}>
       {component}
     </ThemeProvider>
   );
@@ -52,31 +57,27 @@ describe('ThemeToggle', () => {
   });
 
   describe('Rendering', () => {
-    it('should render toggle button', async () => {
+    it('should render theme menu trigger after mount', async () => {
       renderWithProvider(<ThemeToggle />);
-      
-      // Wait for mounted state
+
       await waitFor(() => {
-        expect(screen.getByLabelText('Toggle theme')).toBeInTheDocument();
+        expect(themeTrigger()).toBeInTheDocument();
       });
     });
 
-    it('should show placeholder before mount', () => {
+    it('should show a non-interactive placeholder before mount', () => {
       renderWithProvider(<ThemeToggle />);
-      
-      // Initial render before useEffect runs
-      const buttons = screen.getAllByRole('button');
-      expect(buttons.length).toBeGreaterThan(0);
+
+      expect(document.querySelector('[aria-hidden="true"]')).toBeTruthy();
     });
   });
 
   describe('Dropdown Menu', () => {
     it('should open dropdown on click', async () => {
       renderWithProvider(<ThemeToggle />);
-      
+
       await waitFor(() => {
-        const button = screen.getByLabelText('Toggle theme');
-        fireEvent.click(button);
+        fireEvent.click(themeTrigger());
       });
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -95,7 +96,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -113,7 +114,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -133,7 +134,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       // Click Light option
@@ -148,7 +149,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       // Click Dark option
@@ -163,7 +164,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       // Click System option
@@ -180,7 +181,7 @@ describe('ThemeToggle', () => {
       
       // Open dropdown
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       // Dark option should be selected
@@ -194,7 +195,7 @@ describe('ThemeToggle', () => {
       renderWithProvider(<ThemeToggle />);
       
       await waitFor(() => {
-        const button = screen.getByLabelText('Toggle theme');
+        const button = themeTrigger();
         expect(button).toHaveAttribute('aria-expanded', 'false');
         expect(button).toHaveAttribute('aria-haspopup', 'listbox');
       });
@@ -204,7 +205,7 @@ describe('ThemeToggle', () => {
       renderWithProvider(<ThemeToggle />);
       
       await waitFor(() => {
-        const button = screen.getByLabelText('Toggle theme');
+        const button = themeTrigger();
         fireEvent.click(button);
         expect(button).toHaveAttribute('aria-expanded', 'true');
       });
@@ -214,11 +215,11 @@ describe('ThemeToggle', () => {
       renderWithProvider(<ThemeToggle />);
       
       await waitFor(() => {
-        fireEvent.click(screen.getByLabelText('Toggle theme'));
+        fireEvent.click(themeTrigger());
       });
       
       const listbox = screen.getByRole('listbox');
-      expect(listbox).toHaveAttribute('aria-label', 'Theme options');
+      expect(listbox).toHaveAttribute('aria-label', 'Select theme');
     });
   });
 });
