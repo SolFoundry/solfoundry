@@ -78,7 +78,7 @@ export function BountyBoard() {
             <BountyListView bounties={bounties} onBountyClick={handleBountyClick} />
           )}
           {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} loading={loading} />
           )}
         </>
       ) : (

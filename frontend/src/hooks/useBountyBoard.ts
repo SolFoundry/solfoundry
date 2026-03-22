@@ -2,7 +2,7 @@
  * Bounty fetching via apiClient + React Query with search and fallback.
  * @module hooks/useBountyBoard
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
@@ -103,17 +103,59 @@ function applyLocalFilters(allBounties: Bounty[], activeFilters: BountyBoardFilt
   return localSort(results, sortBy);
 }
 
+/** Read the initial page from the URL search params (window.location). */
+function getInitialPageFromUrl(): number {
+  if (typeof window === 'undefined') return 1;
+  const params = new URLSearchParams(window.location.search);
+  const p = parseInt(params.get('page') ?? '1', 10);
+  return isNaN(p) || p < 1 ? 1 : p;
+}
+
+/** Update the browser URL to reflect current page and preserve existing search/filter/sort params. */
+function syncPageToUrl(page: number, filters: BountyBoardFilters, sortBy: BountySortBy): void {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams(window.location.search);
+
+  // Preserve filter/sort params
+  if (filters.searchQuery.trim()) params.set('q', filters.searchQuery.trim()); else params.delete('q');
+  if (filters.tier !== 'all') params.set('tier', filters.tier); else params.delete('tier');
+  if (filters.status !== 'all') params.set('status', filters.status); else params.delete('status');
+  if (filters.skills.length) params.set('skills', filters.skills.join(',')); else params.delete('skills');
+  if (filters.rewardMin) params.set('reward_min', filters.rewardMin); else params.delete('reward_min');
+  if (filters.rewardMax) params.set('reward_max', filters.rewardMax); else params.delete('reward_max');
+  if (filters.creatorType !== 'all') params.set('creator_type', filters.creatorType); else params.delete('creator_type');
+  if (filters.category !== 'all') params.set('category', filters.category); else params.delete('category');
+  if (filters.deadlineBefore) params.set('deadline_before', filters.deadlineBefore); else params.delete('deadline_before');
+  if (sortBy !== 'newest') params.set('sort', sortBy); else params.delete('sort');
+
+  if (page > 1) params.set('page', String(page));
+  else params.delete('page');
+
+  const newSearch = params.toString();
+  const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+  window.history.replaceState(null, '', newUrl);
+}
+
 /** Bounty board hook with React Query caching, server-side search, and client-side fallback. */
 export function useBountyBoard() {
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
   const [sortBy, setSortByRaw] = useState<BountySortBy>('newest');
-  const [page, setPage] = useState(1);
+  const [page, setPageRaw] = useState<number>(getInitialPageFromUrl);
   const perPage = 20;
   const searchAvailableRef = useRef(true);
 
+  // Sync page + filters + sort to URL whenever they change
+  useEffect(() => {
+    syncPageToUrl(page, filters, sortBy);
+  }, [page, filters, sortBy]);
+
+  const setPage = useCallback((p: number) => {
+    setPageRaw(Math.max(1, p));
+  }, []);
+
   const setSortBy = useCallback((sortField: BountySortBy | string) => {
     setSortByRaw((SORT_COMPAT[sortField] || sortField) as BountySortBy);
-    setPage(1);
+    setPageRaw(1);
   }, []);
 
   // Server-side search via React Query
@@ -169,7 +211,7 @@ export function useBountyBoard() {
 
   const setFilter = useCallback(<K extends keyof BountyBoardFilters>(key: K, value: BountyBoardFilters[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
+    setPageRaw(1);
   }, []);
 
   return {
@@ -184,7 +226,7 @@ export function useBountyBoard() {
     hotBounties: hotBountiesQuery.data ?? [],
     recommendedBounties: recommendedQuery.data ?? [],
     setFilter,
-    resetFilters: useCallback(() => { setFilters(DEFAULT_FILTERS); setPage(1); }, []),
+    resetFilters: useCallback(() => { setFilters(DEFAULT_FILTERS); setPageRaw(1); }, []),
     setSortBy,
     setPage,
   };
