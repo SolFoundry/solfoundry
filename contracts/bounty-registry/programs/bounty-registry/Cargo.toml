@@ -1,0 +1,19 @@
+[package]
+name = "bounty-registry"
+version = "0.1.0"
+description = "On-chain bounty registry for SolFoundry — stores bounty metadata, statuses, and completion records as immutable on-chain data."
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "bounty_registry"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"
