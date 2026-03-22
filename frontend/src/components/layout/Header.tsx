@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { WalletConnect } from '../wallet';
+import { UserMenu } from './UserMenu';
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -101,16 +102,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </svg>
         </button>
 
-        {/* Avatar */}
-        <button
-          type="button"
-          className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-400 to-purple-500
-                     flex items-center justify-center text-white text-xs font-bold
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-          aria-label="User menu"
-        >
-          U
-        </button>
+        <UserMenu />
       </div>
     </header>
   );

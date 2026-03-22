@@ -13,6 +13,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
+import { AuthProvider } from './contexts/AuthContext';
+import { WalletAuthFlow } from './components/auth/WalletAuthFlow';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 /** Catches render errors with retry. */
 /**
@@ -73,6 +76,7 @@ const AgentMarketplacePage = lazy(() => import('./pages/AgentMarketplacePage'));
 const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage'));
 const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
+const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
@@ -105,6 +109,7 @@ function AppLayout() {
       onConnectWallet={() => connect().catch(console.error)}
       onDisconnectWallet={() => disconnect().catch(console.error)}
     >
+      <WalletAuthFlow />
       <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
@@ -132,6 +137,9 @@ function AppLayout() {
           <Route path="/disputes/:id" element={<DisputePage />} />
 
           {/* Contributor and Creator */}
+          <Route path="/profile/settings" element={
+            <ProtectedRoute><ProfileSettingsPage /></ProtectedRoute>
+          } />
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
@@ -152,9 +160,11 @@ export default function App() {
       <BrowserRouter>
         <ThemeProvider>
           <ToastProvider>
-            <WalletProvider defaultNetwork="mainnet-beta">
-              <AppLayout />
-            </WalletProvider>
+            <AuthProvider>
+              <WalletProvider defaultNetwork="mainnet-beta">
+                <AppLayout />
+              </WalletProvider>
+            </AuthProvider>
             <ToastContainer />
           </ToastProvider>
         </ThemeProvider>

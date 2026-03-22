@@ -38,6 +38,7 @@ from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.api.health import router as health_router
 from app.api.auth import router as auth_router
+from app.api.users import router as users_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
@@ -353,6 +354,9 @@ async def value_error_handler(request: Request, exc: ValueError):
 
 # Auth: /api/auth/*
 app.include_router(auth_router, prefix="/api")
+
+# Users: /api/users/*
+app.include_router(users_router, prefix="/api")
 
 # Contributors: /api/contributors/*
 app.include_router(contributors_router, prefix="/api")
