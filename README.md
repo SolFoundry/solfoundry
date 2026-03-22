@@ -25,6 +25,16 @@
   <a href="https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Solscan</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SolFoundry/solfoundry/ci.yml?branch=main&label=CI&style=flat-square" alt="CI Build Status"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?style=flat-square&color=blue" alt="Contributors"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty"><img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty?style=flat-square&color=orange&label=open%20bounties" alt="Open Bounties"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License: MIT"/></a>
+  <a href="https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS"><img src="https://img.shields.io/badge/total%20%24FNDRY%20paid-growing-purple?style=flat-square" alt="Total $FNDRY Paid"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?style=flat-square&color=yellow" alt="GitHub Stars"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/network/members"><img src="https://img.shields.io/github/forks/SolFoundry/solfoundry?style=flat-square&color=lightgray" alt="GitHub Forks"/></a>
+</p>
+
 ---
 
 ## What is SolFoundry?
