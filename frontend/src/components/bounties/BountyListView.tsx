@@ -2,6 +2,7 @@ import type { Bounty } from '../../types/bounty';
 import { TierBadge } from './TierBadge';
 import { StatusIndicator } from './StatusIndicator';
 import { formatTimeRemaining, formatReward } from './BountyCard';
+import { TimeAgo } from '../common/TimeAgo';
 
 function CreatorBadgeInline({ type }: { type: 'platform' | 'community' }) {
   if (type === 'platform') {
@@ -56,6 +57,9 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')}>
             {formatTimeRemaining(b.deadline)}
           </span>
+        </div>
+        <div className="w-16 text-center">
+          <TimeAgo date={b.createdAt} className="text-[10px] text-gray-500" />
         </div>
         <div className="w-20">
           <StatusIndicator status={b.status} />
