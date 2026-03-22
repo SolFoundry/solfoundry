@@ -82,15 +82,15 @@ describe('ContributorDashboard', () => {
   describe('Rendering', () => {
     it('renders the dashboard header after loading', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Should show loading initially
-      expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
-      
+
+      // Should show skeleton loading state initially
+      expect(screen.getByRole('status')).toBeInTheDocument();
+
       // Wait for data to load
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
       });
-      
+
       expect(screen.getByText(/track your progress/i)).toBeInTheDocument();
     });
 
@@ -171,22 +171,23 @@ describe('ContributorDashboard', () => {
 
   // Loading State Tests
   describe('Loading State', () => {
-    it('shows loading spinner initially', () => {
+    it('shows skeleton loading state initially', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Should show loading state
-      expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
-      expect(screen.getByRole('status')).toBeInTheDocument();
+
+      // Should show skeleton loading state with role="status"
+      const skeleton = screen.getByRole('status');
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton).toHaveAttribute('aria-label', 'Loading dashboard');
     });
 
-    it('hides loading spinner after data loads', async () => {
+    it('hides skeleton after data loads', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
+
       // Wait for loading to complete
       await waitFor(() => {
-        expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: 'Loading dashboard' })).not.toBeInTheDocument();
       });
-      
+
       // Should show main content instead
       expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
     });
@@ -536,10 +537,11 @@ describe('ContributorDashboard', () => {
 
     it('loading state has correct aria attributes', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Loading container should have role="status" and aria-live="polite"
+
+      // Skeleton loading should have role="status" and aria-live="polite"
       const loadingContainer = screen.getByRole('status');
       expect(loadingContainer).toHaveAttribute('aria-live', 'polite');
+      expect(loadingContainer).toHaveAttribute('aria-label', 'Loading dashboard');
     });
   });
 
