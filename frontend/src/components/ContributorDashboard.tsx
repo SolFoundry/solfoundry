@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
 import { Tooltip } from './common/Tooltip';
+import { TimeAgo } from './common/TimeAgo';
 
 // ============================================================================
 // Types
@@ -340,7 +341,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
         {activity.amount && (
           <p className="text-sm text-[#14F195] font-medium">+{formatNumber(activity.amount)}</p>
         )}
-        <p className="text-xs text-gray-500 mt-0.5">{formatRelativeTime(activity.timestamp)}</p>
+        <TimeAgo date={activity.timestamp} className="text-xs text-gray-500 mt-0.5" />
       </div>
     </div>
   );
@@ -375,9 +376,7 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
         <p className="text-sm text-white font-medium">{notification.title}</p>
         <p className="text-xs text-gray-400 mt-0.5">{notification.message}</p>
       </div>
-      <span className="text-xs text-gray-500" aria-label={formatRelativeTime(notification.timestamp)}>
-        {formatRelativeTime(notification.timestamp)}
-      </span>
+      <TimeAgo date={notification.timestamp} className="text-xs text-gray-500" />
     </div>
   );
 }

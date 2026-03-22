@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ActivityEvent, ActivityEventType } from '../../types/activity';
 import { SkeletonActivityFeed } from '../common/Skeleton';
 import { NoActivityYet } from '../common/EmptyState';
+import { TimeAgo } from '../common/TimeAgo';
 
 // ── Relative time formatting ────────────────────────────────────────────────
 
@@ -179,12 +180,7 @@ export function ActivityFeed({
                 <p className={'text-xs leading-relaxed ' + (isFullWidth ? 'sm:text-sm' : '')}>
                   <span className="text-gray-300">{buildDescription(event)}</span>
                 </p>
-                <time
-                  className="text-[11px] text-gray-600 mt-0.5 block"
-                  dateTime={event.timestamp}
-                >
-                  {formatRelativeTime(event.timestamp)}
-                </time>
+                <TimeAgo date={event.timestamp} className="text-[11px] text-gray-600 mt-0.5 block" />
               </div>
             </div>
           );

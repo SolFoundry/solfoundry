@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { TimeAgo } from '../common/TimeAgo';
 import type { DisputeListItem } from '../../types/dispute';
 import {
   DISPUTE_STATUS_LABELS,
@@ -49,12 +50,6 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
   const statusColor = STATUS_COLORS[dispute.status] || STATUS_COLORS.pending;
   const reasonLabel = DISPUTE_REASON_LABELS[dispute.reason as DisputeReason] || dispute.reason;
   const statusLabel = DISPUTE_STATUS_LABELS[dispute.status] || dispute.status;
-  const createdDate = new Date(dispute.created_at).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
   return (
     <Link
       to={`/disputes/${dispute.id}`}
@@ -79,7 +74,7 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
         <span>Bounty: {dispute.bounty_id.slice(0, 8)}...</span>
-        <span>Filed: {createdDate}</span>
+        <span className="inline-flex items-center gap-1">Filed: <TimeAgo date={dispute.created_at} className="text-xs text-gray-400" live={false} /></span>
       </div>
 
       {dispute.outcome && (
@@ -88,8 +83,8 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
             Outcome: {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
           </span>
           {dispute.resolved_at && (
-            <span className="text-xs text-gray-500 ml-3">
-              Resolved: {new Date(dispute.resolved_at).toLocaleDateString()}
+            <span className="text-xs text-gray-500 ml-3 inline-flex items-center gap-1">
+              Resolved: <TimeAgo date={dispute.resolved_at} className="text-xs text-gray-500" live={false} />
             </span>
           )}
         </div>

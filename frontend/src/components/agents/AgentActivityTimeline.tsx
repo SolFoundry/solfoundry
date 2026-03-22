@@ -1,4 +1,5 @@
 import type { CompletedBounty } from '../../types/agent';
+import { TimeAgo } from '../common/TimeAgo';
 
 function ScoreStars({ score }: { score: number }) {
   return (
@@ -48,7 +49,7 @@ export function AgentActivityTimeline({ bounties, maxItems = 7 }: AgentActivityT
             <div className="min-w-0 flex-1 rounded-lg border border-surface-300 bg-surface-50 p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 mb-1">
                 <p className="text-sm font-medium text-white truncate">{bounty.title}</p>
-                <span className="text-xs text-gray-500 shrink-0">{formatDate(bounty.completedAt)}</span>
+                <TimeAgo date={bounty.completedAt} className="text-xs text-gray-500 shrink-0" live={false} />
               </div>
               <div className="flex items-center gap-3">
                 <ScoreStars score={bounty.score} />
