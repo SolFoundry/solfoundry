@@ -1,6 +1,6 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'under_review' | 'completed' | 'disputed' | 'paid' | 'cancelled';
-export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+export type BountySortBy = 'newest' | 'oldest' | 'reward_high' | 'reward_low' | 'tier_high' | 'deadline' | 'submissions' | 'best_match';
 export type SubmissionStatus = 'pending' | 'approved' | 'disputed' | 'paid' | 'rejected';
 
 export interface ModelReviewScore {
@@ -137,13 +137,15 @@ export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = 
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'reward_high', label: 'Highest Reward' },
-  { value: 'reward_low', label: 'Lowest Reward' },
-  { value: 'deadline', label: 'Ending Soon' },
-  { value: 'submissions', label: 'Most Submissions' },
-  { value: 'best_match', label: 'Best Match' },
+export const SORT_OPTIONS: { value: BountySortBy; label: string; direction: 'asc' | 'desc' }[] = [
+  { value: 'newest', label: 'Newest', direction: 'desc' },
+  { value: 'oldest', label: 'Oldest', direction: 'asc' },
+  { value: 'reward_high', label: 'Highest Reward', direction: 'desc' },
+  { value: 'reward_low', label: 'Lowest Reward', direction: 'asc' },
+  { value: 'tier_high', label: 'Tier', direction: 'desc' },
+  { value: 'deadline', label: 'Ending Soon', direction: 'asc' },
+  { value: 'submissions', label: 'Most Submissions', direction: 'desc' },
+  { value: 'best_match', label: 'Best Match', direction: 'desc' },
 ];
 
 export const CREATOR_TYPE_OPTIONS: { value: 'all' | 'platform' | 'community'; label: string }[] = [

@@ -2,7 +2,7 @@
  * Bounty fetching via apiClient + React Query with search and fallback.
  * @module hooks/useBountyBoard
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse } from '../types/bounty';
 import { DEFAULT_FILTERS } from '../types/bounty';
@@ -19,6 +19,21 @@ const STATUS_MAP: Record<string, BountyStatus> = {
   paid: 'paid',
   cancelled: 'cancelled',
 };
+
+const TIER_ORDER: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
+
+const VALID_SORT_VALUES: BountySortBy[] = [
+  'newest', 'oldest', 'reward_high', 'reward_low', 'tier_high', 'deadline', 'submissions', 'best_match',
+];
+
+/** Read the `sort` URL param and return a validated BountySortBy value. */
+function readSortFromUrl(): BountySortBy {
+  if (typeof window === 'undefined') return 'newest';
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('sort');
+  if (raw && (VALID_SORT_VALUES as string[]).includes(raw)) return raw as BountySortBy;
+  return 'newest';
+}
 
 /** Map raw API bounty response to strongly-typed Bounty object. */
 function mapApiBounty(raw: Record<string, unknown>): Bounty {
@@ -74,8 +89,10 @@ const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
 function localSort(bounties: Bounty[], sortBy: BountySortBy): Bounty[] {
   const sorted = [...bounties];
   switch (sortBy) {
+    case 'oldest': return sorted.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
     case 'reward_high': return sorted.sort((left, right) => right.rewardAmount - left.rewardAmount);
     case 'reward_low': return sorted.sort((left, right) => left.rewardAmount - right.rewardAmount);
+    case 'tier_high': return sorted.sort((left, right) => (TIER_ORDER[left.tier] ?? 99) - (TIER_ORDER[right.tier] ?? 99));
     case 'deadline': return sorted.sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime());
     case 'submissions': return sorted.sort((left, right) => right.submissionCount - left.submissionCount);
     case 'best_match':
@@ -103,13 +120,39 @@ function applyLocalFilters(allBounties: Bounty[], activeFilters: BountyBoardFilt
   return localSort(results, sortBy);
 }
 
+/** Sync the `sort` URL query param without triggering a navigation/reload. */
+function updateSortUrl(sortBy: BountySortBy) {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (sortBy === 'newest') {
+    url.searchParams.delete('sort');
+  } else {
+    url.searchParams.set('sort', sortBy);
+  }
+  window.history.replaceState(null, '', url.toString());
+}
+
 /** Bounty board hook with React Query caching, server-side search, and client-side fallback. */
 export function useBountyBoard() {
   const [filters, setFilters] = useState<BountyBoardFilters>(DEFAULT_FILTERS);
-  const [sortBy, setSortByRaw] = useState<BountySortBy>('newest');
+  const [sortBy, setSortByRaw] = useState<BountySortBy>(readSortFromUrl);
   const [page, setPage] = useState(1);
   const perPage = 20;
   const searchAvailableRef = useRef(true);
+
+  // Sync URL param whenever sort changes
+  useEffect(() => {
+    updateSortUrl(sortBy);
+  }, [sortBy]);
+
+  // Re-read sort from URL on browser back/forward navigation
+  useEffect(() => {
+    function handlePopState() {
+      setSortByRaw(readSortFromUrl());
+    }
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const setSortBy = useCallback((sortField: BountySortBy | string) => {
     setSortByRaw((SORT_COMPAT[sortField] || sortField) as BountySortBy);
