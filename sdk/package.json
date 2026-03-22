@@ -1,0 +1,54 @@
+{
+  "name": "@solfoundry/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for SolFoundry — the on-chain bounty platform",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "build:watch": "tsc --project tsconfig.json --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "solfoundry",
+    "solana",
+    "bounty",
+    "sdk",
+    "typescript",
+    "web3"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolFoundry/solfoundry.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://solfoundry.io",
+  "bugs": {
+    "url": "https://github.com/SolFoundry/solfoundry/issues"
+  }
+}

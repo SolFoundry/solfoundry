@@ -1,0 +1,32 @@
+{
+  "name": "@solfoundry/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for the SolFoundry bounty platform",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "solfoundry": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "ts-node --esm index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@solfoundry/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "solfoundry",
+    "solana",
+    "bounty",
+    "cli"
+  ]
+}
