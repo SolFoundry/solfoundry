@@ -36,7 +36,6 @@ References:
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -90,37 +89,47 @@ def run_pip_audit(requirements_file: Optional[Path] = None) -> dict:
                     # pip-audit returns a list of vulnerability objects
                     for vuln in audit_data:
                         severity = vuln.get("fix_versions", [])
-                        result["vulnerabilities"].append({
-                            "package": vuln.get("name", "unknown"),
-                            "installed_version": vuln.get("version", "unknown"),
-                            "vulnerability_id": vuln.get("id", "unknown"),
-                            "description": vuln.get("description", ""),
-                            "fix_versions": severity,
-                        })
+                        result["vulnerabilities"].append(
+                            {
+                                "package": vuln.get("name", "unknown"),
+                                "installed_version": vuln.get("version", "unknown"),
+                                "vulnerability_id": vuln.get("id", "unknown"),
+                                "description": vuln.get("description", ""),
+                                "fix_versions": severity,
+                            }
+                        )
                 elif isinstance(audit_data, dict):
                     dependencies = audit_data.get("dependencies", [])
                     for dep in dependencies:
                         for vuln in dep.get("vulns", []):
-                            result["vulnerabilities"].append({
-                                "package": dep.get("name", "unknown"),
-                                "installed_version": dep.get("version", "unknown"),
-                                "vulnerability_id": vuln.get("id", "unknown"),
-                                "description": vuln.get("description", ""),
-                                "fix_versions": vuln.get("fix_versions", []),
-                            })
+                            result["vulnerabilities"].append(
+                                {
+                                    "package": dep.get("name", "unknown"),
+                                    "installed_version": dep.get("version", "unknown"),
+                                    "vulnerability_id": vuln.get("id", "unknown"),
+                                    "description": vuln.get("description", ""),
+                                    "fix_versions": vuln.get("fix_versions", []),
+                                }
+                            )
             except json.JSONDecodeError:
-                result["error"] = f"Failed to parse pip-audit output: {proc.stdout[:200]}"
+                result["error"] = (
+                    f"Failed to parse pip-audit output: {proc.stdout[:200]}"
+                )
 
         result["summary"]["total"] = len(result["vulnerabilities"])
 
-        if proc.returncode != 0 and not result["vulnerabilities"] and not result["error"]:
+        if (
+            proc.returncode != 0
+            and not result["vulnerabilities"]
+            and not result["error"]
+        ):
             stderr_msg = proc.stderr.strip() if proc.stderr else "Unknown error"
-            result["error"] = f"pip-audit exited with code {proc.returncode}: {stderr_msg[:200]}"
+            result["error"] = (
+                f"pip-audit exited with code {proc.returncode}: {stderr_msg[:200]}"
+            )
 
     except FileNotFoundError:
-        result["error"] = (
-            "pip-audit not installed. Install with: pip install pip-audit"
-        )
+        result["error"] = "pip-audit not installed. Install with: pip install pip-audit"
     except subprocess.TimeoutExpired:
         result["error"] = "pip-audit timed out after 120 seconds"
 
@@ -176,18 +185,22 @@ def run_npm_audit(package_dir: Optional[Path] = None) -> dict:
 
                 vulnerabilities = audit_data.get("vulnerabilities", {})
                 for pkg_name, vuln_info in vulnerabilities.items():
-                    result["vulnerabilities"].append({
-                        "package": pkg_name,
-                        "severity": vuln_info.get("severity", "unknown"),
-                        "description": vuln_info.get("title", ""),
-                        "via": [
-                            v if isinstance(v, str) else v.get("title", "")
-                            for v in vuln_info.get("via", [])
-                        ],
-                        "fix_available": vuln_info.get("fixAvailable", False),
-                    })
+                    result["vulnerabilities"].append(
+                        {
+                            "package": pkg_name,
+                            "severity": vuln_info.get("severity", "unknown"),
+                            "description": vuln_info.get("title", ""),
+                            "via": [
+                                v if isinstance(v, str) else v.get("title", "")
+                                for v in vuln_info.get("via", [])
+                            ],
+                            "fix_available": vuln_info.get("fixAvailable", False),
+                        }
+                    )
             except json.JSONDecodeError:
-                result["error"] = f"Failed to parse npm audit output: {proc.stdout[:200]}"
+                result["error"] = (
+                    f"Failed to parse npm audit output: {proc.stdout[:200]}"
+                )
 
     except FileNotFoundError:
         result["error"] = "npm not found. Install Node.js and npm."
@@ -267,8 +280,10 @@ def print_report(report: dict) -> None:
         if result["vulnerabilities"]:
             print("\n  Findings:")
             for vuln in result["vulnerabilities"][:20]:  # Limit output
-                print(f"    - {vuln.get('package', 'unknown')}: "
-                      f"{vuln.get('vulnerability_id', vuln.get('description', 'N/A'))}")
+                print(
+                    f"    - {vuln.get('package', 'unknown')}: "
+                    f"{vuln.get('vulnerability_id', vuln.get('description', 'N/A'))}"
+                )
 
     print(f"\n{'=' * 60}")
     print(f"  Overall status: {report['overall_status'].upper()}")
@@ -292,9 +307,7 @@ def main() -> int:
     parser.add_argument(
         "--node-only", action="store_true", help="Only audit Node.js dependencies"
     )
-    parser.add_argument(
-        "--output", type=str, help="Write JSON report to file"
-    )
+    parser.add_argument("--output", type=str, help="Write JSON report to file")
     parser.add_argument(
         "--ci", action="store_true", help="CI mode: exit 1 on critical/high findings"
     )

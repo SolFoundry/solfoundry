@@ -128,3 +128,22 @@ class BountySubmissionTable(Base):
     )
 
     __table_args__ = (Index("ix_bsub_bounty_pr", "bounty_id", "pr_url", unique=True),)
+
+
+class AdminAuditLogTable(Base):
+    """Persistent audit log for all admin actions.
+
+    Replaces the in-memory deque so entries survive restarts and are
+    queryable with time-range and event-type filters.
+    """
+
+    __tablename__ = "admin_audit_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event = Column(String(100), nullable=False, index=True)
+    actor = Column(String(200), nullable=False)
+    role = Column(String(20), nullable=False, server_default="admin")
+    details = Column(sa.JSON, nullable=False, default=dict)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
+    )
