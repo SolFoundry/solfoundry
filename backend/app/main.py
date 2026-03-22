@@ -125,3 +125,20 @@ async def trigger_sync():
     """Manually trigger a GitHub → bounty/leaderboard sync."""
     result = await sync_all()
     return result
+
+
+@app.get("/api/cli/info", tags=["cli"])
+async def cli_info():
+    """Return CLI metadata for version checks and shell completion hints.
+
+    The solfoundry-cli tool calls this endpoint on ``sf status`` and
+    during auto-update checks to determine the minimum compatible
+    CLI version and available shell completion types.
+    """
+    from app.cli import __version__ as cli_version
+    return {
+        "cli_version": cli_version,
+        "api_version": app.version,
+        "min_cli_version": "0.1.0",
+        "completions": ["bash", "zsh", "fish"],
+    }
