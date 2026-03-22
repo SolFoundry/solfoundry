@@ -136,6 +136,16 @@ def get_bounty_issue_from_pr(pr_num):
 
 def handle_pr_approve(pr_num):
     """Approve a PR submission: merge it and remove escrow lock."""
+    # Check PR state first (idempotency — don't double-merge)
+    pr_data = gh_api(f"repos/{REPO}/pulls/{pr_num}")
+    if pr_data and pr_data.get("merged"):
+        return True, f"PR #{pr_num} already merged"
+    if pr_data and pr_data.get("state") == "closed":
+        return False, f"PR #{pr_num} is already closed"
+
+    # Get issue linkage BEFORE merging (PR data may become stale after merge)
+    issue_num = get_bounty_issue_from_pr(pr_num)
+
     # Merge the PR
     result = gh_api(f"repos/{REPO}/pulls/{pr_num}/merge", "PUT", {
         "merge_method": "squash",
@@ -145,7 +155,6 @@ def handle_pr_approve(pr_num):
         return False, f"Failed to merge PR #{pr_num}"
 
     # Remove escrow lock from the bounty issue
-    issue_num = get_bounty_issue_from_pr(pr_num)
     if issue_num:
         gh_api(f"repos/{REPO}/issues/{issue_num}/labels/review-passed", "DELETE")
 
@@ -154,6 +163,11 @@ def handle_pr_approve(pr_num):
 
 def handle_pr_deny(pr_num):
     """Deny/reject a PR submission: close it and remove escrow lock."""
+    # Check PR state first (idempotency — don't double-close)
+    pr_data = gh_api(f"repos/{REPO}/pulls/{pr_num}")
+    if pr_data and pr_data.get("state") == "closed":
+        return True, f"PR #{pr_num} already closed"
+
     # Post rejection comment
     comment = (
         f"❌ **Submission Rejected**\n\n"
