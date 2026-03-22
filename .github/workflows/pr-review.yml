@@ -36,13 +36,17 @@ jobs:
             PR_NUM="${{ github.event.pull_request.number }}"
           fi
 
-          echo "Dispatching review for PR #${PR_NUM} to private pipeline..."
+          # Detect if this is a new commit push (synchronize) vs first open
+          ACTION="${{ github.event.action || 'manual' }}"
+
+          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to private pipeline..."
 
           # Fire repository_dispatch to the private review repo
+          # Pass action so private workflow knows to re-review on synchronize
           curl -sf -X POST \
             -H "Authorization: token $REVIEW_PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/SolFoundry/solfoundry-review/dispatches" \
-            -d "{\"event_type\": \"review-pr\", \"client_payload\": {\"pr_number\": \"${PR_NUM}\"}}"
+            -d "{\"event_type\": \"review-pr\", \"client_payload\": {\"pr_number\": \"${PR_NUM}\", \"action\": \"${ACTION}\"}}"
 
-          echo "✅ Review dispatched for PR #${PR_NUM}"
+          echo "✅ Review dispatched for PR #${PR_NUM} (action: ${ACTION})"
