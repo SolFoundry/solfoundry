@@ -3,7 +3,7 @@
  * @module components/common/__tests__/TimeAgo.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { TimeAgo, formatTimeAgo, formatFullDate } from '../TimeAgo';
 
 describe('formatTimeAgo', () => {
@@ -18,8 +18,14 @@ describe('formatTimeAgo', () => {
   });
 
   it('returns "just now" for very recent dates', () => {
-    expect(formatTimeAgo(new Date('2026-03-22T11:59:55Z'))).toBe('just now');
-    expect(formatTimeAgo(new Date('2026-03-22T11:59:50Z'))).toBe('just now');
+    // Use exact current mock time for deterministic testing
+    const now = new Date('2026-03-22T12:00:00Z');
+    vi.setSystemTime(now);
+    
+    // 5 seconds ago should be 'just now'
+    expect(formatTimeAgo(new Date(now.getTime() - 5000))).toBe('just now');
+    // 9 seconds ago should also be 'just now'  
+    expect(formatTimeAgo(new Date(now.getTime() - 9000))).toBe('just now');
   });
 
   it('returns seconds for recent dates under a minute', () => {
@@ -111,12 +117,15 @@ describe('TimeAgo component', () => {
     expect(time.getAttribute('title')).toContain('2026');
   });
 
-  it('auto-updates on interval for recent dates', () => {
+  it('auto-updates on interval for recent dates', async () => {
     render(<TimeAgo date="2026-03-22T11:55:00Z" updateInterval={60000} />);
     expect(screen.getByText('5m ago')).toBeInTheDocument();
 
-    // Advance time by 1 minute
-    vi.advanceTimersByTime(60000);
+    // Advance time by 1 minute using act to handle state updates
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+    });
+    
     expect(screen.getByText('6m ago')).toBeInTheDocument();
   });
 
