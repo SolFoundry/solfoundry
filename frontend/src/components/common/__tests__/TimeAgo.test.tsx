@@ -129,6 +129,20 @@ describe('TimeAgo component', () => {
     expect(screen.getByText('6m ago')).toBeInTheDocument();
   });
 
+  it('does not auto-update for dates older than 7 days', async () => {
+    // Date from 10 days ago
+    render(<TimeAgo date="2026-03-12T12:00:00Z" updateInterval={60000} />);
+    expect(screen.getByText('Mar 12')).toBeInTheDocument();
+
+    // Advance time by 1 minute - should NOT update
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+    });
+    
+    // Should still show the same date string
+    expect(screen.getByText('Mar 12')).toBeInTheDocument();
+  });
+
   it('accepts Date object', () => {
     render(<TimeAgo date={new Date('2026-03-22T10:00:00Z')} />);
     expect(screen.getByText('2h ago')).toBeInTheDocument();
