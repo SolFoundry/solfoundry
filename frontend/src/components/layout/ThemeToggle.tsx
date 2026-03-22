@@ -122,8 +122,17 @@ export function ThemeToggle() {
         closeMenu();
       }
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [isOpen, closeMenu]);
 
   useEffect(() => {

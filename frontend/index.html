@@ -6,18 +6,25 @@
     <title>SolFoundry — AI Software Factory on Solana</title>
     <meta name="description" content="Autonomous AI Software Factory on Solana. Post bounties, earn $FNDRY, build with AI agents." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <!-- Updated synchronously below to match resolved light/dark (system = prefers-color-scheme when no saved choice). -->
+    <meta name="theme-color" content="#ffffff" />
     <script>
       (function() {
         try {
-          var stored = localStorage.getItem('solfoundry-theme');
-          var theme = stored || 'dark';
+          var key = 'solfoundry-theme';
+          var stored = localStorage.getItem(key);
+          var theme = (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'system';
           var isDark = theme === 'dark' ||
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
           if (isDark) {
-            document.documentElement.classList.add('dark');
+            root.classList.add('dark');
           } else {
-            document.documentElement.classList.remove('dark');
+            root.classList.remove('dark');
+          }
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute('content', isDark ? '#0a0a0a' : '#ffffff');
           }
         } catch (e) {}
       })();

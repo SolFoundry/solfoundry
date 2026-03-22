@@ -150,7 +150,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ThemeProvider defaultTheme="dark">
+        <ThemeProvider>
           <ToastProvider>
             <WalletProvider defaultNetwork="mainnet-beta">
               <AppLayout />

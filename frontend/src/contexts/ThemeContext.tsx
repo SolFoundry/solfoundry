@@ -26,8 +26,33 @@ interface ThemeContextValue {
 // Constants
 // ============================================================================
 
-const THEME_STORAGE_KEY = 'solfoundry-theme';
-const DEFAULT_THEME: ThemeMode = 'dark';
+/** Must match the key used in `index.html` inline boot script. */
+export const THEME_STORAGE_KEY = 'solfoundry-theme';
+/** First visit: follow OS preference (`system`). Explicit choice persists in localStorage. */
+const DEFAULT_THEME: ThemeMode = 'system';
+
+function readStoredThemeMode(storageKey: string, defaultTheme: ThemeMode): ThemeMode {
+  if (typeof window === 'undefined') return defaultTheme;
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+      return stored;
+    }
+  } catch {
+    /* localStorage unavailable */
+  }
+  return defaultTheme;
+}
+
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  if (mode === 'system') return getSystemTheme();
+  return mode;
+}
 
 // ============================================================================
 // Context
@@ -52,11 +77,11 @@ export function useTheme(): ThemeContextValue {
 }
 
 /**
- * Resolved theme when inside ThemeProvider; defaults to `dark` for SSR, tests, or leaf components
- * rendered outside the provider tree.
+ * Resolved theme when inside ThemeProvider; defaults to `light` outside the provider
+ * (e.g. SSR or isolated tests) so we do not assume dark mode.
  */
 export function useResolvedThemeSafe(): ResolvedTheme {
-  return useContext(ThemeContext)?.resolvedTheme ?? 'dark';
+  return useContext(ThemeContext)?.resolvedTheme ?? 'light';
 }
 
 // ============================================================================
@@ -86,41 +111,30 @@ export function ThemeProvider({
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
   const hasMounted = useRef(false);
+  const skipTransitionNextApply = useRef(true);
   const transitionTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return defaultTheme;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        return stored;
-      }
-    } catch {
-      // localStorage might not be available
-    }
-    return defaultTheme;
-  });
+  const [theme, setThemeState] = useState<ThemeMode>(() =>
+    readStoredThemeMode(storageKey, defaultTheme),
+  );
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return getSystemTheme();
+    if (typeof window === 'undefined') return 'light';
+    return resolveTheme(readStoredThemeMode(storageKey, defaultTheme));
   });
-
-  function getSystemTheme(): ResolvedTheme {
-    if (typeof window === 'undefined') return 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
 
   const applyTheme = useCallback((resolved: ResolvedTheme) => {
     const root = document.documentElement;
 
-    if (hasMounted.current) {
+    const allowTransition = hasMounted.current && !skipTransitionNextApply.current;
+    if (allowTransition) {
       root.classList.add('theme-transitioning');
       clearTimeout(transitionTimer.current);
       transitionTimer.current = setTimeout(() => {
         root.classList.remove('theme-transitioning');
       }, 300);
     }
+    skipTransitionNextApply.current = false;
 
     if (resolved === 'dark') {
       root.classList.add('dark');
@@ -157,7 +171,7 @@ export function ThemeProvider({
     }
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
       setResolvedTheme(e.matches ? 'dark' : 'light');
     };

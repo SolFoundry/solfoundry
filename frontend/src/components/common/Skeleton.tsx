@@ -455,7 +455,7 @@ export function SkeletonList({
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-surface-300 bg-surface-50 p-4"
+          className="rounded-xl border border-gray-200 bg-white p-4 hover:border-solana-purple/30 transition-colors dark:border-surface-300 dark:bg-surface-50"
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -474,8 +474,7 @@ export function SkeletonList({
               ))}
             </div>
           )}
-
-          <div className="flex items-center justify-between pt-3 border-t border-surface-300">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-300">
             <Skeleton height="1.25rem" width="5rem" rounded="md" />
             <Skeleton height="1.25rem" width="4rem" rounded="md" />
           </div>
@@ -526,8 +525,8 @@ export function SkeletonActivityFeed({
   return (
     <div
       className={`rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 ${className}`.trim()}
-      role="presentation"
-      aria-hidden="true"
+      role="status"
+      aria-label="Loading activity"
     >
       <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-surface-300">
         <div className="flex items-center gap-2">
@@ -536,7 +535,6 @@ export function SkeletonActivityFeed({
         </div>
         <Skeleton height="0.75rem" width="4rem" rounded="md" />
       </div>
-
       <div className="divide-y divide-gray-200 dark:divide-surface-300">
         {Array.from({ length: count }, (_, i) => (
           <div key={i} className="flex items-start gap-3 p-4">
