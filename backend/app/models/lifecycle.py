@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, DateTime, Text, JSON, Index
+from pydantic import BaseModel
+from sqlalchemy import Column, String, DateTime, JSON, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base

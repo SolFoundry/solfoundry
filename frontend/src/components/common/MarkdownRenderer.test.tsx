@@ -63,7 +63,12 @@ describe('MarkdownRenderer', () => {
   });
 
   it('renders an unordered list', () => {
-    render(<MarkdownRenderer content="- item one\n- item two" />);
+    render(
+      <MarkdownRenderer
+        content={`- item one
+- item two`}
+      />,
+    );
     const items = screen.getAllByRole('listitem');
     expect(items.length).toBe(2);
     expect(items[0].textContent).toBe('item one');
@@ -71,9 +76,13 @@ describe('MarkdownRenderer', () => {
   });
 
   it('renders an ordered list', () => {
-    render(<MarkdownRenderer content="1. first\n2. second" />);
-    const items = screen.getAllByRole('listitem');
-    expect(items.length).toBe(2);
+    render(
+      <MarkdownRenderer
+        content={`1. first
+2. second`}
+      />,
+    );
+    expect(screen.getAllByRole('listitem').length).toBe(2);
   });
 
   it('renders a blockquote', () => {
@@ -83,10 +92,10 @@ describe('MarkdownRenderer', () => {
     expect(bq?.textContent?.trim()).toBe('quoted text');
   });
 
-  it('renders a table', () => {
+  it('does not render GFM pipe markdown as an HTML table without GFM plugin', () => {
     const md = '| A | B |\n|---|---|\n| 1 | 2 |';
-    render(<MarkdownRenderer content={md} />);
-    expect(document.querySelector('table')).toBeTruthy();
+    const { container } = render(<MarkdownRenderer content={md} />);
+    expect(container.querySelector('table')).toBeNull();
   });
 
   it('applies custom className to wrapper', () => {

@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select, func, cast, String
+from sqlalchemy import select, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
@@ -177,16 +177,12 @@ async def _query_leaderboard(
         if tier:
             tier_label = f"tier-{tier.value}"
             query = query.where(
-                cast(ContributorTable.badges, String).like(
-                    f"%{tier_label}%"
-                )
+                cast(ContributorTable.badges, String).like(f"%{tier_label}%")
             )
 
         if category:
             query = query.where(
-                cast(ContributorTable.skills, String).like(
-                    f"%{category.value}%"
-                )
+                cast(ContributorTable.skills, String).like(f"%{category.value}%")
             )
 
         query = query.order_by(
@@ -245,7 +241,7 @@ async def get_leaderboard(
     if key in _cache:
         cached_at, cached_response = _cache[key]
         if now - cached_at < CACHE_TTL:
-            paginated = cached_response.entries[offset: offset + limit]
+            paginated = cached_response.entries[offset : offset + limit]
             return LeaderboardResponse(
                 period=cached_response.period,
                 total=cached_response.total,
@@ -256,9 +252,7 @@ async def get_leaderboard(
             )
 
     # Build fresh from database
-    ranked_rows = await _query_leaderboard(
-        period, tier, category, session=session
-    )
+    ranked_rows = await _query_leaderboard(period, tier, category, session=session)
 
     ranked = [(rank, row) for rank, row in enumerate(ranked_rows, start=1)]
 
@@ -284,5 +278,5 @@ async def get_leaderboard(
         offset=offset,
         limit=limit,
         top3=top3,
-        entries=all_entries[offset: offset + limit],
+        entries=all_entries[offset : offset + limit],
     )

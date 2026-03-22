@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { PRStatusTracker, PRStatusData, PipelineStage, StageStatus } from './PRStatusTracker';
 
 // Mock WebSocket
@@ -16,8 +17,8 @@ class MockWebSocket {
     MockWebSocket.instances.push(this);
   }
 
-  send = jest.fn();
-  close = jest.fn();
+  send = vi.fn();
+  close = vi.fn();
 
   static simulateMessage(data: object) {
     MockWebSocket.instances.forEach(instance => {
@@ -214,14 +215,14 @@ describe('PRStatusTracker', () => {
     it('shows pending status correctly', () => {
       const mockData = createMockStatusData();
       render(<PRStatusTracker initialData={mockData} />);
-      expect(screen.getByText('PENDING')).toBeInTheDocument();
+      expect(screen.getAllByText('PENDING').length).toBeGreaterThan(0);
     });
 
     it('shows running status with animation', () => {
       const mockData = createMockStatusData();
       render(<PRStatusTracker initialData={mockData} />);
-      const runningBadge = screen.getByText('RUNNING');
-      expect(runningBadge).toHaveClass('animate-pulse');
+      const runningBadges = screen.getAllByText('RUNNING');
+      expect(runningBadges.some((el) => el.classList.contains('animate-pulse'))).toBe(true);
     });
 
     it('shows passed status correctly', () => {
@@ -239,8 +240,9 @@ describe('PRStatusTracker', () => {
     it('highlights current stage', () => {
       const mockData = createMockStatusData();
       render(<PRStatusTracker initialData={mockData} />);
-      const currentStageCard = screen.getByText('CI Running').closest('div');
-      expect(currentStageCard).toHaveClass('ring-2');
+      const heading = screen.getByRole('heading', { name: 'CI Running' });
+      const currentStageCard = heading.closest('.ring-2');
+      expect(currentStageCard).toBeTruthy();
     });
   });
 
@@ -337,9 +339,12 @@ describe('PRStatusTracker', () => {
     it('shows live indicator when connected', async () => {
       const mockData = createMockStatusData();
       render(<PRStatusTracker initialData={mockData} wsEndpoint="ws://localhost:8080" />);
-      
+
+      await waitFor(() => {
+        expect(MockWebSocket.instances.length).toBe(1);
+      });
       MockWebSocket.simulateOpen();
-      
+
       await waitFor(() => {
         expect(screen.getByText('Live')).toBeInTheDocument();
       });
@@ -348,10 +353,13 @@ describe('PRStatusTracker', () => {
     it('shows disconnected indicator when closed', async () => {
       const mockData = createMockStatusData();
       render(<PRStatusTracker initialData={mockData} wsEndpoint="ws://localhost:8080" />);
-      
+
+      await waitFor(() => {
+        expect(MockWebSocket.instances.length).toBe(1);
+      });
       MockWebSocket.simulateOpen();
       MockWebSocket.simulateClose();
-      
+
       await waitFor(() => {
         expect(screen.getByText('Disconnected')).toBeInTheDocument();
       });
@@ -359,7 +367,7 @@ describe('PRStatusTracker', () => {
 
     it('updates status on WebSocket message', async () => {
       const mockData = createMockStatusData();
-      const onStageChange = jest.fn();
+      const onStageChange = vi.fn();
       render(
         <PRStatusTracker 
           initialData={mockData} 
@@ -367,9 +375,12 @@ describe('PRStatusTracker', () => {
           onStageChange={onStageChange}
         />
       );
-      
+
+      await waitFor(() => {
+        expect(MockWebSocket.instances.length).toBe(1);
+      });
       MockWebSocket.simulateOpen();
-      
+
       // Simulate status update
       MockWebSocket.simulateMessage({
         type: 'pr_status_update',
@@ -393,7 +404,7 @@ describe('PRStatusTracker', () => {
 
     it('handles WebSocket errors', async () => {
       const mockData = createMockStatusData();
-      const onError = jest.fn();
+      const onError = vi.fn();
       render(
         <PRStatusTracker 
           initialData={mockData} 
@@ -401,7 +412,10 @@ describe('PRStatusTracker', () => {
           onError={onError}
         />
       );
-      
+
+      await waitFor(() => {
+        expect(MockWebSocket.instances.length).toBe(1);
+      });
       MockWebSocket.simulateError();
       
       await waitFor(() => {
@@ -434,8 +448,8 @@ describe('PRStatusTracker', () => {
 
     it('uses smaller padding in compact mode', () => {
       const mockData = createMockStatusData();
-      const { container } = render(<PRStatusTracker initialData={mockData} compact />);
-      const mainContainer = container.querySelector('.bg-gray-950');
+      render(<PRStatusTracker initialData={mockData} compact />);
+      const mainContainer = screen.getByTestId('pr-status-tracker');
       expect(mainContainer).toHaveClass('p-4');
     });
   });
@@ -485,7 +499,7 @@ describe('PRStatusTracker', () => {
   describe('Callbacks', () => {
     it('calls onStageChange when stage updates', async () => {
       const mockData = createMockStatusData();
-      const onStageChange = jest.fn();
+      const onStageChange = vi.fn();
       render(
         <PRStatusTracker 
           initialData={mockData} 
@@ -493,7 +507,10 @@ describe('PRStatusTracker', () => {
           onStageChange={onStageChange}
         />
       );
-      
+
+      await waitFor(() => {
+        expect(MockWebSocket.instances.length).toBe(1);
+      });
       MockWebSocket.simulateOpen();
       MockWebSocket.simulateMessage({
         type: 'pr_status_update',

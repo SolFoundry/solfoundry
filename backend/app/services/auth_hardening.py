@@ -59,7 +59,7 @@ import secrets
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,9 @@ logger = logging.getLogger(__name__)
 MAX_LOGIN_ATTEMPTS: int = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
 LOCKOUT_DURATION_SECONDS: int = int(os.getenv("LOCKOUT_DURATION_SECONDS", "900"))
 LOCKOUT_ESCALATION_FACTOR: float = float(os.getenv("LOCKOUT_ESCALATION_FACTOR", "2.0"))
-MAX_LOCKOUT_DURATION_SECONDS: int = int(os.getenv("MAX_LOCKOUT_DURATION_SECONDS", "86400"))
+MAX_LOCKOUT_DURATION_SECONDS: int = int(
+    os.getenv("MAX_LOCKOUT_DURATION_SECONDS", "86400")
+)
 
 # Session management configuration
 MAX_SESSIONS_PER_USER: int = int(os.getenv("MAX_SESSIONS_PER_USER", "5"))
@@ -102,11 +104,13 @@ class BruteForceProtectionError(Exception):
 
 class SessionLimitError(Exception):
     """Raised when a user has reached their maximum concurrent session count."""
+
     pass
 
 
 class TokenReuseError(Exception):
     """Raised when a refresh token is reused after rotation (potential theft)."""
+
     pass
 
 
@@ -159,8 +163,13 @@ class RefreshTokenRecord:
     """
 
     __slots__ = (
-        "token_id", "user_id", "token_hash", "created_at",
-        "expires_at", "revoked", "replaced_by",
+        "token_id",
+        "user_id",
+        "token_hash",
+        "created_at",
+        "expires_at",
+        "revoked",
+        "replaced_by",
     )
 
     def __init__(
@@ -203,8 +212,15 @@ class SessionRecord:
     """
 
     __slots__ = (
-        "session_id", "user_id", "access_token_jti", "refresh_token_id",
-        "created_at", "last_activity", "ip_address", "user_agent", "revoked",
+        "session_id",
+        "user_id",
+        "access_token_jti",
+        "refresh_token_id",
+        "created_at",
+        "last_activity",
+        "ip_address",
+        "user_agent",
+        "revoked",
     )
 
     def __init__(
@@ -286,7 +302,9 @@ class BruteForceProtector:
         self.escalation_factor = escalation_factor
         self.max_lockout = max_lockout
         self._attempts: dict[str, list[LoginAttemptRecord]] = defaultdict(list)
-        self._lockouts: dict[str, tuple[float, int]] = {}  # key -> (lockout_until, lockout_count)
+        self._lockouts: dict[
+            str, tuple[float, int]
+        ] = {}  # key -> (lockout_until, lockout_count)
         self._lock = threading.Lock()
 
     def check_and_record_attempt(
@@ -355,7 +373,8 @@ class BruteForceProtector:
             # Count recent failures (within the lockout window)
             window_start = now - self.lockout_duration
             recent_failures = [
-                a for a in self._attempts[normalized]
+                a
+                for a in self._attempts[normalized]
                 if not a.success and a.attempted_at > window_start
             ]
 
@@ -366,7 +385,8 @@ class BruteForceProtector:
                 )
                 new_lockout_count = previous_lockout_count + 1
                 duration = min(
-                    self.lockout_duration * (self.escalation_factor ** previous_lockout_count),
+                    self.lockout_duration
+                    * (self.escalation_factor**previous_lockout_count),
                     self.max_lockout,
                 )
                 lockout_until = now + duration
@@ -396,7 +416,8 @@ class BruteForceProtector:
 
         with self._lock:
             return sum(
-                1 for a in self._attempts.get(normalized, [])
+                1
+                for a in self._attempts.get(normalized, [])
                 if not a.success and a.attempted_at > window_start
             )
 
@@ -630,9 +651,7 @@ class RefreshTokenStore:
             if record and not record.revoked:
                 record.revoked = True
                 count += 1
-        logger.warning(
-            "Revoked all %d refresh tokens for user %s", count, user_id
-        )
+        logger.warning("Revoked all %d refresh tokens for user %s", count, user_id)
         return count
 
     def get_active_token_count(self, user_id: str) -> int:
@@ -648,7 +667,8 @@ class RefreshTokenStore:
         with self._lock:
             token_ids = self._user_tokens.get(user_id, set())
             return sum(
-                1 for tid in token_ids
+                1
+                for tid in token_ids
                 if tid in self._tokens
                 and not self._tokens[tid].revoked
                 and self._tokens[tid].expires_at > now
@@ -665,7 +685,8 @@ class RefreshTokenStore:
 
         with self._lock:
             expired_ids = [
-                tid for tid, record in self._tokens.items()
+                tid
+                for tid, record in self._tokens.items()
                 if record.expires_at < now and record.revoked
             ]
             for tid in expired_ids:
@@ -748,7 +769,8 @@ class SessionManager:
             # Evict oldest session if at limit
             user_session_ids = self._user_sessions.get(user_id, set())
             active_sessions = [
-                self._sessions[sid] for sid in user_session_ids
+                self._sessions[sid]
+                for sid in user_session_ids
                 if sid in self._sessions and not self._sessions[sid].revoked
             ]
 
@@ -841,9 +863,7 @@ class SessionManager:
                 if session and not session.revoked:
                     session.revoked = True
                     count += 1
-        logger.warning(
-            "Invalidated all %d sessions for user %s", count, user_id
-        )
+        logger.warning("Invalidated all %d sessions for user %s", count, user_id)
         return count
 
     def get_active_sessions(self, user_id: str) -> list[dict]:
@@ -867,17 +887,19 @@ class SessionManager:
                     and not session.revoked
                     and now - session.last_activity <= self.inactivity_timeout
                 ):
-                    results.append({
-                        "session_id": session.session_id,
-                        "created_at": datetime.fromtimestamp(
-                            session.created_at, tz=timezone.utc
-                        ).isoformat(),
-                        "last_activity": datetime.fromtimestamp(
-                            session.last_activity, tz=timezone.utc
-                        ).isoformat(),
-                        "ip_address": session.ip_address,
-                        "user_agent": session.user_agent,
-                    })
+                    results.append(
+                        {
+                            "session_id": session.session_id,
+                            "created_at": datetime.fromtimestamp(
+                                session.created_at, tz=timezone.utc
+                            ).isoformat(),
+                            "last_activity": datetime.fromtimestamp(
+                                session.last_activity, tz=timezone.utc
+                            ).isoformat(),
+                            "ip_address": session.ip_address,
+                            "user_agent": session.user_agent,
+                        }
+                    )
 
         return results
 
@@ -892,8 +914,10 @@ class SessionManager:
 
         with self._lock:
             expired_ids = [
-                sid for sid, session in self._sessions.items()
-                if session.revoked or now - session.last_activity > self.inactivity_timeout * 2
+                sid
+                for sid, session in self._sessions.items()
+                if session.revoked
+                or now - session.last_activity > self.inactivity_timeout * 2
             ]
             for sid in expired_ids:
                 session = self._sessions.pop(sid)

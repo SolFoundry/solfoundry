@@ -193,9 +193,7 @@ def test_veteran_after_threshold():
     c = _mc()
     for i in range(ANTI_FARMING_THRESHOLD):
         _rec(c.id, f"b-{i}")
-    assert reputation_service.is_veteran(
-        reputation_service._reputation_store[c.id]
-    )
+    assert reputation_service.is_veteran(reputation_service._reputation_store[c.id])
 
 
 def test_not_veteran_before():
@@ -203,9 +201,7 @@ def test_not_veteran_before():
     c = _mc()
     for i in range(ANTI_FARMING_THRESHOLD - 1):
         _rec(c.id, f"b-{i}")
-    assert not reputation_service.is_veteran(
-        reputation_service._reputation_store[c.id]
-    )
+    assert not reputation_service.is_veteran(reputation_service._reputation_store[c.id])
 
 
 # -- Badge tests -------------------------------------------------------------
@@ -399,16 +395,12 @@ def test_api_history():
     """GET history returns 200 with entries."""
     c = _mc()
     _rec(c.id)
-    assert (
-        client.get(f"/api/contributors/{c.id}/reputation/history").status_code == 200
-    )
+    assert client.get(f"/api/contributors/{c.id}/reputation/history").status_code == 200
 
 
 def test_api_history_404():
     """GET history for unknown contributor returns 404."""
-    assert (
-        client.get("/api/contributors/x/reputation/history").status_code == 404
-    )
+    assert client.get("/api/contributors/x/reputation/history").status_code == 404
 
 
 def test_api_record():
@@ -499,9 +491,7 @@ def test_api_bad_tier():
 def test_api_leaderboard():
     """GET leaderboard returns 200."""
     _rec(_mc().id, score=9.0)
-    assert (
-        client.get("/api/contributors/leaderboard/reputation").status_code == 200
-    )
+    assert client.get("/api/contributors/leaderboard/reputation").status_code == 200
 
 
 def test_api_get_still_works():

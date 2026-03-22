@@ -36,26 +36,30 @@ import type {
 
 /** Status badge colors. */
 const STATUS_COLORS: Record<string, string> = {
-  opened: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  evidence: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  mediation: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  resolved: 'bg-green-500/20 text-green-400 border-green-500/30',
+  opened:
+    'bg-yellow-500/20 text-yellow-800 border-yellow-500/40 dark:text-yellow-400 dark:border-yellow-500/30',
+  evidence:
+    'bg-blue-500/20 text-blue-800 border-blue-500/40 dark:text-blue-400 dark:border-blue-500/30',
+  mediation:
+    'bg-purple-500/20 text-purple-800 border-purple-500/40 dark:text-purple-400 dark:border-purple-500/30',
+  resolved:
+    'bg-green-500/20 text-green-800 border-green-500/40 dark:text-green-400 dark:border-green-500/30',
 };
 
 /** Loading skeleton for the dispute page. */
 function DisputePageSkeleton() {
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-pulse">
-      <div className="h-8 bg-gray-800 rounded w-64 mb-6" />
+      <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-64 mb-6" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-gray-900 rounded-lg p-6 h-48" />
-          <div className="bg-gray-900 rounded-lg p-6 h-64" />
-          <div className="bg-gray-900 rounded-lg p-6 h-96" />
+          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6 h-48" />
+          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6 h-64" />
+          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6 h-96" />
         </div>
         <div className="space-y-4">
-          <div className="bg-gray-900 rounded-lg p-6 h-48" />
-          <div className="bg-gray-900 rounded-lg p-6 h-64" />
+          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6 h-48" />
+          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6 h-64" />
         </div>
       </div>
     </div>
@@ -138,10 +142,10 @@ export default function DisputePage() {
   if (pageError || (error && !disputeDetail)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <p className="text-gray-400 font-mono">{pageError || error}</p>
+        <p className="text-gray-600 dark:text-gray-400 font-mono">{pageError || error}</p>
         <button
           onClick={() => navigate('/disputes')}
-          className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 transition-colors"
         >
           Back to Disputes
         </button>
@@ -152,10 +156,10 @@ export default function DisputePage() {
   if (!disputeDetail) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <p className="text-gray-400 font-mono">Dispute not found</p>
+        <p className="text-gray-600 dark:text-gray-400 font-mono">Dispute not found</p>
         <button
           onClick={() => navigate('/disputes')}
-          className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 transition-colors"
         >
           Back to Disputes
         </button>
@@ -166,24 +170,26 @@ export default function DisputePage() {
   const dispute = disputeDetail;
   const isParticipant = currentUserId === dispute.contributor_id || currentUserId === dispute.creator_id;
   const canSubmitEvidence = isParticipant && ['opened', 'evidence'].includes(dispute.status);
-  const statusColor = STATUS_COLORS[dispute.status] || 'bg-gray-500/20 text-gray-400';
+  const statusColor =
+    STATUS_COLORS[dispute.status] ||
+    'bg-gray-500/20 text-gray-800 border-gray-500/40 dark:text-gray-400 dark:border-gray-500/30';
   const reasonLabel = DISPUTE_REASON_LABELS[dispute.reason as DisputeReason] || dispute.reason;
   const statusLabel = DISPUTE_STATUS_LABELS[dispute.status as DisputeStatus] || dispute.status;
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-sm text-gray-400">
-        <Link to="/disputes" className="hover:text-white transition-colors">
+      <nav className="mb-6 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+        <Link to="/disputes" className="hover:text-gray-900 dark:hover:text-white transition-colors">
           Disputes
         </Link>
         <span>/</span>
-        <span className="text-white font-mono">{dispute.id.slice(0, 8)}...</span>
+        <span className="text-gray-900 dark:text-white font-mono">{dispute.id.slice(0, 8)}...</span>
       </nav>
 
       {/* Error Banner */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-600 dark:text-red-400">
           {error}
         </div>
       )}
@@ -192,7 +198,7 @@ export default function DisputePage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Header Card */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span
                 className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColor}`}
@@ -200,26 +206,26 @@ export default function DisputePage() {
                 {statusLabel}
               </span>
               {dispute.outcome && (
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                   {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
                 </span>
               )}
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">
               Dispute: {reasonLabel}
             </h1>
 
-            <p className="text-gray-400 text-sm leading-relaxed mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-4">
               {dispute.description}
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs text-gray-400">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs text-gray-600 dark:text-gray-400">
               <div>
                 <span className="block text-gray-500 mb-1">Bounty</span>
                 <Link
                   to={`/bounties/${dispute.bounty_id}`}
-                  className="text-[#9945FF] hover:text-[#7C3AED] font-mono"
+                  className="text-solana-purple hover:text-violet-600 font-mono"
                 >
                   {dispute.bounty_id.slice(0, 12)}...
                 </Link>
@@ -236,8 +242,8 @@ export default function DisputePage() {
           </div>
 
           {/* Evidence Section */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-300 mb-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">
               Evidence ({(dispute.evidence_links || []).length} items)
             </h3>
             {dispute.evidence_links && dispute.evidence_links.length > 0 ? (
@@ -245,19 +251,19 @@ export default function DisputePage() {
                 {dispute.evidence_links.map((item: EvidenceItem, index: number) => (
                   <div
                     key={index}
-                    className="bg-gray-800/50 rounded-lg p-3 flex items-start gap-3"
+                    className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 flex items-start gap-3 border border-gray-100 dark:border-transparent"
                   >
-                    <span className="px-2 py-0.5 bg-gray-700 rounded text-xs text-gray-300 flex-shrink-0">
+                    <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-800 dark:text-gray-300 flex-shrink-0">
                       {item.evidence_type}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm text-gray-300">{item.description}</p>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">{item.description}</p>
                       {item.url && (
                         <a
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-[#9945FF] hover:text-[#7C3AED] break-all mt-1 block"
+                          className="text-xs text-solana-purple hover:text-violet-600 break-all mt-1 block"
                         >
                           {item.url}
                         </a>
@@ -267,7 +273,7 @@ export default function DisputePage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No evidence submitted yet.</p>
+              <p className="text-gray-600 dark:text-gray-500 text-sm">No evidence submitted yet.</p>
             )}
           </div>
 
@@ -287,27 +293,27 @@ export default function DisputePage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Status Card */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-300">Dispute Info</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300">Dispute Info</h3>
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Status</span>
-                <span className="text-white font-medium">{statusLabel}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{statusLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Reason</span>
-                <span className="text-white">{reasonLabel}</span>
+                <span className="text-gray-900 dark:text-white">{reasonLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Contributor</span>
-                <span className="text-white font-mono text-xs">
+                <span className="text-gray-900 dark:text-white font-mono text-xs">
                   {dispute.contributor_id.slice(0, 8)}...
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Creator</span>
-                <span className="text-white font-mono text-xs">
+                <span className="text-gray-900 dark:text-white font-mono text-xs">
                   {dispute.creator_id.slice(0, 8)}...
                 </span>
               </div>
@@ -322,7 +328,7 @@ export default function DisputePage() {
               {dispute.outcome && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Outcome</span>
-                  <span className="text-[#14F195] font-medium">
+                  <span className="text-solana-green font-medium">
                     {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
                   </span>
                 </div>
@@ -331,11 +337,11 @@ export default function DisputePage() {
 
             {/* Reputation Impacts */}
             {dispute.status === 'resolved' && (
-              <div className="pt-3 border-t border-gray-800 space-y-2">
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-800 space-y-2">
                 <h4 className="text-xs font-medium text-gray-500 uppercase">Reputation Impact</h4>
                 {dispute.reputation_impact_creator !== null && dispute.reputation_impact_creator !== undefined && dispute.reputation_impact_creator !== 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Creator</span>
+                    <span className="text-gray-600 dark:text-gray-400">Creator</span>
                     <span className={dispute.reputation_impact_creator < 0 ? 'text-red-400' : 'text-green-400'}>
                       {dispute.reputation_impact_creator > 0 ? '+' : ''}{dispute.reputation_impact_creator}
                     </span>
@@ -343,7 +349,7 @@ export default function DisputePage() {
                 )}
                 {dispute.reputation_impact_contributor !== null && dispute.reputation_impact_contributor !== undefined && dispute.reputation_impact_contributor !== 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Contributor</span>
+                    <span className="text-gray-600 dark:text-gray-400">Contributor</span>
                     <span className={dispute.reputation_impact_contributor < 0 ? 'text-red-400' : 'text-green-400'}>
                       {dispute.reputation_impact_contributor > 0 ? '+' : ''}{dispute.reputation_impact_contributor}
                     </span>

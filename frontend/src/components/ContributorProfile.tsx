@@ -4,6 +4,7 @@ import React from 'react';
 import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
+import { TimeAgo } from './common/TimeAgo';
 
 interface ContributorProfileProps {
   username: string;
@@ -31,6 +32,9 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
 
   const badges = badgeStats ? computeBadges(badgeStats) : [];
   const earnedCount = badges.filter((b) => b.earned).length;
+  
+  // Get most recent PR timestamp
+  const mostRecentPrTimestamp = badgeStats?.prSubmissionTimestampsUtc?.[badgeStats.prSubmissionTimestampsUtc.length - 1];
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 sm:p-6 text-white space-y-6">
@@ -55,7 +59,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
             data-testid="header-badge-count"
           >
             <span className="text-lg" aria-hidden>🏅</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#9945FF]/20 to-[#14F195]/20 border border-purple-500/30 px-3 py-1 text-sm font-semibold text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-solana-purple/20 to-solana-green/20 border border-solana-purple/30 px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white">
               {earnedCount}
               <span className="text-gray-400 font-normal text-xs">/ {badges.length}</span>
             </span>
@@ -78,6 +82,14 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>
       </div>
+
+      {/* Recent Activity */}
+      {mostRecentPrTimestamp && (
+        <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-gray-400 text-xs">Last PR submitted</span>
+          <TimeAgo date={mostRecentPrTimestamp} className="text-xs text-gray-300" />
+        </div>
+      )}
 
       {/* Achievements / Badge Grid */}
       {badgeStats && <BadgeGrid badges={badges} />}

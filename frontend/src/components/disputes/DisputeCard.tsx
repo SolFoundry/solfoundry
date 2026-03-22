@@ -59,7 +59,7 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
     <Link
       to={`/disputes/${dispute.id}`}
       data-testid={`dispute-card-${dispute.id}`}
-      className="block bg-gray-900 rounded-lg p-4 sm:p-5 border border-gray-800 hover:border-[#9945FF]/40 transition-colors"
+      className="block bg-white rounded-lg p-4 sm:p-5 border border-gray-200 shadow-sm hover:border-solana-purple/40 transition-colors dark:bg-gray-900 dark:border-gray-800 dark:shadow-none"
     >
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span
@@ -73,17 +73,17 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
         </span>
       </div>
 
-      <h3 className="text-sm font-medium text-white mb-2">
+      <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
         {reasonLabel}
       </h3>
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
         <span>Bounty: {dispute.bounty_id.slice(0, 8)}...</span>
         <span>Filed: {createdDate}</span>
       </div>
 
       {dispute.outcome && (
-        <div className="mt-3 pt-3 border-t border-gray-800">
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
           <span className={`text-xs font-medium ${OUTCOME_COLORS[dispute.outcome] || 'text-gray-400'}`}>
             Outcome: {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
           </span>

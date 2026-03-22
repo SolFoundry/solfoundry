@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
+import { TimeAgo } from './common/TimeAgo';
 import { useBountySubmission } from '../hooks/useBountySubmission';
 import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
 import CreatorApprovalPanel from './bounties/CreatorApprovalPanel';
 import LifecycleTimeline from './bounties/LifecycleTimeline';
+import { BountyTags } from './bounties/BountyTags';
 
 interface BountyDetail {
   id: string;
@@ -23,6 +25,8 @@ interface BountyDetail {
   githubIssueUrl: string;
   github_issue_url?: string;
   githubIssueNumber: number;
+  required_skills?: string[];
+  skills?: string[];
   views: number;
   submissions: any[];
   activities: Activity[];
@@ -43,21 +47,15 @@ interface Activity {
   timestamp: string;
 }
 
-const tierColors = {
-  T1: 'bg-green-500/20 text-green-400 border-green-500/30',
-  T2: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  T3: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-};
-
 const statusColors: Record<string, string> = {
-  open: 'bg-blue-500/20 text-blue-400',
-  in_progress: 'bg-yellow-500/20 text-yellow-400',
-  under_review: 'bg-purple-500/20 text-purple-400',
-  completed: 'bg-green-500/20 text-green-400',
-  disputed: 'bg-red-500/20 text-red-400',
-  paid: 'bg-emerald-500/20 text-emerald-400',
-  cancelled: 'bg-gray-500/20 text-gray-400',
-  expired: 'bg-red-500/20 text-red-400',
+  open: 'bg-blue-500/20 text-blue-800 dark:text-blue-400',
+  in_progress: 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-400',
+  under_review: 'bg-purple-500/20 text-purple-800 dark:text-purple-400',
+  completed: 'bg-green-500/20 text-green-800 dark:text-green-400',
+  disputed: 'bg-red-500/20 text-red-800 dark:text-red-400',
+  paid: 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-400',
+  cancelled: 'bg-gray-500/20 text-gray-800 dark:text-gray-400',
+  expired: 'bg-red-500/20 text-red-800 dark:text-red-400',
 };
 
 export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty }) => {
@@ -67,6 +65,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
   const rewardAmount = bounty.reward_amount ?? bounty.reward;
   const githubUrl = bounty.github_issue_url ?? bounty.githubIssueUrl;
+  const stackSkills = bounty.required_skills ?? bounty.skills ?? [];
 
   const {
     submissions,
@@ -128,35 +127,38 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
   const isPaidOrComplete = ['paid', 'completed'].includes(bounty.status);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Header */}
-            <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
-                <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${tierColors[bounty.tier] || tierColors.T2}`}>
-                  {bounty.tier}
-                </span>
-                <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusColors[bounty.status] || statusColors.open}`}>
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <BountyTags
+                  tier={bounty.tier}
+                  skills={stackSkills}
+                  category={bounty.category}
+                  interactive
+                  showTier
+                  className="min-w-0 flex-1"
+                  data-testid="bounty-detail"
+                />
+                <span
+                  className={`shrink-0 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusColors[bounty.status] || statusColors.open}`}
+                >
                   {bounty.status.replace('_', ' ').toUpperCase()}
                 </span>
-                {bounty.category && (
-                  <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-700 text-gray-300">
-                    {bounty.category}
-                  </span>
-                )}
               </div>
 
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 break-words">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 break-words text-gray-900 dark:text-white">
                 {bounty.title}
               </h1>
 
               <div className="flex flex-wrap items-center gap-4 text-sm sm:text-base">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Reward:</span>
-                  <span className="text-green-400 font-bold text-lg sm:text-xl">
+                  <span className="text-gray-600 dark:text-gray-400">Reward:</span>
+                  <span className="text-green-700 dark:text-green-400 font-bold text-lg sm:text-xl">
                     {rewardAmount.toLocaleString()} FNDRY
                   </span>
                 </div>
@@ -167,7 +169,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                   href={githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-4 text-sm text-gray-400 hover:text-white transition-colors min-h-[44px] px-3 py-2 rounded-lg hover:bg-gray-800"
+                  className="inline-flex items-center gap-2 mt-4 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors min-h-[44px] px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
@@ -179,7 +181,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
               {/* Winner badge */}
               {bounty.winner_wallet && (
                 <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
                     <span className="text-lg">🏆</span>
                     Winner: <code className="font-mono">{bounty.winner_wallet.slice(0, 12)}...</code>
                   </div>
@@ -188,7 +190,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                       href={`https://solscan.io/tx/${bounty.payout_tx_hash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:text-blue-300 mt-1 inline-block"
+                      className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mt-1 inline-block"
                     >
                       View payout tx on Solscan
                     </a>
@@ -199,31 +201,31 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
             {/* Countdown Timer */}
             {bounty.deadline && (
-              <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-                <h2 className="text-lg font-semibold text-gray-300 mb-2">Time Remaining</h2>
-                <p className="text-2xl sm:text-3xl font-mono font-bold text-yellow-400">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-2">Time Remaining</h2>
+                <p className="text-2xl sm:text-3xl font-mono font-bold text-yellow-700 dark:text-yellow-400">
                   {timeRemaining}
                 </p>
               </div>
             )}
 
             {/* Description */}
-            <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-              <h2 className="text-lg font-semibold text-gray-300 mb-4">Description</h2>
-              <div className="prose prose-invert prose-sm sm:prose-base max-w-none">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">Description</h2>
+              <div className="prose prose-gray prose-sm sm:prose-base max-w-none dark:prose-invert">
                 <MarkdownRenderer content={bounty.description} />
               </div>
             </div>
 
             {/* Requirements */}
             {bounty.requirements && bounty.requirements.length > 0 && (
-              <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-                <h2 className="text-lg font-semibold text-gray-300 mb-4">Requirements</h2>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">Requirements</h2>
                 <ul className="space-y-2">
                   {bounty.requirements.map((req, idx) => (
                     <li key={idx} className="flex items-start gap-3 min-h-[44px]">
-                      <span className="text-green-400 mt-1">✓</span>
-                      <span className="text-gray-400">{req}</span>
+                      <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                      <span className="text-gray-600 dark:text-gray-400">{req}</span>
                     </li>
                   ))}
                 </ul>
@@ -248,10 +250,10 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                   error={error}
                 />
               ) : (
-                <div className="bg-gray-900 rounded-lg p-4 sm:p-6 text-center">
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 text-center border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
                   <button
                     onClick={() => setShowSubmitForm(true)}
-                    className="px-6 py-3 bg-[#9945FF] hover:bg-[#7C3AED] text-white rounded-lg font-medium transition-colors min-h-[44px]"
+                    className="px-6 py-3 bg-solana-purple hover:bg-violet-600 text-white rounded-lg font-medium transition-colors min-h-[44px]"
                   >
                     Submit a Solution
                   </button>
@@ -275,18 +277,18 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
             {/* Legacy Activity Feed */}
             {bounty.activities && bounty.activities.length > 0 && (
-              <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-                <h2 className="text-lg font-semibold text-gray-300 mb-4">Activity</h2>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">Activity</h2>
                 <div className="space-y-3">
                   {bounty.activities.map((activity) => (
                     <div key={activity.id} className="flex items-center gap-3 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-blue-400" />
-                      <span className="text-gray-400">
-                        <span className="font-medium text-white">{activity.actor}</span>
+                      <div className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400" />
+                      <span className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium text-gray-900 dark:text-white">{activity.actor}</span>
                         {' '}
                         {activity.type.replace('_', ' ')}
                       </span>
-                      <span className="text-gray-500 ml-auto">{activity.timestamp}</span>
+                      <span className="text-gray-500 ml-auto"><TimeAgo date={activity.timestamp} /></span>
                     </div>
                   ))}
                 </div>
@@ -296,28 +298,28 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-4">
-            <div className="bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
-              <h2 className="text-lg font-semibold">Quick Stats</h2>
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Quick Stats</h2>
 
               <div className="space-y-3">
                 {bounty.views !== undefined && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Views</span>
-                    <span className="font-medium">{bounty.views.toLocaleString()}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Views</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{bounty.views.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Submissions</span>
-                  <span className="font-medium">{submissions.length || bounty.submissions?.length || 0}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Submissions</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{submissions.length || bounty.submissions?.length || 0}</span>
                 </div>
                 {bounty.deadline && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Time Left</span>
-                    <span className="font-medium text-yellow-400">{timeRemaining}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Time Left</span>
+                    <span className="font-medium text-yellow-700 dark:text-yellow-400">{timeRemaining}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Status</span>
+                  <span className="text-gray-600 dark:text-gray-400">Status</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[bounty.status] || ''}`}>
                     {bounty.status.replace('_', ' ').toUpperCase()}
                   </span>
@@ -329,7 +331,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 {canSubmit && !showSubmitForm && (
                   <button
                     onClick={() => setShowSubmitForm(true)}
-                    className="w-full bg-[#9945FF] hover:bg-[#7C3AED] text-white py-3 sm:py-4 rounded-lg font-medium transition-colors min-h-[44px] touch-manipulation"
+                    className="w-full bg-solana-purple hover:bg-violet-600 text-white py-3 sm:py-4 rounded-lg font-medium transition-colors min-h-[44px] touch-manipulation"
                   >
                     Submit PR
                   </button>
@@ -339,7 +341,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                     href={githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-3 sm:py-4 rounded-lg font-medium transition-colors text-center min-h-[44px] touch-manipulation"
+                    className="block w-full bg-gray-200 hover:bg-gray-300 text-gray-900 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white py-3 sm:py-4 rounded-lg font-medium transition-colors text-center min-h-[44px] touch-manipulation"
                   >
                     View on GitHub
                   </a>

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================================
    SolFoundry Theme — Tailwind v4 CSS-based config
    ============================================================================ */
@@ -32,6 +34,9 @@
   --color-accent-gold: #FFD700;
   --color-accent-red: #FF6B6B;
   --color-accent-blue: #4DA8FF;
+
+  /* Mainnet / live indicator (wallet network UI) */
+  --color-solana-mint: #00ff88;
 }
 
 /* ============================================================================
@@ -77,22 +82,22 @@ body {
   background: var(--bg-color, #0a0a0a);
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--color-surface-400);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: color-mix(in srgb, var(--color-surface-400) 72%, white);
 }
 
 /* Light mode scrollbar */
 :root:not(.dark) ::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: var(--color-surface-light-100);
 }
 :root:not(.dark) ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: var(--color-surface-light-300);
 }
 :root:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: color-mix(in srgb, var(--color-surface-light-300) 75%, black);
 }
 
 /* Activity feed entry animation */
@@ -136,29 +141,37 @@ body {
    ============================================================================ */
 .dark select,
 .dark input[type="search"],
-.dark input[type="text"] {
-  background-color: #1a1a1a;
-  color: #e5e5e5;
-  border-color: #2a2a2a;
+.dark input[type="text"],
+.dark input[type="url"],
+.dark input[type="email"],
+.dark input[type="number"],
+.dark textarea {
+  background-color: var(--color-surface-100);
+  color: var(--text-color);
+  border-color: var(--color-surface-300);
 }
 
 .dark select option {
-  background-color: #1a1a1a;
-  color: #e5e5e5;
+  background-color: var(--color-surface-100);
+  color: var(--text-color);
 }
 
 /* Light mode form elements */
 :root:not(.dark) select,
 :root:not(.dark) input[type="search"],
-:root:not(.dark) input[type="text"] {
-  background-color: #ffffff;
-  color: #1a1a1a;
-  border-color: #e5e5e5;
+:root:not(.dark) input[type="text"],
+:root:not(.dark) input[type="url"],
+:root:not(.dark) input[type="email"],
+:root:not(.dark) input[type="number"],
+:root:not(.dark) textarea {
+  background-color: var(--color-surface-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
 }
 
 :root:not(.dark) select option {
-  background-color: #ffffff;
-  color: #1a1a1a;
+  background-color: var(--color-surface-light);
+  color: var(--text-color);
 }
 
 /* ============================================================================
@@ -272,24 +285,60 @@ html:not(.theme-transitioning) {
   }
 }
 
+/* Shimmer uses background-image so Tailwind bg-gray-200 / dark:bg-surface-200 stay visible underneath */
 .animate-shimmer {
-  background: linear-gradient(
+  background-image: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.12) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   background-size: 200% 100%;
+  background-repeat: no-repeat;
   animation: shimmer 2s linear infinite;
 }
 
-/* Light mode shimmer */
 :root:not(.dark) .animate-shimmer {
-  background: linear-gradient(
+  background-image: linear-gradient(
     90deg,
     rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0.06) 50%,
     rgba(0, 0, 0, 0) 100%
   );
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #222222 25%,
+    #2a2a2a 37%,
+    #333333 50%,
+    #2a2a2a 63%,
+    #222222 75%
+  );
   background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Light mode shimmer */
+:root:not(.dark) .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e5e5e5 25%,
+    #f0f0f0 37%,
+    #f5f5f5 50%,
+    #f0f0f0 63%,
+    #e5e5e5 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Pulse fallback — subtle opacity animation */
+.skeleton-pulse {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

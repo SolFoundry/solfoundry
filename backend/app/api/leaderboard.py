@@ -40,15 +40,11 @@ async def leaderboard(
     period: Optional[TimePeriod] = Query(
         None, description="Time period: week, month, or all"
     ),
-    range: Optional[str] = Query(
-        None, description="Frontend range: 7d, 30d, 90d, all"
-    ),
+    range: Optional[str] = Query(None, description="Frontend range: 7d, 30d, 90d, all"),
     tier: Optional[TierFilter] = Query(
         None, description="Filter by bounty tier: 1, 2, or 3"
     ),
-    category: Optional[CategoryFilter] = Query(
-        None, description="Filter by category"
-    ),
+    category: Optional[CategoryFilter] = Query(None, description="Filter by category"),
     limit: int = Query(50, ge=1, le=100, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
 ) -> JSONResponse:
@@ -93,9 +89,7 @@ async def leaderboard(
                 "username": entry.username,
                 "avatarUrl": entry.avatar_url
                 or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
-                "points": int(entry.total_earned)
-                if entry.total_earned
-                else 0,
+                "points": int(entry.total_earned) if entry.total_earned else 0,
                 "bountiesCompleted": entry.bounties_completed,
                 "earningsFndry": entry.total_earned,
                 "earningsSol": 0,

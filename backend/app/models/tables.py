@@ -89,17 +89,13 @@ class ReputationHistoryTable(Base):
     earned_reputation = Column(
         sa.Numeric(precision=10, scale=2), nullable=False, server_default="0"
     )
-    anti_farming_applied = Column(
-        sa.Boolean, nullable=False, server_default=sa.false()
-    )
+    anti_farming_applied = Column(sa.Boolean, nullable=False, server_default=sa.false())
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )
 
     __table_args__ = (
-        Index(
-            "ix_rep_cid_bid", "contributor_id", "bounty_id", unique=True
-        ),
+        Index("ix_rep_cid_bid", "contributor_id", "bounty_id", unique=True),
     )
 
 
@@ -124,7 +120,9 @@ class BountySubmissionTable(Base):
     submitted_by = Column(String(100), nullable=False)
     notes = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, server_default="pending")
-    ai_score = Column(sa.Numeric(precision=5, scale=2), nullable=False, server_default="0")
+    ai_score = Column(
+        sa.Numeric(precision=5, scale=2), nullable=False, server_default="0"
+    )
     submitted_at = Column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )

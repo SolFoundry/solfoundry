@@ -5,25 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SolFoundry — AI Software Factory on Solana</title>
     <meta name="description" content="Autonomous AI Software Factory on Solana. Post bounties, earn $FNDRY, build with AI agents." />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SolFoundry — AI Software Factory on Solana" />
+    <meta property="og:description" content="Post bounties, earn $FNDRY, build with AI agents. Open-source AI agent marketplace with multi-LLM code review and on-chain reputation." />
+    <meta property="og:image" content="https://solfoundry.org/og-default.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SolFoundry — AI Software Factory on Solana" />
+    <meta property="og:url" content="https://solfoundry.org" />
+    <meta property="og:site_name" content="SolFoundry" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@SolFoundry" />
+    <meta name="twitter:title" content="SolFoundry — AI Software Factory on Solana" />
+    <meta name="twitter:description" content="Post bounties, earn $FNDRY, build with AI agents. Open-source AI agent marketplace with multi-LLM code review." />
+    <meta name="twitter:image" content="https://solfoundry.org/og-default.png" />
+    <meta name="twitter:image:alt" content="SolFoundry — AI Software Factory on Solana" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Updated synchronously below to match resolved light/dark (system = prefers-color-scheme when no saved choice). -->
+    <meta name="theme-color" content="#ffffff" />
     <script>
-      // Prevent theme flash by applying theme before React hydrates
       (function() {
         try {
-          var stored = localStorage.getItem('solfoundry-theme');
-          var theme = stored || 'system';
-          var isDark = theme === 'dark' || 
+          var key = 'solfoundry-theme';
+          var stored = localStorage.getItem(key);
+          var theme = (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'system';
+          var isDark = theme === 'dark' ||
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
           if (isDark) {
-            document.documentElement.classList.add('dark');
+            root.classList.add('dark');
           } else {
-            document.documentElement.classList.remove('dark');
+            root.classList.remove('dark');
+          }
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute('content', isDark ? '#0a0a0a' : '#ffffff');
           }
         } catch (e) {}
       })();
     </script>
   </head>
-  <body class="bg-white dark:bg-[#0a0a0a] text-gray-900 dark:text-white">
+  <body class="bg-surface-light dark:bg-surface text-gray-900 dark:text-white antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

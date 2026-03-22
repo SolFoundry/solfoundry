@@ -129,6 +129,7 @@ def seed_store():
 
 class TestSearchParamsValidation:
     """TestSearchParamsValidation."""
+
     def test_valid_sort_fields(self):
         """Test valid sort fields."""
         for field in VALID_SORT_FIELDS:
@@ -182,6 +183,7 @@ class TestSearchParamsValidation:
 
 class TestSearchMemory:
     """TestSearchMemory."""
+
     def test_returns_all_when_no_filters(self):
         """Test returns all when no filters."""
         result = search_bounties_memory(BountySearchParams())
@@ -258,6 +260,18 @@ class TestSearchMemory:
         dates = [b.created_at for b in result.items]
         assert dates == sorted(dates, reverse=True)
 
+    def test_sort_oldest(self):
+        """Test sort oldest."""
+        result = search_bounties_memory(BountySearchParams(sort="oldest"))
+        dates = [b.created_at for b in result.items]
+        assert dates == sorted(dates)
+
+    def test_sort_tier_high(self):
+        """Test sort tier high to low (T3 first)."""
+        result = search_bounties_memory(BountySearchParams(sort="tier_high"))
+        tiers = [int(b.tier) for b in result.items]
+        assert tiers == sorted(tiers, reverse=True)
+
     def test_pagination_page_1(self):
         """Test pagination page 1."""
         result = search_bounties_memory(BountySearchParams(per_page=2, page=1))
@@ -315,6 +329,7 @@ class TestSearchMemory:
 
 class TestAutocompleteMemory:
     """TestAutocompleteMemory."""
+
     def test_returns_title_matches(self):
         """Test returns title matches."""
         result = autocomplete_memory("staking", limit=5)
@@ -351,6 +366,7 @@ class TestAutocompleteMemory:
 
 class TestHotBountiesMemory:
     """TestHotBountiesMemory."""
+
     def test_returns_recent_active(self):
         """Test returns recent active."""
         results = get_hot_bounties_memory(limit=10)
@@ -375,6 +391,7 @@ class TestHotBountiesMemory:
 
 class TestRecommendedMemory:
     """TestRecommendedMemory."""
+
     def test_matches_user_skills(self):
         """Test matches user skills."""
         results = get_recommended_memory(["react", "typescript"], [], limit=5)

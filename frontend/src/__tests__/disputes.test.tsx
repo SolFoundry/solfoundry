@@ -151,7 +151,7 @@ describe('DisputeEvidenceForm', () => {
 
     render(<DisputeEvidenceForm onSubmit={onSubmit} loading={false} />);
 
-    await user.click(screen.getByText('Submit Evidence'));
+    await user.click(screen.getByRole('button', { name: 'Submit Evidence' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Please provide at least one evidence item with a description.',
@@ -168,7 +168,7 @@ describe('DisputeEvidenceForm', () => {
     const descriptionInput = screen.getByPlaceholderText('Describe this evidence...');
     await user.type(descriptionInput, 'This PR meets all requirements');
 
-    await user.click(screen.getByText('Submit Evidence'));
+    await user.click(screen.getByRole('button', { name: 'Submit Evidence' }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       evidence_links: [

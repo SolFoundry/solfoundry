@@ -44,6 +44,26 @@ jobs:
           PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
+          # Blocked users — hard block at workflow level
+          BLOCKED_USERS="AlexChen31337,xidik12,chulinhcql-art"
+          if echo ",$BLOCKED_USERS," | grep -qi ",$PR_AUTHOR,"; then
+            echo "BLOCKED USER: $PR_AUTHOR"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"🚫 @$PR_AUTHOR — your account has been blocked from the SolFoundry bounty program due to previous violations.\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Rate limiting disabled during maintenance
+
           # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
           ALL_ISSUES=$(python3 -c "
           import re
@@ -250,6 +270,34 @@ jobs:
                       f"*— SolFoundry Bot 🏭*"
                   )
                   blocked = True
+              else:
+                  # Eligible by reputation — but T3 also requires approved claim
+                  # Check if contributor is assigned to the bounty issue (claim approved)
+                  issue_data = gh_get(f"repos/{repo}/issues/{issue_num}")
+                  assignees = [a["login"].lower() for a in issue_data.get("assignees", [])]
+
+                  if user.lower() not in assignees:
+                      # Check issue comments for bot approval message as fallback
+                      comments = gh_get(f"repos/{repo}/issues/{issue_num}/comments?per_page=100")
+                      has_approval = False
+                      for c in comments:
+                          cbody = (c.get("body") or "")
+                          cauthor = c.get("user", {}).get("login", "")
+                          # Look for our bot's claim approval comment mentioning this user
+                          if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and ("approved" in cbody.lower() or "assigned" in cbody.lower()):
+                              has_approval = True
+                              break
+
+                      if not has_approval:
+                          msg = (
+                              f"⚠️ @{user} — **Tier 3 bounties require claiming before submitting.**\n\n"
+                              f"You meet the reputation requirements ✅ but you haven't claimed this bounty yet.\n\n"
+                              f"**To claim:** Comment on [issue #{issue_num}](https://github.com/{repo}/issues/{issue_num}) "
+                              f"with why you're a good fit. A maintainer will review and assign you.\n\n"
+                              f"Once assigned, resubmit your PR.\n\n"
+                              f"*— SolFoundry Bot 🏭*"
+                          )
+                          blocked = True
 
           if blocked:
               gh_post(f"repos/{repo}/issues/{pr_num}/comments", {"body": msg})
@@ -271,11 +319,154 @@ jobs:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
-          APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
-            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")] | length' 2>/dev/null || echo 0)
-          if [ "$APPROVED" -gt "0" ]; then
+          APPROVED_REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
+            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")]' 2>/dev/null || echo "[]")
+          APPROVED=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; print(len(json.loads(sys.stdin.read())))" 2>/dev/null || echo 0)
+
+          # If new commits pushed after approval (synchronize event), dismiss the
+          # APPROVED review and force re-review — prevents bait-and-switch attacks
+          ACTION="${{ github.event.action }}"
+          if [ "$APPROVED" -gt "0" ] && [ "$ACTION" = "synchronize" ]; then
+            echo "⚠️ New commits pushed after approval — dismissing review and forcing re-review"
+
+            # Extract bounty issue number from PR body (escrow label lives on BOUNTY ISSUE, not PR)
+            PR_BODY_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null)
+            BOUNTY_NUM_SYNC=$(echo "$PR_BODY_SYNC" | python3 -c "
+            import sys, re
+            text = sys.stdin.read()
+            m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+            print(m.group(1) if m else '')
+            " 2>/dev/null)
+            echo "Extracted bounty issue: ${BOUNTY_NUM_SYNC:-none}"
+
+            # Check if bot recently asked this contributor to rebase (friendly vs security messaging)
+            IS_REBASE="false"
+            if [ -n "$BOUNTY_NUM_SYNC" ]; then
+              RECENT_BOT_COMMENTS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/comments?per_page=10" \
+                --jq '[.[] | select(.user.login == "chronoeth-creator") | .body] | join(" ")' 2>/dev/null || echo "")
+              if echo "$RECENT_BOT_COMMENTS" | grep -qi "rebase\|conflict\|merge conflict\|paid-pending-merge"; then
+                IS_REBASE="true"
+                echo "Detected rebase after conflict notification — using friendly messaging"
+              fi
+            fi
+
+            # Dismiss each APPROVED review
+            REVIEW_IDS=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; [print(r['id']) for r in json.loads(sys.stdin.read())]" 2>/dev/null)
+            if [ "$IS_REBASE" = "true" ]; then
+              DISMISS_MSG="Rebase detected — previous approval cleared for a quick re-review. Thanks for resolving conflicts!"
+            else
+              DISMISS_MSG="New commits pushed after approval — re-review required for security. Previous approval dismissed."
+            fi
+            for RID in $REVIEW_IDS; do
+              curl -sf -X PUT \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUM}/reviews/${RID}/dismissals" \
+                -d "{\"message\":\"$DISMISS_MSG\",\"event\":\"DISMISS\"}" || true
+            done
+
+            # Remove escrow lock from the BOUNTY ISSUE (not the PR — that was the bug)
+            if [ -n "$BOUNTY_NUM_SYNC" ]; then
+              curl -sf -X DELETE \
+                -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/${BOUNTY_NUM_SYNC}/labels/review-passed" 2>/dev/null || true
+              echo "Removed review-passed label from bounty issue #${BOUNTY_NUM_SYNC}"
+            else
+              echo "WARNING: Could not extract bounty issue — escrow label removal skipped"
+            fi
+
+            # Post comment — friendly for rebases, security warning for real pushes
+            if [ "$IS_REBASE" = "true" ]; then
+              COMMENT_BODY="🔄 **Rebase Detected**\n\nThanks for resolving the merge conflict! A quick re-review is running now.\n\nYour escrow lock has been temporarily cleared and will be re-set once the review passes again. No action needed from you.\n\n---\n*SolFoundry Review Bot*"
+            else
+              COMMENT_BODY="⚠️ **Review Invalidated**\n\nNew commits were pushed after approval. The previous approval has been dismissed and a fresh review will run.\n\nFor security, the escrow lock has been removed.\n\n---\n*SolFoundry Review Bot*"
+            fi
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUM}/comments" \
+              -d "{\"body\":\"${COMMENT_BODY}\"}" || true
+
+            # Notify owner on Telegram (this was a blind spot — owner had no idea approvals were being dismissed)
+            TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+            TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+            if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+              PR_TITLE_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null)
+              PR_AUTHOR_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null)
+              if [ "$IS_REBASE" = "true" ]; then
+                TG_MSG="🔄 <b>Rebase Detected</b>%0A%0APR #${PR_NUM}: ${PR_TITLE_SYNC}%0Aby @${PR_AUTHOR_SYNC}%0A%0AContributor rebased after conflict. Re-review running. Escrow will re-lock if it passes."
+              else
+                TG_MSG="⚠️ <b>Approval Dismissed</b>%0A%0APR #${PR_NUM}: ${PR_TITLE_SYNC}%0Aby @${PR_AUTHOR_SYNC}%0A%0ANew commits pushed after approval. Review invalidated, re-review dispatched."
+              fi
+              curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                -d "chat_id=${TELEGRAM_CHAT}" \
+                -d "text=${TG_MSG}" \
+                -d "parse_mode=HTML" \
+                -d "disable_web_page_preview=true" > /dev/null 2>&1
+            fi
+
+            # Don't skip — force re-review
+            echo "skip=false" >> $GITHUB_OUTPUT
+          elif [ "$APPROVED" -gt "0" ]; then
             echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
             echo "skip=true" >> $GITHUB_OUTPUT
+
+            # Check if PR is now mergeable (conflict resolved after rebase)
+            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null || echo "false")
+            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null || echo "Unknown")
+            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null || echo "unknown")
+            PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
+
+            if [ "$MERGEABLE" = "true" ]; then
+              # Skip notification if PR is already paid (bot already handled it)
+              PR_LABELS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/labels" --jq '.[].name' 2>/dev/null || echo "")
+              if echo "$PR_LABELS" | grep -q "^paid$"; then
+                echo "PR #${PR_NUM} already paid — skipping duplicate 'Ready to Merge' notification"
+                exit 0
+              fi
+
+              # Extract bounty info for payout context
+              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null || echo "")
+              BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+              print(m.group(1) if m else '')
+              " 2>/dev/null || echo "")
+
+              WALLET=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:wallet|address)[:\s]*\`?([1-9A-HJ-NP-Za-km-z]{32,44})\`?', text, re.IGNORECASE)
+              if not m:
+                  m = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', text)
+              print(m.group(1) if m else 'not found')
+              " 2>/dev/null || echo "not found")
+
+              BOUNTY_INFO=""
+              if [ -n "$BOUNTY_NUM" ]; then
+                REWARD=$(gh api "repos/${{ github.repository }}/issues/${BOUNTY_NUM}" --jq '.body' 2>/dev/null | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(\d[\d,]*)\s*(?:\\\$FNDRY|FNDRY|\\\$)', text)
+              print(m.group(1) if m else 'unknown')
+              " 2>/dev/null || echo "unknown")
+                BOUNTY_INFO="Bounty: #${BOUNTY_NUM} (${REWARD} \$FNDRY)"
+              fi
+
+              # Send Telegram notification
+              TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+              TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+              if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
+                curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                  -d "chat_id=${TELEGRAM_CHAT}" \
+                  -d "text=${MSG}" \
+                  -d "parse_mode=HTML" \
+                  -d "disable_web_page_preview=true" > /dev/null 2>&1 || true
+              fi
+            fi
+            exit 0
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi

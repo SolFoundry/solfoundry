@@ -7,4 +7,5 @@ export { BountyGrid } from './BountyGrid';
 export { TierBadge } from './TierBadge';
 export { StatusIndicator } from './StatusIndicator';
 export { SkillTags } from './SkillTags';
+export { BountyTags } from './BountyTags';
 export { EmptyState } from './EmptyState';

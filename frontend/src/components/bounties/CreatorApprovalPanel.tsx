@@ -80,7 +80,7 @@ export const CreatorApprovalPanel: React.FC<CreatorApprovalPanelProps> = ({
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#9945FF]/30 flex items-center justify-center text-sm font-bold text-[#9945FF]">
+                  <div className="w-8 h-8 rounded-full bg-solana-purple/30 flex items-center justify-center text-sm font-bold text-solana-purple">
                     {sub.submitted_by.slice(0, 2).toUpperCase()}
                   </div>
                   <div>

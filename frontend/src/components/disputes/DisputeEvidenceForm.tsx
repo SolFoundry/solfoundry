@@ -91,8 +91,11 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
   };
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 sm:p-6" data-testid="evidence-form">
-      <h3 className="text-lg font-semibold text-gray-300 mb-4">
+    <div
+      className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none"
+      data-testid="evidence-form"
+    >
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">
         Submit Evidence
       </h3>
 
@@ -100,11 +103,11 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
         {evidenceItems.map((item, index) => (
           <div
             key={index}
-            className="bg-gray-800/50 rounded-lg p-4 space-y-3"
+            className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-3 border border-gray-100 dark:border-transparent"
             data-testid={`evidence-item-${index}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-400">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 Evidence #{index + 1}
               </span>
               {evidenceItems.length > 1 && (
@@ -122,7 +125,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
             <div>
               <label
                 htmlFor={`evidence-type-${index}`}
-                className="block text-xs text-gray-500 mb-1"
+                className="block text-xs text-gray-600 dark:text-gray-500 mb-1"
               >
                 Type
               </label>
@@ -132,7 +135,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                 onChange={(event) =>
                   handleItemChange(index, 'evidence_type', event.target.value)
                 }
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-[#9945FF] focus:outline-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-solana-purple focus:outline-none"
                 disabled={disabled}
               >
                 <option value="link">Link</option>
@@ -146,7 +149,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
             <div>
               <label
                 htmlFor={`evidence-url-${index}`}
-                className="block text-xs text-gray-500 mb-1"
+                className="block text-xs text-gray-600 dark:text-gray-500 mb-1"
               >
                 URL (optional)
               </label>
@@ -158,7 +161,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                   handleItemChange(index, 'url', event.target.value)
                 }
                 placeholder="https://..."
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#9945FF] focus:outline-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none"
                 disabled={disabled}
               />
             </div>
@@ -166,7 +169,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
             <div>
               <label
                 htmlFor={`evidence-desc-${index}`}
-                className="block text-xs text-gray-500 mb-1"
+                className="block text-xs text-gray-600 dark:text-gray-500 mb-1"
               >
                 Description
               </label>
@@ -178,7 +181,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                 }
                 placeholder="Describe this evidence..."
                 rows={2}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none resize-none"
                 disabled={disabled}
               />
             </div>
@@ -188,14 +191,14 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
         <button
           type="button"
           onClick={handleAddItem}
-          className="text-sm text-[#9945FF] hover:text-[#7C3AED] transition-colors"
+          className="text-sm text-solana-purple hover:text-violet-600 transition-colors"
           disabled={disabled}
         >
           + Add Another Evidence Item
         </button>
 
         <div>
-          <label htmlFor="evidence-notes" className="block text-xs text-gray-500 mb-1">
+          <label htmlFor="evidence-notes" className="block text-xs text-gray-600 dark:text-gray-500 mb-1">
             Additional Notes (optional)
           </label>
           <textarea
@@ -204,13 +207,13 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Any additional context..."
             rows={3}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none resize-none"
             disabled={disabled}
           />
         </div>
 
         {formError && (
-          <p className="text-sm text-red-400" role="alert">
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
             {formError}
           </p>
         )}
@@ -218,7 +221,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
         <button
           type="submit"
           disabled={loading || disabled}
-          className="w-full px-4 py-3 bg-[#9945FF] hover:bg-[#7C3AED] disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+          className="w-full px-4 py-3 bg-solana-purple hover:bg-violet-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors min-h-[44px]"
         >
           {loading ? 'Submitting...' : 'Submit Evidence'}
         </button>

@@ -10,7 +10,7 @@ const now = () => new Date().toISOString();
 /** Empty-state tokenomics when API is unreachable. */
 const DEFAULT_TOKENOMICS: TokenomicsData = { tokenName: 'FNDRY', tokenCA: 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS', totalSupply: 1e9, circulatingSupply: 0, treasuryHoldings: 0, totalDistributed: 0, totalBuybacks: 0, totalBurned: 0, feeRevenueSol: 0, lastUpdated: now(), distributionBreakdown: {} };
 /** Empty-state treasury when API is unreachable. */
-const DEFAULT_TREASURY: TreasuryStats = { solBalance: 0, fndryBalance: 0, treasuryWallet: '57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp', totalPaidOutFndry: 0, totalPaidOutSol: 0, totalPayouts: 0, totalBuybackAmount: 0, totalBuybacks: 0, lastUpdated: now() };
+const DEFAULT_TREASURY: TreasuryStats = { solBalance: 0, fndryBalance: 0, treasuryWallet: 'AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1', totalPaidOutFndry: 0, totalPaidOutSol: 0, totalPayouts: 0, totalBuybackAmount: 0, totalBuybacks: 0, lastUpdated: now() };
 
 /** Fetch both tokenomics and treasury in parallel. */
 async function fetchTreasuryData() {
