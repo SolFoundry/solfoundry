@@ -15,6 +15,7 @@ from app.api.leaderboard import router as leaderboard_router
 from app.api.payouts import router as payouts_router
 from app.api.webhooks.github import router as github_webhook_router
 from app.api.websocket import router as websocket_router
+from app.api.migration import router as migration_router
 from app.database import init_db, close_db
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
@@ -104,6 +105,9 @@ app.include_router(github_webhook_router, prefix="/api/webhooks", tags=["webhook
 
 # WebSocket: /ws/*
 app.include_router(websocket_router)
+
+# Migration: /api/migration/* — admin-only off-chain to on-chain migration
+app.include_router(migration_router)
 
 
 @app.get("/health")
