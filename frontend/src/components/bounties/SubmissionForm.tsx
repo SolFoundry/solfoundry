@@ -73,7 +73,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             value={prUrl}
             onChange={(e) => setPrUrl(e.target.value)}
             placeholder="https://github.com/SolFoundry/solfoundry/pull/42"
-            className="w-full rounded-lg border border-gray-300 bg-surface-light px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
+            className="w-full rounded-lg border border-gray-300 bg-surface-light px-4 py-3 text-base text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             required
             disabled={disabled || loading}
           />
@@ -86,7 +86,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             value={wallet}
             onChange={(e) => setWallet(e.target.value)}
             placeholder="Your Solana wallet address for payout"
-            className="w-full rounded-lg border border-gray-300 bg-surface-light px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors font-mono text-sm dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
+            className="w-full rounded-lg border border-gray-300 bg-surface-light px-4 py-3 font-mono text-base text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             required
             disabled={disabled || loading}
           />
@@ -94,7 +94,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             <button
               type="button"
               onClick={() => setWallet(publicKey.toBase58())}
-              className="mt-1 text-xs text-solana-purple hover:text-solana-green transition-colors"
+              className="mt-1 inline-flex min-h-11 items-center text-sm text-solana-purple hover:text-solana-green transition-colors sm:text-base"
             >
               Use connected wallet
             </button>
@@ -108,7 +108,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Brief description of your implementation..."
             rows={3}
-            className="w-full rounded-lg border border-gray-300 bg-surface-light px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors resize-none dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
+            className="w-full resize-none rounded-lg border border-gray-300 bg-surface-light px-4 py-3 text-base text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:ring-1 focus:ring-solana-purple transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             disabled={disabled || loading}
           />
         </div>

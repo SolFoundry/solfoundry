@@ -81,7 +81,7 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
     ),
 
     p: ({ children }) => (
-      <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-3">{children}</p>
+      <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed mb-3">{children}</p>
     ),
 
     blockquote: ({ children }) => (
@@ -91,8 +91,8 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
     ),
 
     table: ({ children }) => (
-      <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 dark:border-white/10">
-        <table className="w-full border-collapse text-sm text-gray-700 dark:text-gray-300">{children}</table>
+      <div className="my-4 overflow-x-auto overscroll-x-contain rounded-lg border border-gray-200 touch-pan-x dark:border-white/10">
+        <table className="w-full min-w-[20rem] border-collapse text-base text-gray-700 dark:text-gray-300">{children}</table>
       </div>
     ),
     thead: ({ children }) => (

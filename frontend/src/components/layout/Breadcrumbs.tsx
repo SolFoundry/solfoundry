@@ -86,7 +86,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`font-mono text-sm ${className}`}
+      className={`font-mono text-base ${className}`}
     >
       {/* Desktop: full breadcrumb list */}
       <ol className="hidden sm:flex items-center flex-wrap gap-1" role="list">
@@ -106,7 +106,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
               ) : (
                 <Link
                   to={crumb.href}
-                  className="text-gray-500 hover:text-solana-purple transition-colors"
+                  className="text-gray-500 transition-colors hover:text-solana-purple max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:py-1"
                 >
                   {crumb.label}
                 </Link>
@@ -134,7 +134,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
                 ) : (
                   <Link
                     to={item.href}
-                    className="text-gray-500 hover:text-solana-purple transition-colors"
+                    className="text-gray-500 transition-colors hover:text-solana-purple max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:py-1"
                   >
                     {item.label}
                   </Link>

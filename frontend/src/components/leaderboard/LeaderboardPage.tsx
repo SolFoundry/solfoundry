@@ -75,7 +75,7 @@ export function LeaderboardPage() {
           placeholder="Search contributors..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 w-64 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 focus:border-solana-purple/50 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200 dark:placeholder-gray-500"
+          className="min-h-11 w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 focus:border-solana-purple/50 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200 dark:placeholder-gray-500 sm:w-64"
           aria-label="Search contributors"
         />
         <div className="flex flex-wrap gap-1" role="group" aria-label="Time range">
@@ -86,7 +86,7 @@ export function LeaderboardPage() {
               onClick={() => setTimeRange(r.value)}
               aria-pressed={timeRange === r.value}
               className={
-                'rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors ' +
+                'inline-flex min-h-11 items-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:text-base ' +
                 (timeRange === r.value
                   ? 'bg-solana-green text-gray-900 border-transparent shadow-sm dark:text-black'
                   : 'bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200 hover:border-gray-400 dark:bg-surface-100 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-surface-200 dark:hover:border-gray-600')
@@ -100,7 +100,7 @@ export function LeaderboardPage() {
           value={sortBy}
           onChange={e => setSortBy(e.target.value as SortField)}
           aria-label="Sort by"
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200"
+          className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200"
         >
           {SORTS.map(s => (
             <option key={s.value} value={s.value}>
@@ -112,7 +112,8 @@ export function LeaderboardPage() {
       {contributors.length === 0 ? (
         <NoDataAvailable dataType="contributors" />
       ) : (
-        <table className="w-full text-sm" role="table" aria-label="Leaderboard">
+        <div className="-mx-6 overflow-x-auto overscroll-x-contain px-6 pb-1 sm:mx-0 sm:px-0 touch-pan-x">
+        <table className="w-full min-w-[36rem] text-base" role="table" aria-label="Leaderboard">
           <thead>
             <tr className="border-b border-gray-200 text-gray-600 text-left text-xs dark:border-gray-700 dark:text-gray-400">
               <th className="py-2 w-12">#</th>
@@ -131,7 +132,16 @@ export function LeaderboardPage() {
                 </td>
                 <td className="py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <img src={c.avatarUrl} alt={c.username} className="h-6 w-6 rounded-full shrink-0" width={24} height={24} />
+                    <img
+                      src={c.avatarUrl}
+                      alt=""
+                      className="h-8 w-8 rounded-full shrink-0 object-cover"
+                      width={32}
+                      height={32}
+                      loading="lazy"
+                      decoding="async"
+                      sizes="32px"
+                    />
                     <span className="font-medium text-gray-900 dark:text-white">{c.username}</span>
                     <span className="text-xs text-gray-600 dark:text-gray-500">{c.topSkills.slice(0, 2).join(', ')}</span>
                   </div>
@@ -146,6 +156,7 @@ export function LeaderboardPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

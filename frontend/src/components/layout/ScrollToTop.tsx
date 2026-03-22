@@ -63,7 +63,9 @@ export function ScrollToTop({ threshold = 300, className = '' }: ScrollToTopProp
       onClick={scrollToTop}
       onKeyDown={handleKeyDown}
       className={`
-        fixed bottom-6 right-6 z-40
+        fixed z-40
+        bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))]
+        right-[max(1.5rem,env(safe-area-inset-right,0px))]
         w-12 h-12 sm:w-14 sm:h-14
         rounded-full
         bg-gradient-to-br from-solana-purple to-solana-green
