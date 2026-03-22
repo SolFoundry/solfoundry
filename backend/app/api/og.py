@@ -22,7 +22,7 @@ router = APIRouter(tags=["og"])
 
 SITE_URL = "https://solfoundry.org"
 DEFAULT_OG_IMAGE = f"{SITE_URL}/og-default.png"
-TWITTER_SITE = "@foundrysol"
+TWITTER_SITE = "@SolFoundry"
 
 # Common social-media and search-engine bot user-agent substrings.
 BOT_SIGNATURES = (

@@ -141,9 +141,13 @@ grep -q "include_router.*og" "$MAIN" \
     && pass "OG router included in app" \
     || fail "OG router not included in app"
 
-grep -q "@foundrysol\|@SolFoundry" "$HTML" \
-    && pass "Twitter handle referenced" \
-    || fail "Twitter handle missing"
+grep -q '@SolFoundry' "$HTML" \
+    && pass "twitter:site = @SolFoundry (correct handle)" \
+    || fail "twitter:site must be @SolFoundry per bounty spec"
+
+grep -v '@SolFoundry' "$HTML" | grep -q '@foundrysol' \
+    && fail "Wrong handle @foundrysol found (must be @SolFoundry)" \
+    || pass "Wrong handle @foundrysol not present"
 
 # ──── Summary ────
 
