@@ -44,16 +44,126 @@ jobs:
           PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
-          ISSUE_NUM=$(python3 -c "
+          # Blocked users — hard block at workflow level
+          BLOCKED_USERS="AlexChen31337,xidik12,chulinhcql-art"
+          if echo ",$BLOCKED_USERS," | grep -qi ",$PR_AUTHOR,"; then
+            echo "BLOCKED USER: $PR_AUTHOR"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"🚫 @$PR_AUTHOR — your account has been blocked from the SolFoundry bounty program due to previous violations.\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Rate limit: max 5 open PRs per author + max 10 PRs opened in 24h
+          # Generous enough for resubmissions but catches bot spam
+          RATE_CHECK=$(python3 -c "
+          import json, urllib.request, os, sys
+          from datetime import datetime, timedelta, timezone
+
+          token = os.environ['GH_TOKEN']
+          repo = '${{ github.repository }}'
+          author = '$PR_AUTHOR'
+          MAX_OPEN = 5
+          MAX_DAILY = 10
+
+          def gh_get(url):
+              req = urllib.request.Request(url)
+              req.add_header('Authorization', f'token {token}')
+              req.add_header('Accept', 'application/vnd.github.v3+json')
+              return json.loads(urllib.request.urlopen(req).read().decode())
+
+          open_count = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+state:open+author:{author}').get('total_count', 0)
+          since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime('%Y-%m-%d')
+          daily_count = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+author:{author}+created:>{since}').get('total_count', 0)
+
+          if open_count > MAX_OPEN:
+              print(f'OPEN_LIMIT|{open_count}|{MAX_OPEN}')
+          elif daily_count > MAX_DAILY:
+              print(f'DAILY_LIMIT|{daily_count}|{MAX_DAILY}')
+          else:
+              print('OK')
+          " 2>/dev/null)
+
+          if echo "$RATE_CHECK" | grep -q "OPEN_LIMIT"; then
+            OPEN_N=$(echo "$RATE_CHECK" | cut -d'|' -f2)
+            MAX_N=$(echo "$RATE_CHECK" | cut -d'|' -f3)
+            echo "RATE LIMITED: $PR_AUTHOR has $OPEN_N open PRs (max $MAX_N)"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"⏳ **Rate Limit — Too Many Open PRs**\n\n@$PR_AUTHOR, you currently have **$OPEN_N open PRs** (max $MAX_N). Please wait for your existing PRs to be reviewed and merged before opening new ones.\n\nThis helps us maintain review quality and prevents our pipeline from being overwhelmed.\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if echo "$RATE_CHECK" | grep -q "DAILY_LIMIT"; then
+            DAILY_N=$(echo "$RATE_CHECK" | cut -d'|' -f2)
+            MAX_N=$(echo "$RATE_CHECK" | cut -d'|' -f3)
+            echo "RATE LIMITED: $PR_AUTHOR opened $DAILY_N PRs today (max $MAX_N)"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"⏳ **Rate Limit — Daily Submission Cap**\n\n@$PR_AUTHOR, you've opened **$DAILY_N PRs in the last 24 hours** (max $MAX_N/day). Please slow down — quality over quantity.\n\nTake the time to ensure your submissions are complete and tested before opening a PR.\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
+          ALL_ISSUES=$(python3 -c "
           import re
           text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
-          m = re.search(r'(?:closes|fixes|resolves)\s+(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
-          print(m.group(1) if m else '')
+          matches = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          # Deduplicate
+          seen = []
+          for m in matches:
+              if m not in seen:
+                  seen.append(m)
+          print(','.join(seen))
           " 2>/dev/null)
+
+          ISSUE_COUNT=$(echo "$ALL_ISSUES" | tr ',' '\n' | grep -c '[0-9]' || echo 0)
+          ISSUE_NUM=$(echo "$ALL_ISSUES" | cut -d',' -f1)
 
           if [ -z "$ISSUE_NUM" ]; then
             echo "No linked issue — proceeding to dispatch"
             echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Block multi-bounty PRs (one PR = one bounty)
+          if [ "$ISSUE_COUNT" -gt 1 ]; then
+            echo "BLOCKED: PR #$PR_NUM references $ISSUE_COUNT bounty issues ($ALL_ISSUES)"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"❌ **Multiple Bounties Detected**\n\n@$PR_AUTHOR, this PR references **$ISSUE_COUNT bounty issues** (#$(echo $ALL_ISSUES | sed 's/,/, #/g')).\n\n**Each bounty must be submitted as a separate PR** — one PR per bounty issue. This ensures proper review scope, fair attribution, and clean merge history.\n\nPlease:\n1. Split your work into separate PRs, each referencing only one bounty issue\n2. Use \`Closes #N\` to link each PR to its specific bounty\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -102,7 +212,7 @@ jobs:
           ISSUE_NUM=$(python3 -c "
           import re
           text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
-          m = re.search(r'(?:closes|fixes|resolves)\s+(?:\S+#)?(\d+)', text, re.IGNORECASE)
+          m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:\S+#)?(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           " 2>/dev/null)
 
@@ -186,7 +296,7 @@ jobs:
                   if pr["user"]["login"] != user or not pr.get("merged_at"):
                       continue
                   body = pr.get("body") or ""
-                  linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", body, re.IGNORECASE)
+                  linked = re.findall(r"(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)", body, re.IGNORECASE)
                   for ln in linked:
                       tier = get_issue_tier(ln)
                       if tier == "tier-1": t1_count += 1
@@ -224,6 +334,34 @@ jobs:
                       f"*— SolFoundry Bot 🏭*"
                   )
                   blocked = True
+              else:
+                  # Eligible by reputation — but T3 also requires approved claim
+                  # Check if contributor is assigned to the bounty issue (claim approved)
+                  issue_data = gh_get(f"repos/{repo}/issues/{issue_num}")
+                  assignees = [a["login"].lower() for a in issue_data.get("assignees", [])]
+
+                  if user.lower() not in assignees:
+                      # Check issue comments for bot approval message as fallback
+                      comments = gh_get(f"repos/{repo}/issues/{issue_num}/comments?per_page=100")
+                      has_approval = False
+                      for c in comments:
+                          cbody = (c.get("body") or "")
+                          cauthor = c.get("user", {}).get("login", "")
+                          # Look for our bot's claim approval comment mentioning this user
+                          if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and ("approved" in cbody.lower() or "assigned" in cbody.lower()):
+                              has_approval = True
+                              break
+
+                      if not has_approval:
+                          msg = (
+                              f"⚠️ @{user} — **Tier 3 bounties require claiming before submitting.**\n\n"
+                              f"You meet the reputation requirements ✅ but you haven't claimed this bounty yet.\n\n"
+                              f"**To claim:** Comment on [issue #{issue_num}](https://github.com/{repo}/issues/{issue_num}) "
+                              f"with why you're a good fit. A maintainer will review and assign you.\n\n"
+                              f"Once assigned, resubmit your PR.\n\n"
+                              f"*— SolFoundry Bot 🏭*"
+                          )
+                          blocked = True
 
           if blocked:
               gh_post(f"repos/{repo}/issues/{pr_num}/comments", {"body": msg})
@@ -250,6 +388,55 @@ jobs:
           if [ "$APPROVED" -gt "0" ]; then
             echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
             echo "skip=true" >> $GITHUB_OUTPUT
+
+            # Check if PR is now mergeable (conflict resolved after rebase)
+            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null)
+            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null)
+            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null)
+            PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
+
+            if [ "$MERGEABLE" = "true" ]; then
+              # Extract bounty info for payout context
+              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null)
+              BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+              print(m.group(1) if m else '')
+              " 2>/dev/null)
+
+              WALLET=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:wallet|address)[:\s]*\`?([1-9A-HJ-NP-Za-km-z]{32,44})\`?', text, re.IGNORECASE)
+              if not m:
+                  m = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', text)
+              print(m.group(1) if m else 'not found')
+              " 2>/dev/null)
+
+              BOUNTY_INFO=""
+              if [ -n "$BOUNTY_NUM" ]; then
+                REWARD=$(gh api "repos/${{ github.repository }}/issues/${BOUNTY_NUM}" --jq '.body' 2>/dev/null | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(\d[\d,]*)\s*(?:\\\$FNDRY|FNDRY|\\\$)', text)
+              print(m.group(1) if m else 'unknown')
+              " 2>/dev/null)
+                BOUNTY_INFO="Bounty: #${BOUNTY_NUM} (${REWARD} \$FNDRY)"
+              fi
+
+              # Send Telegram notification
+              TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+              TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+              if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
+                curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                  -d "chat_id=${TELEGRAM_CHAT}" \
+                  -d "text=${MSG}" \
+                  -d "parse_mode=HTML" \
+                  -d "disable_web_page_preview=true" > /dev/null 2>&1
+              fi
+            fi
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi

@@ -196,7 +196,7 @@ jobs:
                       if pr["user"]["login"] != username or not pr.get("merged_at"):
                           continue
                       pr_body = pr.get("body", "") or ""
-                      linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
+                      linked = re.findall(r"(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)", pr_body, re.IGNORECASE)
                       for linked_num in linked:
                           tier = get_issue_tier(linked_num)
                           if tier == "tier-1":
@@ -242,25 +242,38 @@ jobs:
                   gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                   exit(0)
 
-              # Bulk claiming check: max 2 concurrent T3 claims per user
-              t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3,claimed&per_page=100")
+              # Bulk claiming check: max 1 active T3 claim per user
+              # Check both assignees AND approval comments (since assignment may not always be set)
+              t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3&per_page=100")
               user_t3_claims = set()
               if t3_issues:
                   for t3_issue in t3_issues:
                       t3_num = str(t3_issue.get("number", ""))
                       if t3_num == issue:
                           continue
-                      assignees = [a["login"] for a in t3_issue.get("assignees", [])]
-                      if user in assignees:
+                      # Check assignees
+                      assignees = [a["login"].lower() for a in t3_issue.get("assignees", [])]
+                      if user.lower() in assignees:
                           user_t3_claims.add(t3_num)
+                          continue
+                      # Check for bot approval comment (fallback when assignee not set)
+                      t3_comments, _ = gh_get(f"repos/{repo}/issues/{t3_num}/comments?per_page=50")
+                      if t3_comments:
+                          for c in t3_comments:
+                              cbody = (c.get("body") or "")
+                              cauthor = c.get("user", {}).get("login", "")
+                              if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and "claim has been approved" in cbody.lower():
+                                  user_t3_claims.add(t3_num)
+                                  break
 
-                  if len(user_t3_claims) >= 2:
-                      print(f"BULK CLAIMER: {user} has {len(user_t3_claims)} active T3 claims")
+                  if len(user_t3_claims) >= 1:
+                      claims_str = ", ".join(f"#{n}" for n in user_t3_claims)
+                      print(f"BULK CLAIMER: {user} has {len(user_t3_claims)} active T3 claim(s): {claims_str}")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
                       body = (
-                          f"⚠️ @{user} — You already have **{len(user_t3_claims)}** active T3 claims. "
-                          f"Please complete or release existing claims before taking on more.\n\n"
-                          f"Max **2 concurrent claims** for Tier 3 bounties.\n\n"
+                          f"⚠️ @{user} — You already have an active T3 claim (#{list(user_t3_claims)[0]}). "
+                          f"Please complete or release your existing claim before taking on another.\n\n"
+                          f"**One T3 bounty at a time** — these are large-scope projects that need full focus.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})

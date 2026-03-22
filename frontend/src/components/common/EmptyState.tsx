@@ -207,10 +207,10 @@ export interface NoBountiesProps {
 export function NoBountiesFound({ onReset, hasFilters = false, className = '' }: NoBountiesProps) {
   return (
     <EmptyState
-      icon="📋"
-      title="No bounties found"
-      description={hasFilters ? "Try adjusting your filters to see more results" : "Check back soon for new opportunities"}
-      actionLabel={hasFilters ? "Clear all filters" : undefined}
+      icon="🔍"
+      title={hasFilters ? 'No bounties match your search' : 'No bounties found'}
+      description={hasFilters ? 'Try adjusting your filters or search terms' : 'Check back soon for new opportunities'}
+      actionLabel={hasFilters ? 'Clear all filters' : undefined}
       onAction={hasFilters ? onReset : undefined}
       className={className}
       testId="empty-bounties"
