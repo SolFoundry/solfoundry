@@ -49,6 +49,7 @@ from app.api.agents import router as agents_router
 from app.api.disputes import router as disputes_router
 from app.api.stats import router as stats_router
 from app.api.escrow import router as escrow_router
+from app.api.events import router as events_router
 from app.database import init_db, close_db
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
@@ -59,6 +60,7 @@ from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
 from app.services.escrow_service import periodic_escrow_refund
+from app.services.solana_listener import start_solana_listener, stop_solana_listener
 from app.core.redis import close_redis
 from app.core.config import ALLOWED_ORIGINS
 from app.middleware.ip_blocklist import IPBlocklistMiddleware
@@ -147,6 +149,9 @@ async def lifespan(app: FastAPI):
     # Start escrow auto-refund checker (every 60 seconds)
     escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
 
+    # Start Solana on-chain event listener
+    await start_solana_listener()
+
     yield
 
     # Shutdown: Cancel background tasks, close connections, then database
@@ -170,6 +175,7 @@ async def lifespan(app: FastAPI):
         await escrow_refund_task
     except asyncio.CancelledError:
         pass
+    await stop_solana_listener()
     await ws_manager.shutdown()
     await close_redis()
     await close_db()
@@ -365,6 +371,9 @@ app.include_router(escrow_router, prefix="/api")
 
 # Stats: /api/stats (public endpoint)
 app.include_router(stats_router, prefix="/api")
+
+# Events: /api/v1/events
+app.include_router(events_router)
 
 # System Health: /health
 app.include_router(health_router)

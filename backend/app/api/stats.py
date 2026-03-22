@@ -43,6 +43,9 @@ class StatsResponse(BaseModel):
     total_prs_reviewed: int
     bounties_by_tier: Dict[str, TierStats]
     top_contributor: Optional[TopContributor]
+    # Additional analytics fields
+    completion_rate: Optional[float] = Field(None, description="Percentage of created bounties that were completed")
+    avg_time_to_completion_days: Optional[float] = Field(None, description="Average time from creation to completion in days")
 
 
 router = APIRouter(tags=["stats"])
@@ -56,26 +59,44 @@ def _compute_stats() -> dict:
     total_open = 0
     total_fndry_paid = 0
     total_prs_reviewed = 0
-    
+
+    # For avg time calculation
+    completion_timedeltas = []  # in days
+
     # Tier breakdown
     tier_stats: Dict[str, Dict[str, int]] = {
         "tier-1": {"open": 0, "completed": 0},
         "tier-2": {"open": 0, "completed": 0},
         "tier-3": {"open": 0, "completed": 0},
     }
-    
-    # Count bounties
+
+    # Count bounties and collect metrics
     for bounty in _bounty_store.values():
         # Status counts
         if bounty.status == "completed":
             total_completed += 1
             total_fndry_paid += bounty.reward_amount
-            
+
             # Count PRs from submissions
             total_prs_reviewed += len([s for s in bounty.submissions if s.pr_url])
+
+            # Compute time to completion if timestamps present
+            if bounty.created_at and bounty.updated_at:
+                try:
+                    created = bounty.created_at
+                    updated = bounty.updated_at
+                    # Both should be datetime; if strings, try to parse with fromisoformat
+                    if isinstance(created, str):
+                        created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if isinstance(updated, str):
+                        updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+                    delta_days = (updated - created).total_seconds() / 86400
+                    completion_timedeltas.append(delta_days)
+                except Exception:
+                    pass  # ignore errors
         elif bounty.status in ("open", "in_progress"):
             total_open += 1
-        
+
         # Tier counts
         tier = bounty.tier
         if tier in tier_stats:
@@ -83,10 +104,10 @@ def _compute_stats() -> dict:
                 tier_stats[tier]["completed"] += 1
             elif bounty.status in ("open", "in_progress"):
                 tier_stats[tier]["open"] += 1
-    
+
     # Contributor counts
     total_contributors = len(_contributor_store)
-    
+
     # Top contributor (by bounties_completed)
     top_contributor = None
     if _contributor_store:
@@ -99,7 +120,17 @@ def _compute_stats() -> dict:
                 "username": top.username,
                 "bounties_completed": top.total_bounties_completed,
             }
-    
+
+    # Compute extra analytics
+    completion_rate = (
+        (total_completed / total_created) * 100 if total_created > 0 else 0.0
+    )
+    avg_time = (
+        sum(completion_timedeltas) / len(completion_timedeltas)
+        if completion_timedeltas
+        else None
+    )
+
     return {
         "total_bounties_created": total_created,
         "total_bounties_completed": total_completed,
@@ -112,6 +143,10 @@ def _compute_stats() -> dict:
             for tier, data in tier_stats.items()
         },
         "top_contributor": top_contributor,
+        "completion_rate": round(completion_rate, 2),
+        "avg_time_to_completion_days": (
+            round(avg_time, 2) if avg_time is not None else None
+        ),
     }
 
 

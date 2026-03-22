@@ -1,5 +1,6 @@
 """GitHub webhook receiver endpoint."""
 
+import asyncio
 import json
 import logging
 import os
@@ -75,6 +76,31 @@ async def receive_github_webhook(
     except json.JSONDecodeError as exc:
         logger.error("Invalid JSON payload (delivery=%s): %s", delivery_id, exc)
         return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    # Extract common fields for event indexing
+    repo_obj = body.get("repository", {})
+    repo_full_name = repo_obj.get("full_name", "")
+    sender_login = body.get("sender", {}).get("login", "")
+
+    # Best-effort: Store raw GitHub event in the events table (non-blocking)
+    try:
+        from app.services.event_index_service import ingest_github_event
+        import asyncio
+
+        # Fire-and-forget ingestion; if fails, just log warning
+        asyncio.create_task(
+            ingest_github_event(
+                event_type=event_type,
+                payload=body,
+                delivery_id=delivery_id,
+                repo=repo_full_name,
+                sender=sender_login,
+                channel="github",
+                db=None,  # independent session
+            )
+        )
+    except Exception as e:
+        logger.warning("Failed to schedule GitHub event ingestion: %s", e)
 
     # Process event
     processor = WebhookProcessor(db)
