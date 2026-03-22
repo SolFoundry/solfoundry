@@ -2,19 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ActivityEvent, ActivityEventType } from '../../types/activity';
 import { SkeletonActivityFeed } from '../common/Skeleton';
 import { NoActivityYet } from '../common/EmptyState';
-
-// ── Relative time formatting ────────────────────────────────────────────────
-
-function formatRelativeTime(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + (minutes === 1 ? ' minute ago' : ' minutes ago');
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
-  const days = Math.floor(hours / 24);
-  return days + (days === 1 ? ' day ago' : ' days ago');
-}
+import { TimeAgo } from '../ui/TimeAgo';
 
 // ── Event type config ───────────────────────────────────────────────────────
 
@@ -98,13 +86,6 @@ export function ActivityFeed({
     staggerEntrance();
   }, [staggerEntrance]);
 
-  // Refresh relative timestamps every minute
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 60000);
-    return () => clearInterval(interval);
-  }, []);
-
   const isFullWidth = variant === 'full';
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -179,12 +160,10 @@ export function ActivityFeed({
                 <p className={'text-xs leading-relaxed ' + (isFullWidth ? 'sm:text-sm' : '')}>
                   <span className="text-gray-300">{buildDescription(event)}</span>
                 </p>
-                <time
+                <TimeAgo
+                  date={event.timestamp}
                   className="text-[11px] text-gray-600 mt-0.5 block"
-                  dateTime={event.timestamp}
-                >
-                  {formatRelativeTime(event.timestamp)}
-                </time>
+                />
               </div>
             </div>
           );
