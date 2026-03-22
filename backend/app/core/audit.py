@@ -44,9 +44,7 @@ def log_audit(
                 return result
             except Exception as exc:
                 details = get_details(*args, **kwargs) if get_details else {}
-                logger.warning(
-                    event, status="failure", error=str(exc), **details
-                )
+                logger.warning(event, status="failure", error=str(exc), **details)
                 raise exc
 
         @functools.wraps(func)
@@ -59,9 +57,7 @@ def log_audit(
                 return result
             except Exception as exc:
                 details = get_details(*args, **kwargs) if get_details else {}
-                logger.warning(
-                    event, status="failure", error=str(exc), **details
-                )
+                logger.warning(event, status="failure", error=str(exc), **details)
                 raise exc
 
         if asyncio.iscoroutinefunction(func):

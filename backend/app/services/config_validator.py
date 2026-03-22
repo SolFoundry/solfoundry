@@ -114,7 +114,9 @@ OPTIONAL_SECRETS: dict[str, dict] = {
 
 # Patterns that indicate hardcoded secrets in source code
 HARDCODED_SECRET_PATTERNS: list[re.Pattern] = [
-    re.compile(r"(password|secret|token|api_key|apikey)\s*=\s*['\"][^'\"]{8,}", re.IGNORECASE),
+    re.compile(
+        r"(password|secret|token|api_key|apikey)\s*=\s*['\"][^'\"]{8,}", re.IGNORECASE
+    ),
     re.compile(r"(ghp_|gho_|ghu_|ghs_|ghr_)[a-zA-Z0-9]{36,}", re.IGNORECASE),
     re.compile(r"sk-[a-zA-Z0-9]{20,}", re.IGNORECASE),
     re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----", re.IGNORECASE),
@@ -235,8 +237,15 @@ def validate_secrets(strict: bool = False) -> list[str]:
 
         # Check for common placeholder values
         placeholder_indicators = [
-            "your-", "xxx", "placeholder", "change-me", "todo",
-            "example", "test", "dummy", "fake",
+            "your-",
+            "xxx",
+            "placeholder",
+            "change-me",
+            "todo",
+            "example",
+            "test",
+            "dummy",
+            "fake",
         ]
         if any(indicator in value.lower() for indicator in placeholder_indicators):
             msg = f"Secret '{key}' appears to contain a placeholder value"
@@ -250,7 +259,9 @@ def validate_secrets(strict: bool = False) -> list[str]:
         )
 
     if not warnings:
-        logger.info("All %d required secrets validated successfully", len(REQUIRED_SECRETS))
+        logger.info(
+            "All %d required secrets validated successfully", len(REQUIRED_SECRETS)
+        )
 
     return warnings
 
@@ -278,16 +289,21 @@ def audit_source_for_secrets(file_path: str) -> list[dict]:
                         if any(
                             skip in file_path.lower()
                             for skip in [
-                                "test_", "conftest", ".example", "mock",
+                                "test_",
+                                "conftest",
+                                ".example",
+                                "mock",
                                 "config_validator",  # Contains example placeholder values
                             ]
                         ):
                             continue
-                        findings.append({
-                            "line": line_number,
-                            "pattern": pattern.pattern,
-                            "snippet": line.strip()[:100],
-                        })
+                        findings.append(
+                            {
+                                "line": line_number,
+                                "pattern": pattern.pattern,
+                                "snippet": line.strip()[:100],
+                            }
+                        )
     except (OSError, IOError) as error:
         logger.warning("Could not audit file %s: %s", file_path, error)
 

@@ -201,26 +201,24 @@ async def list_contributors(
         # fall back to CAST + LIKE when the JSON operator is unavailable.
         if skills:
             for skill in skills:
-                skill_filter = func.cast(
-                    ContributorTable.skills, String
-                ).like(f"%{skill}%")
+                skill_filter = func.cast(ContributorTable.skills, String).like(
+                    f"%{skill}%"
+                )
                 base_query = base_query.where(skill_filter)
                 count_query = count_query.where(skill_filter)
 
         if badges:
             for badge in badges:
-                badge_filter = func.cast(
-                    ContributorTable.badges, String
-                ).like(f"%{badge}%")
+                badge_filter = func.cast(ContributorTable.badges, String).like(
+                    f"%{badge}%"
+                )
                 base_query = base_query.where(badge_filter)
                 count_query = count_query.where(badge_filter)
 
         total_result = await db_session.execute(count_query)
         total = total_result.scalar() or 0
 
-        rows_result = await db_session.execute(
-            base_query.offset(skip).limit(limit)
-        )
+        rows_result = await db_session.execute(base_query.offset(skip).limit(limit))
         rows = rows_result.scalars().all()
 
         return ContributorListResponse(
@@ -287,9 +285,7 @@ async def get_contributor_by_username(
     async def _run(db_session: AsyncSession) -> Optional[ContributorResponse]:
         """Execute the lookup inside the given session."""
         result = await db_session.execute(
-            select(ContributorTable).where(
-                ContributorTable.username == username
-            )
+            select(ContributorTable).where(ContributorTable.username == username)
         )
         row = result.scalar_one_or_none()
         return _row_to_response(row) if row else None
@@ -303,7 +299,7 @@ async def get_contributor_by_username(
 
 async def get_contributor_by_token(token: str) -> Optional[ContributorResponse]:
     """Retrieve a contributor profile by unsubscribe token.
-    
+
     Used for one-click unsubscribe links without authentication.
     """
     async with async_session_factory() as session:
@@ -534,9 +530,7 @@ async def upsert_contributor(
         """Execute the upsert inside the given session."""
         username = row_data["username"]
         result = await db_session.execute(
-            select(ContributorTable).where(
-                ContributorTable.username == username
-            )
+            select(ContributorTable).where(ContributorTable.username == username)
         )
         existing = result.scalar_one_or_none()
 
@@ -608,9 +602,7 @@ async def count_contributors(
 
     async def _run(db_session: AsyncSession) -> int:
         """Execute the count inside the given session."""
-        result = await db_session.execute(
-            select(func.count(ContributorTable.id))
-        )
+        result = await db_session.execute(select(func.count(ContributorTable.id)))
         return result.scalar() or 0
 
     if session is not None:

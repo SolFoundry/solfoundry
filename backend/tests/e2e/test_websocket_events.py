@@ -55,9 +55,7 @@ class TestWebSocketConnection:
         assert fake_ws.close_code == 4001
 
     @pytest.mark.asyncio
-    async def test_reject_none_token(
-        self, websocket_manager: WebSocketManager
-    ) -> None:
+    async def test_reject_none_token(self, websocket_manager: WebSocketManager) -> None:
         """Verify connection is rejected when no token is provided."""
         fake_ws = FakeWebSocket()
         connection_id = await websocket_manager.connect(fake_ws, None)
@@ -98,7 +96,9 @@ class TestChannelSubscription:
 
         result = await websocket_manager.subscribe(connection_id, "bounty:updates")
         assert result is True
-        assert "bounty:updates" in websocket_manager._connections[connection_id].channels
+        assert (
+            "bounty:updates" in websocket_manager._connections[connection_id].channels
+        )
 
     @pytest.mark.asyncio
     async def test_subscribe_to_multiple_channels(
@@ -392,11 +392,13 @@ class TestMessageHandling:
 
         response = await websocket_manager.handle_message(
             cid,
-            json.dumps({
-                "type": "broadcast",
-                "channel": "test:channel",
-                "data": {"message": "hello"},
-            }),
+            json.dumps(
+                {
+                    "type": "broadcast",
+                    "channel": "test:channel",
+                    "data": {"message": "hello"},
+                }
+            ),
         )
         assert response["type"] == "broadcasted"
         assert response["recipients"] >= 1
@@ -534,11 +536,13 @@ class TestRealWebSocketEndpoint:
             assert sub_response["type"] == "subscribed"
 
             # Broadcast
-            ws.send_json({
-                "type": "broadcast",
-                "channel": "test:broadcast",
-                "data": {"message": "hello from real endpoint"},
-            })
+            ws.send_json(
+                {
+                    "type": "broadcast",
+                    "channel": "test:broadcast",
+                    "data": {"message": "hello from real endpoint"},
+                }
+            )
             # The manager delivers the broadcast to subscribers and then
             # returns a "broadcasted" acknowledgment. Collect both.
             first_msg = ws.receive_json()

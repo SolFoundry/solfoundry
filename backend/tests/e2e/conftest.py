@@ -251,6 +251,7 @@ def authenticated_user_id() -> str:
         A UUID string suitable for use in ``X-User-ID`` or Bearer headers.
     """
     from tests.e2e.factories import build_user_id
+
     return build_user_id()
 
 

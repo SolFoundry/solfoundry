@@ -30,9 +30,7 @@ database_url = os.getenv(
     "postgresql+asyncpg://postgres:postgres@localhost/solfoundry",
 )
 if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-    database_url = database_url.replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 config.set_main_option("sqlalchemy.url", database_url)
 
 
