@@ -92,10 +92,10 @@ describe('MarkdownRenderer', () => {
     expect(bq?.textContent?.trim()).toBe('quoted text');
   });
 
-  it('renders a table', () => {
+  it('does not render GFM pipe markdown as an HTML table without GFM plugin', () => {
     const md = '| A | B |\n|---|---|\n| 1 | 2 |';
-    render(<MarkdownRenderer content={md} />);
-    expect(document.querySelector('table')).toBeTruthy();
+    const { container } = render(<MarkdownRenderer content={md} />);
+    expect(container.querySelector('table')).toBeNull();
   });
 
   it('applies custom className to wrapper', () => {

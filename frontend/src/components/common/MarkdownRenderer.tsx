@@ -2,6 +2,7 @@
  * MarkdownRenderer — Reusable component for rendering Markdown content safely.
  *
  * Uses react-markdown for parsing and react-syntax-highlighter for code blocks.
+ * CommonMark only — GFM pipe tables are not parsed as HTML tables (no extra remark plugins).
  * All links open in a new tab with rel="noopener noreferrer" for security.
  * HTML output is XSS-safe: react-markdown does not use dangerouslySetInnerHTML.
  *
@@ -9,7 +10,6 @@
  */
 import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Components } from 'react-markdown';
@@ -135,7 +135,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
         `[&_ol]:text-gray-700 [&_ol]:dark:text-gray-300 ${className ?? ''}`
       }
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown components={components}>
         {content}
       </ReactMarkdown>
     </div>
