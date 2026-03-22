@@ -24,8 +24,8 @@ function FooterBrand() {
 
 function FooterLinks({ className = '' }: { className?: string }) {
   return (
-    <nav aria-label="Footer social links" className={`flex items-center gap-1 ${className}`}>
-      <ul className="flex items-center gap-1 list-none m-0 p-0">
+    <nav aria-label="Footer social links">
+      <ul className={`flex items-center gap-1 list-none m-0 p-0 ${className}`}>
         {FOOTER_LINKS.map((link) => (
           <li key={link.label}>
             <a
