@@ -18,10 +18,24 @@ export interface TimeAgoProps {
 }
 
 /**
+ * Validates if a date input is valid.
+ * Returns true if the date is valid, false otherwise.
+ */
+function isValidDate(date: string | Date | number): boolean {
+  const d = new Date(date);
+  return !isNaN(d.getTime());
+}
+
+/**
  * Formats a date into a relative time string.
  * Returns formats like: 'just now', '5m ago', '2h ago', '3d ago', 'Mar 15'
  */
 export function formatTimeAgo(date: string | Date | number): string {
+  // Handle invalid dates
+  if (!isValidDate(date)) {
+    return 'Invalid date';
+  }
+
   const now = Date.now();
   const then = new Date(date).getTime();
   const diffMs = now - then;
@@ -50,7 +64,7 @@ export function formatTimeAgo(date: string | Date | number): string {
   if (minutes < 1) return `${seconds}s ago`;
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
+  if (days <= 7) return `${days}d ago`;
 
   // More than 7 days: show date
   return new Date(then).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -60,6 +74,9 @@ export function formatTimeAgo(date: string | Date | number): string {
  * Formats a date into a full datetime string for tooltip display.
  */
 export function formatFullDate(date: string | Date | number): string {
+  if (!isValidDate(date)) {
+    return 'Invalid date';
+  }
   const d = new Date(date);
   return d.toLocaleString('en-US', {
     month: 'short',
@@ -83,30 +100,33 @@ export function TimeAgo({
   className = '',
   updateInterval = 60000, // 1 minute default
 }: TimeAgoProps) {
-  const [timeAgo, setTimeAgo] = useState(() => formatTimeAgo(date));
-  const fullDate = useMemo(() => formatFullDate(date), [date]);
+  // Handle invalid dates gracefully
+  const safeDate = isValidDate(date) ? date : new Date().toISOString();
+  
+  const [timeAgo, setTimeAgo] = useState(() => formatTimeAgo(safeDate));
+  const fullDate = useMemo(() => formatFullDate(safeDate), [safeDate]);
 
   useEffect(() => {
     // Update immediately when date changes
-    setTimeAgo(formatTimeAgo(date));
+    setTimeAgo(formatTimeAgo(safeDate));
 
     // Set up interval for auto-updates (only for recent items)
-    const then = new Date(date).getTime();
+    const then = new Date(safeDate).getTime();
     const diffDays = (Date.now() - then) / 86400000;
 
-    // Only auto-update if less than 7 days old
-    if (diffDays < 7) {
+    // Only auto-update if 7 days or less old
+    if (diffDays <= 7) {
       const interval = setInterval(() => {
-        setTimeAgo(formatTimeAgo(date));
+        setTimeAgo(formatTimeAgo(safeDate));
       }, updateInterval);
 
       return () => clearInterval(interval);
     }
-  }, [date, updateInterval]);
+  }, [safeDate, updateInterval]);
 
   return (
     <time
-      dateTime={new Date(date).toISOString()}
+      dateTime={new Date(safeDate).toISOString()}
       title={fullDate}
       className={`cursor-help ${className}`}
     >

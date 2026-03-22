@@ -30,7 +30,7 @@ describe('formatTimeAgo', () => {
   it('returns minutes for dates under an hour', () => {
     expect(formatTimeAgo(new Date('2026-03-22T11:59:00Z'))).toBe('1m ago');
     expect(formatTimeAgo(new Date('2026-03-22T11:55:00Z'))).toBe('5m ago');
-    expect(formatTimeAgo(new Date('2026-03-22T11:00:00Z'))).toBe('60m ago');
+    expect(formatTimeAgo(new Date('2026-03-22T11:01:00Z'))).toBe('59m ago');
   });
 
   it('returns hours for dates under a day', () => {
@@ -56,6 +56,12 @@ describe('formatTimeAgo', () => {
     expect(formatTimeAgo(new Date('2026-03-22T12:05:00Z'))).toBe('in 5m');
     expect(formatTimeAgo(new Date('2026-03-22T14:00:00Z'))).toBe('in 2h');
     expect(formatTimeAgo(new Date('2026-03-25T12:00:00Z'))).toBe('in 3d');
+  });
+
+  it('handles invalid dates', () => {
+    expect(formatTimeAgo('invalid-date')).toBe('Invalid date');
+    expect(formatTimeAgo('')).toBe('Invalid date');
+    expect(formatTimeAgo(NaN)).toBe('Invalid date');
   });
 });
 
