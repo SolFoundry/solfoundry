@@ -137,7 +137,7 @@ async def list_bounties(
     ),
     sort: str = Query(
         "newest",
-        description="Sort order: newest, reward_high, reward_low, deadline, submissions",
+        description="Sort: newest, oldest, reward_high, reward_low, tier_high, deadline, submissions, best_match",
     ),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(

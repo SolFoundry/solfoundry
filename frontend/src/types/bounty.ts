@@ -1,6 +1,14 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type BountyStatus = 'open' | 'in-progress' | 'under_review' | 'completed' | 'disputed' | 'paid' | 'cancelled';
-export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
+export type BountySortBy =
+  | 'newest'
+  | 'oldest'
+  | 'reward_high'
+  | 'reward_low'
+  | 'tier_high'
+  | 'deadline'
+  | 'submissions'
+  | 'best_match';
 export type SubmissionStatus = 'pending' | 'approved' | 'disputed' | 'paid' | 'rejected';
 
 export interface ModelReviewScore {
@@ -153,14 +161,29 @@ export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = 
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+/** Primary sort modes (acceptance) plus extra board options. Order = dropdown order. */
 export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [
   { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
   { value: 'reward_high', label: 'Highest Reward' },
   { value: 'reward_low', label: 'Lowest Reward' },
+  { value: 'tier_high', label: 'Tier (high to low)' },
   { value: 'deadline', label: 'Ending Soon' },
   { value: 'submissions', label: 'Most Submissions' },
   { value: 'best_match', label: 'Best Match' },
 ];
+
+/** Arrow hint for the active sort (ascending vs descending primary key). */
+export function bountySortDirection(sort: BountySortBy): 'asc' | 'desc' {
+  switch (sort) {
+    case 'oldest':
+    case 'reward_low':
+    case 'deadline':
+      return 'asc';
+    default:
+      return 'desc';
+  }
+}
 
 export const CREATOR_TYPE_OPTIONS: { value: 'all' | 'platform' | 'community'; label: string }[] = [
   { value: 'all', label: 'All Creators' },

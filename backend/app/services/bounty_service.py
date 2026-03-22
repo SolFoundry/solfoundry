@@ -359,7 +359,8 @@ async def list_bounties(
         creator_type: Filter by 'platform' or 'community'.
         reward_min: Minimum reward amount.
         reward_max: Maximum reward amount.
-        sort: Sort order (newest, reward_high, reward_low, deadline, submissions).
+        sort: Sort order (newest, oldest, reward_high, reward_low, tier_high,
+            deadline, submissions).
         skip: Number of results to skip for pagination.
         limit: Maximum results per page.
 
@@ -395,12 +396,16 @@ async def list_bounties(
         results.sort(key=lambda b: b.reward_amount, reverse=True)
     elif sort == "reward_low":
         results.sort(key=lambda b: b.reward_amount)
+    elif sort == "tier_high":
+        results.sort(key=lambda b: int(b.tier), reverse=True)
     elif sort == "deadline":
         results.sort(
             key=lambda b: b.deadline.timestamp() if b.deadline else float("inf")
         )
     elif sort == "submissions":
         results.sort(key=lambda b: len(b.submissions), reverse=True)
+    elif sort == "oldest":
+        results.sort(key=lambda b: b.created_at)
     else:
         results.sort(key=lambda b: b.created_at, reverse=True)
 

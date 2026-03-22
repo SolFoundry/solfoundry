@@ -126,6 +126,7 @@ describe('Page+Board', () => {
   it('renders all cards with filters', async () => {
     renderWithRouter(<BountyBoard />);
     expect(screen.getByText('Bounty Marketplace')).toBeInTheDocument();
+    expect(screen.getByTestId('bounty-sort-select')).toBeInTheDocument();
     await waitFor(() => {
       expect(within(screen.getByTestId('bounty-grid')).getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
     });
@@ -321,6 +322,20 @@ describe('useBountyBoard with React Query', () => {
     });
 
     expect(result.current.sortBy).toBe('reward_high');
+  });
+
+  it('reads oldest and tier_high sort from URL search params', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: PER_PAGE, query: '' }));
+
+    const { result: r1 } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?sort=oldest']),
+    });
+    expect(r1.current.sortBy).toBe('oldest');
+
+    const { result: r2 } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?sort=tier_high']),
+    });
+    expect(r2.current.sortBy).toBe('tier_high');
   });
 
   it('defaults invalid page param to 1', async () => {
