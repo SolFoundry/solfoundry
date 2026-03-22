@@ -1,0 +1,38 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 16px;">Review Complete 📋</h2>
+<p>Hi {{ username }}, your submission has been reviewed.</p>
+
+<div class="metadata">
+    <strong>Bounty ID:</strong> <span style="font-family: monospace;">{{ bounty_id }}</span><br>
+    {% if extra_data %}
+        {% if extra_data.pr_url %}
+            <strong>PR URL:</strong> <a href="{{ extra_data.pr_url }}" style="color: #9945FF;">{{ extra_data.pr_url }}</a><br>
+        {% endif %}
+        {% if extra_data.bounty_title %}
+            <strong>Bounty:</strong> {{ extra_data.bounty_title }}<br>
+        {% endif %}
+        {% if extra_data.review_status %}
+            <strong>Status:</strong> {{ extra_data.review_status }}<br>
+        {% endif %}
+        {% if extra_data.ai_score %}
+            <strong>AI Score:</strong> {{ extra_data.ai_score }}/10<br>
+        {% endif %}
+        {% if extra_data.feedback %}
+            <strong>Feedback:</strong> {{ extra_data.feedback }}<br>
+        {% endif %}
+        {% if extra_data.reward_amount %}
+            <strong>Reward:</strong> {{ extra_data.reward_amount }} $FNDRY<br>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% if extra_data.approved %}
+<p style="margin-top: 20px; color: #14F195; font-weight: bold;">🎉 Congratulations! Your PR has been approved!</p>
+{% else %}
+<p style="margin-top: 20px;">Check the feedback and make any necessary updates to your PR.</p>
+{% endif %}
+
+<a href="{{ dashboard_url }}" class="button">View Dashboard</a>
+{% endblock %}

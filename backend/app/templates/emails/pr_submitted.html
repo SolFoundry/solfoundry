@@ -1,0 +1,30 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 16px;">PR Submitted! 🚀</h2>
+<p>Hi {{ username }}, your pull request has been submitted and is under review.</p>
+
+<div class="metadata">
+    <strong>Bounty ID:</strong> <span style="font-family: monospace;">{{ bounty_id }}</span><br>
+    {% if extra_data %}
+        {% if extra_data.pr_url %}
+            <strong>PR URL:</strong> <a href="{{ extra_data.pr_url }}" style="color: #9945FF;">{{ extra_data.pr_url }}</a><br>
+        {% endif %}
+        {% if extra_data.bounty_title %}
+            <strong>Bounty:</strong> {{ extra_data.bounty_title }}<br>
+        {% endif %}
+        {% if extra_data.pr_number %}
+            <strong>PR #:</strong> {{ extra_data.pr_number }}<br>
+        {% endif %}
+        {% if extra_data.reward_amount %}
+            <strong>Reward:</strong> {{ extra_data.reward_amount }} $FNDRY<br>
+        {% endif %}
+    {% endif %}
+</div>
+
+<p style="margin-top: 20px;">The AI reviewer will evaluate your submission. You'll be notified when the review is complete.</p>
+
+{% if extra_data.pr_url %}
+<a href="{{ extra_data.pr_url }}" class="button">View Your PR</a>
+{% endif %}
+{% endblock %}

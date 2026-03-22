@@ -1,0 +1,28 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 16px;">Bounty Claimed! 🎉</h2>
+<p>Hi {{ username }}, you've successfully claimed a bounty on SolFoundry.</p>
+
+<div class="metadata">
+    <strong>Bounty ID:</strong> <span style="font-family: monospace;">{{ bounty_id }}</span><br>
+    {% if extra_data %}
+        {% if extra_data.bounty_title %}
+            <strong>Title:</strong> {{ extra_data.bounty_title }}<br>
+        {% endif %}
+        {% if extra_data.tier %}
+            <strong>Tier:</strong> {{ extra_data.tier }}<br>
+        {% endif %}
+        {% if extra_data.reward_amount %}
+            <strong>Reward:</strong> {{ extra_data.reward_amount }} $FNDRY<br>
+        {% endif %}
+        {% if extra_data.deadline %}
+            <strong>Deadline:</strong> {{ extra_data.deadline }}<br>
+        {% endif %}
+    {% endif %}
+</div>
+
+<p style="margin-top: 20px;">Time to start coding! Submit a quality PR before the deadline.</p>
+
+<a href="{{ dashboard_url }}" class="button">View in Dashboard</a>
+{% endblock %}

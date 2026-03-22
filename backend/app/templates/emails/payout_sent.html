@@ -1,0 +1,29 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 16px;">💰 Payout Sent!</h2>
+<p>Hi {{ username }}, your FNDRY tokens are on the way!</p>
+
+<div class="metadata">
+    <strong>Bounty ID:</strong> <span style="font-family: monospace;">{{ bounty_id }}</span><br>
+    {% if extra_data %}
+        {% if extra_data.bounty_title %}
+            <strong>Bounty:</strong> {{ extra_data.bounty_title }}<br>
+        {% endif %}
+        {% if extra_data.payout_amount %}
+            <strong>Amount:</strong> {{ extra_data.payout_amount }} $FNDRY<br>
+        {% endif %}
+        {% if extra_data.tx_signature %}
+            <strong>Transaction:</strong>
+            <a href="https://solscan.io/tx/{{ extra_data.tx_signature }}" style="color: #9945FF; font-family: monospace;">{{ extra_data.tx_signature[:20] }}...</a><br>
+        {% endif %}
+        {% if extra_data.wallet_address %}
+            <strong>To:</strong> <span style="font-family: monospace;">{{ extra_data.wallet_address }}</span><br>
+        {% endif %}
+    {% endif %}
+</div>
+
+<p style="margin-top: 20px;">Check your Solana wallet — funds should arrive shortly!</p>
+
+<a href="{{ dashboard_url }}" class="button">View Earnings</a>
+{% endblock %}

@@ -258,7 +258,7 @@ class NotificationService:
         # 2. Check preferences
         if not contributor.email_notifications_enabled:
             return
-        
+
         # Check specific preference
         prefs = contributor.notification_preferences or {}
         if not prefs.get(notification_type, True):
@@ -268,24 +268,51 @@ class NotificationService:
         if not await can_send_email(user_id):
             return
 
-        # 4. Send email
+        # 4. Route to type-specific template
+        TEMPLATE_MAP = {
+            "bounty_claimed": "bounty_claimed",
+            "pr_submitted": "pr_submitted",
+            "review_complete": "review_complete",
+            "payout_sent": "payout_sent",
+            "payout_initiated": "payout_sent",
+            "payout_confirmed": "payout_sent",
+            "new_bounty_matching_skills": "new_bounty",
+        }
+        template_name = TEMPLATE_MAP.get(notification_type, "notification")
+
+        # 5. Build context
         context = {
             "title": title,
             "message": message,
             "bounty_id": bounty_id,
-            "extra_data": extra_data,
+            "extra_data": extra_data or {},
             "unsubscribe_token": contributor.unsubscribe_token,
-            "username": contributor.username
+            "username": contributor.username,
+            # Per-type context helpers
+            "bounty_title": extra_data.get("bounty_title") if extra_data else None,
+            "reward_amount": extra_data.get("reward_amount") if extra_data else None,
+            "tier": extra_data.get("tier") if extra_data else None,
+            "skills": extra_data.get("skills", []) if extra_data else [],
+            "bounty_url": extra_data.get("bounty_url") if extra_data else None,
+            "pr_url": extra_data.get("pr_url") if extra_data else None,
+            "pr_number": extra_data.get("pr_number") if extra_data else None,
+            "review_status": extra_data.get("review_status") if extra_data else None,
+            "ai_score": extra_data.get("ai_score") if extra_data else None,
+            "feedback": extra_data.get("feedback") if extra_data else None,
+            "approved": extra_data.get("approved", False) if extra_data else False,
+            "payout_amount": extra_data.get("payout_amount") if extra_data else None,
+            "tx_signature": extra_data.get("tx_signature") if extra_data else None,
+            "wallet_address": extra_data.get("wallet_address") if extra_data else None,
         }
-        
+
         success = await send_notification_email(
             to=contributor.email,
             subject=f"[SolFoundry] {title}",
-            template_name="notification",
+            template_name=template_name,
             context=context
         )
 
-        # 5. Increment count on success
+        # 6. Increment count on success
         if success:
             await increment_email_count(user_id)
 
