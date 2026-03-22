@@ -63,7 +63,7 @@ jobs:
           fi
 
           # Rate limit: max 5 open PRs per author + max 10 PRs opened in 24h
-          # Generous enough for resubmissions but catches bot spam
+          # High-rep contributors (3+ merged bounty PRs) get higher limits
           RATE_CHECK=$(python3 -c "
           import json, urllib.request, os, sys
           from datetime import datetime, timedelta, timezone
@@ -71,14 +71,19 @@ jobs:
           token = os.environ['GH_TOKEN']
           repo = '${{ github.repository }}'
           author = '$PR_AUTHOR'
-          MAX_OPEN = 5
-          MAX_DAILY = 10
 
           def gh_get(url):
               req = urllib.request.Request(url)
               req.add_header('Authorization', f'token {token}')
               req.add_header('Accept', 'application/vnd.github.v3+json')
               return json.loads(urllib.request.urlopen(req).read().decode())
+
+          # Check merged PR count for reputation
+          merged = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+state:closed+author:{author}+is:merged').get('total_count', 0)
+          high_rep = merged >= 3
+
+          MAX_OPEN = 10 if high_rep else 5
+          MAX_DAILY = 20 if high_rep else 10
 
           open_count = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+state:open+author:{author}').get('total_count', 0)
           since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime('%Y-%m-%d')
