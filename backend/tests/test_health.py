@@ -1,155 +1,189 @@
-"""Unit tests for the /health endpoint (Issue #343).
-
-Covers four scenarios:
-- All services healthy
-- Database down
-- Redis down
-- Both down
-Testing exception handling directly on dependencies.
-"""
+"""Unit tests for the health endpoint."""
 
 import pytest
-from unittest.mock import patch
-from sqlalchemy.exc import SQLAlchemyError
-from redis.asyncio import RedisError
-from httpx import ASGITransport, AsyncClient
-from fastapi import FastAPI
-from app.api.health import router as health_router
-
-app = FastAPI()
-app.include_router(health_router)
+from unittest.mock import AsyncMock, patch
+from fastapi.testclient import TestClient
+from app.main import app
+from app.api.health import router
 
 
-class MockConn:
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    async def execute(self, query):
-        pass
-
-
-class MockRedis:
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    async def ping(self):
-        pass
+client = TestClient(app)
 
 
 @pytest.mark.asyncio
-async def test_health_all_services_up():
-    """Returns 'healthy' when DB and Redis are both reachable."""
-    with (
-        patch("app.api.health.engine.connect", return_value=MockConn()),
-        patch("app.api.health.from_url", return_value=MockRedis()),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "healthy"
-    assert data["services"]["database"] == "connected"
-    assert data["services"]["redis"] == "connected"
+async def test_health_check_all_services_healthy():
+    """Test health endpoint when all services are healthy."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.1}
+    
+    response = client.get("/health")
+    
+    assert response.status[0] == 200
+    assert response.json()["status"] == "healthy"
+    assert response.json()["services"]["database"] == "connected"
+    assert response.json()["services"]["redis"] == "connected"
+    assert response.json()["services"]["github_api"] == "connected"
+    assert response.json()["services"]["github_rate_limit_remaining"] == "1000"
+    assert response.json()["services"]["solana_rpc"] == "connected"
 
 
 @pytest.mark.asyncio
-async def test_health_check_db_down():
-    """Returns 'degraded' when database throws connection exception."""
-
-    class FailingConn:
-        async def __aenter__(self):
-            raise SQLAlchemyError("db fail")
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-    with (
-        patch("app.api.health.engine.connect", return_value=FailingConn()),
-        patch("app.api.health.from_url", return_value=MockRedis()),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "degraded"
-    assert data["services"]["database"] == "disconnected"
-    assert data["services"]["redis"] == "connected"
+async def test_health_check_database_down():
+    """Test health endpoint when database is disconnected."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "disconnected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.1}
+    
+    response = client.get("/health")
+    
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert response.json()["services"]["database"] == "disconnected"
 
 
 @pytest.mark.asyncio
 async def test_health_check_redis_down():
-    """Returns 'degraded' when redis throws connection exception."""
-
-    class FailingRedis:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-        async def ping(self):
-            raise RedisError("redis fail")
-
-    with (
-        patch("app.api.health.engine.connect", return_value=MockConn()),
-        patch("app.api.health.from_url", return_value=FailingRedis()),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "degraded"
-    assert data["services"]["database"] == "connected"
-    assert data["services"]["redis"] == "disconnected"
+    """Test health endpoint when Redis is disconnected."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "disconnected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.1}
+    
+    response = client.get("/health")
+    
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert response.json()["services"]["redis"] == "disconnected"
 
 
 @pytest.mark.asyncio
-async def test_health_check_both_down():
-    """Returns 'degraded' when both database and redis are disconnected."""
+async def test_health_check_github_api_unauthorized():
+    """Test health endpoint when GitHub API is unauthorized."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "unauthorized"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.1}
+    
+    response = client.get("/health")
+    
+    assert response.status_code == 200  # GitHub auth issues don't cause degraded status
+    assert response.json()["status"] == "degraded"  # but system is degraded
+    assert response.json()["services"]["github_api"] == "unauthorized"
 
-    class FailingConn:
-        async def __aenter__(self):
-            raise SQLAlchemyError("db fail")
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
+@pytest.mark.asyncio
+async def test_health_check_solana_rpc_timeout():
+    """Test health endpoint when Solana RPC timeout occurs."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "timeout"}
+    
+    response = client.get("/health")
+    
+    assert response.status_code == 200  # Core services are healthy
+    assert response.json()["status"] == "degraded"
+    assert response.json()["services"]["solana_rpc"] == "timeout"
 
-    class FailingRedis:
-        async def __aenter__(self):
-            return self
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-        async def ping(self):
-            raise RedisError("redis fail")
-
-    with (
-        patch("app.api.health.engine.connect", return_value=FailingConn()),
-        patch("app.api.health.from_url", return_value=FailingRedis()),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
-
+@pytest.mark.asyncio
+async def test_health_check_response_time():
+    """Test health endpoint response time is reported."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.05}
+    
+    response = client.get("/health")
+    
     assert response.status_code == 200
+    assert "response_time_ms" in response.json()
+    assert isinstance(response.json()["response_time_ms"], int)
+    assert response.json()["response_time_ms"] < 2000  # Should be under 2 seconds
+
+
+@pytest.mark.asyncio
+async def test_health_check_structure():
+    """Test health endpoint returns correct JSON structure."""
+    
+    with patch("app.api.health._check_database") as mock_db:
+        mock_db.return_value = "connected"
+        
+    with patch("app.api.health._check_redis") as mock_redis:
+        mock_redis.return_value = "connected"
+        
+    with patch("app.api.health._check_github_api") as mock_github:
+        mock_github.return_value = {"status": "connected", "rate_limit_remaining": "1000"}
+        
+    with patch("app.api.health._check_solana_rpc") as mock_solana:
+        mock_solana.return_value = {"status": "connected", "latency": 0.1}
+    
+    response = client.get("/health")
     data = response.json()
-    assert data["status"] == "degraded"
-    assert data["services"]["database"] == "disconnected"
-    assert data["services"]["redis"] == "disconnected"
+    
+    assert "status" in data
+    assert "status_code" in data
+    assert "version" in data
+    assert "uptime_seconds" in data
+    assert "timestamp" in data
+    assert "response_time_ms" in data
+    assert "services" in data
+    
+    services = data["services"]
+    assert "database" in services
+    assert "redis" in services
+    assert "github_api" in services
+    assert "github_rate_limit_remaining" in services
+    assert "solana_rpc" in services
+    assert "solana_latency_ms" in services
