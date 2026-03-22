@@ -9,6 +9,8 @@ import type { Bounty, BountyBoardFilters, BountySortBy, SearchResponse, BountyTi
 import { DEFAULT_FILTERS } from '../types/bounty';
 import { apiClient } from '../services/apiClient';
 
+export const PER_PAGE = 12;
+
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
 const STATUS_MAP: Record<string, BountyStatus> = {
   open: 'open',
@@ -19,54 +21,6 @@ const STATUS_MAP: Record<string, BountyStatus> = {
   paid: 'paid',
   cancelled: 'cancelled',
 };
-
-/** Map raw API bounty response to strongly-typed Bounty object. */
-function mapApiBounty(raw: Record<string, unknown>): Bounty {
-  return {
-    id: String(raw.id ?? ''),
-    title: String(raw.title ?? ''),
-    description: String(raw.description ?? ''),
-    tier: TIER_MAP[Number(raw.tier)] || (typeof raw.tier === 'string' ? raw.tier as Bounty['tier'] : 'T2'),
-    skills: (Array.isArray(raw.required_skills) ? raw.required_skills : Array.isArray(raw.skills) ? raw.skills : []) as string[],
-    rewardAmount: Number(raw.reward_amount ?? raw.rewardAmount ?? 0),
-    currency: '$FNDRY',
-    deadline: String(raw.deadline || new Date(Date.now() + 7 * 86400000).toISOString()),
-    status: STATUS_MAP[String(raw.status)] || (typeof raw.status === 'string' ? raw.status as Bounty['status'] : 'open'),
-    submissionCount: Number(raw.submission_count ?? raw.submissionCount ?? 0),
-    createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
-    projectName: String(raw.created_by || raw.projectName || 'SolFoundry'),
-    creatorType: (String(raw.creator_type || raw.creatorType || 'platform')) as Bounty['creatorType'],
-    githubIssueUrl: raw.github_issue_url || raw.githubIssueUrl ? String(raw.github_issue_url || raw.githubIssueUrl) : undefined,
-    relevanceScore: Number(raw.relevance_score ?? 0),
-    skillMatchCount: Number(raw.skill_match_count ?? 0),
-  };
-}
-
-/** Build URLSearchParams from current filters, sort, and pagination. */
-function buildSearchParams(
-  filters: BountyBoardFilters, sortBy: BountySortBy, page: number, perPage: number,
-): URLSearchParams {
-  const searchParams = new URLSearchParams();
-  if (filters.searchQuery.trim()) searchParams.set('q', filters.searchQuery.trim());
-  if (filters.tier !== 'all') {
-    const tierNum = filters.tier === 'T1' ? '1' : filters.tier === 'T2' ? '2' : '3';
-    searchParams.set('tier', tierNum);
-  }
-  if (filters.status !== 'all') {
-    const statusMap: Record<string, string> = { open: 'open', 'in-progress': 'in_progress', completed: 'completed' };
-    searchParams.set('status', statusMap[filters.status] || filters.status);
-  }
-  if (filters.skills.length) searchParams.set('skills', filters.skills.join(','));
-  if (filters.rewardMin) searchParams.set('reward_min', filters.rewardMin);
-  if (filters.rewardMax) searchParams.set('reward_max', filters.rewardMax);
-  if (filters.creatorType !== 'all') searchParams.set('creator_type', filters.creatorType);
-  if (filters.category !== 'all') searchParams.set('category', filters.category);
-  if (filters.deadlineBefore) searchParams.set('deadline_before', new Date(filters.deadlineBefore + 'T23:59:59Z').toISOString());
-  searchParams.set('sort', sortBy);
-  searchParams.set('page', String(page));
-  searchParams.set('per_page', String(perPage));
-  return searchParams;
-}
 
 const SORT_COMPAT: Record<string, BountySortBy> = { reward: 'reward_high' };
 
@@ -104,6 +58,54 @@ function parseUrlParams(params: URLSearchParams): Partial<BountyBoardFilters> & 
   const pageNum = Number(page);
   if (page && Number.isFinite(pageNum) && pageNum > 0) result.page = pageNum;
   return result;
+}
+
+/** Map raw API bounty response to strongly-typed Bounty object. */
+function mapApiBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: String(raw.id ?? ''),
+    title: String(raw.title ?? ''),
+    description: String(raw.description ?? ''),
+    tier: TIER_MAP[Number(raw.tier)] || (typeof raw.tier === 'string' ? raw.tier as Bounty['tier'] : 'T2'),
+    skills: (Array.isArray(raw.required_skills) ? raw.required_skills : Array.isArray(raw.skills) ? raw.skills : []) as string[],
+    rewardAmount: Number(raw.reward_amount ?? raw.rewardAmount ?? 0),
+    currency: '$FNDRY',
+    deadline: String(raw.deadline || new Date(Date.now() + 7 * 86400000).toISOString()),
+    status: STATUS_MAP[String(raw.status)] || (typeof raw.status === 'string' ? raw.status as Bounty['status'] : 'open'),
+    submissionCount: Number(raw.submission_count ?? raw.submissionCount ?? 0),
+    createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
+    projectName: String(raw.created_by || raw.projectName || 'SolFoundry'),
+    creatorType: (String(raw.creator_type || raw.creatorType || 'platform')) as Bounty['creatorType'],
+    githubIssueUrl: raw.github_issue_url || raw.githubIssueUrl ? String(raw.github_issue_url || raw.githubIssueUrl) : undefined,
+    relevanceScore: Number(raw.relevance_score ?? 0),
+    skillMatchCount: Number(raw.skill_match_count ?? 0),
+  };
+}
+
+/** Build URLSearchParams for the API request (not for the browser URL). */
+function buildApiParams(
+  filters: BountyBoardFilters, sortBy: BountySortBy, page: number,
+): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.searchQuery.trim()) params.set('q', filters.searchQuery.trim());
+  if (filters.tier !== 'all') {
+    const tierNum = filters.tier === 'T1' ? '1' : filters.tier === 'T2' ? '2' : '3';
+    params.set('tier', tierNum);
+  }
+  if (filters.status !== 'all') {
+    const statusMap: Record<string, string> = { open: 'open', 'in-progress': 'in_progress', completed: 'completed' };
+    params.set('status', statusMap[filters.status] || filters.status);
+  }
+  if (filters.skills.length) params.set('skills', filters.skills.join(','));
+  if (filters.rewardMin) params.set('reward_min', filters.rewardMin);
+  if (filters.rewardMax) params.set('reward_max', filters.rewardMax);
+  if (filters.creatorType !== 'all') params.set('creator_type', filters.creatorType);
+  if (filters.category !== 'all') params.set('category', filters.category);
+  if (filters.deadlineBefore) params.set('deadline_before', new Date(filters.deadlineBefore + 'T23:59:59Z').toISOString());
+  params.set('sort', sortBy);
+  params.set('page', String(page));
+  params.set('per_page', String(PER_PAGE));
+  return params;
 }
 
 /** Sort bounties by the given field, returning a new sorted array. */
@@ -159,16 +161,17 @@ export function useBountyBoard() {
     return (SORT_COMPAT[urlSort] || urlSort) as BountySortBy;
   });
 
-  const [page, setPage] = useState<number>(() => {
+  const [page, setPageRaw] = useState<number>(() => {
     const { page: urlPage } = parseUrlParams(searchParams);
     return urlPage ?? 1;
   });
 
-  const perPage = 20;
   const searchAvailableRef = useRef(true);
+  const isSyncingFromUrl = useRef(false);
 
   // Sync filters / sort / page → URL (replace history so back button works naturally)
   useEffect(() => {
+    if (isSyncingFromUrl.current) return;
     const params: Record<string, string> = {};
     if (filters.searchQuery.trim()) params.q = filters.searchQuery.trim();
     if (filters.tier !== 'all') params.tier = filters.tier;
@@ -184,22 +187,61 @@ export function useBountyBoard() {
     setSearchParams(params, { replace: true });
   }, [filters, sortBy, page, setSearchParams]);
 
+  // Sync URL → state for back/forward navigation and programmatic URL changes
+  useEffect(() => {
+    const urlState = parseUrlParams(searchParams);
+    const urlSort = urlState.sortBy ? (SORT_COMPAT[urlState.sortBy] || urlState.sortBy) as BountySortBy : 'newest';
+    const urlPage = urlState.page ?? 1;
+    const urlFilters = { ...DEFAULT_FILTERS, ...urlState };
+
+    let changed = false;
+    if (urlPage !== page) { changed = true; setPageRaw(urlPage); }
+    if (urlSort !== sortBy) { changed = true; setSortByRaw(urlSort); }
+    if (urlFilters.searchQuery !== filters.searchQuery ||
+        urlFilters.tier !== filters.tier ||
+        urlFilters.status !== filters.status) {
+      changed = true;
+      setFilters(prev => ({ ...prev, ...urlState }));
+    }
+    if (changed) {
+      isSyncingFromUrl.current = true;
+      queueMicrotask(() => { isSyncingFromUrl.current = false; });
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setPage = useCallback((p: number) => {
+    setPageRaw(p);
+  }, []);
+
   const setSortBy = useCallback((sortField: BountySortBy | string) => {
-    setSortByRaw((SORT_COMPAT[sortField] || sortField) as BountySortBy);
-    setPage(1);
+    const resolved = (SORT_COMPAT[sortField] || sortField) as BountySortBy;
+    setSortByRaw(resolved);
+    setPageRaw(1);
+  }, []);
+
+  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(key: K, value: BountyBoardFilters[K]) => {
+    setFilters((prev: BountyBoardFilters) => ({ ...prev, [key]: value }));
+    setPageRaw(1);
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+    setSortByRaw('newest');
+    setPageRaw(1);
   }, []);
 
   // Server-side search via React Query
   const searchQuery = useQuery({
     queryKey: ['bounties', 'search', filters, sortBy, page],
     queryFn: async () => {
-      const params = buildSearchParams(filters, sortBy, page, perPage);
+      const params = buildApiParams(filters, sortBy, page);
       const data = await apiClient<SearchResponse>(`/api/bounties/search?${params}`);
       return { items: data.items.map(item => mapApiBounty(item as unknown as Record<string, unknown>)), total: data.total };
     },
     enabled: searchAvailableRef.current,
     retry: false,
     staleTime: 15_000,
+    placeholderData: (prev) => prev,
   });
 
   if (searchQuery.isError && searchAvailableRef.current) searchAvailableRef.current = false;
@@ -208,7 +250,7 @@ export function useBountyBoard() {
   const fallbackQuery = useQuery({
     queryKey: ['bounties', 'all'],
     queryFn: async () => {
-      const data = await apiClient<{ items?: unknown[] }>('/api/bounties?limit=100');
+      const data = await apiClient<{ items?: unknown[] }>('/api/bounties?limit=10000');
       const items = (data.items || data) as unknown[];
       return Array.isArray(items) ? items.map(item => mapApiBounty(item as Record<string, unknown>)) : [];
     },
@@ -218,10 +260,28 @@ export function useBountyBoard() {
 
   const allBounties = fallbackQuery.data ?? [];
   const localFiltered = useMemo(() => applyLocalFilters(allBounties, filters, sortBy), [allBounties, filters, sortBy]);
-  const bounties = searchQuery.data ? searchQuery.data.items : localFiltered;
-  const total = searchQuery.data ? searchQuery.data.total : localFiltered.length;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+  const localPaginated = useMemo(() => {
+    const safePage = Math.max(1, Math.min(page, Math.max(1, Math.ceil(localFiltered.length / PER_PAGE) || 1)));
+    const start = (safePage - 1) * PER_PAGE;
+    return localFiltered.slice(start, start + PER_PAGE);
+  }, [localFiltered, page]);
+
+  const bounties = (searchAvailableRef.current && searchQuery.data) ? searchQuery.data.items : localPaginated;
+  const total = (searchAvailableRef.current && searchQuery.data) ? searchQuery.data.total : localFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const loading = searchQuery.isLoading || fallbackQuery.isLoading;
+  const isFetching = searchQuery.isFetching;
+
+  // Synchronously clamp page so consumers never see an out-of-range value
+  const clampedPage = loading ? page : Math.max(1, Math.min(page, totalPages));
+
+  // Reconcile state when page exceeds totalPages (e.g. after filter change reduces results)
+  useEffect(() => {
+    if (!loading && page > totalPages && totalPages > 0) {
+      setPageRaw(totalPages);
+    }
+  }, [page, totalPages, loading]);
 
   // Hot bounties (fetched once)
   const hotBountiesQuery = useQuery({
@@ -240,11 +300,6 @@ export function useBountyBoard() {
     retry: false,
   });
 
-  const setFilter = useCallback(<K extends keyof BountyBoardFilters>(key: K, value: BountyBoardFilters[K]) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
-  }, []);
-
   return {
     bounties,
     allBounties,
@@ -252,12 +307,14 @@ export function useBountyBoard() {
     filters,
     sortBy,
     loading,
-    page,
+    isFetching,
+    page: clampedPage,
     totalPages,
+    perPage: PER_PAGE,
     hotBounties: hotBountiesQuery.data ?? [],
     recommendedBounties: recommendedQuery.data ?? [],
     setFilter,
-    resetFilters: useCallback(() => { setFilters(DEFAULT_FILTERS); setPage(1); }, []),
+    resetFilters,
     setSortBy,
     setPage,
   };

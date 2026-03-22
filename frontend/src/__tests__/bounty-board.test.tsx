@@ -1,10 +1,11 @@
 /**
  * Bounty board test suite.
- * Tests for BountyCard, EmptyState, useBountyBoard hook, and BountyBoard component.
+ * Tests for BountyCard, EmptyState, useBountyBoard hook, BountyBoard component,
+ * and pagination controls including URL sync and keyboard navigation.
  * All components using React Query are wrapped in QueryClientProvider.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -13,7 +14,8 @@ import BountiesPage from '../pages/BountiesPage';
 import { BountyBoard } from '../components/bounties/BountyBoard';
 import { BountyCard, formatTimeRemaining, formatReward } from '../components/bounties/BountyCard';
 import { EmptyState } from '../components/bounties/EmptyState';
-import { useBountyBoard } from '../hooks/useBountyBoard';
+import { Pagination } from '../components/bounties/Pagination';
+import { useBountyBoard, PER_PAGE } from '../hooks/useBountyBoard';
 import { mockBounties } from '../data/mockBounties';
 import type { Bounty } from '../types/bounty';
 import React from 'react';
@@ -53,14 +55,23 @@ function failJson(status: number): Response {
 
 beforeEach(() => mockFetch.mockReset());
 
-/** Create a QueryClient wrapper for hooks and components. */
-function createQueryWrapper() {
+/** Create a QueryClient + MemoryRouter wrapper for hooks and components. */
+function createQueryWrapper(initialEntries?: string[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <MemoryRouter initialEntries={initialEntries ?? ['/bounties']}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </MemoryRouter>
+    );
   };
+}
+
+/** Render a component inside MemoryRouter. */
+function renderWithRouter(ui: React.ReactElement, initialEntries?: string[]) {
+  return render(ui, { wrapper: createQueryWrapper(initialEntries) });
 }
 
 const testBounty: Bounty = {
@@ -73,42 +84,83 @@ const testBounty: Bounty = {
 
 const b: Bounty = testBounty;
 
+/** Mock API responses so React Query resolves for BountyBoard tests. */
+function mockBountyApis(items: Bounty[] = mockBounties) {
+  const apiItems = items.map(b => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType }));
+  mockFetch.mockImplementation((...args: unknown[]) => {
+    const url = String(args[0] ?? '');
+    if (url.includes('/api/bounties/search')) {
+      const params = new URLSearchParams(url.split('?')[1] ?? '');
+      const page = Number(params.get('page') ?? 1);
+      const perPage = Number(params.get('per_page') ?? 12);
+      const start = (page - 1) * perPage;
+      const paged = apiItems.slice(start, start + perPage);
+      return Promise.resolve(okJson({ items: paged, total: apiItems.length }));
+    }
+    if (url.includes('/api/bounties/hot')) return Promise.resolve(okJson([]));
+    if (url.includes('/api/bounties/recommended')) return Promise.resolve(okJson([]));
+    return Promise.resolve(okJson([]));
+  });
+}
+
 describe('Page+Board', () => {
+  beforeEach(() => mockBountyApis());
+
   it('renders BountyBoard with heading', () => {
-    render(<MemoryRouter><BountiesPage /></MemoryRouter>);
+    renderWithRouter(<BountiesPage />);
     expect(screen.getByText('Bounty Marketplace')).toBeInTheDocument();
   });
-  it('renders all cards with filters', () => {
-    render(<BountyBoard />);
+  it('renders all cards with filters', async () => {
+    renderWithRouter(<BountyBoard />);
     expect(screen.getByText('Bounty Marketplace')).toBeInTheDocument();
-    expect(within(screen.getByTestId('bounty-grid')).getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
+    await waitFor(() => {
+      expect(within(screen.getByTestId('bounty-grid')).getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
+    });
   });
   it('filters by tier and resets', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const u = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    render(<BountyBoard />);
-    await u.selectOptions(screen.getByTestId('tier-filter'), 'T1');
-    expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.filter(x => x.tier==='T1').length);
+    // Dynamic mock: check URL for tier param and return filtered results
+    const toApi = (b: Bounty) => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType });
+    const TIER_NUM: Record<string, string> = { T1: '1', T2: '2', T3: '3' };
+    mockFetch.mockImplementation((...args: unknown[]) => {
+      const url = String(args[0] ?? '');
+      if (url.includes('/api/bounties/search')) {
+        const tierMatch = url.match(/tier=(\d)/);
+        const items = tierMatch
+          ? mockBounties.filter(b => TIER_NUM[b.tier] === tierMatch[1])
+          : mockBounties;
+        return Promise.resolve(okJson({ items: items.map(toApi), total: items.length }));
+      }
+      return Promise.resolve(okJson([]));
+    });
+    const u = userEvent.setup();
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
+    await u.click(screen.getByTestId('tier-chip-T1'));
+    const t1 = mockBounties.filter(x => x.tier === 'T1');
+    await waitFor(() => {
+      expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(t1.length);
+    });
     await u.click(screen.getByTestId('reset-filters'));
-    expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
-    vi.useRealTimers();
+    await waitFor(() => {
+      expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(mockBounties.length);
+    });
   });
   it('has create bounty button', () => {
-    render(<BountyBoard />);
+    renderWithRouter(<BountyBoard />);
     const btn = screen.getByTestId('create-bounty-btn');
     expect(btn).toBeInTheDocument();
     expect(btn).toHaveAttribute('href', '/bounties/create');
   });
   it('has view toggle (grid/list)', () => {
-    render(<BountyBoard />);
+    renderWithRouter(<BountyBoard />);
     expect(screen.getByTestId('view-toggle')).toBeInTheDocument();
     expect(screen.getByTestId('view-grid')).toBeInTheDocument();
     expect(screen.getByTestId('view-list')).toBeInTheDocument();
   });
   it('switches between grid and list view', async () => {
     const u = userEvent.setup();
-    render(<BountyBoard />);
-    expect(screen.getByTestId('bounty-grid')).toBeInTheDocument();
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
     await u.click(screen.getByTestId('view-list'));
     expect(screen.getByTestId('bounty-list')).toBeInTheDocument();
     expect(screen.queryByTestId('bounty-grid')).not.toBeInTheDocument();
@@ -188,7 +240,7 @@ describe('useBountyBoard with React Query', () => {
     mockFetch.mockImplementation((urlArg: unknown) => {
       const url = String(urlArg ?? '');
       if (url.includes('/search')) {
-        return Promise.resolve(okJson({ items: apiBounties, total: apiBounties.length, page: 1, per_page: 20, query: '' }));
+        return Promise.resolve(okJson({ items: apiBounties, total: apiBounties.length, page: 1, per_page: PER_PAGE, query: '' }));
       }
       if (url.includes('/hot')) return Promise.resolve(okJson([]));
       if (url.includes('/recommended')) return Promise.resolve(okJson([]));
@@ -211,12 +263,11 @@ describe('useBountyBoard with React Query', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    // Should not crash, returns empty array on failure
     expect(Array.isArray(result.current.bounties)).toBe(true);
   });
 
   it('supports sort and filter state changes', async () => {
-    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: 20, query: '' }));
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: PER_PAGE, query: '' }));
 
     const { result } = renderHook(() => useBountyBoard(), { wrapper: createQueryWrapper() });
 
@@ -228,5 +279,219 @@ describe('useBountyBoard with React Query', () => {
 
     act(() => { result.current.resetFilters(); });
     expect(result.current.filters.tier).toBe('all');
+  });
+
+  it('reads page from URL search params', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 24, page: 2, per_page: PER_PAGE, query: '' }));
+
+    const { result } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?page=2']),
+    });
+
+    expect(result.current.page).toBe(2);
+  });
+
+  it('reads sort from URL search params', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: PER_PAGE, query: '' }));
+
+    const { result } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?sort=reward_high']),
+    });
+
+    expect(result.current.sortBy).toBe('reward_high');
+  });
+
+  it('defaults invalid page param to 1', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: PER_PAGE, query: '' }));
+
+    const { result } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?page=abc']),
+    });
+
+    expect(result.current.page).toBe(1);
+  });
+
+  it('defaults invalid sort param to newest', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 0, page: 1, per_page: PER_PAGE, query: '' }));
+
+    const { result } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?sort=invalid']),
+    });
+
+    expect(result.current.sortBy).toBe('newest');
+  });
+
+  it('resets page to 1 when filter changes', async () => {
+    mockFetch.mockResolvedValue(okJson({ items: [], total: 30, page: 1, per_page: PER_PAGE, query: '' }));
+
+    const { result } = renderHook(() => useBountyBoard(), {
+      wrapper: createQueryWrapper(['/bounties?page=3']),
+    });
+
+    expect(result.current.page).toBe(3);
+
+    act(() => { result.current.setFilter('tier', 'T1'); });
+    expect(result.current.page).toBe(1);
+  });
+
+  it('uses 12 items per page', () => {
+    expect(PER_PAGE).toBe(12);
+  });
+});
+
+describe('Pagination component', () => {
+  it('renders page metadata', () => {
+    render(<Pagination page={2} totalPages={5} total={54} onPageChange={() => {}} />);
+    expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 2 of 5 (54 bounties)');
+  });
+
+  it('renders singular "bounty" for total=1', () => {
+    render(<Pagination page={1} totalPages={1} total={1} onPageChange={() => {}} />);
+    expect(screen.getByTestId('page-metadata')).toHaveTextContent('1 bounty');
+  });
+
+  it('disables Prev on first page', () => {
+    render(<Pagination page={1} totalPages={3} total={30} onPageChange={() => {}} />);
+    expect(screen.getByLabelText('Previous page')).toBeDisabled();
+  });
+
+  it('disables Next on last page', () => {
+    render(<Pagination page={3} totalPages={3} total={30} onPageChange={() => {}} />);
+    expect(screen.getByLabelText('Next page')).toBeDisabled();
+  });
+
+  it('highlights the active page', () => {
+    render(<Pagination page={2} totalPages={5} total={54} onPageChange={() => {}} />);
+    expect(screen.getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByLabelText('Page 1')).not.toHaveAttribute('aria-current');
+  });
+
+  it('calls onPageChange when clicking Prev/Next', async () => {
+    const onPageChange = vi.fn();
+    const u = userEvent.setup();
+    render(<Pagination page={2} totalPages={5} total={54} onPageChange={onPageChange} />);
+
+    await u.click(screen.getByLabelText('Previous page'));
+    expect(onPageChange).toHaveBeenCalledWith(1);
+
+    await u.click(screen.getByLabelText('Next page'));
+    expect(onPageChange).toHaveBeenCalledWith(3);
+  });
+
+  it('calls onPageChange when clicking page number', async () => {
+    const onPageChange = vi.fn();
+    const u = userEvent.setup();
+    render(<Pagination page={1} totalPages={5} total={54} onPageChange={onPageChange} />);
+
+    await u.click(screen.getByLabelText('Page 3'));
+    expect(onPageChange).toHaveBeenCalledWith(3);
+  });
+
+  it('shows go-to-page input when totalPages > 5', () => {
+    render(<Pagination page={1} totalPages={10} total={120} onPageChange={() => {}} />);
+    expect(screen.getByTestId('go-to-page')).toBeInTheDocument();
+  });
+
+  it('does not show go-to-page input when totalPages <= 5', () => {
+    render(<Pagination page={1} totalPages={5} total={54} onPageChange={() => {}} />);
+    expect(screen.queryByTestId('go-to-page')).not.toBeInTheDocument();
+  });
+
+  it('go-to-page navigates on Enter', async () => {
+    const onPageChange = vi.fn();
+    const u = userEvent.setup();
+    render(<Pagination page={1} totalPages={10} total={120} onPageChange={onPageChange} />);
+
+    const input = screen.getByTestId('go-to-page-input');
+    await u.type(input, '7');
+    await u.keyboard('{Enter}');
+    expect(onPageChange).toHaveBeenCalledWith(7);
+  });
+
+  it('go-to-page rejects invalid input', async () => {
+    const onPageChange = vi.fn();
+    const u = userEvent.setup();
+    render(<Pagination page={1} totalPages={10} total={120} onPageChange={onPageChange} />);
+
+    const input = screen.getByTestId('go-to-page-input');
+    await u.type(input, '99');
+    await u.keyboard('{Enter}');
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('Keyboard navigation', () => {
+  beforeEach(() => {
+    mockBountyApis();
+    // jsdom doesn't implement scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('ArrowRight advances page via BountyBoard', async () => {
+    // Need >1 page so pagination renders and arrow keys work
+    const many = Array.from({ length: 24 }, (_, i) => ({
+      ...mockBounties[0],
+      id: `kb-${i}`,
+      title: `KB Bounty ${i}`,
+    }));
+    mockBountyApis(many);
+
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
+
+    // Page 1 initially — ArrowRight should navigate to page 2
+    fireEvent.keyDown(document, { key: 'ArrowRight' });
+    await waitFor(() => {
+      expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 2 of 2');
+    });
+
+    // ArrowLeft should go back to page 1
+    fireEvent.keyDown(document, { key: 'ArrowLeft' });
+    await waitFor(() => {
+      expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 1 of 2');
+    });
+  });
+
+  it('arrow keys are ignored when typing in an input', async () => {
+    const many = Array.from({ length: 24 }, (_, i) => ({
+      ...mockBounties[0],
+      id: `kb-${i}`,
+      title: `KB Bounty ${i}`,
+    }));
+    mockBountyApis(many);
+
+    renderWithRouter(<BountyBoard />);
+    await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
+
+    // Focus the search input and press ArrowRight — page should NOT change
+    const searchInput = screen.getByPlaceholderText(/search/i);
+    searchInput.focus();
+    fireEvent.keyDown(searchInput, { key: 'ArrowRight' });
+    expect(screen.getByTestId('page-metadata')).toHaveTextContent('Page 1 of 2');
+  });
+});
+
+describe('BountyBoard pagination integration', () => {
+  it('sends per_page=12 in API requests', async () => {
+    mockFetch.mockImplementation((urlArg: unknown) => {
+      const url = String(urlArg ?? '');
+      if (url.includes('/search')) {
+        return Promise.resolve(okJson({ items: [], total: 0, page: 1, per_page: 12, query: '' }));
+      }
+      if (url.includes('/hot')) return Promise.resolve(okJson([]));
+      if (url.includes('/recommended')) return Promise.resolve(okJson([]));
+      return Promise.resolve(okJson({ items: [] }));
+    });
+
+    const { result } = renderHook(() => useBountyBoard(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const searchCall = mockFetch.mock.calls.find(([url]: [unknown]) => String(url).includes('/search'));
+    expect(searchCall).toBeDefined();
+    const searchUrl = String(searchCall![0]);
+    expect(searchUrl).toContain('per_page=12');
   });
 });

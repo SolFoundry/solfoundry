@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useBountyBoard } from '../../hooks/useBountyBoard';
 import { BountyFilters } from './BountyFilters';
 import { BountySortBar } from './BountySortBar';
@@ -14,11 +14,13 @@ import { Pagination } from './Pagination';
 
 export function BountyBoard() {
   const {
-    bounties, total, filters, sortBy, loading, page, totalPages,
+    bounties, total, filters, sortBy, loading, isFetching, page, totalPages,
     hotBounties, recommendedBounties,
     setFilter, resetFilters, setSortBy, setPage,
   } = useBountyBoard();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const listTopRef = useRef<HTMLDivElement>(null);
+  const prevPageRef = useRef(page);
 
   const hasActiveFilters = filters.searchQuery.trim() !== '' ||
     filters.tier !== 'all' || filters.status !== 'all' ||
@@ -27,6 +29,34 @@ export function BountyBoard() {
     filters.category !== 'all' || filters.deadlineBefore !== '';
 
   const handleBountyClick = (id: string) => { window.location.href = '/bounties/' + id; };
+
+  // Smooth scroll to top of list on page change
+  useEffect(() => {
+    if (prevPageRef.current !== page && listTopRef.current) {
+      listTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    prevPageRef.current = page;
+  }, [page]);
+
+  // Keyboard navigation: Left/Right arrows for prev/next page
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+    if (isInput) return;
+
+    if (e.key === 'ArrowLeft' && page > 1) {
+      e.preventDefault();
+      setPage(page - 1);
+    } else if (e.key === 'ArrowRight' && page < totalPages) {
+      e.preventDefault();
+      setPage(page + 1);
+    }
+  }, [page, totalPages, setPage]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <div className="min-h-screen bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
@@ -63,7 +93,7 @@ export function BountyBoard() {
         <RecommendedBounties bounties={recommendedBounties} />
       )}
 
-      <div className="flex items-center justify-between mt-4 mb-3">
+      <div className="flex items-center justify-between mt-4 mb-3" ref={listTopRef}>
         <BountySortBar sortBy={sortBy} onSortChange={setSortBy} />
         <ViewToggle mode={viewMode} onChange={setViewMode} />
       </div>
@@ -71,16 +101,21 @@ export function BountyBoard() {
       {loading ? (
         <SkeletonList count={6} showTier showSkills />
       ) : bounties.length > 0 ? (
-        <>
+        <div className="relative">
+          {isFetching && !loading && (
+            <div className="absolute inset-0 z-10 bg-surface/60 rounded-xl flex items-center justify-center" data-testid="page-loading-overlay">
+              <div className="w-6 h-6 border-2 border-solana-green border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
           {viewMode === 'grid' ? (
             <BountyGrid bounties={bounties} onBountyClick={handleBountyClick} />
           ) : (
             <BountyListView bounties={bounties} onBountyClick={handleBountyClick} />
           )}
           {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
           )}
-        </>
+        </div>
       ) : (
         <NoBountiesFound onReset={resetFilters} hasFilters={hasActiveFilters} />
       )}
