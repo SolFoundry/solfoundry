@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index, Float, Numeric
+from pydantic import BaseModel, Field
+from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Float
 from app.database import Base, GUID
 
 
@@ -30,6 +30,16 @@ class DisputeResolution(str, Enum):
     NONE = "none"
 
 
+class DisputeReason(str, Enum):
+    """Normalized categories for disputes."""
+    INCORRECT_REVIEW = "incorrect_review"
+    PLAGIARISM = "plagiarism"
+    RULE_VIOLATION = "rule_violation"
+    TECHNICAL_ISSUE = "technical_issue"
+    UNFAIR_COMPETITION = "unfair_competition"
+    OTHER = "other"
+
+
 # ---------------------------------------------------------------------------
 # SQLAlchemy Models
 # ---------------------------------------------------------------------------
@@ -47,7 +57,8 @@ class DisputeDB(Base):
     creator_id = Column(String(100), nullable=False, index=True)
     
     status = Column(String(20), default=DisputeStatus.OPENED.value, nullable=False, index=True)
-    reason = Column(String(1000), nullable=False)
+    reason = Column(String(50), nullable=False) # Enum value
+    description = Column(Text, nullable=False)
     
     # Store evidence as a list of EvidenceItem objects
     evidence = Column(JSON, default=list, nullable=False) 
@@ -59,8 +70,8 @@ class DisputeDB(Base):
     resolved_by = Column(String(100), nullable=True) # Admin ID or "system"
     resolution_notes = Column(Text, nullable=True)
     
-    # Financial split if resolution is SPLIT
-    contributor_share = Column(Float, default=0.0) # Percentage or Amount? Let's use Percentage (0.0 to 1.0)
+    # Financial split if resolution is SPLIT (0.0 to 1.0)
+    contributor_share = Column(Float, default=0.0)
     creator_share = Column(Float, default=0.0)
     
     created_at = Column(
@@ -99,8 +110,8 @@ class DisputeHistoryDB(Base):
 
 class EvidenceItem(BaseModel):
     """A single piece of evidence submitted for a dispute."""
-    type: str = Field(..., examples=["link", "explanation", "screenshot"])
-    content: str = Field(..., examples=["The PR satisfies section 2.1 of the requirements...", "https://github.com/PR-link"])
+    type: str = Field(..., examples=["link", "explanation"])
+    content: str = Field(..., min_length=1)
     actor_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -109,7 +120,8 @@ class DisputeCreate(BaseModel):
     """Payload for initiating a dispute."""
     bounty_id: str
     submission_id: str
-    reason: str = Field(..., min_length=10, max_length=1000)
+    reason: DisputeReason
+    description: str = Field(..., min_length=10, max_length=5000)
 
 
 class DisputeEvidenceCreate(BaseModel):
@@ -122,19 +134,32 @@ class DisputeResolve(BaseModel):
     """Payload for resolving a dispute."""
     resolution: DisputeResolution
     resolution_notes: str = Field(..., min_length=10, max_length=5000)
-    contributor_share: Optional[float] = 0.0 # 0.0 to 1.0
-    creator_share: Optional[float] = 0.0 # 0.0 to 1.0
+    contributor_share: Optional[float] = 0.0
+    creator_share: Optional[float] = 0.0
+
+
+class DisputeHistoryItem(BaseModel):
+    """Audit entry for display."""
+    id: uuid.UUID
+    action: str
+    previous_status: Optional[str] = None
+    new_status: Optional[str] = None
+    actor_id: str
+    notes: Optional[str] = None
+    created_at: datetime
+    model_config = {"from_attributes": True}
 
 
 class DisputeResponse(BaseModel):
-    """Full API response for a dispute."""
+    """Full dispute details."""
     id: uuid.UUID
     bounty_id: uuid.UUID
     submission_id: str
     contributor_id: str
     creator_id: str
     status: DisputeStatus
-    reason: str
+    reason: DisputeReason
+    description: str
     evidence: List[Dict[str, Any]]
     ai_score: float
     resolution: DisputeResolution
@@ -150,8 +175,21 @@ class DisputeResponse(BaseModel):
         from_attributes = True
 
 
+class DisputeDetailResponse(DisputeResponse):
+    """Detail view including history."""
+    history: List[DisputeHistoryItem] = []
+
+
+class DisputeStats(BaseModel):
+    """Aggregated metrics."""
+    total_disputes: int = 0
+    pending_disputes: int = 0
+    resolved_disputes: int = 0
+    approval_rate: float = 0.0
+
+
 class DisputeListItem(BaseModel):
-    """Compact dispute representation for lists."""
+    """Compact dispute representation."""
     id: uuid.UUID
     bounty_id: uuid.UUID
     submission_id: str
