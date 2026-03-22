@@ -1,0 +1,171 @@
+version: "3.9"
+
+# Production Docker Compose for SolFoundry
+# Usage: IMAGE_TAG=v1.2.3 docker compose -f docker-compose.prod.yml up -d
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+x-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "5"
+
+services:
+  # ─── Nginx reverse proxy ─────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    <<: *restart-policy
+    <<: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_certs:/etc/letsencrypt:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Frontend ──────────────────────────────────────────────────────────────
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/solfoundry/solfoundry-frontend:${IMAGE_TAG:-latest}
+    <<: *restart-policy
+    <<: *default-logging
+    environment:
+      - VITE_API_URL=${API_URL:-https://api.solfoundry.io}
+      - VITE_WS_URL=${WS_URL:-wss://api.solfoundry.io/ws}
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ─── Backend API ──────────────────────────────────────────────────────────
+  backend:
+    image: ${REGISTRY:-ghcr.io}/solfoundry/solfoundry-backend:${IMAGE_TAG:-latest}
+    <<: *restart-policy
+    <<: *default-logging
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - SECRET_KEY=${SECRET_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://solfoundry.io}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - web
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    <<: *restart-policy
+    <<: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-solfoundry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-solfoundry}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/pg_backup.py:/pg_backup.py:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-solfoundry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    <<: *restart-policy
+    <<: *default-logging
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Indexer (event processor) ────────────────────────────────────────────
+  indexer:
+    image: ${REGISTRY:-ghcr.io}/solfoundry/solfoundry-backend:${IMAGE_TAG:-latest}
+    <<: *restart-policy
+    <<: *default-logging
+    command: python -m app.indexer
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      - HELIUS_API_KEY=${HELIUS_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nginx_certs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  web:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true

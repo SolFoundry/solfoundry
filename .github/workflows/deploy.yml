@@ -1,113 +1,42 @@
-# Deploy Pipeline - Runs on merge to main branch
-# Builds and deploys frontend to Vercel/DO and backend as Docker container
-
 name: Deploy
 
 on:
   push:
     branches: [main]
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Target environment"
         required: true
-        default: 'production'
         type: choice
-        options:
-          - production
-          - staging
+        options: [staging, production]
+      image_tag:
+        description: "Docker image tag (leave empty for latest)"
+        required: false
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: false   # never cancel in-flight deploys
 
 env:
-  PYTHON_VERSION: '3.11'
-  NODE_VERSION: '20'
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/backend
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/solfoundry
 
 jobs:
-  # ==================== BUILD FRONTEND ====================
-  build-frontend:
-    name: Build Frontend
-    runs-on: ubuntu-latest
-    outputs:
-      has_frontend: ${{ steps.check.outputs.has_frontend }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check for package.json
-        id: check
-        run: |
-          if [ -f "frontend/package.json" ]; then
-            echo "has_frontend=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_frontend=false" >> $GITHUB_OUTPUT
-            echo "::notice::No frontend package.json found - skipping frontend build"
-          fi
-
-      - name: Set up Node.js
-        if: steps.check.outputs.has_frontend == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Dependencies
-        if: steps.check.outputs.has_frontend == 'true'
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build Production Bundle
-        if: steps.check.outputs.has_frontend == 'true'
-        working-directory: frontend
-        run: npm run build
-        env:
-          NODE_ENV: production
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
-
-      - name: Upload Build Artifacts
-        if: steps.check.outputs.has_frontend == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/.next/
-          retention-days: 7
-
-  # ==================== DEPLOY FRONTEND TO VERCEL ====================
-  deploy-frontend:
-    name: Deploy Frontend (Vercel)
-    runs-on: ubuntu-latest
-    needs: build-frontend
-    if: needs.build-frontend.outputs.has_frontend == 'true' && github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: frontend
-
-  # ==================== BUILD BACKEND DOCKER IMAGE ====================
-  build-backend:
-    name: Build Backend Docker Image
+  # ─── Build & push Docker images ───────────────────────────────────────────
+  build-images:
+    name: Build & Push Docker Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
+      image_tag: ${{ steps.meta.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -119,118 +48,149 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Metadata
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_PREFIX }}-backend,${{ env.IMAGE_PREFIX }}-frontend
           tags: |
-            type=sha,prefix=
             type=ref,event=branch
             type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
 
-      - name: Build and Push Docker Image
+      - name: Build & push backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
+          file: Dockerfile.backend
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.IMAGE_PREFIX }}-backend:${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          file: ./backend/Dockerfile
-        continue-on-error: true
 
-  # ==================== DEPLOY BACKEND TO DIGITALOCEAN ====================
-  deploy-backend:
-    name: Deploy Backend (DigitalOcean)
-    runs-on: ubuntu-latest
-    needs: build-backend
-    if: github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v5
         with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          context: .
+          file: Dockerfile.frontend
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Save DigitalOcean kubeconfig
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
-
-      - name: Deploy to Kubernetes
-        run: |
-          # Update deployment image
-          kubectl set image deployment/solfoundry-backend \
-            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --namespace production
-          
-          # Wait for rollout
-          kubectl rollout status deployment/solfoundry-backend \
-            --namespace production \
-            --timeout=300s
-        continue-on-error: true
-
-  # ==================== DATABASE MIGRATIONS ====================
-  migrate-database:
-    name: Run Database Migrations
+  # ─── Deploy to Staging (on push to main) ──────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: deploy-backend
-    if: github.event_name != 'workflow_dispatch'
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@master
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            export IMAGE_TAG=${{ needs.build-images.outputs.image_tag }}
+            export REGISTRY=${{ env.REGISTRY }}
+            export REPO=${{ github.repository_owner }}/solfoundry
 
-      - name: Install Dependencies
-        working-directory: backend
+            cd /opt/solfoundry-staging
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Health check
+            sleep 10
+            curl -sf http://localhost:8000/health || (docker compose logs --tail=50 && exit 1)
+            echo "Staging deployment successful ✅"
+
+      - name: Run smoke tests against staging
         run: |
-          pip install -r requirements.txt
-          pip install alembic
+          STAGING_URL="${{ vars.STAGING_URL }}"
+          echo "Running smoke tests against $STAGING_URL..."
+          curl -sf "$STAGING_URL/health" | jq .
+          curl -sf "$STAGING_URL/api/v1/bounties?page=1&page_size=1" | jq .total
+          echo "Smoke tests passed ✅"
 
-      - name: Run Migrations
-        working-directory: backend
-        run: alembic upgrade head
+      - name: Notify Slack on staging deploy
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} Staging deploy ${{ job.status }}: ${{ github.sha }}"
+            }
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        continue-on-error: true
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
-  # ==================== DEPLOYMENT SUMMARY ====================
-  deploy-status:
-    name: Deployment Status
+  # ─── Deploy to Production (on semver tag) ─────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build-frontend, deploy-frontend, build-backend, deploy-backend, migrate-database]
-    if: always()
+    needs: build-images
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
     steps:
-      - name: Generate Deployment Summary
-        run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend Build | ${{ needs.build-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend Deploy | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend Build | ${{ needs.build-backend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend Deploy | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Database Migration | ${{ needs.migrate-database.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Production Site](https://solfoundry.org)" >> $GITHUB_STEP_SUMMARY
-          echo "- [API Health](https://api.solfoundry.org/health)" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
 
-      - name: Notify on Success
-        if: success()
-        run: echo "Deployment completed successfully!"
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            export IMAGE_TAG=${{ needs.build-images.outputs.image_tag }}
+            export REGISTRY=${{ env.REGISTRY }}
 
-      - name: Notify on Failure
-        if: failure()
-        run: echo "Deployment failed - check the logs above for details"
+            # Snapshot current state for rollback
+            cd /opt/solfoundry
+            docker compose -f docker-compose.prod.yml ps --format json > /opt/solfoundry/snapshots/pre-deploy-$(date +%Y%m%d%H%M%S).json
+
+            # Rolling deploy
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Health check with retries
+            for i in $(seq 1 6); do
+              sleep 10
+              if curl -sf http://localhost:8000/health; then
+                echo "Production deployment successful ✅"
+                exit 0
+              fi
+              echo "Health check attempt $i failed, retrying..."
+            done
+
+            # Rollback on failure
+            echo "Health checks failed — rolling back..."
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            exit 1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Slack on production deploy
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '🚀' || '🔥' }} Production deploy *${{ github.ref_name }}* ${{ job.status }}: ${{ github.sha }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
