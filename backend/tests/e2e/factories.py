@@ -12,7 +12,6 @@ Design decisions:
 """
 
 import itertools
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -26,6 +25,7 @@ _submission_counter = itertools.count(1)
 _payout_counter = itertools.count(1)
 _user_counter = itertools.count(1)
 _user_id_counter = itertools.count(1)
+_tx_hash_counter = itertools.count(1)
 
 # A valid Solana base-58 address used as default wallet in tests.
 DEFAULT_WALLET = "97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"
@@ -42,13 +42,14 @@ def reset_counters() -> None:
     so every test begins with a clean sequence.
     """
     global _bounty_counter, _contributor_counter, _submission_counter
-    global _payout_counter, _user_counter, _user_id_counter
+    global _payout_counter, _user_counter, _user_id_counter, _tx_hash_counter
     _bounty_counter = itertools.count(1)
     _contributor_counter = itertools.count(1)
     _submission_counter = itertools.count(1)
     _payout_counter = itertools.count(1)
     _user_counter = itertools.count(1)
     _user_id_counter = itertools.count(1)
+    _tx_hash_counter = itertools.count(1)
 
 
 # ---------------------------------------------------------------------------
@@ -387,3 +388,25 @@ def past_deadline(*, hours: int = 24) -> str:
         ISO-8601 formatted UTC timestamp string.
     """
     return (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Transaction hash helper
+# ---------------------------------------------------------------------------
+
+
+def unique_tx_hash() -> str:
+    """Generate a deterministic, unique Solana-style transaction hash.
+
+    Uses the counter to produce reproducible 88-character base-58 strings
+    suitable for payout tests. Avoids the non-determinism of ``uuid.uuid4()``.
+
+    Returns:
+        An 88-character base-58 string representing a transaction signature.
+    """
+    sequence_number = next(_tx_hash_counter)
+    # Pad the sequence number into a repeating pattern to fill 88 chars
+    # Using only valid base-58 characters (no 0, O, I, l)
+    base = f"{sequence_number:020d}".replace("0", "1")
+    repeated = (base * 5)[:88]
+    return repeated

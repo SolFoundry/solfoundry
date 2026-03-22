@@ -9,10 +9,8 @@ Requirement: Issue #196 item 4.
 """
 
 import asyncio
-from typing import List
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 

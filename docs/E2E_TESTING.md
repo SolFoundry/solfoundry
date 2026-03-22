@@ -260,7 +260,22 @@ All factories use deterministic counters (reset between tests) for reproducibili
 
 ## CI Integration
 
-The E2E suite runs on every PR via GitHub Actions. The workflow file is at `docs/ci-e2e-workflow.yml` — copy it to `.github/workflows/e2e-tests.yml` to activate.
+The E2E suite is designed to run on every PR via GitHub Actions.
+
+> **IMPORTANT: Manual Activation Required**
+>
+> The CI workflow file is stored at `docs/ci-e2e-workflow.yml` because
+> contributors cannot push directly to `.github/workflows/`. A repository
+> maintainer must copy this file to activate the CI pipeline:
+>
+> ```bash
+> cp docs/ci-e2e-workflow.yml .github/workflows/e2e-tests.yml
+> git add .github/workflows/e2e-tests.yml
+> git commit -m "ci: activate E2E test workflow"
+> ```
+>
+> This one-time step is required because GitHub Actions workflow files
+> must reside in `.github/workflows/` to be recognized by the runner.
 
 ### CI Matrix Strategy
 

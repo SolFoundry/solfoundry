@@ -9,9 +9,6 @@ happy-path works end-to-end without manual intervention.
 Requirement: Issue #196 item 1.
 """
 
-import uuid
-
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.e2e.conftest import (
@@ -24,20 +21,8 @@ from tests.e2e.factories import (
     build_payout_create_payload,
     build_submission_payload,
     future_deadline,
+    unique_tx_hash,
 )
-
-
-def _unique_tx_hash() -> str:
-    """Generate a valid unique Solana-style tx hash for testing.
-
-    Returns:
-        A 88-character base-58 string.
-    """
-    # Use UUID hex repeated to fill 88 chars of valid base-58
-    raw = uuid.uuid4().hex + uuid.uuid4().hex + uuid.uuid4().hex
-    # Map hex chars to valid base-58 chars (avoid 0, O, I, l)
-    mapping = str.maketrans("0", "1")
-    return raw[:88].translate(mapping)
 
 
 class TestFullBountyLifecycle:
@@ -106,7 +91,7 @@ class TestFullBountyLifecycle:
         assert completed_bounty["status"] == "completed"
 
         # Step 6: Record payout with unique tx hash
-        tx_hash = _unique_tx_hash()
+        tx_hash = unique_tx_hash()
         payout_payload = build_payout_create_payload(
             recipient="alice-dev",
             amount=1000.0,
@@ -205,7 +190,7 @@ class TestFullBountyLifecycle:
             build_bounty_create_payload(reward_amount=200.0),
         )
         bounty_id = bounty["id"]
-        tx_hash = _unique_tx_hash()
+        tx_hash = unique_tx_hash()
 
         payout_payload = build_payout_create_payload(
             recipient="lifecycle-tester",
@@ -280,14 +265,14 @@ class TestEscrowLifecycle:
             "/api/escrow/fund",
             json={
                 "bounty_id": bounty_id,
-                "creator_wallet": "97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF",
+                "creator_wallet": DEFAULT_WALLET,
                 "amount": 500.0,
             },
         )
         # Escrow creation may fail due to missing Solana connection in tests,
         # but the endpoint should be reachable (not 404) and return a structured
         # error (409 for duplicate, 502 for transfer failure, or 201 for success).
-        assert fund_response.status_code in (201, 409, 502, 500), (
+        assert fund_response.status_code in (201, 409, 502), (
             f"Escrow fund returned unexpected status: "
             f"{fund_response.status_code} -- {fund_response.text}"
         )
@@ -296,8 +281,7 @@ class TestEscrowLifecycle:
         self, client: TestClient
     ) -> None:
         """Verify the escrow status endpoint returns 404 for unknown bounties."""
-        import uuid as _uuid
-        fake_id = str(_uuid.uuid4())
+        fake_id = "00000000-0000-0000-0000-999999999999"
         response = client.get(f"/api/escrow/{fake_id}")
         assert response.status_code == 404
 
@@ -305,8 +289,7 @@ class TestEscrowLifecycle:
         self, client: TestClient
     ) -> None:
         """Verify the escrow refund endpoint returns 404 for unknown bounties."""
-        import uuid as _uuid
-        fake_id = str(_uuid.uuid4())
+        fake_id = "00000000-0000-0000-0000-999999999998"
         response = client.post(
             "/api/escrow/refund",
             json={"bounty_id": fake_id},
@@ -321,7 +304,9 @@ class TestApprovalWorkflow:
     test the approval flow that triggers bounty completion.
     """
 
-    def test_approve_submission_via_api(self, client: TestClient) -> None:
+    def test_approve_submission_via_api(
+        self, client: TestClient, auth_headers: dict
+    ) -> None:
         """Verify a submission can be approved through the REST API.
 
         Steps:
@@ -343,6 +328,7 @@ class TestApprovalWorkflow:
         sub_response = client.post(
             f"/api/bounties/{bounty_id}/submit",
             json=build_submission_payload(),
+            headers=auth_headers,
         )
         assert sub_response.status_code == 201
         submission_id = sub_response.json()["id"]
@@ -350,34 +336,35 @@ class TestApprovalWorkflow:
         # Approve the submission via real API endpoint
         approve_response = client.post(
             f"/api/bounties/{bounty_id}/submissions/{submission_id}/approve",
+            headers=auth_headers,
         )
-        # 200 = approved, 400 = business rule, 500 = service not yet wired
-        assert approve_response.status_code in (200, 400, 500), (
+        # 200 = approved, 400 = business rule violation
+        assert approve_response.status_code in (200, 400), (
             f"Approve endpoint returned: "
             f"{approve_response.status_code} -- {approve_response.text}"
         )
 
     def test_approve_nonexistent_submission_returns_error(
-        self, client: TestClient
+        self, client: TestClient, auth_headers: dict
     ) -> None:
         """Verify approving a non-existent submission returns an error.
 
-        The endpoint should return 404 (not found) or 500 (if the service
-        method is not yet wired). Either way, it should not succeed with 200.
+        The endpoint should return 404 (not found). It should not succeed
+        with 200.
         """
         bounty = create_bounty_via_api(
             client,
             build_bounty_create_payload(),
         )
-        import uuid as _uuid
-        fake_sub_id = str(_uuid.uuid4())
+        fake_sub_id = "00000000-0000-0000-0000-999999999997"
 
         response = client.post(
             f"/api/bounties/{bounty['id']}/submissions/{fake_sub_id}/approve",
+            headers=auth_headers,
         )
         # Should not return success
-        assert response.status_code in (404, 500), (
-            f"Expected 404 or 500, got {response.status_code}"
+        assert response.status_code == 404, (
+            f"Expected 404, got {response.status_code}"
         )
 
 

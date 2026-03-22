@@ -11,10 +11,8 @@ Requirement: Issue #196 item 7.
 
 import asyncio
 import time
-from typing import List
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 from tests.e2e.factories import build_bounty_create_payload, build_submission_payload
@@ -230,14 +228,17 @@ class TestConcurrentMixedOperations:
     ) -> None:
         """Verify list queries remain fast under concurrent load.
 
-        Pre-populates 20 bounties, then fires 50 concurrent list queries.
+        Pre-populates 20 bounties concurrently, then fires 50 concurrent
+        list queries.
         """
-        # Pre-populate
-        for i in range(20):
-            await async_client.post(
+        # Pre-populate concurrently for faster setup
+        await asyncio.gather(*(
+            async_client.post(
                 "/api/bounties",
                 json=build_bounty_create_payload(title=f"Pre-pop #{i}"),
             )
+            for i in range(20)
+        ))
 
         async def query_list(index: int) -> int:
             """Query the bounties list endpoint.

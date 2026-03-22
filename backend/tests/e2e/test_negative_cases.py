@@ -409,8 +409,8 @@ class TestInvalidPayouts:
 
         Each payout must have a unique on-chain transaction hash.
         """
-        import uuid as _uuid
-        unique_hash = (_uuid.uuid4().hex + _uuid.uuid4().hex + _uuid.uuid4().hex)[:88].replace("0", "1")
+        from tests.e2e.factories import unique_tx_hash
+        unique_hash = unique_tx_hash()
 
         payload = build_payout_create_payload(
             recipient="first-recipient",

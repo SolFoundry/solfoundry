@@ -8,12 +8,11 @@ broadcast delivery, authentication enforcement, and rate limiting.
 Requirement: Issue #196 item 6.
 """
 
-import asyncio
 import json
 import uuid
 
 import pytest
-import pytest_asyncio
+from starlette.websockets import WebSocketDisconnect
 
 from app.services.websocket_manager import (
     InMemoryPubSubAdapter,
@@ -502,8 +501,8 @@ class TestRealWebSocketEndpoint:
             with client.websocket_connect(f"/ws?token={INVALID_TOKEN}") as ws:
                 # Connection should be closed by the server
                 ws.receive_json()
-        except Exception:
-            # Expected: connection closed or rejected
+        except WebSocketDisconnect:
+            # Expected: server closed the connection for invalid token
             pass
 
     def test_websocket_ping_pong(self, client) -> None:

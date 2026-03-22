@@ -16,7 +16,6 @@ with a clean application state.
 import asyncio
 import json
 import os
-import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Generator, Optional
 
@@ -243,12 +242,16 @@ def client() -> Generator[TestClient, None, None]:
 
 @pytest.fixture
 def authenticated_user_id() -> str:
-    """Generate a fresh authenticated user UUID.
+    """Generate a fresh deterministic authenticated user UUID.
+
+    Uses the counter-based ``build_user_id()`` factory for reproducibility
+    instead of ``uuid.uuid4()``.
 
     Returns:
         A UUID string suitable for use in ``X-User-ID`` or Bearer headers.
     """
-    return str(uuid.uuid4())
+    from tests.e2e.factories import build_user_id
+    return build_user_id()
 
 
 @pytest.fixture
