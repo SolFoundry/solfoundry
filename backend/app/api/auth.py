@@ -210,6 +210,7 @@ async def wallet_authenticate(
 @router.post("/link-wallet", response_model=LinkWalletResponse)
 async def link_wallet(
     request: LinkWalletRequest,
+    db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user_id),
 ):
     """
@@ -221,7 +222,8 @@ async def link_wallet(
     Requires authentication (GitHub OAuth or existing wallet auth).
     """
     try:
-        result = await auth_service.link_wallet(
+        result = await auth_service.link_wallet_to_user(
+            db,
             user_id,
             request.wallet_address,
             request.signature,

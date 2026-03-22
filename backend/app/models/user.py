@@ -137,6 +137,7 @@ class LinkWalletResponse(BaseModel):
     success: bool = True
     wallet_address: str
     message: str = "Wallet linked successfully"
+    user: Optional[UserResponse] = None
 
 
 class RefreshTokenRequest(BaseModel):
