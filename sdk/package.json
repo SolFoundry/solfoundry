@@ -1,0 +1,19 @@
+{
+  "name": "@solfoundry/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for SolFoundry — query bounties, contributors, and submit work",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": ["solfoundry", "solana", "bounty", "sdk"],
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
