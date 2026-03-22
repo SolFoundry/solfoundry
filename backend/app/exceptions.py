@@ -9,9 +9,39 @@ meaningful HTTP status codes in API endpoints.
 class ContributorNotFoundError(Exception):
     """Raised when a contributor ID does not exist in the store."""
 
-
 class TierNotUnlockedError(Exception):
     """Raised when a contributor attempts a bounty tier they have not unlocked."""
+
+
+# Dispute resolution exceptions (Issue #192)
+
+
+class DisputeNotFoundError(Exception):
+    """Raised when a dispute ID does not exist in the database."""
+
+
+class DisputeWindowExpiredError(Exception):
+    """Raised when the 72-hour dispute window from rejection has passed."""
+
+
+class InvalidDisputeTransitionError(Exception):
+    """Raised when an invalid dispute state transition is attempted."""
+
+
+class DuplicateDisputeError(Exception):
+    """Raised when a dispute already exists for this submission."""
+
+
+class UnauthorizedDisputeAccessError(Exception):
+    """Raised when a non-authorized user attempts a restricted dispute action."""
+
+
+class BountyNotFoundError(Exception):
+    """Raised when a referenced bounty does not exist in the database."""
+
+
+class SubmissionNotFoundError(Exception):
+    """Raised when a referenced submission does not exist in the database."""
 
 
 class PayoutError(Exception):
