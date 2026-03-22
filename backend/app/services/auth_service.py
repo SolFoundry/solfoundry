@@ -298,7 +298,9 @@ def verify_wallet_signature(wallet_address: str, message: str, signature: str) -
         if len(sig_bytes) != 64:
             raise WalletVerificationError("Invalid signature length")
         sig = Signature(sig_bytes)
-        sig.verify(pubkey, message.encode("utf-8"))
+        is_valid = sig.verify(pubkey, message.encode("utf-8"))
+        if not is_valid:
+            raise WalletVerificationError("Failed to verify signature")
         return True
     except WalletVerificationError:
         raise

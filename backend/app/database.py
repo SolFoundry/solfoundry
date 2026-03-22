@@ -88,6 +88,12 @@ async def init_db() -> None:
             from app.models.notification import NotificationDB  # noqa: F401
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
+            from app.models.wallet_link import WalletLink  # noqa: F401
+            from app.models.auth_session import (  # noqa: F401
+                AuthSession,
+                AuthChallenge,
+                RateLimitRecord,
+            )
 
             await conn.run_sync(Base.metadata.create_all)
 
