@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 // ============================================================================
 // Constants
@@ -30,22 +30,37 @@ const FOOTER_LINKS = [
 export function Footer() {
   const currentYear = new Date().getFullYear();
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleCopy = async () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setCopyFailed(false);
     try {
       await navigator.clipboard.writeText(FNDRY_TOKEN_CA);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
-      const el = document.createElement('textarea');
-      el.value = FNDRY_TOKEN_CA;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        // Fallback for older browsers
+        const el = document.createElement('textarea');
+        el.value = FNDRY_TOKEN_CA;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        setCopied(true);
+        timerRef.current = setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setCopyFailed(true);
+        timerRef.current = setTimeout(() => setCopyFailed(false), 3000);
+      }
     }
   };
 
@@ -98,13 +113,20 @@ export function Footer() {
             </code>
             <button
               onClick={handleCopy}
-              aria-label={copied ? 'Copied!' : 'Copy contract address'}
-              title={copied ? 'Copied!' : 'Copy CA'}
-              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded
-                         bg-white/5 hover:bg-[#14F195]/20 border border-white/10
-                         text-gray-400 hover:text-[#14F195] transition-colors"
+              aria-label={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy contract address'}
+              title={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy CA'}
+              className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded
+                         border transition-colors
+                         ${copyFailed
+                           ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                           : 'bg-white/5 hover:bg-[#14F195]/20 border-white/10 text-gray-400 hover:text-[#14F195]'
+                         }`}
             >
-              {copied ? (
+              {copyFailed ? (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : copied ? (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
