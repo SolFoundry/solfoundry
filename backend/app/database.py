@@ -167,12 +167,15 @@ async def init_db() -> None:
             from app.models.contributor import ContributorTable  # noqa: F401
             from app.models.submission import SubmissionDB  # noqa: F401
             from app.models.tables import (  # noqa: F401
-                PayoutTable, BuybackTable, ReputationHistoryTable,
+                PayoutTable,
+                BuybackTable,
+                ReputationHistoryTable,
                 BountySubmissionTable,
             )
             from app.models.review import AIReviewScoreDB  # noqa: F401
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
             from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
+            from app.models.contributor_webhook import ContributorWebhookDB  # noqa: F401
 
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.

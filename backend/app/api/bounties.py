@@ -5,13 +5,15 @@ review scores, approve, dispute, lifecycle log,
 search, autocomplete, hot bounties, recommended bounties.
 """
 
+import asyncio
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_user
 from app.database import get_db
-from app.models.errors import ErrorResponse
 from app.models.bounty import (
     AutocompleteResponse,
     BountyCreate,
@@ -27,18 +29,21 @@ from app.models.bounty import (
     SubmissionResponse,
     SubmissionStatusUpdate,
 )
+from app.models.contributor_webhook import WebhookEventType
+from app.models.errors import ErrorResponse
+from app.models.lifecycle import LifecycleEventType, LifecycleLogResponse
 from app.models.review import (
+    AggregatedReviewScore,
     ReviewScoreCreate,
     ReviewScoreResponse,
-    AggregatedReviewScore,
 )
-from app.models.lifecycle import LifecycleLogResponse, LifecycleEventType
-from app.api.auth import get_current_user
 from app.models.user import UserResponse
-from app.services import bounty_service
-from app.services import review_service
-from app.services import lifecycle_service
+from app.services import bounty_service, lifecycle_service, review_service
 from app.services.bounty_search_service import BountySearchService
+from app.services.webhook_dispatcher import dispatch_event as _dispatch_webhook
+
+logger = logging.getLogger(__name__)
+
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
     """Check that the authenticated user owns the bounty before modification.
@@ -58,8 +63,11 @@ async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
     if not bounty:
         raise HTTPException(status_code=404, detail="Bounty not found")
     if bounty.created_by not in (str(user.id), user.wallet_address):
-        raise HTTPException(status_code=403, detail="Not authorized to modify this bounty")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to modify this bounty"
+        )
     return bounty
+
 
 router = APIRouter(prefix="/bounties", tags=["bounties"])
 
@@ -81,8 +89,7 @@ router = APIRouter(prefix="/bounties", tags=["bounties"])
     },
 )
 async def create_bounty(
-    data: BountyCreate,
-    user: UserResponse = Depends(get_current_user)
+    data: BountyCreate, user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
     """Validate input and create a new bounty owned by the authenticated user."""
     data.created_by = user.wallet_address or str(user.id)
@@ -101,21 +108,37 @@ async def create_bounty(
     """,
 )
 async def list_bounties(
-    status: Optional[BountyStatus] = Query(None, description="Filter by current lifecycle status"),
-    tier: Optional[BountyTier] = Query(None, description="Filter by difficulty tier (1, 2, or 3)"),
+    status: Optional[BountyStatus] = Query(
+        None, description="Filter by current lifecycle status"
+    ),
+    tier: Optional[BountyTier] = Query(
+        None, description="Filter by difficulty tier (1, 2, or 3)"
+    ),
     skills: Optional[str] = Query(
         None, description="Comma-separated list of skills (e.g., 'python,rust')"
     ),
-    created_by: Optional[str] = Query(None, description="Filter by creator's username or wallet"),
+    created_by: Optional[str] = Query(
+        None, description="Filter by creator's username or wallet"
+    ),
     creator_type: Optional[str] = Query(
-        None, pattern=r"^(platform|community)$",
+        None,
+        pattern=r"^(platform|community)$",
         description="Filter by 'platform' (official) or 'community' (user-created)",
     ),
-    reward_min: Optional[float] = Query(None, ge=0, description="Minimum reward amount"),
-    reward_max: Optional[float] = Query(None, ge=0, description="Maximum reward amount"),
-    sort: str = Query("newest", description="Sort order: newest, reward_high, reward_low, deadline, submissions"),
+    reward_min: Optional[float] = Query(
+        None, ge=0, description="Minimum reward amount"
+    ),
+    reward_max: Optional[float] = Query(
+        None, ge=0, description="Maximum reward amount"
+    ),
+    sort: str = Query(
+        "newest",
+        description="Sort order: newest, reward_high, reward_low, deadline, submissions",
+    ),
     skip: int = Query(0, ge=0, description="Pagination offset"),
-    limit: int = Query(20, ge=1, le=100, description="Maximum number of items to return"),
+    limit: int = Query(
+        20, ge=1, le=100, description="Maximum number of items to return"
+    ),
 ) -> BountyListResponse:
     """Return a filtered, sorted, paginated list of bounties from the database."""
     skill_list = (
@@ -156,7 +179,9 @@ async def _get_search_service(
     Supports PostgreSQL-backed indexing for speed and relevance.
     """,
     responses={
-        200: {"description": "Search results (ordered by relevance unless sort provided)"},
+        200: {
+            "description": "Search results (ordered by relevance unless sort provided)"
+        },
     },
 )
 async def search_bounties(
@@ -246,16 +271,25 @@ async def recommended_bounties(
 # CRUD endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/creator/{wallet_address}/stats",
     summary="Get escrow stats for a creator",
 )
 async def get_creator_stats(wallet_address: str):
     """Aggregate escrow statistics (staked, paid, refunded) for a creator."""
-    bounties_resp = await bounty_service.list_bounties(created_by=wallet_address, limit=1000)
+    bounties_resp = await bounty_service.list_bounties(
+        created_by=wallet_address, limit=1000
+    )
     staked, paid, refunded = 0, 0, 0
     for b in bounties_resp.items:
-        if b.status in (BountyStatus.OPEN, BountyStatus.IN_PROGRESS, BountyStatus.UNDER_REVIEW, BountyStatus.DISPUTED, BountyStatus.COMPLETED):
+        if b.status in (
+            BountyStatus.OPEN,
+            BountyStatus.IN_PROGRESS,
+            BountyStatus.UNDER_REVIEW,
+            BountyStatus.DISPUTED,
+            BountyStatus.COMPLETED,
+        ):
             staked += b.reward_amount
         elif b.status == BountyStatus.PAID:
             paid += b.reward_amount
@@ -287,9 +321,7 @@ async def get_bounty_detail(bounty_id: str) -> BountyResponse:
     summary="Partially update a bounty",
 )
 async def update_bounty(
-    bounty_id: str,
-    data: BountyUpdate,
-    user: UserResponse = Depends(get_current_user)
+    bounty_id: str, data: BountyUpdate, user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
     """Apply partial updates to a bounty after verifying ownership."""
     await _verify_bounty_ownership(bounty_id, user)
@@ -306,8 +338,7 @@ async def update_bounty(
     summary="Delete a bounty",
 )
 async def delete_bounty(
-    bounty_id: str,
-    user: UserResponse = Depends(get_current_user)
+    bounty_id: str, user: UserResponse = Depends(get_current_user)
 ) -> None:
     """Delete a bounty by ID after verifying ownership."""
     await _verify_bounty_ownership(bounty_id, user)
@@ -315,7 +346,9 @@ async def delete_bounty(
         raise HTTPException(status_code=404, detail="Bounty not found")
 
 
-@router.post("/{bounty_id}/submit", include_in_schema=False, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{bounty_id}/submit", include_in_schema=False, status_code=status.HTTP_201_CREATED
+)
 @router.post(
     "/{bounty_id}/submissions",
     response_model=SubmissionResponse,
@@ -328,7 +361,10 @@ async def delete_bounty(
     Include your Solana wallet address for payout.
     """,
     responses={
-        400: {"model": ErrorResponse, "description": "Bounty is not accepting submissions"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Bounty is not accepting submissions",
+        },
         401: {"model": ErrorResponse, "description": "Authentication required"},
         404: {"model": ErrorResponse, "description": "Bounty not found"},
     },
@@ -336,7 +372,7 @@ async def delete_bounty(
 async def submit_solution(
     bounty_id: str,
     data: SubmissionCreate,
-    user: UserResponse = Depends(get_current_user)
+    user: UserResponse = Depends(get_current_user),
 ) -> SubmissionResponse:
     """Attach a PR submission to an open bounty for review."""
     data.submitted_by = user.wallet_address or str(user.id)
@@ -355,6 +391,15 @@ async def submit_solution(
         actor_id=data.submitted_by,
         actor_type="user",
         details={"pr_url": data.pr_url, "contributor_wallet": data.contributor_wallet},
+    )
+
+    asyncio.create_task(
+        _dispatch_webhook(
+            event=WebhookEventType.REVIEW_STARTED,
+            bounty_id=bounty_id,
+            user_id=str(user.id),
+            data={"submission_id": result.id, "pr_url": data.pr_url},
+        )
     )
 
     return result
@@ -428,6 +473,25 @@ async def record_review_score(
         meets_threshold=aggregated.meets_threshold,
     )
 
+    if aggregated.review_complete and sub.submitted_by:
+        event = (
+            WebhookEventType.REVIEW_PASSED
+            if aggregated.meets_threshold
+            else WebhookEventType.REVIEW_FAILED
+        )
+        asyncio.create_task(
+            _dispatch_webhook(
+                event=event,
+                bounty_id=bounty_id,
+                user_id=sub.submitted_by,
+                data={
+                    "submission_id": submission_id,
+                    "overall_score": aggregated.overall_score,
+                    "meets_threshold": aggregated.meets_threshold,
+                },
+            )
+        )
+
     return score_resp
 
 
@@ -457,11 +521,13 @@ from pydantic import BaseModel, Field as PydanticField
 
 class ApprovalRequest(BaseModel):
     """Request body for approving a submission."""
+
     notes: Optional[str] = None
 
 
 class DisputeRequest(BaseModel):
     """Request body for disputing a submission."""
+
     reason: str = PydanticField(..., min_length=5, max_length=2000)
 
 
@@ -489,6 +555,8 @@ async def approve_submission(
     await _verify_bounty_ownership(bounty_id, user)
     approved_by = user.wallet_address or str(user.id)
 
+    sub = bounty_service.get_submission(bounty_id, submission_id)
+
     result, error = bounty_service.approve_submission(
         bounty_id=bounty_id,
         submission_id=submission_id,
@@ -507,6 +575,20 @@ async def approve_submission(
         actor_id=approved_by,
         actor_type="user",
     )
+
+    if sub and sub.submitted_by:
+        asyncio.create_task(
+            _dispatch_webhook(
+                event=WebhookEventType.BOUNTY_PAID,
+                bounty_id=bounty_id,
+                user_id=sub.submitted_by,
+                data={
+                    "submission_id": submission_id,
+                    "approved_by": approved_by,
+                    "contributor_wallet": sub.contributor_wallet,
+                },
+            )
+        )
 
     return result
 
@@ -575,7 +657,6 @@ async def get_lifecycle_log(bounty_id: str) -> LifecycleLogResponse:
     return lifecycle_service.get_lifecycle_log(bounty_id)
 
 
-
 @router.patch(
     "/{bounty_id}/submissions/{submission_id}",
     response_model=SubmissionResponse,
@@ -583,7 +664,10 @@ async def get_lifecycle_log(bounty_id: str) -> LifecycleLogResponse:
     description="Approve, reject, or request changes on a submission. Approving triggers the payout flow.",
     responses={
         400: {"model": ErrorResponse, "description": "Invalid status transition"},
-        403: {"model": ErrorResponse, "description": "Not authorized (not the bounty creator)"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized (not the bounty creator)",
+        },
         404: {"model": ErrorResponse, "description": "Bounty or submission not found"},
     },
 )
@@ -591,11 +675,13 @@ async def update_submission(
     bounty_id: str,
     submission_id: str,
     data: SubmissionStatusUpdate,
-    user: UserResponse = Depends(get_current_user)
+    user: UserResponse = Depends(get_current_user),
 ) -> SubmissionResponse:
     """Transition a submission's status after verifying bounty ownership."""
     await _verify_bounty_ownership(bounty_id, user)
-    result, error = await bounty_service.update_submission(bounty_id, submission_id, data.status)
+    result, error = await bounty_service.update_submission(
+        bounty_id, submission_id, data.status
+    )
     if error:
         status_code = 404 if "not found" in error.lower() else 400
         raise HTTPException(status_code=status_code, detail=error)
@@ -608,13 +694,15 @@ async def update_submission(
     summary="Cancel a bounty and trigger refund",
     description="Withdraw a bounty from the marketplace. Only possible if there are no approved submissions.",
     responses={
-        400: {"model": ErrorResponse, "description": "Cannot cancel (e.g., already paid)"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Cannot cancel (e.g., already paid)",
+        },
         403: {"model": ErrorResponse, "description": "Not authorized"},
     },
 )
 async def cancel_bounty(
-    bounty_id: str,
-    user: UserResponse = Depends(get_current_user)
+    bounty_id: str, user: UserResponse = Depends(get_current_user)
 ) -> BountyResponse:
     """Cancel a bounty and trigger a refund to the creator's wallet."""
     await _verify_bounty_ownership(bounty_id, user)
@@ -641,6 +729,7 @@ from app.services.bounty_lifecycle_service import (
 
 class ClaimRequest(BaseModel):
     """Optional claim duration override."""
+
     claim_duration_hours: int = PydanticField(
         default=168,
         ge=1,
@@ -651,6 +740,7 @@ class ClaimRequest(BaseModel):
 
 class TransitionRequest(BaseModel):
     """Request body for a generic status transition."""
+
     target_status: str = PydanticField(..., description="Target bounty status")
 
 
@@ -660,7 +750,10 @@ class TransitionRequest(BaseModel):
     summary="Publish a draft bounty",
     description="Move a bounty from `draft` → `open`, making it visible in the marketplace.",
     responses={
-        400: {"model": ErrorResponse, "description": "Not in draft state or invalid transition"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Not in draft state or invalid transition",
+        },
         403: {"model": ErrorResponse, "description": "Not the bounty creator"},
         404: {"model": ErrorResponse, "description": "Bounty not found"},
     },
@@ -688,7 +781,10 @@ async def publish_bounty(
     and a deadline timer starts.
     """,
     responses={
-        400: {"model": ErrorResponse, "description": "Cannot claim (wrong tier, state, or already claimed)"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Cannot claim (wrong tier, state, or already claimed)",
+        },
         401: {"model": ErrorResponse, "description": "Authentication required"},
         404: {"model": ErrorResponse, "description": "Bounty not found"},
     },
@@ -701,10 +797,20 @@ async def claim_bounty(
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
-        return _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        result = _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
+
+    asyncio.create_task(
+        _dispatch_webhook(
+            event=WebhookEventType.BOUNTY_CLAIMED,
+            bounty_id=bounty_id,
+            user_id=str(user.id),
+            data={"claimer_id": claimer_id, "claim_duration_hours": duration},
+        )
+    )
+    return result
 
 
 @router.post(
@@ -751,7 +857,9 @@ async def transition_bounty(
     try:
         target = BountyStatus(body.target_status)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid status: {body.target_status}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid status: {body.target_status}"
+        )
     try:
         return _transition_status(
             bounty_id, target, actor_id=actor_id, actor_type="user"
@@ -759,4 +867,3 @@ async def transition_bounty(
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
-
