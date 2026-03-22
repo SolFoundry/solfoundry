@@ -1,0 +1,75 @@
+## ❌ Multi-LLM Code Review — REQUEST CHANGES
+
+**Aggregated Score: 6.2/10** (trimmed mean of 4 models)
+**Tier:** tier-2 | **Threshold:** 6.5/10
+
+📊 **Method:** trimmed_mean
+### Model Verdicts
+| Model | Score | Verdict |
+|-------|-------|--------|
+| Grok 4 | FAILED | ❌ |
+| Sonnet 4.6 | 8.0/10 | ✅ |
+| DeepSeek V3.2 | 6.6/10 | ✅ |
+| GPT-5.4 | 5.9/10 | ⚠️ |
+| Gemini 3.1 Pro | 5.8/10 | ⚠️ |
+
+### Category Scores (Median)
+| Category | Score |
+|----------|-------|
+| Quality | ███████░░░ 7.9/10 |
+| Correctness | █████░░░░░ 5.6/10 |
+| Security | ███████░░░ 7.0/10 |
+| Completeness | ██████░░░░ 6.2/10 |
+| Tests | ███████░░░ 7.0/10 |
+| Integration | ██████░░░░ 6.3/10 |
+
+### Warning: Bounty Spec Compliance: PARTIAL
+This submission partially meets the acceptance criteria. Review the issues above for gaps.
+
+### Summary
+**Grok 4:** Review failed: Error code: 429 - {'code': 'Some resource has been exhausted', 'error': 'Your team 04d275b5-c238-47d
+**Sonnet 4.6:** High-quality escrow frontend integration with comprehensive component architecture, proper TypeScript typing, and good test coverage. The implementation covers all major acceptance criteria with well-structured React components, hooks, and transaction flows.
+**DeepSeek V3.2:** The submission provides a solid foundation for escrow frontend integration with well-structured components and comprehensive tests, but it's incomplete for production use. Key acceptance criteria like real-time balance updates, transaction confirmation UI with explorer links, and mobile-responsive signing modals are partially implemented or missing. The code quality is good with proper TypeScript usage and separation of concerns.
+**GPT-5.4:** This PR adds a substantial escrow UI surface with decent component structure, responsive modals, explorer links, polling-based updates, and real tests. However, the core Solana transaction logic appears fundamentally incorrect for a real escrow PDA flow: release/refund are implemented as plain SPL transfers signed by the connected wallet rather than program-mediated escrow instructions, and the hook never reaches the declared 'sending' progress step. Overall this is a meaningful partial implementation, but it does not yet satisfy the bounty at production-ready T2 quality.
+**Gemini 3.1 Pro:** The UI components, state management, and tests are exceptionally well-written and polished. However, the core on-chain logic for the release and refund flows is fundamentally flawed because it attempts direct SPL token transfers from a PDA, completely missing the required Anchor program integration.
+
+### Issues
+- [Sonnet 4.6] Missing real-time websocket implementation - only polling is implemented for balance updates
+- [Sonnet 4.6] Some acceptance criteria like mobile-responsive transaction signing modals could be better validated
+- [Sonnet 4.6] Error handling could be more granular for specific Solana transaction failure modes
+- [DeepSeek V3.2] Missing real-time escrow balance updates via websocket or polling - the useEscrow hook has polling but no visible UI updates for balance changes
+- [DeepSeek V3.2] Transaction confirmation UI lacks Solana explorer links for all transaction types - only error and confirmed states show links
+- [DeepSeek V3.2] Incomplete mobile-responsive transaction signing modals - modals exist but lack proper mobile optimization and touch handling
+- [DeepSeek V3.2] No error handling for insufficient balance, transaction failed, timeout in UI components - only basic error categorization in hook
+- [GPT-5.4] The release and refund flows do not appear to interact with the escrow program/PDA at all; they build plain SPL token transfers from the escrow ATA while using the connected wallet as signer, which will not work for a PDA-owned escrow account and does not meet the spec's program-integration requirement.
+- [GPT-5.4] The deposit flow transfers tokens to a constant ESCROW_WALLET ATA rather than deriving or invoking a bounty-specific escrow PDA/program instruction, so the implementation is not a true per-bounty escrow integration.
+- [GPT-5.4] Transaction progress UI declares a 'sending' step but the hook never sets transactionProgress.step to 'sending', so the confirmation flow is internally inconsistent and partially untested.
+- [GPT-5.4] Owner/authorization checks in BountyDetailPage rely on localStorage wallet_address instead of the wallet adapter, which is brittle and can expose incorrect creator-only UI states.
+- [GPT-5.4] The PR only invalidates the escrow account query and never uses the defined transactions query; transaction history freshness and API contract usage are incomplete.
+- [Gemini 3.1 Pro] The `release` and `refund` flows in `useEscrow.ts` construct raw SPL Token transfers from the `escrowAta`. This will fail on-chain with an `OwnerMismatch` or signature error because the user's wallet cannot sign for the `ESCROW_WALLET` PDA.
+- [Gemini 3.1 Pro] The PR completely omits the `@coral-xyz/anchor` integration required by the bounty spec to interact with the custom Escrow Program.
+
+### Suggestions
+- [Sonnet 4.6] Add websocket connection for real-time escrow balance updates as specified in acceptance criteria
+- [Sonnet 4.6] Include more comprehensive mobile responsiveness tests for transaction modals
+- [Sonnet 4.6] Consider adding retry logic with exponential backoff for failed transactions
+- [DeepSeek V3.2] Implement websocket subscription or polling with visual indicators for real-time escrow balance updates
+- [DeepSeek V3.2] Add Solana explorer links to all transaction states (building, approving, sending) not just error/confirmed
+- [DeepSeek V3.2] Enhance mobile responsiveness with proper viewport handling, touch gestures, and mobile-optimized layouts
+- [DeepSeek V3.2] Add comprehensive error handling UI with retry logic, timeout indicators, and balance validation feedback
+- [GPT-5.4] Replace the plain SPL transfer logic with actual Anchor/web3 escrow program instructions that derive a bounty-specific PDA and let the program authorize deposit/release/refund transitions.
+- [GPT-5.4] Use the wallet adapter as the single source of truth for connected wallet identity throughout the page instead of localStorage-derived addresses.
+- [GPT-5.4] Implement the full transaction lifecycle consistently by setting 'sending' after wallet approval and before confirmation, and add tests that assert each progress transition.
+
+
+_Contributor stats: 1 merged bounty PRs, rep score 13_
+
+🎯 **Expected scope:** ~50 files | This bounty requires end-to-end frontend escrow integration across Solana client setup, bounty detai
+
+---
+*SolFoundry Multi-LLM Review Pipeline v3.1 — GPT-5.4 + Gemini 3.1 Pro + Grok 4 + Sonnet 4.6 + DeepSeek V3.2*
+*Scoring: trimmed_mean across 4 models*
+
+### Next Steps
+Please address the issues above and push updated commits. The review will re-run automatically.
+
