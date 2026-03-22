@@ -46,7 +46,9 @@ async def initiate_unstake(body: UnstakeInitiateRequest):
 async def complete_unstake(body: UnstakeCompleteRequest):
     """Complete the unstake after the cooldown period has elapsed."""
     try:
-        return await staking_service.complete_unstake(body.wallet_address, body.signature)
+        return await staking_service.complete_unstake(
+            body.wallet_address, body.signature
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -55,7 +57,9 @@ async def complete_unstake(body: UnstakeCompleteRequest):
 async def claim_rewards(body: ClaimRewardsRequest):
     """Claim all accrued staking rewards for a wallet."""
     try:
-        position, amount_claimed = await staking_service.claim_rewards(body.wallet_address)
+        position, amount_claimed = await staking_service.claim_rewards(
+            body.wallet_address
+        )
         return {"amount_claimed": amount_claimed, "position": position.model_dump()}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

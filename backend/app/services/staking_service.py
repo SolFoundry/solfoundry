@@ -144,7 +144,9 @@ async def get_position(wallet: str) -> StakingPositionResponse:
         return _build_position_response(pos)
 
 
-async def record_stake(wallet: str, amount: float, signature: str) -> StakingPositionResponse:
+async def record_stake(
+    wallet: str, amount: float, signature: str
+) -> StakingPositionResponse:
     """Record a confirmed on-chain stake. Upserts position and logs event."""
     if amount <= 0:
         raise ValueError("amount must be positive")
@@ -202,10 +204,14 @@ async def initiate_unstake(wallet: str, amount: float) -> StakingPositionRespons
 
         staked = Decimal(str(pos.staked_amount))
         if unstake_amount > staked:
-            raise ValueError(f"Cannot unstake {amount} — only {float(staked):.6f} staked")
+            raise ValueError(
+                f"Cannot unstake {amount} — only {float(staked):.6f} staked"
+            )
 
         if pos.cooldown_started_at is not None:
-            raise ValueError("Unstake already in progress — wait for cooldown to expire")
+            raise ValueError(
+                "Unstake already in progress — wait for cooldown to expire"
+            )
 
         # Accrue pending rewards
         tier_info = get_tier(staked)
@@ -221,8 +227,13 @@ async def initiate_unstake(wallet: str, amount: float) -> StakingPositionRespons
         pos.unstake_amount = unstake_amount
         pos.updated_at = now
 
-        _log_event(session, wallet, "unstake_initiated", unstake_amount,
-                   notes=f"Cooldown until {(now + timedelta(days=UNSTAKE_COOLDOWN_DAYS)).isoformat()}")
+        _log_event(
+            session,
+            wallet,
+            "unstake_initiated",
+            unstake_amount,
+            notes=f"Cooldown until {(now + timedelta(days=UNSTAKE_COOLDOWN_DAYS)).isoformat()}",
+        )
         await session.commit()
         await session.refresh(pos)
         return _build_position_response(pos)
@@ -246,14 +257,18 @@ async def complete_unstake(wallet: str, signature: str) -> StakingPositionRespon
             raise ValueError(f"Cooldown not complete — {remaining:.0f}s remaining")
 
         unstake_amt = Decimal(str(pos.unstake_amount or 0))
-        pos.staked_amount = max(Decimal("0"), Decimal(str(pos.staked_amount or 0)) - unstake_amt)
+        pos.staked_amount = max(
+            Decimal("0"), Decimal(str(pos.staked_amount or 0)) - unstake_amt
+        )
         pos.cooldown_started_at = None
         pos.unstake_amount = Decimal("0")
         pos.updated_at = now
         if pos.staked_amount == Decimal("0"):
             pos.staked_at = None
 
-        _log_event(session, wallet, "unstake_completed", unstake_amt, signature=signature)
+        _log_event(
+            session, wallet, "unstake_completed", unstake_amt, signature=signature
+        )
         await session.commit()
         await session.refresh(pos)
         return _build_position_response(pos)
@@ -273,13 +288,23 @@ async def claim_rewards(wallet: str) -> tuple[StakingPositionResponse, float]:
         last_claim = pos.last_reward_claim or pos.staked_at or now
         if last_claim and last_claim.tzinfo is None:
             last_claim = last_claim.replace(tzinfo=timezone.utc)
-        pending = calculate_rewards(staked, tier_info["apy"], last_claim, now) if last_claim else Decimal("0")
+        pending = (
+            calculate_rewards(staked, tier_info["apy"], last_claim, now)
+            if last_claim
+            else Decimal("0")
+        )
         total_claimable = Decimal(str(pos.rewards_accrued or 0)) + pending
 
         if total_claimable <= 0:
             raise ValueError("No rewards available to claim")
 
-        _log_event(session, wallet, "reward_claimed", total_claimable, rewards_amount=total_claimable)
+        _log_event(
+            session,
+            wallet,
+            "reward_claimed",
+            total_claimable,
+            rewards_amount=total_claimable,
+        )
 
         pos.rewards_accrued = Decimal("0")
         pos.last_reward_claim = now
@@ -290,7 +315,9 @@ async def claim_rewards(wallet: str) -> tuple[StakingPositionResponse, float]:
         return _build_position_response(pos), float(total_claimable)
 
 
-async def get_history(wallet: str, limit: int = 50, offset: int = 0) -> StakingHistoryResponse:
+async def get_history(
+    wallet: str, limit: int = 50, offset: int = 0
+) -> StakingHistoryResponse:
     """Return paginated staking event history for a wallet."""
     async with get_db_session() as session:
         count_result = await session.execute(
@@ -313,7 +340,9 @@ async def get_history(wallet: str, limit: int = 50, offset: int = 0) -> StakingH
                 wallet_address=row.wallet_address,
                 event_type=row.event_type,
                 amount=float(row.amount or 0),
-                rewards_amount=float(row.rewards_amount) if row.rewards_amount is not None else None,
+                rewards_amount=float(row.rewards_amount)
+                if row.rewards_amount is not None
+                else None,
                 signature=row.signature,
                 created_at=row.created_at.isoformat() if row.created_at else "",
             )
@@ -349,7 +378,13 @@ async def get_platform_stats() -> StakingStats:
                 StakingPositionTable.staked_amount > 0
             )
         )
-        tier_dist: dict[str, int] = {"bronze": 0, "silver": 0, "gold": 0, "diamond": 0, "none": 0}
+        tier_dist: dict[str, int] = {
+            "bronze": 0,
+            "silver": 0,
+            "gold": 0,
+            "diamond": 0,
+            "none": 0,
+        }
         total_apy = 0.0
         for (amt,) in positions_result.fetchall():
             info = get_tier(Decimal(str(amt)))

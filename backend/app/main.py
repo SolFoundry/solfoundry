@@ -51,7 +51,7 @@ from app.api.stats import router as stats_router
 from app.api.escrow import router as escrow_router
 from app.api.og import router as og_router
 from app.api.staking import router as staking_router
-from app.database import init_db, close_db, engine
+from app.database import init_db, close_db
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets

@@ -11,9 +11,8 @@ Tier configuration:
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from decimal import Decimal
-from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -30,9 +29,9 @@ UNSTAKE_COOLDOWN_DAYS = 7
 _TIER_TABLE = [
     # (min_stake, tier_name, apy, rep_boost)
     (Decimal("100000"), "diamond", Decimal("0.18"), Decimal("2.00")),
-    (Decimal("50000"),  "gold",    Decimal("0.12"), Decimal("1.50")),
-    (Decimal("10000"),  "silver",  Decimal("0.08"), Decimal("1.25")),
-    (Decimal("1000"),   "bronze",  Decimal("0.05"), Decimal("1.00")),
+    (Decimal("50000"), "gold", Decimal("0.12"), Decimal("1.50")),
+    (Decimal("10000"), "silver", Decimal("0.08"), Decimal("1.25")),
+    (Decimal("1000"), "bronze", Decimal("0.05"), Decimal("1.00")),
 ]
 
 
@@ -44,7 +43,9 @@ def get_tier(amount: Decimal) -> dict:
     return {"tier": "none", "apy": 0.0, "rep_boost": 1.0}
 
 
-def calculate_rewards(staked_amount: Decimal, apy: float, from_dt: datetime, to_dt: datetime) -> Decimal:
+def calculate_rewards(
+    staked_amount: Decimal, apy: float, from_dt: datetime, to_dt: datetime
+) -> Decimal:
     """Accrue proportional rewards for the time window [from_dt, to_dt]."""
     if staked_amount <= 0 or from_dt >= to_dt:
         return Decimal("0")
@@ -64,10 +65,14 @@ class StakingPositionTable(Base):
     __tablename__ = "staking_positions"
 
     wallet_address = Column(String(64), primary_key=True, index=True)
-    staked_amount = Column(Numeric(precision=20, scale=6), nullable=False, default=Decimal("0"))
+    staked_amount = Column(
+        Numeric(precision=20, scale=6), nullable=False, default=Decimal("0")
+    )
     staked_at = Column(DateTime(timezone=True), nullable=True)
     last_reward_claim = Column(DateTime(timezone=True), nullable=True)
-    rewards_accrued = Column(Numeric(precision=20, scale=6), nullable=False, default=Decimal("0"))
+    rewards_accrued = Column(
+        Numeric(precision=20, scale=6), nullable=False, default=Decimal("0")
+    )
     cooldown_started_at = Column(DateTime(timezone=True), nullable=True)
     unstake_amount = Column(Numeric(precision=20, scale=6), nullable=True)
     updated_at = Column(
@@ -84,12 +89,18 @@ class StakingEventTable(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     wallet_address = Column(String(64), nullable=False, index=True)
-    event_type = Column(String(32), nullable=False)   # stake | unstake_initiated | unstake_completed | reward_claimed
-    amount = Column(Numeric(precision=20, scale=6), nullable=False, default=Decimal("0"))
+    event_type = Column(
+        String(32), nullable=False
+    )  # stake | unstake_initiated | unstake_completed | reward_claimed
+    amount = Column(
+        Numeric(precision=20, scale=6), nullable=False, default=Decimal("0")
+    )
     rewards_amount = Column(Numeric(precision=20, scale=6), nullable=True)
-    signature = Column(String(128), nullable=True)    # on-chain tx hash
+    signature = Column(String(128), nullable=True)  # on-chain tx hash
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +113,9 @@ class StakeRequest(BaseModel):
 
     wallet_address: str = Field(..., min_length=32, max_length=64)
     amount: float = Field(..., gt=0, description="FNDRY amount staked (UI units)")
-    signature: str = Field(..., min_length=1, description="Confirmed on-chain tx signature")
+    signature: str = Field(
+        ..., min_length=1, description="Confirmed on-chain tx signature"
+    )
 
     @field_validator("amount")
     @classmethod
@@ -123,7 +136,9 @@ class UnstakeCompleteRequest(BaseModel):
     """Complete unstake after cooldown expires."""
 
     wallet_address: str = Field(..., min_length=32, max_length=64)
-    signature: str = Field(..., min_length=1, description="On-chain withdrawal tx signature")
+    signature: str = Field(
+        ..., min_length=1, description="On-chain withdrawal tx signature"
+    )
 
 
 class ClaimRewardsRequest(BaseModel):
@@ -142,8 +157,8 @@ class StakingPositionResponse(BaseModel):
     rep_boost: float
     staked_at: Optional[str]
     last_reward_claim: Optional[str]
-    rewards_earned: float         # lifetime rewards claimed
-    rewards_available: float      # claimable right now
+    rewards_earned: float  # lifetime rewards claimed
+    rewards_available: float  # claimable right now
     cooldown_started_at: Optional[str]
     cooldown_ends_at: Optional[str]
     cooldown_active: bool

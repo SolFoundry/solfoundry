@@ -25,10 +25,20 @@ def upgrade() -> None:
     op.create_table(
         "staking_positions",
         sa.Column("wallet_address", sa.String(64), primary_key=True, index=True),
-        sa.Column("staked_amount", sa.Numeric(precision=20, scale=6), nullable=False, server_default="0"),
+        sa.Column(
+            "staked_amount",
+            sa.Numeric(precision=20, scale=6),
+            nullable=False,
+            server_default="0",
+        ),
         sa.Column("staked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_reward_claim", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("rewards_accrued", sa.Numeric(precision=20, scale=6), nullable=False, server_default="0"),
+        sa.Column(
+            "rewards_accrued",
+            sa.Numeric(precision=20, scale=6),
+            nullable=False,
+            server_default="0",
+        ),
         sa.Column("cooldown_started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("unstake_amount", sa.Numeric(precision=20, scale=6), nullable=True),
         sa.Column(
@@ -45,7 +55,12 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("wallet_address", sa.String(64), nullable=False, index=True),
         sa.Column("event_type", sa.String(32), nullable=False),
-        sa.Column("amount", sa.Numeric(precision=20, scale=6), nullable=False, server_default="0"),
+        sa.Column(
+            "amount",
+            sa.Numeric(precision=20, scale=6),
+            nullable=False,
+            server_default="0",
+        ),
         sa.Column("rewards_amount", sa.Numeric(precision=20, scale=6), nullable=True),
         sa.Column("signature", sa.String(128), nullable=True),
         sa.Column("notes", sa.Text, nullable=True),

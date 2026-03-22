@@ -138,14 +138,21 @@ def create_backup() -> Path:
 
     cmd = [
         PG_DUMP_PATH,
-        "--host", db_config["host"],
-        "--port", db_config["port"],
-        "--username", db_config["user"],
-        "--dbname", db_config["database"],
-        "--format", "custom",
-        "--compress", "9",
+        "--host",
+        db_config["host"],
+        "--port",
+        db_config["port"],
+        "--username",
+        db_config["user"],
+        "--dbname",
+        db_config["database"],
+        "--format",
+        "custom",
+        "--compress",
+        "9",
         "--verbose",
-        "--file", str(backup_file),
+        "--file",
+        str(backup_file),
     ]
 
     logger.info(
@@ -256,10 +263,14 @@ def restore_backup(backup_file: Path, target_database: str = "") -> None:
 
     cmd = [
         PG_RESTORE_PATH,
-        "--host", db_config["host"],
-        "--port", db_config["port"],
-        "--username", db_config["user"],
-        "--dbname", target_db,
+        "--host",
+        db_config["host"],
+        "--port",
+        db_config["port"],
+        "--username",
+        db_config["user"],
+        "--dbname",
+        target_db,
         "--clean",
         "--if-exists",
         "--verbose",
@@ -302,13 +313,17 @@ def list_backups() -> list[dict]:
     backups = []
     for dump_file in BACKUP_DIR.glob(f"{BACKUP_PREFIX}_*.dump"):
         stat = dump_file.stat()
-        backups.append({
-            "file": str(dump_file),
-            "name": dump_file.name,
-            "size_bytes": stat.st_size,
-            "size_mb": round(stat.st_size / (1024 * 1024), 2),
-            "created": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-        })
+        backups.append(
+            {
+                "file": str(dump_file),
+                "name": dump_file.name,
+                "size_bytes": stat.st_size,
+                "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                "created": datetime.fromtimestamp(
+                    stat.st_mtime, tz=timezone.utc
+                ).isoformat(),
+            }
+        )
 
     backups.sort(key=lambda b: b["created"], reverse=True)
     return backups
@@ -327,12 +342,12 @@ def cleanup_old_backups(retain_days: int = BACKUP_RETENTION_DAYS) -> int:
     deleted = 0
 
     for dump_file in BACKUP_DIR.glob(f"{BACKUP_PREFIX}_*.dump"):
-        file_time = datetime.fromtimestamp(
-            dump_file.stat().st_mtime, tz=timezone.utc
-        )
+        file_time = datetime.fromtimestamp(dump_file.stat().st_mtime, tz=timezone.utc)
         if file_time < cutoff:
             dump_file.unlink()
-            logger.info("Deleted old backup: %s (created: %s)", dump_file.name, file_time)
+            logger.info(
+                "Deleted old backup: %s (created: %s)", dump_file.name, file_time
+            )
             deleted += 1
 
     logger.info(
@@ -423,8 +438,7 @@ def main() -> int:
     # cleanup command
     cleanup_parser = subparsers.add_parser("cleanup", help="Remove old backups")
     cleanup_parser.add_argument(
-        "--retain-days", type=int, default=BACKUP_RETENTION_DAYS,
-        help="Days to retain"
+        "--retain-days", type=int, default=BACKUP_RETENTION_DAYS, help="Days to retain"
     )
 
     # verify command

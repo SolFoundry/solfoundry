@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -112,7 +112,9 @@ class TestGetPosition:
         assert r.json()["tier"] == "diamond"
 
     def test_cooldown_fields_present(self):
-        pos = _position(staked=1000.0, tier="bronze", cooldown_active=True, unstake_amount=500.0)
+        pos = _position(
+            staked=1000.0, tier="bronze", cooldown_active=True, unstake_amount=500.0
+        )
         with patch(
             "app.services.staking_service.get_position",
             new=AsyncMock(return_value=pos),
@@ -177,7 +179,9 @@ class TestRecordStake:
 
 class TestInitiateUnstake:
     def test_initiates_cooldown(self):
-        pos = _position(staked=1000.0, tier="bronze", cooldown_active=True, unstake_amount=500.0)
+        pos = _position(
+            staked=1000.0, tier="bronze", cooldown_active=True, unstake_amount=500.0
+        )
         with patch(
             "app.services.staking_service.initiate_unstake",
             new=AsyncMock(return_value=pos),
@@ -353,7 +357,13 @@ class TestGetStats:
             total_stakers=42,
             total_rewards_paid=1234.5,
             avg_apy=0.09,
-            tier_distribution={"bronze": 20, "silver": 15, "gold": 5, "diamond": 2, "none": 0},
+            tier_distribution={
+                "bronze": 20,
+                "silver": 15,
+                "gold": 5,
+                "diamond": 2,
+                "none": 0,
+            },
         )
         with patch(
             "app.services.staking_service.get_platform_stats",
@@ -371,7 +381,13 @@ class TestGetStats:
             total_stakers=0,
             total_rewards_paid=0.0,
             avg_apy=0.0,
-            tier_distribution={"bronze": 0, "silver": 0, "gold": 0, "diamond": 0, "none": 0},
+            tier_distribution={
+                "bronze": 0,
+                "silver": 0,
+                "gold": 0,
+                "diamond": 0,
+                "none": 0,
+            },
         )
         with patch(
             "app.services.staking_service.get_platform_stats",
@@ -390,6 +406,7 @@ class TestGetStats:
 class TestTierLogic:
     def test_no_tier_below_minimum(self):
         from app.models.staking import get_tier
+
         result = get_tier(Decimal("999"))
         assert result["tier"] == "none"
         assert result["apy"] == 0.0
@@ -397,34 +414,40 @@ class TestTierLogic:
 
     def test_bronze_tier(self):
         from app.models.staking import get_tier
+
         result = get_tier(Decimal("1000"))
         assert result["tier"] == "bronze"
         assert result["apy"] == 0.05
 
     def test_silver_tier(self):
         from app.models.staking import get_tier
+
         result = get_tier(Decimal("10000"))
         assert result["tier"] == "silver"
 
     def test_gold_tier(self):
         from app.models.staking import get_tier
+
         result = get_tier(Decimal("50000"))
         assert result["tier"] == "gold"
 
     def test_diamond_tier(self):
         from app.models.staking import get_tier
+
         result = get_tier(Decimal("100000"))
         assert result["tier"] == "diamond"
         assert result["rep_boost"] == 2.0
 
     def test_rewards_zero_for_zero_staked(self):
         from app.models.staking import calculate_rewards
+
         now = datetime.now(timezone.utc)
         result = calculate_rewards(Decimal("0"), 0.05, now - timedelta(days=30), now)
         assert result == Decimal("0")
 
     def test_rewards_accrue_over_time(self):
         from app.models.staking import calculate_rewards
+
         now = datetime.now(timezone.utc)
         start = now - timedelta(days=365)
         result = calculate_rewards(Decimal("10000"), 0.08, start, now)
