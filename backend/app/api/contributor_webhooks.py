@@ -12,7 +12,7 @@ GET    /api/webhooks                List registered webhooks for the caller
 
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user_id

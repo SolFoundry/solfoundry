@@ -12,9 +12,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import json
 import logging
-import time
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -249,7 +247,6 @@ class ContributorWebhookService:
         }
         if not success:
             # Increment via SQL expression to avoid race conditions
-            from sqlalchemy import text  # local import to avoid circular
 
             await self._db.execute(
                 update(ContributorWebhookDB)
