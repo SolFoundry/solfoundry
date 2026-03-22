@@ -1,0 +1,61 @@
+{
+  "name": "@solfoundry/sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for interacting with SolFoundry on-chain programs and APIs",
+  "license": "MIT",
+  "author": "SolFoundry Contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolFoundry/solfoundry.git",
+    "directory": "sdk"
+  },
+  "keywords": [
+    "solana",
+    "solfoundry",
+    "bounty",
+    "sdk",
+    "web3",
+    "defi"
+  ],
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build:esm": "tsc --project tsconfig.esm.json",
+    "build:cjs": "tsc --project tsconfig.cjs.json",
+    "build": "npm run build:esm && npm run build:cjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
