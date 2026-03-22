@@ -4,6 +4,7 @@ import React from 'react';
 import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
+import { CopyAddress } from './common/CopyAddress';
 
 interface ContributorProfileProps {
   username: string;
@@ -25,9 +26,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   reputationScore = 0,
   badgeStats,
 }) => {
-  const truncatedWallet = walletAddress
-    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-    : 'Not connected';
+  const displayWallet = walletAddress || 'Not connected';
 
   const badges = badgeStats ? computeBadges(badgeStats) : [];
   const earnedCount = badges.filter((b) => b.earned).length;
@@ -45,7 +44,18 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
         </div>
         <div className="text-center sm:text-left flex-1">
           <h1 className="text-xl sm:text-2xl font-bold break-words">{username}</h1>
-          <p className="text-gray-400 text-xs sm:text-sm font-mono">{truncatedWallet}</p>
+          {walletAddress ? (
+            <div className="flex justify-center sm:justify-start">
+              <CopyAddress 
+                address={walletAddress} 
+                truncatedLength={4}
+                className="text-gray-400 text-xs sm:text-sm"
+                tooltipText={walletAddress}
+              />
+            </div>
+          ) : (
+            <p className="text-gray-400 text-xs sm:text-sm font-mono">{displayWallet}</p>
+          )}
         </div>
 
         {/* Badge count pill in header */}
