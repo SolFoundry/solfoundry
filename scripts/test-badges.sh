@@ -41,6 +41,10 @@ grep -q "img.shields.io/github/license" "$README" \
     && pass "License badge present" \
     || fail "License badge missing"
 
+grep -Eq "FNDRY.*paid|fndry.*paid" "$README" \
+    && pass "Total \$FNDRY paid badge present" \
+    || fail "Total \$FNDRY paid badge missing"
+
 # --- Section 2: Badge links ---
 echo ""
 echo "🔗 Badge Link Targets"
@@ -53,7 +57,7 @@ grep "github/contributors" "$README" | grep -q "graphs/contributors" \
     && pass "Contributors badge links to contributors page" \
     || fail "Contributors badge link incorrect"
 
-grep "github/issues.*bounty" "$README" | grep -q "label%3Abounty\|label=bounty" \
+grep "github/issues.*bounty" "$README" | grep -Eq "label%3Abounty|label=bounty" \
     && pass "Bounties badge links to filtered issues" \
     || fail "Bounties badge link incorrect"
 
@@ -65,18 +69,22 @@ grep "github/forks" "$README" | grep -q "network/members" \
     && pass "Forks badge links to forks page" \
     || fail "Forks badge link incorrect"
 
-grep "github/license" "$README" | grep -q "LICENSE" \
+grep "github/license" "$README" | grep -Eq "LICENSE" \
     && pass "License badge links to LICENSE file" \
     || fail "License badge link incorrect"
+
+grep -q "solscan.io/token" "$README" \
+    && pass "\$FNDRY badge links to Solscan token page" \
+    || fail "\$FNDRY badge link incorrect"
 
 # --- Section 3: Badge organization ---
 echo ""
 echo "📐 Layout & Structure"
 
 BADGE_BLOCK=$(grep -c "img.shields.io" "$README")
-[ "$BADGE_BLOCK" -ge 6 ] \
-    && pass "At least 6 shields.io badges ($BADGE_BLOCK found)" \
-    || fail "Expected at least 6 badges, found $BADGE_BLOCK"
+[ "$BADGE_BLOCK" -ge 7 ] \
+    && pass "At least 7 shields.io badges ($BADGE_BLOCK found)" \
+    || fail "Expected at least 7 badges, found $BADGE_BLOCK"
 
 # All badges should be inside a single <p align="center"> block
 BADGE_LINES=$(grep -n "img.shields.io" "$README" | head -1 | cut -d: -f1)
@@ -97,17 +105,17 @@ sed -n "${CONTEXT_START},${FIRST_BADGE_LINE}p" "$README" | grep -qi 'align.*cent
 echo ""
 echo "⚡ Dynamic Badge Verification"
 
-grep "img.shields.io" "$README" | grep -qv "\.png\|\.jpg\|\.svg.*static" \
+grep "img.shields.io" "$README" | grep -Eqv "\.png|\.jpg|\.svg.*static" \
     && pass "Badges use dynamic shields.io endpoints (not static images)" \
     || fail "Some badges appear to be static"
 
-grep "img.shields.io.*SolFoundry/solfoundry" "$README" | wc -l | \
-    xargs -I{} [ {} -ge 5 ] \
-    && pass "Badges reference correct repo (SolFoundry/solfoundry)" \
-    || fail "Some badges may reference wrong repo"
+REPO_BADGE_COUNT=$(grep -c "img.shields.io.*SolFoundry/solfoundry" "$README" || true)
+[ "$REPO_BADGE_COUNT" -ge 5 ] \
+    && pass "Badges reference correct repo (SolFoundry/solfoundry) ($REPO_BADGE_COUNT found)" \
+    || fail "Some badges may reference wrong repo ($REPO_BADGE_COUNT found)"
 
 # Badges should have alt text
-ALTS=$(grep -o 'alt="[^"]*"' "$README" | grep -i "status\|contributor\|bount\|star\|fork\|license" | wc -l)
+ALTS=$(grep -o 'alt="[^"]*"' "$README" | grep -Ei "status|contributor|bount|star|fork|license|fndry" | wc -l)
 [ "$ALTS" -ge 5 ] \
     && pass "Badges have descriptive alt text ($ALTS found)" \
     || fail "Missing alt text on some badges"
