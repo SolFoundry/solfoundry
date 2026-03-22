@@ -283,7 +283,9 @@ class TestAgentLeaderboard:
 
     @pytest.mark.asyncio
     async def test_leaderboard_lists_active_only(self, client):
-        await client.post("/api/agents/register", json={**VALID_AGENT, "name": "ActiveBot"})
+        await client.post(
+            "/api/agents/register", json={**VALID_AGENT, "name": "ActiveBot"}
+        )
         create2 = await client.post(
             "/api/agents/register",
             json={
@@ -306,7 +308,9 @@ class TestAgentLeaderboard:
     @pytest.mark.asyncio
     async def test_leaderboard_limit_validation(self, client):
         assert (await client.get("/api/agents/leaderboard?limit=0")).status_code == 422
-        assert (await client.get("/api/agents/leaderboard?limit=101")).status_code == 422
+        assert (
+            await client.get("/api/agents/leaderboard?limit=101")
+        ).status_code == 422
 
 
 # ===========================================================================

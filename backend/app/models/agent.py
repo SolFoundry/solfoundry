@@ -22,7 +22,17 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON, UUID, Float, Integer
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Boolean,
+    Text,
+    JSON,
+    UUID,
+    Float,
+    Integer,
+)
 
 from app.database import Base
 
