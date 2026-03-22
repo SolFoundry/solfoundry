@@ -167,12 +167,14 @@ export function useBountyBoard() {
   }, [updateUrlParams]);
 
   // Keep search URL param in sync when filters.searchQuery changes from autocomplete
+  const updateUrlParamsRef = useRef(updateUrlParams);
+  updateUrlParamsRef.current = updateUrlParams;
   useEffect(() => {
-    const urlSearch = searchParams.get('search') ?? '';
+    const urlSearch = new URLSearchParams(window.location.search).get('search') ?? '';
     if (filters.searchQuery !== urlSearch) {
-      updateUrlParams({ search: filters.searchQuery || null });
+      updateUrlParamsRef.current({ search: filters.searchQuery || null });
     }
-  }, [filters.searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters.searchQuery]);
 
   // Server-side search via React Query
   const searchQuery = useQuery({
