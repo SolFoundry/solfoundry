@@ -169,7 +169,7 @@ Proven builders (80+ reputation score from merged bounties) get slightly reduced
 |---|---|
 | **Chain** | Solana (SPL) |
 | **Launch** | [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS) bonding curve |
-| **Treasury** | `57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp` |
+| **Treasury** | `AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1` |
 
 ### Tokenomics
 

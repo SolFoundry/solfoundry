@@ -30,7 +30,7 @@ _tx_hash_counter = itertools.count(1)
 # A valid Solana base-58 address used as default wallet in tests.
 DEFAULT_WALLET = "97VihHW2Br7BKUU16c7RxjiEMHsD4dWisGDT2Y3LyJxF"
 # A second valid wallet for multi-contributor scenarios.
-SECONDARY_WALLET = "57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"
+SECONDARY_WALLET = "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
 # Valid Solana tx signature (64-88 base-58 chars) for payout tests.
 VALID_TX_HASH = "5VERnGcJb7fDAj37gQaToQaC8qK9P1DdVJX7wE4ZmBYuFRJdBzjS8x1v3oeRYLN8NhRLBmhqTvK4D3gXAqD1PLW"
 

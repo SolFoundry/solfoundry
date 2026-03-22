@@ -102,7 +102,7 @@ describe('TokenomicsPage with React Query', () => {
     };
     const treasuryData = {
       solBalance: 100, fndryBalance: 200_000_000,
-      treasuryWallet: '57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp',
+      treasuryWallet: 'AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1',
       totalPaidOutFndry: 50_000_000, totalPaidOutSol: 25,
       totalPayouts: 30, totalBuybackAmount: 10_000_000,
       totalBuybacks: 5, lastUpdated: new Date().toISOString(),
