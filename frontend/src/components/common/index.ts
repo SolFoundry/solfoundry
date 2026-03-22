@@ -15,3 +15,5 @@ export { TierProgressBar } from './TierProgressBar';
 export type { TierProgressBarProps } from './TierProgressBar';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export type { MarkdownRendererProps } from './MarkdownRenderer';
+export { Tooltip } from './Tooltip';
+export type { TooltipProps, TooltipPosition } from './Tooltip';
