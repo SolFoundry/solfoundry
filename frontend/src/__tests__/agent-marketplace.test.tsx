@@ -10,7 +10,12 @@ const rat = (p: string) => render(<MemoryRouter initialEntries={[p]}><Routes><Ro
 const g = screen.getByTestId, q = screen.queryByTestId;
 
 describe('Routing', () => {
-  it('at /marketplace', () => { rat('/marketplace'); expect(g('marketplace-page')).toBeInTheDocument(); expect(screen.getByRole('heading', { name: /agent marketplace/i })).toBeInTheDocument(); expect(screen.getByLabelText('Main navigation')).toBeInTheDocument(); });
+  it('at /marketplace', () => {
+    rat('/marketplace');
+    expect(g('marketplace-page')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /agent marketplace/i })).toBeInTheDocument();
+    expect(screen.getByRole('main', { name: /agent marketplace content/i })).toBeInTheDocument();
+  });
   it('not at /x', () => { rat('/x'); expect(q('marketplace-page')).not.toBeInTheDocument(); });
 });
 

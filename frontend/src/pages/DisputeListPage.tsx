@@ -32,7 +32,7 @@ function DisputeListSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
       {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="bg-gray-900 rounded-lg p-5 h-28" />
+        <div key={index} className="bg-gray-200 dark:bg-gray-900 rounded-lg p-5 h-28" />
       ))}
     </div>
   );
@@ -74,8 +74,8 @@ export default function DisputeListPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Disputes</h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Disputes</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Track and manage your dispute resolutions
           </p>
         </div>
@@ -97,7 +97,7 @@ export default function DisputeListPage() {
 
       {/* Error State */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-600 dark:text-red-400">
           {error}
         </div>
       )}
@@ -108,8 +108,8 @@ export default function DisputeListPage() {
       {/* Empty State */}
       {!loading && disputes.length === 0 && (
         <div className="text-center py-16">
-          <div className="text-4xl mb-4 text-gray-600">No disputes</div>
-          <p className="text-gray-400 text-sm max-w-md mx-auto">
+          <div className="text-4xl mb-4 text-gray-400 dark:text-gray-600">No disputes</div>
+          <p className="text-gray-600 dark:text-gray-400 text-sm max-w-md mx-auto">
             {statusFilter
               ? `No disputes with status "${DISPUTE_STATUS_LABELS[statusFilter as DisputeStatus] || statusFilter}".`
               : 'You have no disputes. Disputes are created when a submission rejection is contested.'}
@@ -128,21 +128,21 @@ export default function DisputeListPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
           <button
             onClick={() => setCurrentPage((page) => Math.max(0, page - 1))}
             disabled={currentPage === 0}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors dark:text-gray-400 dark:hover:text-white dark:disabled:text-gray-600"
           >
             Previous
           </button>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Page {currentPage + 1} of {totalPages} ({total} total)
           </span>
           <button
             onClick={() => setCurrentPage((page) => Math.min(totalPages - 1, page + 1))}
             disabled={currentPage >= totalPages - 1}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors dark:text-gray-400 dark:hover:text-white dark:disabled:text-gray-600"
           >
             Next
           </button>

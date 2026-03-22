@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================================
    SolFoundry Theme — Tailwind v4 CSS-based config
    ============================================================================ */

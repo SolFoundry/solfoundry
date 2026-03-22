@@ -10,9 +10,9 @@ const pct = (n: number, total: number) => total > 0 ? ((n / total) * 100).toFixe
 /** Single metric card used throughout the tokenomics dashboard. */
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-gray-700 bg-surface-100 p-4">
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-xl font-bold text-white mt-1">{value}</p>
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-surface-100 dark:shadow-none">
+      <p className="text-xs text-gray-600 dark:text-gray-400">{label}</p>
+      <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
       {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
     </div>
   );
@@ -23,16 +23,16 @@ function DistributionBar({ data, total }: { data: Record<string, number>; total:
   const items = Object.entries(data).filter(([, v]) => v > 0);
   const colors = ['bg-[#00FF88]', 'bg-[#9945FF]', 'bg-blue-500', 'bg-orange-500'];
   return (
-    <div className="rounded-xl border border-gray-700 bg-surface-100 p-4" role="figure" aria-label="Token distribution">
-      <h3 className="text-sm font-semibold text-white mb-3">Distribution</h3>
-      <div className="flex h-4 rounded-full overflow-hidden bg-surface-200">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-surface-100 dark:shadow-none" role="figure" aria-label="Token distribution">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Distribution</h3>
+      <div className="flex h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-surface-200">
         {items.map(([k, v], i) => (
           <div key={k} className={`${colors[i % colors.length]} h-full`} style={{ width: `${pct(v, total)}%` }} title={`${k}: ${fmt(v)}`} />
         ))}
       </div>
       <div className="flex flex-wrap gap-3 mt-3">
         {items.map(([k, v], i) => (
-          <span key={k} className="text-xs text-gray-400 flex items-center gap-1">
+          <span key={k} className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
             <span className={`h-2 w-2 rounded-full ${colors[i % colors.length]}`} /> {k.replace(/_/g, ' ')}: {fmt(v)} ({pct(v, total)}%)
           </span>
         ))}
@@ -57,7 +57,7 @@ export function TokenomicsPage() {
   if (loading) {
     return (
       <div className="p-6 max-w-5xl mx-auto space-y-6" role="status">
-        <div className="text-center text-gray-400 mb-4">Loading tokenomics...</div>
+        <div className="text-center text-gray-600 dark:text-gray-400 mb-4">Loading tokenomics...</div>
         <SkeletonGrid count={6} />
       </div>
     );
@@ -65,8 +65,8 @@ export function TokenomicsPage() {
   if (error) {
     return (
       <div className="p-8 text-center" role="alert">
-        <p className="text-red-400 font-semibold mb-2">Failed to load treasury data</p>
-        <p className="text-sm text-gray-400">{error}</p>
+        <p className="text-red-600 dark:text-red-400 font-semibold mb-2">Failed to load treasury data</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
       </div>
     );
   }
@@ -74,8 +74,8 @@ export function TokenomicsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">{t.tokenName} Tokenomics</h1>
-        <p className="text-sm text-gray-400 mt-1">Contract: <code className="text-xs">{t.tokenCA}</code></p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t.tokenName} Tokenomics</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Contract: <code className="text-xs text-gray-800 dark:text-gray-300">{t.tokenCA}</code></p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Supply" value={fmt(t.totalSupply)} />
@@ -89,7 +89,7 @@ export function TokenomicsPage() {
         <StatCard label="Total Burned" value={fmt(t.totalBurned)} />
         <StatCard label="Treasury Wallet" value={tr.treasuryWallet.slice(0, 8) + '...'} sub={`${tr.solBalance.toFixed(2)} SOL / ${fmt(tr.fndryBalance)} FNDRY`} />
       </div>
-      <p className="text-xs text-gray-500 text-right">Last updated: {new Date(t.lastUpdated).toLocaleString()}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-500 text-right">Last updated: {new Date(t.lastUpdated).toLocaleString()}</p>
     </div>
   );
 }

@@ -65,20 +65,23 @@ export interface DisputeTimelineProps {
 export const DisputeTimeline: React.FC<DisputeTimelineProps> = ({ history }) => {
   if (!history || history.length === 0) {
     return (
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-300 mb-4">Timeline</h3>
-        <p className="text-gray-500 text-sm">No history entries yet.</p>
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-4">Timeline</h3>
+        <p className="text-gray-600 dark:text-gray-500 text-sm">No history entries yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 sm:p-6" data-testid="dispute-timeline">
-      <h3 className="text-lg font-semibold text-gray-300 mb-6">Timeline</h3>
+    <div
+      className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none"
+      data-testid="dispute-timeline"
+    >
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-6">Timeline</h3>
 
       <div className="relative">
         {/* Vertical line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-700" />
+        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
 
         <div className="space-y-6">
           {history.map((entry, index) => {
@@ -100,15 +103,17 @@ export const DisputeTimeline: React.FC<DisputeTimelineProps> = ({ history }) => 
                 {/* Timeline node */}
                 <div
                   className={`absolute left-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${style.color} ${
-                    isLast ? 'ring-2 ring-offset-2 ring-offset-gray-900 ring-current' : ''
+                    isLast
+                      ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900 ring-current'
+                      : ''
                   }`}
                 >
                   {style.icon.length <= 2 ? style.icon : style.icon[0]}
                 </div>
 
-                <div className="bg-gray-800/50 rounded-lg p-3">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-transparent">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                    <span className="text-sm font-medium text-white">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {style.label}
                     </span>
                     <span className="text-xs text-gray-500">{timestamp}</span>
@@ -116,16 +121,16 @@ export const DisputeTimeline: React.FC<DisputeTimelineProps> = ({ history }) => 
 
                   {/* Status transition */}
                   {entry.previous_status && entry.new_status && entry.previous_status !== entry.new_status && (
-                    <div className="text-xs text-gray-400 mb-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                       <span className="text-gray-500">{entry.previous_status}</span>
-                      <span className="mx-1 text-gray-600">&rarr;</span>
+                      <span className="mx-1 text-gray-500 dark:text-gray-600">&rarr;</span>
                       <span className="text-[#9945FF]">{entry.new_status}</span>
                     </div>
                   )}
 
                   {/* Notes */}
                   {entry.notes && (
-                    <p className="text-xs text-gray-400 mt-1">{entry.notes}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{entry.notes}</p>
                   )}
 
                   {/* Actor */}

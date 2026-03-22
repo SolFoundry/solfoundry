@@ -66,7 +66,7 @@ export function Footer() {
 
   return (
     <footer
-      className="border-t border-white/10 bg-[#0a0a0a] font-mono"
+      className="border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0a0a0a] font-mono"
       role="contentinfo"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -78,7 +78,7 @@ export function Footer() {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center shrink-0">
                 <span className="text-white font-bold text-xs">SF</span>
               </div>
-              <span className="text-base font-bold text-white tracking-tight">
+              <span className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
                 SolFoundry
               </span>
             </div>
@@ -98,7 +98,7 @@ export function Footer() {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-400 hover:text-[#9945FF] transition-colors"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-[#9945FF] transition-colors"
               >
                 {link.label}
               </a>
@@ -119,7 +119,7 @@ export function Footer() {
                          border transition-colors
                          ${copyFailed
                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                           : 'bg-white/5 hover:bg-[#14F195]/20 border-white/10 text-gray-400 hover:text-[#14F195]'
+                           : 'bg-gray-100 dark:bg-white/5 hover:bg-[#14F195]/20 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-[#14F195]'
                          }`}
             >
               {copyFailed ? (
@@ -141,7 +141,7 @@ export function Footer() {
         </div>
 
         {/* Bottom row: copyright + attribution */}
-        <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-600">
           <span>© {currentYear} SolFoundry. All rights reserved.</span>
           <span>Built with 🔥 by the SolFoundry automaton</span>
         </div>

@@ -98,7 +98,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             <li>
               {crumb.isCurrent ? (
                 <span
-                  className="text-gray-300 font-medium"
+                  className="text-gray-900 dark:text-gray-300 font-medium"
                   aria-current="page"
                 >
                   {crumb.label}
@@ -128,7 +128,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             ) : (
               <li>
                 {item.isCurrent ? (
-                  <span className="text-gray-300 font-medium" aria-current="page">
+                  <span className="text-gray-900 dark:text-gray-300 font-medium" aria-current="page">
                     {item.label}
                   </span>
                 ) : (

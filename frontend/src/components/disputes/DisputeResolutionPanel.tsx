@@ -93,7 +93,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
 
   return (
     <div
-      className="bg-gray-900 rounded-lg p-4 sm:p-6 border border-[#9945FF]/30"
+      className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-[#9945FF]/30 shadow-sm dark:shadow-none"
       data-testid="resolution-panel"
     >
       <h3 className="text-lg font-semibold text-[#9945FF] mb-4">
@@ -102,19 +102,23 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
 
       {/* AI Mediation Info */}
       {dispute.ai_review_score !== null && dispute.ai_review_score !== undefined && (
-        <div className="mb-4 p-3 bg-gray-800/50 rounded-lg">
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-transparent">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-300">AI Mediation Score</span>
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-300">
+              AI Mediation Score
+            </span>
             <span
               className={`text-lg font-bold ${
-                dispute.ai_review_score >= 7.0 ? 'text-green-400' : 'text-yellow-400'
+                dispute.ai_review_score >= 7.0
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-yellow-700 dark:text-yellow-400'
               }`}
             >
               {dispute.ai_review_score.toFixed(1)}/10
             </span>
           </div>
           {dispute.ai_recommendation && (
-            <p className="text-xs text-gray-400">{dispute.ai_recommendation}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{dispute.ai_recommendation}</p>
           )}
         </div>
       )}
@@ -125,7 +129,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
           type="button"
           onClick={handleMediate}
           disabled={loading}
-          className="w-full mb-4 px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+          className="w-full mb-4 px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg font-medium transition-colors min-h-[44px]"
         >
           {loading ? 'Running AI Mediation...' : 'Trigger AI Mediation'}
         </button>
@@ -135,7 +139,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
       {canResolve && (
         <form onSubmit={handleResolve} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-2">
               Resolution Outcome
             </label>
             <div className="space-y-2">
@@ -145,7 +149,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedOutcome === option.value
                       ? 'border-[#9945FF] bg-[#9945FF]/10'
-                      : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600'
                   }`}
                 >
                   <input
@@ -157,8 +161,12 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
                     className="mt-1 accent-[#9945FF]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-white">{option.label}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{option.description}</p>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {option.label}
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                      {option.description}
+                    </p>
                   </div>
                 </label>
               ))}
@@ -166,7 +174,10 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
           </div>
 
           <div>
-            <label htmlFor="resolution-notes" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="resolution-notes"
+              className="block text-sm font-medium text-gray-800 dark:text-gray-300 mb-1"
+            >
               Resolution Notes
             </label>
             <textarea
@@ -175,12 +186,12 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
               onChange={(event) => setResolutionNotes(event.target.value)}
               placeholder="Explain the rationale for this decision..."
               rows={4}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+              className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
             />
           </div>
 
           {formError && (
-            <p className="text-sm text-red-400" role="alert">
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
               {formError}
             </p>
           )}
@@ -188,7 +199,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-[#14F195] hover:bg-[#10D080] disabled:bg-gray-700 text-black font-bold rounded-lg transition-colors min-h-[44px]"
+            className="w-full px-4 py-3 bg-[#14F195] hover:bg-[#10D080] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-black font-bold rounded-lg transition-colors min-h-[44px]"
           >
             {loading ? 'Resolving...' : 'Resolve Dispute'}
           </button>
@@ -197,16 +208,16 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
 
       {/* Resolved State */}
       {isResolved && (
-        <div className="p-4 bg-gray-800/50 rounded-lg">
-          <p className="text-sm text-gray-300 mb-2">
+        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-transparent">
+          <p className="text-sm text-gray-800 dark:text-gray-300 mb-2">
             <span className="font-medium">Outcome:</span>{' '}
             {dispute.outcome
               ? DISPUTE_OUTCOME_LABELS[dispute.outcome] || dispute.outcome
               : 'N/A'}
           </p>
           {dispute.resolution_notes && (
-            <p className="text-sm text-gray-400">
-              <span className="font-medium text-gray-300">Notes:</span>{' '}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="font-medium text-gray-800 dark:text-gray-300">Notes:</span>{' '}
               {dispute.resolution_notes}
             </p>
           )}

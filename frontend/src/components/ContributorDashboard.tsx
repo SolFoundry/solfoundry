@@ -240,16 +240,16 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryCardProps) {
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-gray-400 text-sm">{label}</span>
+        <span className="text-gray-600 dark:text-gray-400 text-sm">{label}</span>
         <div className="w-10 h-10 rounded-lg bg-[#14F195]/10 flex items-center justify-center">
           {icon}
         </div>
       </div>
       <div className="flex items-end gap-2">
-        <span className="text-2xl font-bold text-white">{value}</span>
-        {suffix && <span className="text-sm text-gray-400 mb-1">{suffix}</span>}
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">{value}</span>
+        {suffix && <span className="text-sm text-gray-600 dark:text-gray-400 mb-1">{suffix}</span>}
       </div>
       {trend && trendValue && (
         <div className={`mt-2 text-xs flex items-center gap-1 ${trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
@@ -271,11 +271,11 @@ function BountyCard({ bounty }: BountyCardProps) {
   const isUrgent = isDeadlineUrgent(daysRemaining);
   
   return (
-    <div className="bg-[#1a1a1a] rounded-lg p-4 border border-white/5 hover:border-[#9945FF]/30 transition-colors">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-gray-200 hover:border-[#9945FF]/40 dark:border-white/5 dark:hover:border-[#9945FF]/30 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-medium truncate">{bounty.title}</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-gray-900 dark:text-white font-medium truncate">{bounty.title}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             <span className={`font-medium ${getStatusColor(bounty.status)}`}>
               {formatStatus(bounty.status)}
             </span>
@@ -287,17 +287,17 @@ function BountyCard({ bounty }: BountyCardProps) {
         </div>
         <div className="text-right ml-4">
           <span className="text-[#14F195] font-bold">{formatNumber(bounty.reward)}</span>
-          <span className="text-gray-400 text-sm ml-1">$FNDRY</span>
+          <span className="text-gray-600 dark:text-gray-400 text-sm ml-1">$FNDRY</span>
         </div>
       </div>
       
       {/* Progress Bar */}
       <div className="mt-3">
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
           <span>Progress</span>
           <span>{bounty.progress}%</span>
         </div>
-        <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-200 dark:bg-[#0a0a0a] rounded-full overflow-hidden">
           <div 
             className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-300"
             style={{ width: `${bounty.progress}%` }}
@@ -314,13 +314,13 @@ interface ActivityItemProps {
 
 function ActivityItem({ activity }: ActivityItemProps) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
+    <div className="flex items-start gap-3 py-3 border-b border-gray-200 dark:border-white/5 last:border-0">
       <div className="flex-shrink-0 mt-0.5">
         {getActivityIcon(activity.type)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{activity.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{activity.description}</p>
+        <p className="text-sm text-gray-900 dark:text-white font-medium">{activity.title}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{activity.description}</p>
       </div>
       <div className="flex-shrink-0 text-right">
         {activity.amount && (
@@ -341,7 +341,7 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
   return (
     <div 
       className={`flex items-start gap-3 py-3 px-2 rounded-lg transition-colors cursor-pointer
-                  ${notification.read ? 'opacity-60' : 'bg-white/5 hover:bg-white/10'}`}
+                  ${notification.read ? 'opacity-60' : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10'}`}
       onClick={() => !notification.read && onMarkAsRead(notification.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -358,8 +358,8 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
         {getNotificationIcon(notification.type)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{notification.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{notification.message}</p>
+        <p className="text-sm text-gray-900 dark:text-white font-medium">{notification.title}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{notification.message}</p>
       </div>
       <span className="text-xs text-gray-500" aria-label={formatRelativeTime(notification.timestamp)}>
         {formatRelativeTime(notification.timestamp)}
@@ -377,12 +377,12 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // Handle empty or insufficient data
   if (!data || data.length === 0) {
     return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-gray-400 text-lg">0 $FNDRY</span>
+          <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
+          <span className="text-gray-600 dark:text-gray-400 text-lg">0 $FNDRY</span>
         </div>
-        <div className="h-[120px] flex items-center justify-center text-gray-400">
+        <div className="h-[120px] flex items-center justify-center text-gray-600 dark:text-gray-400">
           No earnings data available
         </div>
       </div>
@@ -392,9 +392,9 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // For single data point, show a simple display
   if (data.length === 1) {
     return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
+          <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
           <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
         </div>
         <div className="h-[120px] flex items-center justify-center">
@@ -419,15 +419,15 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${padding} ${chartHeight - padding} Z`;
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
+        <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
         <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
       </div>
       <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
         {/* Grid lines */}
-        <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
-        <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
+        <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#64748b" strokeWidth="1" />
+        <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#64748b" strokeWidth="1" />
         
         {/* Area fill */}
         <path d={areaD} fill="url(#gradient)" opacity="0.3" />
@@ -443,9 +443,9 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
             cy={p.y} 
             r="4" 
             fill="#14F195" 
-            stroke="#0a0a0a" 
+            stroke="#e5e7eb" 
             strokeWidth="2"
-            className="hover:scale-125 transition-transform cursor-pointer"
+            className="hover:scale-125 transition-transform cursor-pointer dark:stroke-[#0a0a0a]"
           >
             <title>{`${formatNumber(p.amount)} $FNDRY - ${p.date}`}</title>
           </circle>
@@ -516,20 +516,20 @@ function SettingsSection({
   onDisconnectAccount 
 }: SettingsSectionProps) {
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-      <h3 className="text-white font-medium mb-4">Settings</h3>
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+      <h3 className="text-gray-900 dark:text-white font-medium mb-4">Settings</h3>
       
       {/* Linked Accounts */}
       <div className="mb-6">
-        <h4 className="text-sm text-gray-400 mb-3">Linked Accounts</h4>
+        <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Linked Accounts</h4>
         <div className="space-y-2">
           {linkedAccounts.map((account) => (
-            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
+            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
               <div className="flex items-center gap-3">
                 <span className="text-lg">{account.type === 'github' ? '🐙' : account.type === 'twitter' ? '🐦' : '🔐'}</span>
                 <div>
-                  <p className="text-sm text-white">{account.type.charAt(0).toUpperCase() + account.type.slice(1)}</p>
-                  <p className="text-xs text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{account.type.charAt(0).toUpperCase() + account.type.slice(1)}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
                 </div>
               </div>
               <button 
@@ -541,7 +541,7 @@ function SettingsSection({
                 aria-pressed={account.connected}
                 className={`text-xs px-3 py-1 rounded transition-colors ${
                   account.connected 
-                    ? 'text-gray-400 bg-gray-700 hover:bg-gray-600' 
+                    ? 'text-gray-600 bg-gray-200 hover:bg-gray-300 dark:text-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600' 
                     : 'text-[#14F195] bg-[#14F195]/10 hover:bg-[#14F195]/20'
                 }`}
               >
@@ -554,17 +554,17 @@ function SettingsSection({
       
       {/* Notification Preferences */}
       <div>
-        <h4 className="text-sm text-gray-400 mb-3">Notifications</h4>
+        <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Notifications</h4>
         <div className="space-y-2">
           {notificationPreferences.map((pref) => (
-            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
-              <span className="text-sm text-white">{pref.type}</span>
+            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
+              <span className="text-sm text-gray-900 dark:text-white">{pref.type}</span>
               <button 
                 onClick={() => onToggleNotification(pref.type)}
                 aria-label={`Toggle ${pref.type} notifications`}
                 aria-checked={pref.enabled}
                 role="switch"
-                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-700'}`}
+                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-300 dark:bg-gray-700'}`}
               >
                 <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${pref.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
@@ -575,10 +575,10 @@ function SettingsSection({
       
       {/* Wallet */}
       {walletAddress && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <h4 className="text-sm text-gray-400 mb-3">Wallet</h4>
-          <div className="py-2 px-3 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-400">Connected Wallet</p>
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
+          <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Wallet</h4>
+          <div className="py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Connected Wallet</p>
             <p className="text-sm text-[#14F195] font-mono mt-1">
               {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
             </p>
@@ -653,16 +653,16 @@ export function ContributorDashboard({
   // Loading state UI
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
           </div>
           <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400">Loading dashboard...</p>
+              <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
             </div>
           </div>
         </div>
@@ -673,11 +673,11 @@ export function ContributorDashboard({
   // Error state UI
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
           </div>
           <div className="flex items-center justify-center py-20" role="alert" aria-live="assertive">
             <div className="flex flex-col items-center gap-4 text-center">
@@ -687,8 +687,8 @@ export function ContributorDashboard({
                 </svg>
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white mb-2">Failed to Load Dashboard</h2>
-                <p className="text-gray-400 mb-4">{error}</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Failed to Load Dashboard</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                 <button 
                   onClick={handleRetry}
                   className="px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
@@ -704,16 +704,16 @@ export function ContributorDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-          <p className="text-gray-400">Track your progress, earnings, and active work</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 bg-[#1a1a1a] rounded-lg p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'notifications', label: 'Notifications', badge: unreadNotifications },
@@ -725,7 +725,7 @@ export function ContributorDashboard({
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors relative
                 ${activeTab === tab.id 
                   ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
                 }`}
             >
               {tab.label}
@@ -800,13 +800,13 @@ export function ContributorDashboard({
               {/* Left Column */}
               <div className="space-y-6">
                 {/* Active Bounties */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Active Bounties</h3>
-                    <span className="text-xs text-gray-400">{bounties.length} active</span>
+                    <h3 className="text-gray-900 dark:text-white font-medium">Active Bounties</h3>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{bounties.length} active</span>
                   </div>
                   {bounties.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No active bounties</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">No active bounties</p>
                   ) : (
                     <div className="space-y-3">
                       {bounties.map((bounty) => (
@@ -823,15 +823,15 @@ export function ContributorDashboard({
               {/* Right Column */}
               <div className="space-y-6">
                 {/* Recent Activity */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Recent Activity</h3>
+                    <h3 className="text-gray-900 dark:text-white font-medium">Recent Activity</h3>
                     <button className="text-xs text-[#14F195] hover:text-[#14F195]/80">View All</button>
                   </div>
                   {activities.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No recent activity</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">No recent activity</p>
                   ) : (
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-gray-200 dark:divide-white/5">
                       {activities.map((activity) => (
                         <ActivityItem key={activity.id} activity={activity} />
                       ))}
@@ -844,9 +844,9 @@ export function ContributorDashboard({
         )}
 
         {activeTab === 'notifications' && (
-          <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium">Notifications</h3>
+              <h3 className="text-gray-900 dark:text-white font-medium">Notifications</h3>
               {unreadNotifications > 0 && (
                 <button 
                   onClick={handleMarkAllAsRead}
@@ -857,7 +857,7 @@ export function ContributorDashboard({
               )}
             </div>
             {notifications.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">No notifications</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No notifications</p>
             ) : (
               <div className="space-y-1">
                 {notifications.map((notification) => (

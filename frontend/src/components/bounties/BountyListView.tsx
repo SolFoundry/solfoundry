@@ -25,19 +25,19 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
   const urg = b.status === 'open' && !exp && new Date(b.deadline).getTime() - Date.now() < 2 * 864e5;
 
   const row = (
-    <div className={'flex items-center gap-4 px-4 py-3 rounded-lg border border-surface-300 bg-surface-50 hover:border-solana-green/40 transition-all' + (exp ? ' opacity-60' : '')}>
+    <div className={'flex items-center gap-4 px-4 py-3 rounded-lg border border-gray-200 bg-white hover:border-solana-green/40 transition-all dark:border-surface-300 dark:bg-surface-50' + (exp ? ' opacity-60' : '')}>
       <div className="flex items-center gap-2 shrink-0">
         <TierBadge tier={b.tier} />
         <CreatorBadgeInline type={b.creatorType || 'platform'} />
       </div>
 
       <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-semibold text-white truncate">{b.title}</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{b.title}</h3>
         <div className="flex items-center gap-3 mt-1">
           <span className="text-xs text-gray-500">{b.projectName}</span>
           <div className="flex flex-wrap gap-1">
             {b.skills.slice(0, 3).map(s => (
-              <span key={s} className="rounded-full bg-surface-200 px-1.5 py-0.5 text-[10px] text-gray-400">{s}</span>
+              <span key={s} className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-surface-200 dark:text-gray-400">{s}</span>
             ))}
             {b.skills.length > 3 && <span className="text-[10px] text-gray-500">+{b.skills.length - 3}</span>}
           </div>

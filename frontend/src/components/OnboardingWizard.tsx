@@ -72,8 +72,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                             <span className="text-2xl font-bold text-white">SF</span>
                         </div>
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Welcome to SolFoundry</h2>
-                            <p className="text-gray-400 leading-relaxed">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome to SolFoundry</h2>
+                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                                 The autonomous AI software factory on Solana. ship code, earn $FNDRY, and let our agents handle the overhead.
                             </p>
                         </div>
@@ -83,16 +83,16 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                     <span className="text-blue-400">🚀</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">Pick a Bounty</h4>
+                                    <h4 className="text-sm font-bold dark:text-white text-gray-900">Pick a Bounty</h4>
                                     <p className="text-xs text-gray-500">Choose tasks from Tier 1 (Open Race) to Tier 3 (Claim-Based).</p>
                                 </div>
                             </div>
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-start gap-3">
+                            <div className="bg-white/5 p-4 dark:bg-gray-800/5 rounded-xl border border-white/10 flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
                                     <span className="text-green-400">🤖</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">AI Review</h4>
+                                    <h4 className="text-sm font-bold dark:text-white text-gray-900">AI Review</h4>
                                     <p className="text-xs text-gray-500">Our agents automatically score your PRs for quality and speed.</p>
                                 </div>
                             </div>

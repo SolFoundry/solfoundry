@@ -59,11 +59,11 @@ export function BountyBoard() {
   }, [handleKeyDown]);
 
   return (
-    <div className="min-h-screen bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
+    <div className="min-h-screen bg-gray-50 dark:bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Bounty Marketplace</h1>
-          <p className="text-sm text-gray-500">Browse open bounties and find your next contribution.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Bounty Marketplace</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-500">Browse open bounties and find your next contribution.</p>
         </div>
         <a
           href="/bounties/create"
@@ -103,7 +103,7 @@ export function BountyBoard() {
       ) : bounties.length > 0 ? (
         <div className="relative">
           {isFetching && !loading && (
-            <div className="absolute inset-0 z-10 bg-surface/60 rounded-xl flex items-center justify-center" data-testid="page-loading-overlay">
+            <div className="absolute inset-0 z-10 bg-white/70 dark:bg-surface/60 rounded-xl flex items-center justify-center" data-testid="page-loading-overlay">
               <div className="w-6 h-6 border-2 border-solana-green border-t-transparent rounded-full animate-spin" />
             </div>
           )}

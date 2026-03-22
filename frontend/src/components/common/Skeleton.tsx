@@ -75,7 +75,7 @@ export function Skeleton({
   variant = 'default',
   animation = 'pulse',
 }: SkeletonProps) {
-  const baseClasses = 'bg-surface-200';
+  const baseClasses = 'bg-gray-200 dark:bg-surface-200';
   
   const variantClasses: Record<string, string> = {
     default: 'rounded-lg',
@@ -156,7 +156,7 @@ export function SkeletonCard({
 }: SkeletonCardProps) {
   return (
     <div
-      className={`rounded-xl border border-surface-300 bg-surface-50 p-4 sm:p-5 ${className}`}
+      className={`rounded-xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-surface-300 dark:bg-surface-50 ${className}`}
       role="presentation"
       aria-hidden="true"
       {...props}
@@ -183,7 +183,7 @@ export function SkeletonCard({
       
       {/* Footer */}
       {showFooter && (
-        <div className="flex items-center justify-between pt-3 border-t border-surface-300">
+        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-300">
           <Skeleton height="1.5rem" width="5rem" />
           <Skeleton height="1.5rem" width="4rem" />
         </div>
@@ -249,7 +249,7 @@ export function SkeletonTableRow({
 
   return (
     <tr
-      className={`border-b border-surface-300 ${className}`}
+      className={`border-b border-gray-200 dark:border-surface-300 ${className}`}
       role="presentation"
       aria-hidden="true"
       {...props}
@@ -370,7 +370,7 @@ export function SkeletonList({
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-surface-300 bg-surface-50 p-4 hover:border-solana-purple/30 transition-colors"
+          className="rounded-xl border border-gray-200 bg-white p-4 hover:border-solana-purple/30 transition-colors dark:border-surface-300 dark:bg-surface-50"
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -390,7 +390,7 @@ export function SkeletonList({
             </div>
           )}
           
-          <div className="flex items-center justify-between pt-3 border-t border-surface-300">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-300">
             <Skeleton height="1.25rem" width="5rem" />
             <Skeleton height="1.25rem" width="4rem" />
           </div>
@@ -427,7 +427,7 @@ export function SkeletonTable({
   return (
     <table className={`w-full text-sm ${className}`} role="status" aria-label="Loading data">
       <thead>
-        <tr className="border-b border-gray-700 text-gray-400 text-left text-xs">
+        <tr className="border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 text-left text-xs">
           {Array.from({ length: columns }, (_, i) => (
             <th key={i} className="py-2">
               <Skeleton height="0.75rem" width="3rem" />
@@ -464,12 +464,12 @@ export function SkeletonActivityFeed({
 }: SkeletonActivityFeedProps) {
   return (
     <div
-      className={`rounded-xl border border-surface-300 bg-surface-50 ${className}`}
+      className={`rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 ${className}`}
       role="status"
       aria-label="Loading activity"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-surface-300">
+      <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-surface-300">
         <div className="flex items-center gap-2">
           <Skeleton height="0.5rem" width="0.5rem" variant="circle" />
           <Skeleton height="1rem" width="6rem" />
@@ -478,7 +478,7 @@ export function SkeletonActivityFeed({
       </div>
       
       {/* Items */}
-      <div className="divide-y divide-surface-300">
+      <div className="divide-y divide-gray-200 dark:divide-surface-300">
         {Array.from({ length: count }, (_, i) => (
           <div key={i} className="flex items-start gap-3 p-4">
             <Skeleton height="2rem" width="2rem" className="shrink-0 rounded-lg" />

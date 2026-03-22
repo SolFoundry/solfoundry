@@ -2,7 +2,7 @@
  * ThemeContext - Dark/Light/System theme management with localStorage persistence
  * @module contexts/ThemeContext
  */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 
 // ============================================================================
 // Types
@@ -77,11 +77,11 @@ export function ThemeProvider({
   defaultTheme = DEFAULT_THEME,
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
-  // Initialize theme from localStorage or default
+  const hasMounted = useRef(false);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout>>();
+
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') {
-      return defaultTheme;
-    }
+    if (typeof window === 'undefined') return defaultTheme;
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -93,33 +93,33 @@ export function ThemeProvider({
     return defaultTheme;
   });
 
-  // Track resolved theme and system preference
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'dark';
-    }
+    if (typeof window === 'undefined') return 'dark';
     return getSystemTheme();
   });
 
-  // Get system preference
   function getSystemTheme(): ResolvedTheme {
-    if (typeof window === 'undefined') {
-      return 'dark';
-    }
+    if (typeof window === 'undefined') return 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
-  // Apply theme to document
   const applyTheme = useCallback((resolved: ResolvedTheme) => {
     const root = document.documentElement;
-    
+
+    if (hasMounted.current) {
+      root.classList.add('theme-transitioning');
+      clearTimeout(transitionTimer.current);
+      transitionTimer.current = setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+      }, 300);
+    }
+
     if (resolved === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
-    // Update meta theme-color for mobile browsers
+
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute('content', resolved === 'dark' ? '#0a0a0a' : '#ffffff');
@@ -171,7 +171,12 @@ export function ThemeProvider({
     }
   }, [theme]);
 
-  // Apply theme to document when resolved theme changes
+  // Mark mounted after first render so transitions don't fire on page load
+  useEffect(() => {
+    hasMounted.current = true;
+    return () => { clearTimeout(transitionTimer.current); };
+  }, []);
+
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme, applyTheme]);
