@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { ContributorProfileView, ContributorProfileSkeleton, ContributorNotFound } from '../components/contributor';
-import { useContributorProfile, useIsNotFound } from '../hooks/useContributorProfile';
+import { useContributorProfile } from '../hooks/useContributorProfile';
+import { isApiError } from '../services/apiClient';
 
 export default function ContributorProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -10,7 +11,7 @@ export default function ContributorProfilePage() {
   if (isLoading) return <ContributorProfileSkeleton />;
 
   if (isError) {
-    if (useIsNotFound(error)) return <ContributorNotFound />;
+    if (isApiError(error) && error.status === 404) return <ContributorNotFound />;
 
     const errorMessage = error instanceof Error ? error.message : 'Failed to load contributor profile';
     return (
@@ -20,6 +21,7 @@ export default function ContributorProfilePage() {
           <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
           <button
             onClick={() => refetch()}
+            aria-label="Retry loading contributor profile"
             className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
           >
             Retry

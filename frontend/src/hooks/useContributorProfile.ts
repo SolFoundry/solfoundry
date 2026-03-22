@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, isApiError } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import type { ContributorProfile, CompletedBounty } from '../types/contributor';
 import type { BountyTier } from '../types/bounty';
 
@@ -48,7 +48,7 @@ function mapApiResponse(data: ContributorApiResponse): ContributorProfile {
 
   return {
     username: data.username,
-    avatarUrl: data.avatar_url ?? `https://avatars.githubusercontent.com/${data.username}`,
+    avatarUrl: data.avatar_url ?? `https://avatars.githubusercontent.com/${encodeURIComponent(data.username)}`,
     joinedAt: data.joined_at ?? data.created_at ?? '',
     walletAddress: data.wallet_address ?? '',
     tier,
@@ -76,8 +76,4 @@ export function useContributorProfile(username: string | undefined) {
     retry: false,
     staleTime: 30_000,
   });
-}
-
-export function useIsNotFound(error: unknown): boolean {
-  return isApiError(error) && error.status === 404;
 }

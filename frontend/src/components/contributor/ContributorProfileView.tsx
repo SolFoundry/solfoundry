@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { ContributorProfile } from '../../types/contributor';
 import { TierBadge } from '../bounties/TierBadge';
@@ -28,6 +28,7 @@ interface ContributorProfileViewProps {
 }
 
 export function ContributorProfileView({ contributor }: ContributorProfileViewProps) {
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const joinDate = useMemo(() => formatDate(contributor.joinedAt), [contributor.joinedAt]);
 
   const recentBounties = useMemo(
@@ -49,23 +50,20 @@ export function ContributorProfileView({ contributor }: ContributorProfileViewPr
       <div className="rounded-xl border border-surface-300 bg-surface-50 p-5 sm:p-8 mb-6">
         <div className="flex flex-col sm:flex-row gap-5">
           <div className="flex flex-col items-center sm:items-start">
-            <div className="h-20 w-20 rounded-full bg-surface-200 overflow-hidden shrink-0">
-              <img
-                src={contributor.avatarUrl}
-                alt={`${contributor.username}'s avatar`}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  target.style.display = 'none';
-                  const parent = target.parentElement;
-                  if (parent && !parent.querySelector('span')) {
-                    const fallback = document.createElement('span');
-                    fallback.className = 'flex h-full w-full items-center justify-center text-2xl font-bold text-gray-400';
-                    fallback.textContent = contributor.username.charAt(0).toUpperCase();
-                    parent.appendChild(fallback);
-                  }
-                }}
-              />
+            <div className="h-20 w-20 rounded-full bg-surface-200 overflow-hidden shrink-0 flex items-center justify-center">
+              {avatarFailed ? (
+                <span className="text-2xl font-bold text-gray-400">
+                  {contributor.username.charAt(0).toUpperCase()}
+                </span>
+              ) : (
+                <img
+                  src={contributor.avatarUrl}
+                  alt={`${contributor.username}'s avatar`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={() => setAvatarFailed(true)}
+                />
+              )}
             </div>
           </div>
 
