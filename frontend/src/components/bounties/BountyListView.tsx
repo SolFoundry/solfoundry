@@ -59,7 +59,11 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
           </span>
         </div>
         <div className="w-16 text-center">
-          <TimeAgo date={b.createdAt} className="text-[10px] text-gray-500" />
+          {b.createdAt ? (
+            <TimeAgo date={b.createdAt} className="text-[10px] text-gray-500" />
+          ) : (
+            <span className="text-[10px] text-gray-400">-</span>
+          )}
         </div>
         <div className="w-20">
           <StatusIndicator status={b.status} />
