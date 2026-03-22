@@ -94,4 +94,26 @@ describe('MarkdownRenderer', () => {
     expect(container.firstChild).toBeTruthy();
     expect((container.firstChild as HTMLElement).className).toContain('custom-class');
   });
+
+  // GFM-specific tests
+  it('renders GFM strikethrough', () => {
+    render(<MarkdownRenderer content="~~deleted text~~" />);
+    const del = document.querySelector('del');
+    expect(del).toBeTruthy();
+    expect(del?.textContent).toBe('deleted text');
+  });
+
+  it('renders GFM task list checkboxes', () => {
+    render(<MarkdownRenderer content="- [x] done\n- [ ] todo" />);
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    expect(checkboxes.length).toBe(2);
+    expect((checkboxes[0] as HTMLInputElement).checked).toBe(true);
+    expect((checkboxes[1] as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('strips script tags via rehype-sanitize', () => {
+    render(<MarkdownRenderer content={'<script>alert("xss")</script>safe text'} />);
+    expect(document.querySelector('script')).toBeNull();
+    expect(document.body.textContent).toContain('safe text');
+  });
 });

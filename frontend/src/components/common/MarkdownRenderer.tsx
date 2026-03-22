@@ -1,13 +1,17 @@
 /**
  * MarkdownRenderer — Reusable component for rendering Markdown content safely.
  *
- * Uses react-markdown for parsing and react-syntax-highlighter for code blocks.
+ * Uses react-markdown for parsing, remark-gfm for GitHub-Flavored Markdown
+ * (task lists, tables, strikethrough, autolinks), rehype-sanitize for XSS
+ * protection, and react-syntax-highlighter for code blocks.
+ *
  * All links open in a new tab with rel="noopener noreferrer" for security.
- * HTML output is XSS-safe: react-markdown does not use dangerouslySetInnerHTML.
  *
  * @module components/common/MarkdownRenderer
  */
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Components } from 'react-markdown';
@@ -81,7 +85,7 @@ const components: Components = {
     <p className="text-gray-300 leading-relaxed mb-3">{children}</p>
   ),
 
-  // Lists
+  // Lists (including GFM task lists)
   ul: ({ children }) => (
     <ul className="list-disc list-inside text-gray-300 space-y-1 mb-3 ml-2">{children}</ul>
   ),
@@ -97,7 +101,7 @@ const components: Components = {
     </blockquote>
   ),
 
-  // Table
+  // Table (GFM)
   table: ({ children }) => (
     <div className="overflow-x-auto my-4">
       <table className="w-full border-collapse text-sm text-gray-300">{children}</table>
@@ -114,16 +118,21 @@ const components: Components = {
   // Horizontal rule
   hr: () => <hr className="border-white/10 my-4" />,
 
-  // Bold / italic
+  // Bold / italic / strikethrough (GFM del)
   strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
   em: ({ children }) => <em className="italic text-gray-300">{children}</em>,
+  del: ({ children }) => <del className="line-through text-gray-500">{children}</del>,
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 /**
- * Renders Markdown content with dark-theme styling and syntax-highlighted code blocks.
- * Safe against XSS: relies on react-markdown which does not use dangerouslySetInnerHTML.
+ * Renders Markdown content with GitHub-Flavored Markdown support, dark-theme
+ * styling, syntax-highlighted code blocks, and XSS-safe output.
+ *
+ * Supports: headers, bold, italic, strikethrough, lists (including task lists),
+ * code blocks (Python, TypeScript, Rust, Solidity, and more), inline code,
+ * links, images, blockquotes, and tables.
  *
  * @example
  * <MarkdownRenderer content={bounty.description} className="max-w-prose" />
@@ -133,7 +142,13 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
 
   return (
     <div className={className}>
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
+        components={components}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
