@@ -112,13 +112,21 @@ export function ThemeProvider({
   // Apply theme to document
   const applyTheme = useCallback((resolved: ResolvedTheme) => {
     const root = document.documentElement;
-    
+
+    // Add transitioning class so CSS transitions fire smoothly (200ms + buffer)
+    root.classList.add('theme-transitioning');
+
     if (resolved === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
+
+    // Remove transitioning class after transition completes
+    window.setTimeout(() => {
+      root.classList.remove('theme-transitioning');
+    }, 300);
+
     // Update meta theme-color for mobile browsers
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {

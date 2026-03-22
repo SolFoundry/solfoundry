@@ -7,12 +7,14 @@
     <meta name="description" content="Autonomous AI Software Factory on Solana. Post bounties, earn $FNDRY, build with AI agents." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
-      // Prevent theme flash by applying theme before React hydrates
+      // Prevent theme flash by applying theme before React hydrates.
+      // Storage key and default must match ThemeContext + App defaultTheme.
       (function() {
         try {
           var stored = localStorage.getItem('solfoundry-theme');
-          var theme = stored || 'system';
-          var isDark = theme === 'dark' || 
+          // Default matches App's defaultTheme="dark"
+          var theme = (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'dark';
+          var isDark = theme === 'dark' ||
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (isDark) {
             document.documentElement.classList.add('dark');
