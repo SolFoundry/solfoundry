@@ -22,3 +22,15 @@ def init_test_db():
     from app.database import init_db
     asyncio.run(init_db())
     yield
+
+
+def run_async(coro):
+    """Helper to run async functions in synchronous test code.
+    
+    Args:
+        coro: A coroutine object to execute.
+        
+    Returns:
+        The result of the coroutine.
+    """
+    return asyncio.get_event_loop().run_until_complete(coro)

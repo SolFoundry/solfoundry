@@ -102,3 +102,39 @@ class EscrowFundingError(EscrowError):
 
 class EscrowDoubleSpendError(EscrowError):
     """Raised when a funding transaction could not be confirmed on-chain."""
+
+
+# ---------------------------------------------------------------------------
+# Bounty exceptions
+# ---------------------------------------------------------------------------
+
+class BountyNotFoundError(Exception):
+    """Raised when a bounty ID does not exist."""
+
+
+class SubmissionNotFoundError(Exception):
+    """Raised when a submission ID does not exist."""
+
+
+# ---------------------------------------------------------------------------
+# Dispute exceptions
+# ---------------------------------------------------------------------------
+
+class DisputeNotFoundError(Exception):
+    """Raised when a dispute ID does not exist."""
+
+
+class DisputeWindowExpiredError(Exception):
+    """Raised when the 72-hour dispute window has expired."""
+
+
+class DuplicateDisputeError(Exception):
+    """Raised when a dispute already exists for the given submission."""
+
+
+class InvalidDisputeTransitionError(Exception):
+    """Raised when a dispute state transition is not allowed."""
+
+
+class UnauthorizedDisputeAccessError(Exception):
+    """Raised when a user attempts to access a dispute they are not a participant of."""

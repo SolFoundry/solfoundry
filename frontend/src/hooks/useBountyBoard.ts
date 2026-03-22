@@ -21,24 +21,25 @@ const STATUS_MAP: Record<string, BountyStatus> = {
 };
 
 /** Map raw API bounty response to strongly-typed Bounty object. */
-function mapApiBounty(raw: Record<string, unknown>): Bounty {
+function mapApiBounty(raw: unknown): Bounty {
+  const record = raw as Record<string, unknown>;
   return {
-    id: String(raw.id ?? ''),
-    title: String(raw.title ?? ''),
-    description: String(raw.description ?? ''),
-    tier: TIER_MAP[Number(raw.tier)] || (typeof raw.tier === 'string' ? raw.tier as Bounty['tier'] : 'T2'),
-    skills: (Array.isArray(raw.required_skills) ? raw.required_skills : Array.isArray(raw.skills) ? raw.skills : []) as string[],
-    rewardAmount: Number(raw.reward_amount ?? raw.rewardAmount ?? 0),
+    id: String(record.id ?? ''),
+    title: String(record.title ?? ''),
+    description: String(record.description ?? ''),
+    tier: TIER_MAP[Number(record.tier)] || (typeof record.tier === 'string' ? record.tier as Bounty['tier'] : 'T2'),
+    skills: (Array.isArray(record.required_skills) ? record.required_skills : Array.isArray(record.skills) ? record.skills : []) as string[],
+    rewardAmount: Number(record.reward_amount ?? record.rewardAmount ?? 0),
     currency: '$FNDRY',
-    deadline: String(raw.deadline || new Date(Date.now() + 7 * 86400000).toISOString()),
-    status: STATUS_MAP[String(raw.status)] || (typeof raw.status === 'string' ? raw.status as Bounty['status'] : 'open'),
-    submissionCount: Number(raw.submission_count ?? raw.submissionCount ?? 0),
-    createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
-    projectName: String(raw.created_by || raw.projectName || 'SolFoundry'),
-    creatorType: (String(raw.creator_type || raw.creatorType || 'platform')) as Bounty['creatorType'],
-    githubIssueUrl: raw.github_issue_url || raw.githubIssueUrl ? String(raw.github_issue_url || raw.githubIssueUrl) : undefined,
-    relevanceScore: Number(raw.relevance_score ?? 0),
-    skillMatchCount: Number(raw.skill_match_count ?? 0),
+    deadline: String(record.deadline || new Date(Date.now() + 7 * 86400000).toISOString()),
+    status: STATUS_MAP[String(record.status)] || (typeof record.status === 'string' ? record.status as Bounty['status'] : 'open'),
+    submissionCount: Number(record.submission_count ?? record.submissionCount ?? 0),
+    createdAt: String(record.created_at ?? record.createdAt ?? ''),
+    projectName: String(record.created_by || record.projectName || 'SolFoundry'),
+    creatorType: (String(record.creator_type || record.creatorType || 'platform')) as Bounty['creatorType'],
+    githubIssueUrl: record.github_issue_url || record.githubIssueUrl ? String(record.github_issue_url || record.githubIssueUrl) : undefined,
+    relevanceScore: Number(record.relevance_score ?? 0),
+    skillMatchCount: Number(record.skill_match_count ?? 0),
   };
 }
 

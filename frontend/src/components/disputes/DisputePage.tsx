@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { EvidenceSubmission } from './EvidenceSubmission';
 import { DisputeTimeline } from './DisputeTimeline';
+import type { DisputeHistoryItem } from '../../types/dispute';
 
 interface Evidence {
   type: string;
@@ -21,17 +22,6 @@ interface Evidence {
   description: string;
   submitted_at: string;
   submitted_by: string;
-}
-
-interface DisputeHistory {
-  id: string;
-  action: string;
-  previous_state?: string;
-  new_state?: string;
-  actor_id: string;
-  actor_role: string;
-  notes?: string;
-  created_at: string;
 }
 
 interface Dispute {
@@ -57,7 +47,7 @@ interface Dispute {
   evidence_deadline?: string;
   updated_at: string;
   resolved_at?: string;
-  history: DisputeHistory[];
+  history: DisputeHistoryItem[];
 }
 
 const STATE_COLORS = {
