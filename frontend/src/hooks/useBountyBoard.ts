@@ -167,9 +167,11 @@ export function useBountyBoard() {
   });
 
   const searchAvailableRef = useRef(true);
+  const isSyncingFromUrl = useRef(false);
 
   // Sync filters / sort / page → URL (replace history so back button works naturally)
   useEffect(() => {
+    if (isSyncingFromUrl.current) return;
     const params: Record<string, string> = {};
     if (filters.searchQuery.trim()) params.q = filters.searchQuery.trim();
     if (filters.tier !== 'all') params.tier = filters.tier;
@@ -184,6 +186,28 @@ export function useBountyBoard() {
     if (page > 1) params.page = String(page);
     setSearchParams(params, { replace: true });
   }, [filters, sortBy, page, setSearchParams]);
+
+  // Sync URL → state for back/forward navigation and programmatic URL changes
+  useEffect(() => {
+    const urlState = parseUrlParams(searchParams);
+    const urlSort = urlState.sortBy ? (SORT_COMPAT[urlState.sortBy] || urlState.sortBy) as BountySortBy : 'newest';
+    const urlPage = urlState.page ?? 1;
+    const urlFilters = { ...DEFAULT_FILTERS, ...urlState };
+
+    let changed = false;
+    if (urlPage !== page) { changed = true; setPageRaw(urlPage); }
+    if (urlSort !== sortBy) { changed = true; setSortByRaw(urlSort); }
+    if (urlFilters.searchQuery !== filters.searchQuery ||
+        urlFilters.tier !== filters.tier ||
+        urlFilters.status !== filters.status) {
+      changed = true;
+      setFilters(prev => ({ ...prev, ...urlState }));
+    }
+    if (changed) {
+      isSyncingFromUrl.current = true;
+      queueMicrotask(() => { isSyncingFromUrl.current = false; });
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPage = useCallback((p: number) => {
     setPageRaw(p);
@@ -242,13 +266,16 @@ export function useBountyBoard() {
     return localFiltered.slice(start, start + PER_PAGE);
   }, [localFiltered, page]);
 
-  const bounties = searchQuery.data ? searchQuery.data.items : localPaginated;
-  const total = searchQuery.data ? searchQuery.data.total : localFiltered.length;
+  const bounties = (searchAvailableRef.current && searchQuery.data) ? searchQuery.data.items : localPaginated;
+  const total = (searchAvailableRef.current && searchQuery.data) ? searchQuery.data.total : localFiltered.length;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const loading = searchQuery.isLoading || fallbackQuery.isLoading;
   const isFetching = searchQuery.isFetching;
 
-  // Clamp page to valid range when totalPages changes (skip while loading)
+  // Synchronously clamp page so consumers never see an out-of-range value
+  const clampedPage = loading ? page : Math.max(1, Math.min(page, totalPages));
+
+  // Reconcile state when page exceeds totalPages (e.g. after filter change reduces results)
   useEffect(() => {
     if (!loading && page > totalPages && totalPages > 0) {
       setPageRaw(totalPages);
@@ -280,7 +307,7 @@ export function useBountyBoard() {
     sortBy,
     loading,
     isFetching,
-    page,
+    page: clampedPage,
     totalPages,
     perPage: PER_PAGE,
     hotBounties: hotBountiesQuery.data ?? [],

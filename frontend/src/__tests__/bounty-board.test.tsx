@@ -86,10 +86,17 @@ const b: Bounty = testBounty;
 
 /** Mock API responses so React Query resolves for BountyBoard tests. */
 function mockBountyApis(items: Bounty[] = mockBounties) {
-  const searchResponse = { items: items.map(b => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType })), total: items.length };
+  const apiItems = items.map(b => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType }));
   mockFetch.mockImplementation((...args: unknown[]) => {
     const url = String(args[0] ?? '');
-    if (url.includes('/api/bounties/search')) return Promise.resolve(okJson(searchResponse));
+    if (url.includes('/api/bounties/search')) {
+      const params = new URLSearchParams(url.split('?')[1] ?? '');
+      const page = Number(params.get('page') ?? 1);
+      const perPage = Number(params.get('per_page') ?? 12);
+      const start = (page - 1) * perPage;
+      const paged = apiItems.slice(start, start + perPage);
+      return Promise.resolve(okJson({ items: paged, total: apiItems.length }));
+    }
     if (url.includes('/api/bounties/hot')) return Promise.resolve(okJson([]));
     if (url.includes('/api/bounties/recommended')) return Promise.resolve(okJson([]));
     return Promise.resolve(okJson([]));
