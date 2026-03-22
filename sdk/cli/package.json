@@ -1,0 +1,10 @@
+{
+  "name": "@solfoundry/cli",
+  "version": "0.1.0",
+  "description": "CLI tool for SolFoundry bounty platform",
+  "bin": { "solfoundry": "./dist/index.js" },
+  "scripts": { "build": "tsc" },
+  "dependencies": { "@solfoundry/sdk": "^0.1.0" },
+  "devDependencies": { "typescript": "^5.0.0" },
+  "license": "MIT"
+}
