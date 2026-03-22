@@ -121,7 +121,7 @@ else
         cp .env.example .env
         ok "Created .env from .env.example"
     else
-        warn "No .env.example found — skipping .env creation"
+        warn "No .env.example found — skipping .env creation (no safe defaults available)"
     fi
 fi
 
@@ -179,11 +179,13 @@ if [ "$DOCKER_AVAILABLE" = true ] && [ -f docker-compose.yml ]; then
     docker compose up -d --build 2>&1 | tail -5
     ok "Docker services started"
 
-    # Wait for health checks
+    # Wait for health checks — verify ALL services are healthy
     info "Waiting for services to become healthy..."
     RETRIES=30
     while [ $RETRIES -gt 0 ]; do
-        if docker compose ps 2>/dev/null | grep -q "healthy"; then
+        TOTAL_SERVICES=$(docker compose ps --services 2>/dev/null | wc -l | tr -d ' ')
+        HEALTHY_SERVICES=$(docker compose ps 2>/dev/null | grep -c "healthy" || true)
+        if [ "$HEALTHY_SERVICES" -ge "$TOTAL_SERVICES" ] && [ "$TOTAL_SERVICES" -gt 0 ]; then
             break
         fi
         sleep 2
@@ -191,7 +193,7 @@ if [ "$DOCKER_AVAILABLE" = true ] && [ -f docker-compose.yml ]; then
     done
 
     if [ $RETRIES -gt 0 ]; then
-        ok "All services healthy"
+        ok "All services healthy ($HEALTHY_SERVICES/$TOTAL_SERVICES)"
     else
         warn "Some services may still be starting — check with: docker compose ps"
     fi
@@ -207,6 +209,10 @@ else
         uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload &
         BACKEND_PID=$!
         ok "Backend starting on http://localhost:$BACKEND_PORT (PID: $BACKEND_PID)"
+        sleep 2
+        if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+            warn "Backend process may have exited early — check for errors"
+        fi
         cd "$PROJECT_ROOT"
     fi
 
@@ -217,6 +223,10 @@ else
         npm run dev &
         FRONTEND_PID=$!
         ok "Frontend starting on http://localhost:$FRONTEND_PORT (PID: $FRONTEND_PID)"
+        sleep 2
+        if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+            warn "Frontend process may have exited early — check for errors"
+        fi
         cd "$PROJECT_ROOT"
     fi
 fi

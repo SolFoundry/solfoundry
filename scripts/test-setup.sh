@@ -27,9 +27,13 @@ echo "📦 File Structure"
     && pass "Script is executable" \
     || fail "Script is not executable"
 
-head -1 "$SCRIPT" | grep -q "#!/usr/bin/env bash\|#!/bin/bash" \
-    && pass "Has proper shebang line" \
-    || fail "Missing or incorrect shebang"
+if [ -f "$SCRIPT" ]; then
+    head -1 "$SCRIPT" | grep -q "#!/usr/bin/env bash\|#!/bin/bash" \
+        && pass "Has proper shebang line" \
+        || fail "Missing or incorrect shebang"
+else
+    fail "Cannot check shebang — script not found"
+fi
 
 grep -q "set -.*e" "$SCRIPT" \
     && pass "Uses set -e (exit on error)" \
@@ -44,9 +48,21 @@ grep -q "node" "$SCRIPT" && grep -q "version\|--version\|NODE" "$SCRIPT" \
     && pass "Checks for Node.js with version validation" \
     || fail "Missing Node.js version check"
 
+# Verify Node version threshold is at least 18
+NODE_THRESHOLD=$(grep -oP 'REQUIRED_NODE_MAJOR=\K[0-9]+' "$SCRIPT" || echo "0")
+[ "$NODE_THRESHOLD" -ge 18 ] \
+    && pass "Node version threshold >= 18 (found $NODE_THRESHOLD)" \
+    || fail "Node version threshold too low (found $NODE_THRESHOLD, need >= 18)"
+
 grep -q "python\|PYTHON" "$SCRIPT" \
     && pass "Checks for Python" \
     || fail "Missing Python check"
+
+# Verify Python version threshold is at least 3.10
+PY_THRESHOLD=$(grep -oP 'REQUIRED_PYTHON_MINOR=\K[0-9]+' "$SCRIPT" || echo "0")
+[ "$PY_THRESHOLD" -ge 10 ] \
+    && pass "Python version threshold >= 3.10 (found 3.$PY_THRESHOLD)" \
+    || fail "Python version threshold too low (found 3.$PY_THRESHOLD, need >= 3.10)"
 
 grep -qi "rust\|rustc\|cargo" "$SCRIPT" \
     && pass "Checks for Rust/Cargo (optional)" \
@@ -134,9 +150,9 @@ IDEMPOTENT_CHECKS=0
 grep -q "if.*node_modules\|node_modules.*exist" "$SCRIPT" && IDEMPOTENT_CHECKS=$((IDEMPOTENT_CHECKS + 1))
 grep -q "if.*\.venv\|venv.*exist" "$SCRIPT" && IDEMPOTENT_CHECKS=$((IDEMPOTENT_CHECKS + 1))
 grep -q "if.*\.env\b" "$SCRIPT" && IDEMPOTENT_CHECKS=$((IDEMPOTENT_CHECKS + 1))
-[ "$IDEMPOTENT_CHECKS" -ge 2 ] \
+[ "$IDEMPOTENT_CHECKS" -ge 3 ] \
     && pass "Idempotent — checks existing state ($IDEMPOTENT_CHECKS guards)" \
-    || fail "Insufficient idempotency guards ($IDEMPOTENT_CHECKS found)"
+    || fail "Insufficient idempotency guards ($IDEMPOTENT_CHECKS found, need >= 3)"
 
 # Should not use OS-specific commands without checking
 if grep -q "apt-get\|brew " "$SCRIPT"; then
