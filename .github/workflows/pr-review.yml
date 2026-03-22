@@ -62,7 +62,8 @@ jobs:
             exit 0
           fi
 
-          # Rate limit: max 3 open PRs per author + max 5 PRs opened in 24h
+          # Rate limit: max 5 open PRs per author + max 10 PRs opened in 24h
+          # Generous enough for resubmissions but catches bot spam
           RATE_CHECK=$(python3 -c "
           import json, urllib.request, os, sys
           from datetime import datetime, timedelta, timezone
@@ -70,8 +71,8 @@ jobs:
           token = os.environ['GH_TOKEN']
           repo = '${{ github.repository }}'
           author = '$PR_AUTHOR'
-          MAX_OPEN = 3
-          MAX_DAILY = 5
+          MAX_OPEN = 5
+          MAX_DAILY = 10
 
           def gh_get(url):
               req = urllib.request.Request(url)
