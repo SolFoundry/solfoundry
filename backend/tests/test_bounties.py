@@ -9,7 +9,6 @@ interface triggers them via the ASGI loop automatically.
 
 import asyncio
 import os
-import asyncio
 from collections import deque
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")

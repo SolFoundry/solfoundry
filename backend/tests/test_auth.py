@@ -11,7 +11,6 @@ This module tests:
 import asyncio
 
 import pytest
-import asyncio
 import base64
 from datetime import datetime, timezone, timedelta
 
@@ -21,7 +20,6 @@ from solders.keypair import Keypair
 from app.main import app
 from app.database import async_session_factory
 from app.services import auth_service
-from app.database import async_session_factory
 
 auth_service.GITHUB_CLIENT_ID = "test-client-id"
 
