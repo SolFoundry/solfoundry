@@ -28,7 +28,8 @@ from app.models.user import (
     UserResponse,
     AuthMessageResponse,
 )
-from app.services import auth_service
+from pydantic import BaseModel as _BaseModel
+from app.services import auth_service, siws_service
 from app.services.auth_service import (
     AuthError,
     GitHubOAuthError,
@@ -36,6 +37,7 @@ from app.services.auth_service import (
     TokenExpiredError,
     InvalidTokenError,
 )
+from app.services.siws_service import SiwsRateLimitError, SiwsNonceError
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer(auto_error=False)
@@ -282,5 +284,179 @@ async def get_current_user(
         )
 
 
+# ---------------------------------------------------------------------------
+# Sign-In With Solana (SIWS) endpoints
+# ---------------------------------------------------------------------------
+
+
+class SiwsMessageResponse(_BaseModel):
+    message: str
+    nonce: str
+    issued_at: str
+    expires_at: str
+
+
+class SiwsLoginRequest(_BaseModel):
+    wallet_address: str
+    signature: str
+    message: str
+
+
+class SiwsRefreshRequest(_BaseModel):
+    refresh_token: str
+
+
+class SiwsRefreshResponse(_BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+@router.get(
+    "/siws/message",
+    response_model=SiwsMessageResponse,
+    summary="Get SIWS challenge message",
+    description=(
+        "Generate a nonce-bound Sign-In With Solana message. "
+        "The client must sign this with their wallet and POST to /auth/siws."
+    ),
+)
+async def get_siws_message(wallet_address: str) -> SiwsMessageResponse:
+    """Return a SIWS-formatted challenge message with a DB-persisted nonce."""
+    result = await siws_service.get_siws_message(wallet_address)
+    return SiwsMessageResponse(**result)
+
+
+@router.post(
+    "/siws",
+    summary="Sign-In With Solana",
+    description=(
+        "Verify a signed SIWS message and return JWT access + refresh tokens. "
+        "Rate limited to 5 attempts per wallet per minute."
+    ),
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid signature or nonce"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+async def siws_login(
+    request: SiwsLoginRequest, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Complete SIWS authentication flow."""
+    try:
+        return await siws_service.siws_login(
+            db, request.wallet_address, request.signature, request.message
+        )
+    except SiwsRateLimitError as e:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(e),
+            headers={"Retry-After": "60"},
+        )
+    except (SiwsNonceError, WalletVerificationError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except AuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/siws/refresh",
+    response_model=SiwsRefreshResponse,
+    summary="Refresh SIWS session",
+    description=(
+        "Exchange a valid, non-revoked SIWS refresh token for a new access + refresh "
+        "token pair. The old refresh token is revoked immediately."
+    ),
+)
+async def siws_refresh(
+    request: SiwsRefreshRequest, db: AsyncSession = Depends(get_db)
+) -> SiwsRefreshResponse:
+    """Refresh a SIWS session without re-signing."""
+    try:
+        result = await siws_service.siws_refresh(db, request.refresh_token)
+        return SiwsRefreshResponse(**result)
+    except (InvalidTokenError, TokenExpiredError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@router.post("/siws/logout", summary="Revoke SIWS session")
+async def siws_logout(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> dict:
+    """Revoke the current access token session."""
+    if credentials:
+        await siws_service.revoke_session(credentials.credentials)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# require_wallet_auth — dependency for endpoints that need verified wallet
+# ---------------------------------------------------------------------------
+
+
+async def require_wallet_auth(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    authorization: Optional[str] = Header(None),
+) -> str:
+    """
+    Stricter auth dependency: validates JWT **and** checks the DB session
+    is still alive (not revoked, not expired).
+
+    Use this on endpoints that handle financial operations or sensitive
+    wallet-specific actions. Regular `get_current_user_id` skips the DB
+    session check and is fine for read-only endpoints.
+    """
+    token = None
+    if credentials:
+        token = credentials.credentials
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 1. Validate JWT signature + expiry
+    try:
+        user_id = auth_service.decode_token(token, token_type="access")
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except InvalidTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 2. Validate DB session is still alive
+    if not await siws_service.is_session_valid(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user_id
+
+
 # Export the dependency for use in other modules
-__all__ = ["router", "get_current_user_id", "get_current_user"]
+__all__ = [
+    "router",
+    "get_current_user_id",
+    "get_current_user",
+    "require_wallet_auth",
+]
