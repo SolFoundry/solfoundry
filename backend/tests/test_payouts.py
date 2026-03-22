@@ -808,10 +808,10 @@ class TestPayoutExecution:
         created_time = create_response["updated_at"]
 
         payout_id = create_response["id"]
-        approve_response = client.post(
+        client.post(
             f"/api/payouts/{payout_id}/approve",
             json={"approved": True, "admin_id": "admin-1"},
-        ).json()
+        )
 
         # After approval the payout's updated_at should be refreshed
         payout_after_approve = client.get(f"/api/payouts/id/{payout_id}").json()

@@ -23,9 +23,12 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import httpx
+
+if TYPE_CHECKING:
+    from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 
 from app.exceptions import TransferError
 from app.services.solana_client import (

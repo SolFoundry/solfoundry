@@ -33,8 +33,8 @@ def test_keypair():
     return Keypair()
 
 
-import asyncio
-from app.database import async_session_factory
+import asyncio  # noqa: E402
+from app.database import async_session_factory  # noqa: E402
 
 @pytest.fixture
 def auth_headers(client):

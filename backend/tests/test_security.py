@@ -19,7 +19,7 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from starlette.testclient import TestClient
@@ -40,8 +40,6 @@ from app.middleware.sanitization import (
 )
 from app.middleware.rate_limiter import (
     SlidingWindowCounter,
-    _global_counter,
-    _endpoint_counter,
 )
 from app.services.auth_hardening import (
     BruteForceProtector,
@@ -505,7 +503,7 @@ class TestAuthHardening:
 
         locked, seconds = protector.is_locked_out("user@test.com")
         assert locked
-        first_lockout = seconds
+        _ = seconds
 
         # Wait for lockout to expire (simulate by resetting)
         protector.reset("user@test.com")
@@ -569,7 +567,7 @@ class TestAuthHardening:
 
         # Create 2 sessions
         session_1 = manager.create_session("user-1", "jti-1", "rt-1", "1.1.1.1")
-        session_2 = manager.create_session("user-1", "jti-2", "rt-2", "1.1.1.2")
+        _session_2 = manager.create_session("user-1", "jti-2", "rt-2", "1.1.1.2")  # noqa: F841
 
         # Creating a 3rd should evict the oldest
         session_3 = manager.create_session("user-1", "jti-3", "rt-3", "1.1.1.3")

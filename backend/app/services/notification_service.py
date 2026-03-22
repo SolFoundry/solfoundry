@@ -5,8 +5,13 @@ All methods are designed to work with the Unit of Work pattern
 implemented in the database layer.
 """
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import select, func, and_
+
+if TYPE_CHECKING:
+    from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import (
@@ -191,13 +196,6 @@ class NotificationService:
         Returns:
             The created notification.
         """
-        from fastapi import BackgroundTasks
-        from app.services import contributor_service
-        from app.services.email_service import (
-            can_send_email,
-            increment_email_count,
-            send_notification_email
-        )
 
         ntype = data.notification_type
         if isinstance(ntype, NotificationType):

@@ -10,7 +10,6 @@ PostgreSQL migration: managed by Alembic (see ``alembic/versions/``).
 
 import uuid
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field
