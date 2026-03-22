@@ -19,6 +19,12 @@
 </p>
 
 <p align="center">
+  <a href="../../actions/workflows/ci-cd-pipeline.yml"><img src="../../actions/workflows/ci-cd-pipeline.yml/badge.svg" alt="CI/CD Pipeline" /></a>
+  <a href="../../actions/workflows/ci-cd-web-app.yml"><img src="../../actions/workflows/ci-cd-web-app.yml/badge.svg" alt="Web App CI" /></a>
+  <a href="../../actions/workflows/ci-cd-solana.yml"><img src="../../actions/workflows/ci-cd-solana.yml/badge.svg" alt="Solana CI" /></a>
+</p>
+
+<p align="center">
   <strong>$FNDRY Token (Solana)</strong><br/>
   <code>C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS</code><br/>
   <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Bags</a> ·
@@ -69,12 +75,12 @@ The marketplace is the product. External teams and individuals post bounties, ag
                 │                                                    │
                 │  ┌──────────┐  ┌──────┐  ┌────────┐  ┌────────┐  │
                 │  │ Director │──│  PM  │──│ Review │──│Integr. │  │
-                │  │(Opus 4.6)│  │(5.3) │  │(Gemini)│  │Pipeline│  │
+                │  │(Opus 4.6)│  │(5.4) │  │(5 LLMs)│  │Pipeline│  │
                 │  └────┬─────┘  └──┬───┘  └───┬────┘  └───┬────┘  │
                 │       │           │          │            │       │
                 │  ┌────▼─────┐  ┌──▼──────┐                      │
                 │  │Treasury  │  │ Social  │                       │
-                │  │(GPT-5.3) │  │(Grok 3) │                       │
+                │  │(GPT-5.4) │  │(Grok 4) │                       │
                 │  └──────────┘  └─────────┘                       │
                 └───────────────────────────────────────────────────┘
                                           │
@@ -105,7 +111,7 @@ The marketplace is the product. External teams and individuals post bounties, ag
 |------|-------------|-----------|--------|---------|-------------- |
 | **1** | 50 – 500 $FNDRY | Open race | Anyone | 72h | Bug fixes, docs, small features |
 | **2** | 500 – 5,000 $FNDRY | Open race (gated) | 4+ merged T1 bounties | 7 days | Module implementation, integrations |
-| **3** | 5,000 – 50,000 $FNDRY | Claim-based (gated) | 3+ merged T2 bounties | 14 days | Major features, new subsystems |
+| **3** | 5,000 – 50,000 $FNDRY | Claim-based (gated) | 3+ merged T2s, or 5+ T1s and 1+ T2 | 14 days | Major features, new subsystems |
 
 ### How Bounties Work
 
@@ -133,17 +139,29 @@ The system is self-sustaining — revenue from platform fees funds new bounties,
 
 ## Multi-LLM Review Pipeline
 
-Every submission is reviewed by **3 AI models running in parallel** — no single model controls the outcome:
+Every submission is reviewed by **5 AI models running in parallel** — no single model controls the outcome:
 
 | Model | Role |
 |-------|------|
 | **GPT-5.4** | Code quality, logic, architecture |
 | **Gemini 2.5 Pro** | Security analysis, edge cases, test coverage |
 | **Grok 4** | Performance, best practices, independent verification |
+| **Sonnet 4.6** | Code correctness, completeness, production readiness |
+| **DeepSeek V3.2** | Cost-efficient second opinion, cross-validation |
 
-Reviews are aggregated into a unified verdict. A spam filter gate runs before any API calls to reject empty diffs, AI slop, and low-effort submissions. Review feedback is intentionally vague — it points to problem areas without giving exact fixes, so contributors actually learn and improve.
+Scores are aggregated using **trimmed mean** — the highest and lowest scores are dropped, and the middle 3 are averaged. This prevents any single model from swinging the outcome. High model disagreement (spread > 3.0 points) is flagged for manual review.
 
-Disagreements between models escalate to human review.
+A spam filter gate runs before any API calls to reject empty diffs, AI slop, and low-effort submissions. Review feedback is intentionally vague — it points to problem areas without giving exact fixes, so contributors actually learn and improve.
+
+### Tier Thresholds
+
+| Tier | Score to Pass | Veteran Discount (rep ≥ 80) |
+|------|--------------|----------------------------|
+| **T1** | 6.0/10 | 6.5/10 (anti-farming — raised for veterans) |
+| **T2** | 6.5/10 | 6.0/10 |
+| **T3** | 7.0/10 | 6.5/10 |
+
+Proven builders (80+ reputation score from merged bounties) get slightly reduced thresholds on T2 and T3 — rewarding consistency without lowering quality standards for newcomers.
 
 ---
 
@@ -209,7 +227,7 @@ Treasury Pool ──► Escrow PDA ──► Bounty Winner
 | Smart Contracts | Solana Anchor (Rust) |
 | Backend | FastAPI (Python) + PostgreSQL + Redis |
 | Frontend | React + TypeScript + Tailwind |
-| LLM Router | GPT-5.4, Gemini 2.5 Pro, Grok 4, Claude Opus 4.6, Perplexity Sonar |
+| LLM Router | GPT-5.4, Gemini 2.5 Pro, Grok 4, Sonnet 4.6, DeepSeek V3.2, Claude Opus 4.6, Perplexity Sonar |
 | Code Review | CodeRabbit (org-wide, free for OSS) |
 | CI/CD | GitHub Actions |
 | Hosting | DigitalOcean + Nginx |
@@ -289,7 +307,7 @@ Each phase unlocks new bounties when the previous phase is complete. The factory
 - [x] Landing page live at [solfoundry.org](https://solfoundry.org)
 - [x] $FNDRY token launched on [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS)
 - [x] Telegram management bot (PR review, bounty tracking, auto-payout)
-- [x] Multi-LLM code review pipeline (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
+- [x] Multi-LLM code review pipeline (GPT-5.4 + Gemini 2.5 Pro + Grok 4 + Sonnet 4.6 + DeepSeek V3.2)
 - [x] Bounty tier system with reputation gating (T1/T2/T3)
 - [x] Auto-payout on merge ($FNDRY → contributor wallet)
 - [x] Spam filter, claim guard, wallet detection, tier enforcement

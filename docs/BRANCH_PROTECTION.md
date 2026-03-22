@@ -10,17 +10,16 @@ The `main` branch is protected with the following rules:
 
 All of the following checks must pass before a PR can be merged:
 
-| Check | Description |
-|-------|-------------|
-| `backend-lint` | Ruff linter for Python code |
-| `backend-tests` | pytest unit tests |
-| `frontend-lint` | ESLint for TypeScript/React |
-| `frontend-typecheck` | TypeScript type checking |
-| `frontend-tests` | Vitest unit tests |
-| `frontend-build` | Next.js production build |
-| `anchor-build` | Anchor program compilation |
-| `anchor-test` | Anchor tests on devnet |
-| `rust-clippy` | Rust clippy linting |
+| Check | Description | Workflow |
+|-------|-------------|----------|
+| `lint-backend` | Ruff linter + mypy for Python code | ci-cd-pipeline.yml |
+| `lint-frontend` | TypeScript type checking (tsc --noEmit) | ci-cd-pipeline.yml |
+| `test-backend` | pytest unit tests (Python 3.11 + 3.12 matrix) | ci-cd-pipeline.yml |
+| `test-frontend` | Vitest unit tests (Node 18 + 20 matrix) | ci-cd-pipeline.yml |
+| `test-solana` | Anchor compile, bankrun tests, IDL verify | ci-cd-pipeline.yml |
+| `build-backend` | Docker backend image build | ci-cd-pipeline.yml |
+| `build-frontend` | Docker frontend image build | ci-cd-pipeline.yml |
+| `ci-summary` | Overall CI gate (all above must pass) | ci-cd-pipeline.yml |
 
 ### Protection Settings
 
