@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../contexts/ThemeContext';
@@ -97,10 +97,20 @@ describe('SiteLayout', () => {
     it('renders footer with all links', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      // Footer links exist (some may also appear in other locations)
-      expect(screen.getAllByRole('link', { name: 'GitHub' }).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByRole('link', { name: /X.*Twitter/i }).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByRole('link', { name: 'Website' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Community' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Legal' })).toBeInTheDocument();
+
+      const footer = screen.getByRole('contentinfo');
+      expect(within(footer).getByRole('link', { name: 'Bounties' })).toBeInTheDocument();
+      expect(within(footer).getByRole('link', { name: 'Leaderboard' })).toBeInTheDocument();
+      expect(within(footer).getByRole('link', { name: 'How It Works' })).toBeInTheDocument();
+      expect(within(footer).getByRole('link', { name: 'Docs' })).toBeInTheDocument();
+
+      expect(within(footer).getByRole('link', { name: 'GitHub' })).toBeInTheDocument();
+      expect(within(footer).getByRole('link', { name: 'Website' })).toBeInTheDocument();
+      expect(within(footer).getAllByRole('link', { name: /X.*Twitter/i }).length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders copyright with current year', () => {
@@ -205,21 +215,24 @@ describe('SiteLayout', () => {
     it('highlights current navigation item', () => {
       renderWithTheme(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
 
-      const bountiesLink = screen.getByRole('link', { name: 'Bounties' });
+      const mainNav = screen.getByRole('navigation', { name: /main navigation/i });
+      const bountiesLink = within(mainNav).getByRole('link', { name: 'Bounties' });
       expect(bountiesLink).toHaveAttribute('aria-current', 'page');
     });
 
     it('highlights navigation item for nested paths', () => {
       renderWithTheme(<SiteLayout currentPath="/bounties/123"><div /></SiteLayout>);
 
-      const bountiesLink = screen.getByRole('link', { name: 'Bounties' });
+      const mainNav = screen.getByRole('navigation', { name: /main navigation/i });
+      const bountiesLink = within(mainNav).getByRole('link', { name: 'Bounties' });
       expect(bountiesLink).toHaveClass('text-solana-green');
     });
 
     it('does not highlight non-current navigation items', () => {
       renderWithTheme(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
 
-      const leaderboardLink = screen.getAllByRole('link', { name: 'Leaderboard' })[0];
+      const mainNav = screen.getByRole('navigation', { name: /main navigation/i });
+      const leaderboardLink = within(mainNav).getByRole('link', { name: 'Leaderboard' });
       expect(leaderboardLink).not.toHaveAttribute('aria-current', 'page');
       expect(leaderboardLink).toHaveClass('text-gray-600');
     });
@@ -503,7 +516,8 @@ describe('SiteLayout', () => {
     it('opens Twitter link in new tab', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      const twitterLink = screen.getByRole('link', { name: /X.*Twitter/i });
+      const footer = screen.getByRole('contentinfo');
+      const twitterLink = within(footer).getByRole('link', { name: 'X / Twitter' });
       expect(twitterLink).toHaveAttribute('target', '_blank');
       expect(twitterLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
