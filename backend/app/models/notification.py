@@ -25,6 +25,18 @@ class NotificationType(str, Enum):
     PAYOUT_SENT = "payout_sent"
     BOUNTY_EXPIRED = "bounty_expired"
     RANK_CHANGED = "rank_changed"
+    SUBMISSION_RECEIVED = "submission_received"
+    SUBMISSION_APPROVED = "submission_approved"
+    SUBMISSION_REJECTED = "submission_rejected"
+    SUBMISSION_DISPUTED = "submission_disputed"
+    AUTO_APPROVED = "auto_approved"
+    PAYOUT_INITIATED = "payout_initiated"
+    PAYOUT_CONFIRMED = "payout_confirmed"
+    PAYOUT_FAILED = "payout_failed"
+    MILESTONE_SUBMITTED = "milestone_submitted"
+    MILESTONE_APPROVED = "milestone_approved"
+    MILESTONE_REJECTED = "milestone_rejected"
+    MILESTONE_PAID = "milestone_paid"
 
 
 class NotificationDB(Base):
@@ -61,11 +73,11 @@ class NotificationDB(Base):
 class NotificationBase(BaseModel):
     """Base notification fields."""
 
-    notification_type: str
-    title: str = Field(..., max_length=255)
-    message: str
-    bounty_id: Optional[str] = None
-    extra_data: Optional[dict] = None
+    notification_type: NotificationType = Field(..., description="The type of notification event", examples=[NotificationType.BOUNTY_CLAIMED])
+    title: str = Field(..., max_length=255, description="Brief notification title", examples=["Bounty Claimed!"])
+    message: str = Field(..., description="Detailed notification message (can contain markdown)", examples=["Your bounty 'Refactor Auth' has been claimed by @cryptodev."])
+    bounty_id: Optional[str] = Field(None, description="Associated bounty UUID if applicable", examples=["550e8400-e29b-41d4-a716-446655440000"])
+    extra_data: Optional[dict] = Field(None, description="Optional structured metadata for the event")
 
 
 class NotificationCreate(NotificationBase):
@@ -110,4 +122,4 @@ class NotificationListResponse(BaseModel):
 class UnreadCountResponse(BaseModel):
     """Response for unread count endpoint."""
 
-    unread_count: int
+    unread_count: int = Field(..., description="Number of notifications marked as unread", examples=[5])
