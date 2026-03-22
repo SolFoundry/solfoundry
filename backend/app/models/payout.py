@@ -321,7 +321,7 @@ class TreasuryStats(BaseModel):
 
     sol_balance: float = Field(0.0, description="Total SOL held in treasury", examples=[1250.5])
     fndry_balance: float = Field(0.0, description="Total FNDRY tokens held in treasury", examples=[500000.0])
-    treasury_wallet: str = Field(..., description="Public address of the treasury wallet", examples=["57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"])
+    treasury_wallet: str = Field(..., description="Public address of the treasury wallet", examples=["AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"])
     total_paid_out_fndry: float = Field(0.0, description="Cumulative FNDRY paid to contributors")
     total_paid_out_sol: float = Field(0.0, description="Cumulative SOL paid to contributors")
     total_payouts: int = Field(0, description="Total number of confirmed payout events")

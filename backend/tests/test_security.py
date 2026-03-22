@@ -367,7 +367,7 @@ class TestEscrowSecurity:
 
     def test_validate_solana_address_valid(self):
         """Verify valid Solana addresses pass validation."""
-        assert validate_solana_address("57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp")
+        assert validate_solana_address("AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1")
         assert validate_solana_address("C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS")
 
     def test_validate_solana_address_invalid(self):
@@ -413,7 +413,7 @@ class TestEscrowSecurity:
     def test_full_verification_pipeline(self):
         """Verify the complete escrow verification pipeline succeeds for valid input."""
         valid_hash = "A" * 88
-        valid_address = "57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"
+        valid_address = "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
         recent_timestamp = time.time() - 30
 
         # Should not raise
@@ -430,7 +430,7 @@ class TestEscrowSecurity:
         from app.services.escrow_security import EscrowSecurityError
 
         valid_hash = "B" * 88
-        valid_address = "57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"
+        valid_address = "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
 
         with pytest.raises(EscrowSecurityError):
             self.verifier.verify_escrow_operation(
@@ -806,7 +806,7 @@ class TestWalletValidation:
 
     def test_valid_treasury_wallet(self):
         """Verify the treasury wallet passes validation."""
-        assert is_valid_solana_wallet("57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp")
+        assert is_valid_solana_wallet("AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1")
 
     def test_valid_fndry_ca(self):
         """Verify the FNDRY contract address passes validation."""

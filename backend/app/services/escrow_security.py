@@ -40,7 +40,7 @@ SOLANA_BASE58_CHARS: set[str] = set(
 
 # Known treasury and program addresses for validation
 TREASURY_WALLET: str = os.getenv(
-    "TREASURY_WALLET", "57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"
+    "TREASURY_WALLET", "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
 )
 FNDRY_TOKEN_CA: str = "C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS"
 
