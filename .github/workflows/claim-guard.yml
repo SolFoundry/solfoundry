@@ -305,19 +305,18 @@ jobs:
                       exit(0)
 
                   # Bulk claiming check: max 2 concurrent T3 claims per user
-                  comments_data, _ = gh_get(f"repos/{repo}/issues/comments?per_page=100")
-                  if comments_data:
-                      user_t3_claims = set()
-                      for c in comments_data:
-                          if c["user"]["login"] == user:
-                              c_lower = c.get("body", "").lower()
-                              if re.search(claim_re, c_lower):
-                                  c_issue_num = c["issue_url"].rstrip("/").split("/")[-1]
-                                  if c_issue_num != issue:
-                                      # Check if that issue is T3
-                                      c_tier = get_issue_tier(c_issue_num)
-                                      if c_tier == "tier-3":
-                                          user_t3_claims.add(c_issue_num)
+                  # Search for open T3 issues assigned to or claimed by this user
+                  t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3,claimed&per_page=50")
+                  user_t3_claims = set()
+                  if t3_issues:
+                      for t3_issue in t3_issues:
+                          t3_num = str(t3_issue.get("number", ""))
+                          if t3_num == issue:
+                              continue
+                          # Check if this user is assigned or was approved
+                          assignees = [a["login"] for a in t3_issue.get("assignees", [])]
+                          if user in assignees:
+                              user_t3_claims.add(t3_num)
 
                       if len(user_t3_claims) >= 2:
                           print(f"BULK CLAIMER: {user} has {len(user_t3_claims)} active T3 claims")

@@ -16,7 +16,7 @@ jobs:
     if: github.event.pull_request.merged == true || github.event_name == 'issues'
     runs-on: ubuntu-latest
     concurrency:
-      group: bounty-tracker-${{ github.event.pull_request.number }}
+      group: bounty-tracker-${{ github.event.pull_request.number || github.event.issue.number }}
     steps:
       - name: Setup Python
         uses: actions/setup-python@v5
