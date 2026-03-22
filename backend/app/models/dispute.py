@@ -7,8 +7,9 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 
-from app.database import Base, GUID
+from app.database import Base
 
 
 class DisputeStatus(str, Enum):
@@ -40,17 +41,17 @@ class DisputeDB(Base):
     """DisputeDB."""
     __tablename__ = "disputes"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        GUID(), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("bounties.id", ondelete="CASCADE"), nullable=False
     )
-    submitter_id = Column(GUID(), nullable=False)
+    submitter_id = Column(PgUUID(as_uuid=True), nullable=False)
     reason = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
     evidence_links = Column(JSON, default=list, nullable=False)
     status = Column(String(20), nullable=False, default="pending")
     outcome = Column(String(20), nullable=True)
-    reviewer_id = Column(GUID(), nullable=True)
+    reviewer_id = Column(PgUUID(as_uuid=True), nullable=True)
     review_notes = Column(Text, nullable=True)
     resolution_action = Column(Text, nullable=True)
     created_at = Column(
@@ -73,14 +74,14 @@ class DisputeHistoryDB(Base):
     """DisputeHistoryDB."""
     __tablename__ = "dispute_history"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     dispute_id = Column(
-        GUID(), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("disputes.id", ondelete="CASCADE"), nullable=False
     )
     action = Column(String(50), nullable=False)
     previous_status = Column(String(20), nullable=True)
     new_status = Column(String(20), nullable=True)
-    actor_id = Column(GUID(), nullable=False)
+    actor_id = Column(PgUUID(as_uuid=True), nullable=False)
     notes = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
