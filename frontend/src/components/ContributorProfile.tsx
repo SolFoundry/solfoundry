@@ -4,6 +4,7 @@ import React from 'react';
 import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
+import { Tooltip } from './ui/Tooltip';
 
 interface ContributorProfileProps {
   username: string;
@@ -66,15 +67,21 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-          <p className="text-gray-400 text-xs sm:text-sm">Total Earned</p>
+          <Tooltip content="Total $FNDRY tokens distributed to contributors" position="top">
+            <p className="text-gray-400 text-xs sm:text-sm cursor-help border-b border-dashed border-gray-600 inline-block">Total Earned</p>
+          </Tooltip>
           <p className="text-lg sm:text-xl font-bold text-green-400">{totalEarned.toLocaleString()} FNDRY</p>
         </div>
         <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-          <p className="text-gray-400 text-xs sm:text-sm">Bounties</p>
+          <Tooltip content="Total number of bounties posted across all tiers" position="top">
+            <p className="text-gray-400 text-xs sm:text-sm cursor-help border-b border-dashed border-gray-600 inline-block">Bounties</p>
+          </Tooltip>
           <p className="text-lg sm:text-xl font-bold text-purple-400">{bountiesCompleted}</p>
         </div>
         <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-          <p className="text-gray-400 text-xs sm:text-sm">Reputation</p>
+          <Tooltip content="Your accumulated reputation from merged bounties" position="top">
+            <p className="text-gray-400 text-xs sm:text-sm cursor-help border-b border-dashed border-gray-600 inline-block">Reputation</p>
+          </Tooltip>
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>
       </div>
