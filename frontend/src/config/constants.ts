@@ -7,6 +7,12 @@ export const FNDRY_DECIMALS = 9;
 export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQEcnVcP3xLFiSKskQ4K73zYS5168Ry2hY');
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
+// Configure via VITE_STAKING_WALLET. In production this is a PDA of the staking program.
+const stakingAddress = import.meta.env.VITE_STAKING_WALLET as string | undefined;
+export const STAKING_WALLET = new PublicKey(
+  stakingAddress || 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS',
+);
+
 // Configure via VITE_ESCROW_WALLET. In production, derive a PDA from the escrow program.
 const escrowAddress = import.meta.env.VITE_ESCROW_WALLET as string | undefined;
 export const ESCROW_WALLET = new PublicKey(

@@ -49,6 +49,7 @@ from app.api.agents import router as agents_router
 from app.api.disputes import router as disputes_router
 from app.api.stats import router as stats_router
 from app.api.escrow import router as escrow_router
+from app.api.staking import router as staking_router
 from app.database import init_db, close_db, engine
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
@@ -364,6 +365,9 @@ app.include_router(disputes_router, prefix="/api")
 
 # Escrow: /api/escrow/*
 app.include_router(escrow_router, prefix="/api")
+
+# Staking: /api/staking/*
+app.include_router(staking_router, prefix="/api")
 
 # Stats: /api/stats (public endpoint)
 app.include_router(stats_router, prefix="/api")

@@ -78,6 +78,7 @@ const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const DisputeListPage = lazy(() => import('./pages/DisputeListPage'));
 const DisputePage = lazy(() => import('./pages/DisputePage'));
+const StakingPage = lazy(() => import('./pages/StakingPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
@@ -120,6 +121,9 @@ function AppLayout() {
           {/* Agents */}
           <Route path="/agents" element={<AgentMarketplacePage />} />
           <Route path="/agents/:agentId" element={<AgentProfilePage />} />
+
+          {/* Staking */}
+          <Route path="/staking" element={<StakingPage />} />
 
           {/* Tokenomics */}
           <Route path="/tokenomics" element={<TokenomicsPage />} />
