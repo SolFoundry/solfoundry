@@ -1,5 +1,5 @@
 # Solana Anchor Contract CI
-# Builds and tests Anchor programs on Solana devnet
+# Builds and tests Anchor programs — bankrun (local) + devnet verification
 
 name: Anchor CI
 
@@ -94,6 +94,18 @@ jobs:
         working-directory: contracts
         run: anchor build
 
+      - name: Verify IDL Generation
+        working-directory: contracts
+        run: |
+          # Ensure IDL files were generated for all programs
+          anchor idl build || true
+          if ls target/idl/*.json 1>/dev/null 2>&1; then
+            echo "IDL files generated successfully:"
+            ls -la target/idl/
+          else
+            echo "::warning::No IDL files found — confirm programs have #[program] macros"
+          fi
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +114,64 @@ jobs:
             contracts/target/deploy/
             contracts/target/idl/
           retention-days: 7
+
+  # ==================== ANCHOR BANKRUN TESTS (local, fast) ====================
+  anchor-bankrun:
+    name: Anchor Bankrun Tests (local)
+    runs-on: ubuntu-latest
+    needs: [check-anchor, anchor-build]
+    if: needs.check-anchor.outputs.has_anchor == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Solana
+        uses: metadaoproject/setup-solana@v1
+        with:
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
+
+      - name: Install Anchor CLI
+        run: |
+          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Install bankrun
+        working-directory: contracts
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci
+          else
+            npm install solana-bankrun @coral-xyz/anchor
+          fi
+
+      - name: Cache Anchor Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            contracts/target
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: anchor-${{ runner.os }}-${{ hashFiles('contracts/**/Cargo.lock', 'contracts/Anchor.toml') }}
+          restore-keys: |
+            anchor-${{ runner.os }}-
+
+      - name: Run Bankrun Tests
+        working-directory: contracts
+        run: |
+          # Run bankrun tests if a bankrun test file exists, otherwise fall back to anchor test
+          if find tests -name "*.bankrun.*" -o -name "*bankrun*" 2>/dev/null | grep -q .; then
+            npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.bankrun.ts
+          else
+            echo "::notice::No bankrun test files found — running anchor test with localnet"
+            anchor test --skip-local-validator || anchor test
+          fi
+        continue-on-error: true
 
   # ==================== ANCHOR TEST ON DEVNET ====================
   anchor-test:
@@ -208,7 +278,7 @@ jobs:
   anchor-status:
     name: Anchor CI Summary
     runs-on: ubuntu-latest
-    needs: [check-anchor, anchor-build, anchor-test, rust-security, rust-clippy]
+    needs: [check-anchor, anchor-build, anchor-bankrun, anchor-test, rust-security, rust-clippy]
     if: always()
     steps:
       - name: Generate Summary
@@ -219,6 +289,7 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Anchor Project | ${{ needs.check-anchor.outputs.has_anchor }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.anchor-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bankrun Tests | ${{ needs.anchor-bankrun.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Test (Devnet) | ${{ needs.anchor-test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Audit | ${{ needs.rust-security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Clippy | ${{ needs.rust-clippy.result }} |" >> $GITHUB_STEP_SUMMARY

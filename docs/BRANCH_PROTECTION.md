@@ -17,7 +17,7 @@ All of the following checks must pass before a PR can be merged:
 | `frontend-lint` | ESLint for TypeScript/React |
 | `frontend-typecheck` | TypeScript type checking |
 | `frontend-tests` | Vitest unit tests |
-| `frontend-build` | Next.js production build |
+| `frontend-build` | Vite production build |
 | `anchor-build` | Anchor program compilation |
 | `anchor-test` | Anchor tests on devnet |
 | `rust-clippy` | Rust clippy linting |
@@ -122,7 +122,7 @@ PR Opened/Synced
 │    ├── Lint (ESLint)                         │
 │    ├── Type Check (tsc)                      │
 │    ├── Tests (Vitest)                        │
-│    └── Build (Next.js)                       │
+│    └── Build (Vite)                          │
 │                                              │
 │  Contracts:                                  │
 │    ├── Build (Anchor)                        │

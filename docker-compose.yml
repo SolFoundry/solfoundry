@@ -1,5 +1,6 @@
 # Docker Compose for SolFoundry local development.
 # Usage: cp .env.example .env && docker compose up --build
+# To start with a local Solana validator: docker compose --profile solana up --build
 
 services:
   postgres:
@@ -30,6 +31,25 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
+      retries: 5
+
+  # Local Solana test validator — start with: docker compose --profile solana up
+  solana-validator:
+    profiles: [solana]
+    image: solanalabs/solana:v1.18.0
+    command: solana-test-validator --reset --quiet
+    restart: unless-stopped
+    ports:
+      - "8899:8899"   # JSON RPC
+      - "8900:8900"   # WebSocket
+      - "9900:9900"   # Faucet
+    volumes:
+      - solana_ledger:/root/.local/share/solana/install
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8899", "-d", '{"jsonrpc":"2.0","id":1,"method":"getHealth"}']
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
       retries: 5
 
   backend:
@@ -72,3 +92,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  solana_ledger:

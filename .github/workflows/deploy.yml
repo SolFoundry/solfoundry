@@ -67,14 +67,14 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
+          VITE_API_URL: ${{ secrets.API_URL }}
 
       - name: Upload Build Artifacts
         if: steps.check.outputs.has_frontend == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend/.next/
+          path: frontend/dist/
           retention-days: 7
 
   # ==================== DEPLOY FRONTEND TO VERCEL ====================
@@ -103,6 +103,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write  # required for OIDC token
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
     steps:
@@ -132,21 +133,24 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          file: ./backend/Dockerfile
+          file: Dockerfile.backend
         continue-on-error: true
 
-  # ==================== DEPLOY BACKEND TO DIGITALOCEAN ====================
+  # ==================== DEPLOY BACKEND TO DIGITALOCEAN (OIDC) ====================
   deploy-backend:
     name: Deploy Backend (DigitalOcean)
     runs-on: ubuntu-latest
     needs: build-backend
     if: github.event_name != 'workflow_dispatch'
+    permissions:
+      id-token: write  # required for OIDC token
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -165,7 +169,7 @@ jobs:
           kubectl set image deployment/solfoundry-backend \
             backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --namespace production
-          
+
           # Wait for rollout
           kubectl rollout status deployment/solfoundry-backend \
             --namespace production \
@@ -186,6 +190,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install Dependencies
         working-directory: backend
