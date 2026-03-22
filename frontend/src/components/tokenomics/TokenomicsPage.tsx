@@ -21,7 +21,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 /** Stacked horizontal bar showing token distribution breakdown with a legend. */
 function DistributionBar({ data, total }: { data: Record<string, number>; total: number }) {
   const items = Object.entries(data).filter(([, v]) => v > 0);
-  const colors = ['bg-[#00FF88]', 'bg-[#9945FF]', 'bg-blue-500', 'bg-orange-500'];
+  const colors = ['bg-solana-mint', 'bg-solana-purple', 'bg-blue-500', 'bg-orange-500'];
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-surface-100 dark:shadow-none" role="figure" aria-label="Token distribution">
       <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Distribution</h3>

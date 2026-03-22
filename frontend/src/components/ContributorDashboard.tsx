@@ -245,10 +245,10 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryCardProps) {
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none">
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-3">
         <span className="text-gray-600 dark:text-gray-400 text-sm">{label}</span>
-        <div className="w-10 h-10 rounded-lg bg-[#14F195]/10 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-solana-green/10 flex items-center justify-center">
           {icon}
         </div>
       </div>
@@ -276,7 +276,7 @@ function BountyCard({ bounty }: BountyCardProps) {
   const isUrgent = isDeadlineUrgent(daysRemaining);
   
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-gray-200 hover:border-[#9945FF]/40 dark:border-white/5 dark:hover:border-[#9945FF]/30 transition-colors shadow-sm dark:shadow-none">
+    <div className="bg-white dark:bg-surface-100 rounded-lg p-4 border border-gray-200 hover:border-solana-purple/40 dark:border-white/5 dark:hover:border-solana-purple/30 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-gray-900 dark:text-white font-medium truncate">{bounty.title}</h3>
@@ -291,7 +291,7 @@ function BountyCard({ bounty }: BountyCardProps) {
           </p>
         </div>
         <div className="text-right ml-4">
-          <span className="text-[#14F195] font-bold">{formatNumber(bounty.reward)}</span>
+          <span className="text-solana-green font-bold">{formatNumber(bounty.reward)}</span>
           <span className="text-gray-600 dark:text-gray-400 text-sm ml-1">$FNDRY</span>
         </div>
       </div>
@@ -302,9 +302,9 @@ function BountyCard({ bounty }: BountyCardProps) {
           <span>Progress</span>
           <span>{bounty.progress}%</span>
         </div>
-        <div className="h-2 bg-gray-200 dark:bg-[#0a0a0a] rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-200 dark:bg-surface rounded-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-300"
+            className="h-full bg-gradient-to-r from-solana-purple to-solana-green transition-all duration-300"
             style={{ width: `${bounty.progress}%` }}
           />
         </div>
@@ -329,7 +329,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
       </div>
       <div className="flex-shrink-0 text-right">
         {activity.amount && (
-          <p className="text-sm text-[#14F195] font-medium">+{formatNumber(activity.amount)}</p>
+          <p className="text-sm text-solana-green font-medium">+{formatNumber(activity.amount)}</p>
         )}
         <p className="text-xs text-gray-500 mt-0.5">{formatRelativeTime(activity.timestamp)}</p>
       </div>
@@ -382,7 +382,7 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // Handle empty or insufficient data
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+      <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
           <span className="text-gray-600 dark:text-gray-400 text-lg">0 $FNDRY</span>
@@ -397,13 +397,13 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // For single data point, show a simple display
   if (data.length === 1) {
     return (
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+      <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
+          <span className="text-solana-green text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
         </div>
         <div className="h-[120px] flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-[#14F195]" />
+          <div className="w-4 h-4 rounded-full bg-solana-green" />
         </div>
       </div>
     );
@@ -424,10 +424,10 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${padding} ${chartHeight - padding} Z`;
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
-        <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
+        <span className="text-solana-green text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
       </div>
       <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
         {/* Grid lines */}
@@ -450,7 +450,7 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
             fill="#14F195" 
             stroke="#e5e7eb" 
             strokeWidth="2"
-            className="hover:scale-125 transition-transform cursor-pointer dark:stroke-[#0a0a0a]"
+            className="hover:scale-125 transition-transform cursor-pointer dark:stroke-surface"
           >
             <title>{`${formatNumber(p.amount)} $FNDRY - ${p.date}`}</title>
           </circle>
@@ -481,8 +481,8 @@ interface QuickActionsProps {
 
 function QuickActions({ onBrowseBounties, onViewLeaderboard, onCheckTreasury }: QuickActionsProps) {
   const actions = [
-    { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-[#9945FF] to-[#9945FF]' },
-    { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-[#14F195] to-[#14F195]' },
+    { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-solana-purple to-solana-purple' },
+    { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-solana-green to-solana-green' },
     { label: 'Check Treasury', icon: '💰', onClick: onCheckTreasury, color: 'from-yellow-500 to-yellow-500' },
   ];
 
@@ -521,7 +521,7 @@ function SettingsSection({
   onDisconnectAccount 
 }: SettingsSectionProps) {
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
       <h3 className="text-gray-900 dark:text-white font-medium mb-4">Settings</h3>
       
       {/* Linked Accounts */}
@@ -529,7 +529,7 @@ function SettingsSection({
         <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Linked Accounts</h4>
         <div className="space-y-2">
           {linkedAccounts.map((account) => (
-            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
+            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
               <div className="flex items-center gap-3">
                 <span className="text-lg">{account.type === 'github' ? '🐙' : account.type === 'twitter' ? '🐦' : '🔐'}</span>
                 <div>
@@ -547,7 +547,7 @@ function SettingsSection({
                 className={`text-xs px-3 py-1 rounded transition-colors ${
                   account.connected 
                     ? 'text-gray-600 bg-gray-200 hover:bg-gray-300 dark:text-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600' 
-                    : 'text-[#14F195] bg-[#14F195]/10 hover:bg-[#14F195]/20'
+                    : 'text-solana-green bg-solana-green/10 hover:bg-solana-green/20'
                 }`}
               >
                 {account.connected ? 'Disconnect' : 'Connect'}
@@ -562,14 +562,14 @@ function SettingsSection({
         <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Notifications</h4>
         <div className="space-y-2">
           {notificationPreferences.map((pref) => (
-            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
+            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
               <span className="text-sm text-gray-900 dark:text-white">{pref.type}</span>
               <button 
                 onClick={() => onToggleNotification(pref.type)}
                 aria-label={`Toggle ${pref.type} notifications`}
                 aria-checked={pref.enabled}
                 role="switch"
-                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-solana-green' : 'bg-gray-300 dark:bg-gray-700'}`}
               >
                 <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${pref.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
@@ -582,9 +582,9 @@ function SettingsSection({
       {walletAddress && (
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
           <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Wallet</h4>
-          <div className="py-2 px-3 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200/80 dark:border-transparent">
+          <div className="py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
             <p className="text-xs text-gray-600 dark:text-gray-400">Connected Wallet</p>
-            <p className="text-sm text-[#14F195] font-mono mt-1">
+            <p className="text-sm text-solana-green font-mono mt-1">
               {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
             </p>
           </div>
@@ -658,7 +658,7 @@ export function ContributorDashboard({
   // Loading state UI — skeleton layout mirrors loaded dashboard (stats, actions, two-column content)
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
@@ -670,7 +670,7 @@ export function ContributorDashboard({
             aria-live="polite"
             aria-label="Loading dashboard"
           >
-            <div className="flex gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
+            <div className="flex gap-1 bg-gray-100 dark:bg-surface-100 rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
               {[0, 1, 2].map(i => (
                 <Skeleton key={i} height="2.25rem" width="5.5rem" rounded="md" className="shrink-0" />
               ))}
@@ -687,7 +687,7 @@ export function ContributorDashboard({
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-6">
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
                     <Skeleton height="1rem" width="8rem" rounded="md" />
                     <Skeleton height="0.75rem" width="4rem" rounded="md" />
@@ -702,7 +702,7 @@ export function ContributorDashboard({
                     ))}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
                     <Skeleton height="1rem" width="10rem" rounded="md" />
                     <Skeleton height="0.75rem" width="3.5rem" rounded="md" />
@@ -721,7 +721,7 @@ export function ContributorDashboard({
   // Error state UI
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
@@ -739,7 +739,7 @@ export function ContributorDashboard({
                 <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                 <button 
                   onClick={handleRetry}
-                  className="px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
+                  className="px-4 py-2 bg-solana-purple text-white rounded-lg hover:bg-solana-purple/80 transition-colors"
                 >
                   Retry
                 </button>
@@ -752,7 +752,7 @@ export function ContributorDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -761,7 +761,7 @@ export function ContributorDashboard({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
+        <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-surface-100 rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'notifications', label: 'Notifications', badge: unreadNotifications },
@@ -772,7 +772,7 @@ export function ContributorDashboard({
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors relative
                 ${activeTab === tab.id 
-                  ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white' 
+                  ? 'bg-gradient-to-r from-solana-purple to-solana-green text-white' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
                 }`}
             >
@@ -798,7 +798,7 @@ export function ContributorDashboard({
                 trend="up"
                 trendValue="+15% this month"
                 icon={
-                  <svg className="w-5 h-5 text-[#14F195]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg className="w-5 h-5 text-solana-green" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
                   </svg>
                 }
@@ -807,7 +807,7 @@ export function ContributorDashboard({
                 label="Active Bounties"
                 value={stats.activeBounties}
                 icon={
-                  <svg className="w-5 h-5 text-[#9945FF]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg className="w-5 h-5 text-solana-purple" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
                   </svg>
                 }
@@ -848,7 +848,7 @@ export function ContributorDashboard({
               {/* Left Column */}
               <div className="space-y-6">
                 {/* Active Bounties */}
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-gray-900 dark:text-white font-medium">Active Bounties</h3>
                     <span className="text-xs text-gray-600 dark:text-gray-400">{bounties.length} active</span>
@@ -871,10 +871,10 @@ export function ContributorDashboard({
               {/* Right Column */}
               <div className="space-y-6">
                 {/* Recent Activity */}
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-gray-900 dark:text-white font-medium">Recent Activity</h3>
-                    <button className="text-xs text-[#14F195] hover:text-[#14F195]/80">View All</button>
+                    <button className="text-xs text-solana-green hover:text-solana-green/80">View All</button>
                   </div>
                   {activities.length === 0 ? (
                     <p className="text-gray-600 dark:text-gray-400 text-center py-4">No recent activity</p>
@@ -892,13 +892,13 @@ export function ContributorDashboard({
         )}
 
         {activeTab === 'notifications' && (
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+          <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-gray-900 dark:text-white font-medium">Notifications</h3>
               {unreadNotifications > 0 && (
                 <button 
                   onClick={handleMarkAllAsRead}
-                  className="text-xs text-[#14F195] hover:text-[#14F195]/80"
+                  className="text-xs text-solana-green hover:text-solana-green/80"
                 >
                   Mark all as read
                 </button>

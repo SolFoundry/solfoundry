@@ -301,7 +301,7 @@ export function SkeletonTableRow({
 export function SkeletonStatCard({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none ${className}`.trim()}
+      className={`bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none ${className}`.trim()}
       role="presentation"
       aria-hidden="true"
     >

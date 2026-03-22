@@ -53,14 +53,14 @@ function getUrgency(timeLeft: TimeLeft): 'normal' | 'warning' | 'critical' | 'ex
 // ============================================================================
 
 const URGENCY_COLORS = {
-  normal: 'text-[#14F195]',
+  normal: 'text-solana-green',
   warning: 'text-amber-400',
   critical: 'text-red-400',
   expired: 'text-gray-500',
 };
 
 const URGENCY_BG = {
-  normal: 'bg-[#14F195]/10',
+  normal: 'bg-solana-green/10',
   warning: 'bg-amber-400/10',
   critical: 'bg-red-400/10',
   expired: 'bg-white/5',

@@ -10,14 +10,14 @@ export default function NotFoundPage() {
     <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-16 text-center">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center shadow-lg shadow-[#9945FF]/20">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center shadow-lg shadow-solana-purple/20">
           <span className="text-white font-bold text-xl">SF</span>
         </div>
         <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">SolFoundry</span>
       </div>
 
       {/* 404 */}
-      <p className="text-8xl font-extrabold text-[#9945FF] leading-none mb-4 select-none">
+      <p className="text-8xl font-extrabold text-solana-purple leading-none mb-4 select-none">
         404
       </p>
 
@@ -31,7 +31,7 @@ export default function NotFoundPage() {
       <div className="flex flex-col sm:flex-row items-center gap-3">
         <Link
           to="/"
-          className="px-6 py-2.5 rounded-lg bg-[#9945FF] text-white font-semibold text-sm hover:bg-[#7c2de8] transition-colors focus:outline-none focus:ring-2 focus:ring-[#9945FF] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black"
+          className="px-6 py-2.5 rounded-lg bg-solana-purple text-white font-semibold text-sm hover:bg-violet-700 transition-colors focus:outline-none focus:ring-2 focus:ring-solana-purple focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black"
         >
           Back to Home
         </Link>

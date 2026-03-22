@@ -251,12 +251,12 @@ export function HowItWorksPage() {
       <section className="relative overflow-hidden">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#9945FF]/10 rounded-full blur-[120px]" />
-          <div className="absolute top-20 left-1/3 w-[400px] h-[300px] bg-[#14F195]/8 rounded-full blur-[100px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-solana-purple/10 rounded-full blur-[120px]" />
+          <div className="absolute top-20 left-1/3 w-[400px] h-[300px] bg-solana-green/8 rounded-full blur-[100px]" />
         </div>
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-12 sm:pb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#9945FF]/10 border border-[#9945FF]/20 text-[#9945FF] text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-solana-purple/10 border border-solana-purple/20 text-solana-purple text-xs font-medium mb-6">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
             </svg>
@@ -265,7 +265,7 @@ export function HowItWorksPage() {
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black dark:text-white mb-4 tracking-tight">
             Code.{' '}
-            <span className="bg-gradient-to-r from-[#9945FF] to-[#14F195] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-solana-purple to-solana-green bg-clip-text text-transparent">
               Contribute.
             </span>{' '}
             Earn.
@@ -358,7 +358,7 @@ export function HowItWorksPage() {
         <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-surface-50 dark:shadow-none p-8 sm:p-12 text-center">
           {/* Subtle glow */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-[#14F195]/10 dark:bg-[#14F195]/5 rounded-full blur-[80px]" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-solana-green/10 dark:bg-solana-green/5 rounded-full blur-[80px]" />
           </div>
 
           <div className="relative">
@@ -368,8 +368,8 @@ export function HowItWorksPage() {
             </p>
             <a
               href="/bounties"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#9945FF] to-[#14F195]
-                       text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-[#9945FF]/20"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-solana-purple to-solana-green
+                       text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-solana-purple/20"
             >
               Browse Open Bounties
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

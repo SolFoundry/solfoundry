@@ -8,7 +8,7 @@ const SHORT_ADDR = 'AbCd5678';
 
 describe('truncateString', () => {
   it('truncates long strings correctly', () => {
-    expect(truncateString(ADDR)).toBe('97Vi...JxF');
+    expect(truncateString(ADDR)).toBe('97Vi...yJxF');
     expect(truncateString(ADDR, 6, 6)).toBe('97VihH...3LyJxF');
   });
 
@@ -34,12 +34,12 @@ describe('WalletAddress', () => {
 
   it('renders truncated address by default', () => {
     render(<WalletAddress address={ADDR} />);
-    expect(screen.getByText('97Vi...JxF')).toBeInTheDocument();
+    expect(screen.getByText('97Vi...yJxF')).toBeInTheDocument();
   });
 
   it('shows full address on hover via title attribute', () => {
     render(<WalletAddress address={ADDR} />);
-    const addressSpan = screen.getByText('97Vi...JxF');
+    const addressSpan = screen.getByText('97Vi...yJxF');
     expect(addressSpan).toHaveAttribute('title', ADDR);
   });
 
@@ -61,7 +61,7 @@ describe('WalletAddress', () => {
 
   it('hides tooltip when showTooltip is false', () => {
     render(<WalletAddress address={ADDR} showTooltip={false} />);
-    const addressSpan = screen.getByText('97Vi...JxF');
+    const addressSpan = screen.getByText('97Vi...yJxF');
     expect(addressSpan).not.toHaveAttribute('title');
   });
 
@@ -130,7 +130,7 @@ describe('WalletAddress', () => {
 
   it('applies custom className', () => {
     render(<WalletAddress address={ADDR} className="custom-class" />);
-    const wrapper = screen.getByText('97Vi...JxF').parentElement;
+    const wrapper = screen.getByText('97Vi...yJxF').closest('div');
     expect(wrapper).toHaveClass('custom-class');
   });
 

@@ -124,7 +124,7 @@ export const DisputeTimeline: React.FC<DisputeTimelineProps> = ({ history }) => 
                     <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                       <span className="text-gray-500">{entry.previous_status}</span>
                       <span className="mx-1 text-gray-500 dark:text-gray-600">&rarr;</span>
-                      <span className="text-[#9945FF]">{entry.new_status}</span>
+                      <span className="text-solana-purple">{entry.new_status}</span>
                     </div>
                   )}
 

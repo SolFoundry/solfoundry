@@ -95,7 +95,7 @@ export function CreatorDashboard({
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+            <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto space-y-8" role="status" aria-live="polite" aria-label="Loading creator dashboard">
                     <div className="space-y-2">
                         <Skeleton height="2.25rem" width="14rem" rounded="lg" className="max-w-full" />
@@ -126,13 +126,13 @@ export function CreatorDashboard({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* Header elements */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#14F195] to-[#9945FF]">
+                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-solana-green to-solana-purple">
                             Creator Dashboard
                         </h1>
                         <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your bounties, review submissions, and track your escrowed funds.</p>
@@ -140,9 +140,9 @@ export function CreatorDashboard({
 
                     <div className="flex gap-3">
                         {notifications.pending > 0 && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#14F195]/10 border border-[#14F195]/20 rounded-full">
-                                <span className="w-2 h-2 bg-[#14F195] rounded-full animate-pulse" />
-                                <span className="text-[#14F195] text-sm font-bold">{notifications.pending} Pending Review</span>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-solana-green/10 border border-solana-green/20 rounded-full">
+                                <span className="w-2 h-2 bg-solana-green rounded-full animate-pulse" />
+                                <span className="text-solana-green text-sm font-bold">{notifications.pending} Pending Review</span>
                             </div>
                         )}
                         {notifications.disputed > 0 && (
@@ -156,29 +156,29 @@ export function CreatorDashboard({
 
                 {/* Escrow Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-[#14F195] shadow-sm dark:shadow-none">
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-green shadow-sm dark:shadow-none">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">Total Escrowed (Active)</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.staked)} <span className="text-[#14F195] text-lg">$FNDRY</span></p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.staked)} <span className="text-solana-green text-lg">$FNDRY</span></p>
                     </div>
-                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-[#9945FF] shadow-sm dark:shadow-none">
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-purple shadow-sm dark:shadow-none">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">Total Paid Out</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.paid)} <span className="text-[#9945FF] text-lg">$FNDRY</span></p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.paid)} <span className="text-solana-purple text-lg">$FNDRY</span></p>
                     </div>
-                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-gray-500 shadow-sm dark:shadow-none">
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-gray-500 shadow-sm dark:shadow-none">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">Total Refunded</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.refunded)} <span className="text-gray-600 dark:text-gray-400 text-lg">$FNDRY</span></p>
                     </div>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex justify-between items-center bg-gray-100 dark:bg-[#1a1a1a] p-2 rounded-lg border border-gray-200 dark:border-white/10 overflow-x-auto">
+                <div className="flex justify-between items-center bg-gray-100 dark:bg-surface-100 p-2 rounded-lg border border-gray-200 dark:border-white/10 overflow-x-auto">
                     <div className="flex gap-2">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
-                                    ? 'bg-[#14F195]/20 text-[#14F195]'
+                                    ? 'bg-solana-green/20 text-solana-green'
                                     : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
                                     }`}
                             >
@@ -199,11 +199,11 @@ export function CreatorDashboard({
                 {/* Bounty List */}
                 <div className="space-y-4">
                     {filteredBounties.length === 0 ? (
-                        <div className="text-center bg-white dark:bg-[#1a1a1a] rounded-xl p-10 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                        <div className="text-center bg-white dark:bg-surface-100 rounded-xl p-10 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                             <p className="text-gray-600 dark:text-gray-400">No bounties found for this status.</p>
                             <button
                                 onClick={onNavigateBounties}
-                                className="mt-4 px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
+                                className="mt-4 px-4 py-2 bg-solana-purple text-white rounded-lg hover:bg-solana-purple/80 transition-colors"
                             >
                                 Browse All Bounties
                             </button>

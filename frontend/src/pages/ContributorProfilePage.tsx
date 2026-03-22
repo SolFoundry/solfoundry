@@ -80,7 +80,7 @@ export default function ContributorProfilePage() {
           <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
           <button
             onClick={() => refetch()}
-            className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
+            className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 text-sm"
           >
             Retry
           </button>

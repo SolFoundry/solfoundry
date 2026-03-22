@@ -54,7 +54,7 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
           <p className="text-[10px] text-gray-600">subs</p>
         </div>
         <div className="w-20 text-center">
-          <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')}>
+          <span className={'text-xs ' + (urg ? 'text-accent-red' : 'text-gray-500')}>
             {formatTimeRemaining(b.deadline)}
           </span>
         </div>

@@ -59,7 +59,7 @@ export const DisputeCard: React.FC<DisputeCardProps> = ({ dispute }) => {
     <Link
       to={`/disputes/${dispute.id}`}
       data-testid={`dispute-card-${dispute.id}`}
-      className="block bg-white rounded-lg p-4 sm:p-5 border border-gray-200 shadow-sm hover:border-[#9945FF]/40 transition-colors dark:bg-gray-900 dark:border-gray-800 dark:shadow-none"
+      className="block bg-white rounded-lg p-4 sm:p-5 border border-gray-200 shadow-sm hover:border-solana-purple/40 transition-colors dark:bg-gray-900 dark:border-gray-800 dark:shadow-none"
     >
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span

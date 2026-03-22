@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component<
         <div className="flex gap-3">
           <button
             onClick={() => this.setState({ error: null })}
-            className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
+            className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 text-sm"
           >
             Try again
           </button>
@@ -83,10 +83,10 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex min-h-[60vh] w-full items-center justify-center bg-surface-light dark:bg-surface">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-8 h-8 border-2 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-400 font-mono">Loading...</p>
+        <div className="w-8 h-8 border-2 border-solana-purple border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">Loading...</p>
       </div>
     </div>
   );

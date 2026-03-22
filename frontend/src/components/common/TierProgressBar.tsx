@@ -81,10 +81,10 @@ function Milestone({ label, isActive, isComplete, tooltip }: MilestoneProps) {
         className={`w-8 h-8 rounded-full flex items-center justify-center border-2 z-10
           transition-all duration-300 cursor-default
           ${isComplete
-            ? 'bg-[#14F195] border-[#14F195] text-[#0a0a0a]'
+            ? 'bg-solana-green border-solana-green text-gray-900'
             : isActive
-              ? 'bg-[#9945FF] border-[#9945FF] text-white ring-4 ring-[#9945FF]/30 shadow-lg shadow-[#9945FF]/30'
-              : 'bg-[#1a1a1a] border-white/20 text-gray-500'
+              ? 'bg-solana-purple border-solana-purple text-white ring-4 ring-solana-purple/30 shadow-lg shadow-solana-purple/30'
+              : 'bg-surface-100 border-white/20 text-gray-500'
           }`}
         aria-label={`${label}${isActive ? ' (current)' : isComplete ? ' (unlocked)' : ' (locked)'}`}
         tabIndex={0}
@@ -100,7 +100,7 @@ function Milestone({ label, isActive, isComplete, tooltip }: MilestoneProps) {
       </div>
 
       {/* Label */}
-      <span className={`text-xs font-mono font-semibold ${isActive ? 'text-[#9945FF]' : isComplete ? 'text-[#14F195]' : 'text-gray-600'}`}>
+      <span className={`text-xs font-mono font-semibold ${isActive ? 'text-solana-purple' : isComplete ? 'text-solana-green' : 'text-gray-600'}`}>
         {label}
       </span>
 
@@ -108,7 +108,7 @@ function Milestone({ label, isActive, isComplete, tooltip }: MilestoneProps) {
       {showTip && (
         <div
           className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20
-                     bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2
+                     bg-surface-100 border border-white/10 rounded-lg px-3 py-2
                      text-xs text-gray-300 whitespace-nowrap shadow-xl pointer-events-none"
           role="tooltip"
         >
@@ -162,7 +162,7 @@ export function TierProgressBar({ completedT1, completedT2, completedT3, classNa
         {/* Filled track */}
         <div
           className="absolute left-4 top-1/2 -translate-y-1/2 h-1.5 rounded-full z-0
-                     bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-500"
+                     bg-gradient-to-r from-solana-purple to-solana-green transition-all duration-500"
           style={{ width: `calc(${fillPercent}% - 2rem)` }}
         />
 
@@ -191,7 +191,7 @@ export function TierProgressBar({ completedT1, completedT2, completedT3, classNa
       <div className="flex items-center justify-between mt-3 text-xs">
         <span className="text-gray-600">{completedT1}/4 T1</span>
         <span className="text-gray-600">{completedT2}/3 T2</span>
-        <span className={t3Unlocked ? 'text-[#14F195] font-semibold' : 'text-gray-600'}>
+        <span className={t3Unlocked ? 'text-solana-green font-semibold' : 'text-gray-600'}>
           {t3Unlocked ? '🏆 Max tier' : 'T3 locked'}
         </span>
       </div>

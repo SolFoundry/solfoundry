@@ -135,7 +135,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                 onChange={(event) =>
                   handleItemChange(index, 'evidence_type', event.target.value)
                 }
-                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-[#9945FF] focus:outline-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-solana-purple focus:outline-none"
                 disabled={disabled}
               >
                 <option value="link">Link</option>
@@ -161,7 +161,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                   handleItemChange(index, 'url', event.target.value)
                 }
                 placeholder="https://..."
-                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-[#9945FF] focus:outline-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none"
                 disabled={disabled}
               />
             </div>
@@ -181,7 +181,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
                 }
                 placeholder="Describe this evidence..."
                 rows={2}
-                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none resize-none"
                 disabled={disabled}
               />
             </div>
@@ -191,7 +191,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
         <button
           type="button"
           onClick={handleAddItem}
-          className="text-sm text-[#9945FF] hover:text-[#7C3AED] transition-colors"
+          className="text-sm text-solana-purple hover:text-violet-600 transition-colors"
           disabled={disabled}
         >
           + Add Another Evidence Item
@@ -207,7 +207,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Any additional context..."
             rows={3}
-            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-solana-purple focus:outline-none resize-none"
             disabled={disabled}
           />
         </div>
@@ -221,7 +221,7 @@ export const DisputeEvidenceForm: React.FC<DisputeEvidenceFormProps> = ({
         <button
           type="submit"
           disabled={loading || disabled}
-          className="w-full px-4 py-3 bg-[#9945FF] hover:bg-[#7C3AED] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+          className="w-full px-4 py-3 bg-solana-purple hover:bg-violet-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors min-h-[44px]"
         >
           {loading ? 'Submitting...' : 'Submit Evidence'}
         </button>

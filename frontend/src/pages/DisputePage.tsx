@@ -145,7 +145,7 @@ export default function DisputePage() {
         <p className="text-gray-600 dark:text-gray-400 font-mono">{pageError || error}</p>
         <button
           onClick={() => navigate('/disputes')}
-          className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 transition-colors"
         >
           Back to Disputes
         </button>
@@ -159,7 +159,7 @@ export default function DisputePage() {
         <p className="text-gray-600 dark:text-gray-400 font-mono">Dispute not found</p>
         <button
           onClick={() => navigate('/disputes')}
-          className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 transition-colors"
         >
           Back to Disputes
         </button>
@@ -225,7 +225,7 @@ export default function DisputePage() {
                 <span className="block text-gray-500 mb-1">Bounty</span>
                 <Link
                   to={`/bounties/${dispute.bounty_id}`}
-                  className="text-[#9945FF] hover:text-[#7C3AED] font-mono"
+                  className="text-solana-purple hover:text-violet-600 font-mono"
                 >
                   {dispute.bounty_id.slice(0, 12)}...
                 </Link>
@@ -263,7 +263,7 @@ export default function DisputePage() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-[#9945FF] hover:text-[#7C3AED] break-all mt-1 block"
+                          className="text-xs text-solana-purple hover:text-violet-600 break-all mt-1 block"
                         >
                           {item.url}
                         </a>
@@ -328,7 +328,7 @@ export default function DisputePage() {
               {dispute.outcome && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Outcome</span>
-                  <span className="text-[#14F195] font-medium">
+                  <span className="text-solana-green font-medium">
                     {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
                   </span>
                 </div>

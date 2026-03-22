@@ -55,7 +55,7 @@ export function LeaderboardPage() {
       'border-b border-gray-200 transition-colors dark:border-gray-800 ' +
       'hover:bg-gray-50 dark:hover:bg-surface-100';
     if (rank === 1) {
-      return `${base} bg-emerald-50/90 hover:bg-emerald-100/90 dark:bg-[#14F195]/[0.12] dark:hover:bg-[#14F195]/[0.18]`;
+      return `${base} bg-emerald-50/90 hover:bg-emerald-100/90 dark:bg-solana-green/15 dark:hover:bg-solana-green/[0.18]`;
     }
     if (rank === 2) {
       return `${base} bg-slate-50/90 hover:bg-slate-100/90 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]`;
@@ -75,7 +75,7 @@ export function LeaderboardPage() {
           placeholder="Search contributors..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 w-64 focus:outline-none focus:ring-2 focus:ring-[#9945FF]/30 focus:border-[#9945FF]/50 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200 dark:placeholder-gray-500"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 w-64 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 focus:border-solana-purple/50 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200 dark:placeholder-gray-500"
           aria-label="Search contributors"
         />
         <div className="flex flex-wrap gap-1" role="group" aria-label="Time range">
@@ -88,7 +88,7 @@ export function LeaderboardPage() {
               className={
                 'rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors ' +
                 (timeRange === r.value
-                  ? 'bg-[#14F195] text-gray-900 border-transparent shadow-sm dark:text-black'
+                  ? 'bg-solana-green text-gray-900 border-transparent shadow-sm dark:text-black'
                   : 'bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200 hover:border-gray-400 dark:bg-surface-100 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-surface-200 dark:hover:border-gray-600')
               }
             >
@@ -100,7 +100,7 @@ export function LeaderboardPage() {
           value={sortBy}
           onChange={e => setSortBy(e.target.value as SortField)}
           aria-label="Sort by"
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#9945FF]/30 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200"
         >
           {SORTS.map(s => (
             <option key={s.value} value={s.value}>
@@ -136,7 +136,7 @@ export function LeaderboardPage() {
                     <span className="text-xs text-gray-600 dark:text-gray-500">{c.topSkills.slice(0, 2).join(', ')}</span>
                   </div>
                 </td>
-                <td className="py-3 text-right text-[#0d9f6e] dark:text-[#14F195] font-semibold tabular-nums">
+                <td className="py-3 text-right text-emerald-700 dark:text-solana-green font-semibold tabular-nums">
                   {c.points.toLocaleString()}
                 </td>
                 <td className="py-3 text-right text-gray-700 tabular-nums dark:text-gray-300">{c.bountiesCompleted}</td>
