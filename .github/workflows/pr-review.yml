@@ -44,16 +44,42 @@ jobs:
           PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
-          ISSUE_NUM=$(python3 -c "
+          # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
+          ALL_ISSUES=$(python3 -c "
           import re
           text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
-          m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
-          print(m.group(1) if m else '')
+          matches = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          # Deduplicate
+          seen = []
+          for m in matches:
+              if m not in seen:
+                  seen.append(m)
+          print(','.join(seen))
           " 2>/dev/null)
+
+          ISSUE_COUNT=$(echo "$ALL_ISSUES" | tr ',' '\n' | grep -c '[0-9]' || echo 0)
+          ISSUE_NUM=$(echo "$ALL_ISSUES" | cut -d',' -f1)
 
           if [ -z "$ISSUE_NUM" ]; then
             echo "No linked issue — proceeding to dispatch"
             echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Block multi-bounty PRs (one PR = one bounty)
+          if [ "$ISSUE_COUNT" -gt 1 ]; then
+            echo "BLOCKED: PR #$PR_NUM references $ISSUE_COUNT bounty issues ($ALL_ISSUES)"
+            curl -sf -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"❌ **Multiple Bounties Detected**\n\n@$PR_AUTHOR, this PR references **$ISSUE_COUNT bounty issues** (#$(echo $ALL_ISSUES | sed 's/,/, #/g')).\n\n**Each bounty must be submitted as a separate PR** — one PR per bounty issue. This ensures proper review scope, fair attribution, and clean merge history.\n\nPlease:\n1. Split your work into separate PRs, each referencing only one bounty issue\n2. Use \`Closes #N\` to link each PR to its specific bounty\n\n---\n*SolFoundry Review Bot*\"}"
+            curl -sf -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
