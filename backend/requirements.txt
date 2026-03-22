@@ -21,3 +21,5 @@ pip-audit>=2.7.0,<3.0.0
 # Structured logging and JSON logger (upstream)
 structlog>=24.0.0,<25.0.0
 python-json-logger>=2.0.0,<3.0.0
+
+aiohttp>=3.9,<4.0
