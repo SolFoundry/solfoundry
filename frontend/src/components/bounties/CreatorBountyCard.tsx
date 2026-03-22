@@ -83,7 +83,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
 
     if (!bounty) {
         return (
-            <div className="bg-[#1a1a1a] rounded-lg p-6 border border-white/5 animate-pulse flex space-x-4">
+            <div className="bg-surface-100 rounded-lg p-6 border border-white/5 animate-pulse flex space-x-4">
                 <div className="flex-1 space-y-4 py-1">
                     <div className="h-4 bg-white/10 rounded w-3/4"></div>
                     <div className="space-y-2">
@@ -103,7 +103,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'open': return 'text-[#14F195]';
+            case 'open': return 'text-solana-green';
             case 'in_progress': return 'text-blue-400';
             case 'under_review': return 'text-purple-400';
             case 'disputed': return 'text-red-400';
@@ -118,7 +118,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
     const disputedSubmissions = bounty.submissions?.filter((s: Submission) => s.status === 'disputed') || [];
 
     return (
-        <div className="bg-[#1a1a1a] rounded-xl border border-white/10 hover:border-white/20 transition-colors overflow-hidden">
+        <div className="bg-surface-100 rounded-xl border border-white/10 hover:border-white/20 transition-colors overflow-hidden">
             {/* Card Header Summary */}
             <div className="p-6">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -126,7 +126,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                         <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-bold text-white leading-tight">{bounty.title}</h3>
                             {pendingSubmissions.length > 0 && (
-                                <span className="px-2 py-0.5 rounded-full bg-[#14F195]/20 text-[#14F195] text-xs font-bold border border-[#14F195]/30">
+                                <span className="px-2 py-0.5 rounded-full bg-solana-green/20 text-solana-green text-xs font-bold border border-solana-green/30">
                                     {pendingSubmissions.length} New Submission{pendingSubmissions.length > 1 && 's'}
                                 </span>
                             )}
@@ -168,7 +168,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                             >
                                 <span>Actions ▾</span>
                             </button>
-                            <div className="absolute right-0 mt-2 w-48 bg-[#0a0a0a] border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                            <div className="absolute right-0 mt-2 w-48 bg-surface border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                                 <div className="p-2 space-y-1">
                                     <button
                                         onClick={handleExtendDeadline}
@@ -193,16 +193,16 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
 
             {/* Expanded Submission Feed */}
             {expanded && (
-                <div className="border-t border-white/5 bg-[#0a0a0a] p-6 text-sm">
+                <div className="border-t border-white/5 bg-surface p-6 text-sm">
                     <h4 className="text-gray-300 font-semibold mb-4 text-sm uppercase tracking-wider">Submission Feed</h4>
 
                     {bounty.submissions && bounty.submissions.length > 0 ? (
                         <div className="space-y-4">
                             {bounty.submissions.map((sub: Submission) => (
-                                <div key={sub.id} className="bg-[#1a1a1a] border border-white/10 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div key={sub.id} className="bg-surface-100 border border-white/10 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-medium text-[#14F195]">{sub.submitted_by.slice(0, 10)}...</span>
+                                            <span className="font-medium text-solana-green">{sub.submitted_by.slice(0, 10)}...</span>
                                             <span className="text-gray-500 text-xs">{new Date(sub.submitted_at).toLocaleString()}</span>
                                         </div>
                                         <div className="flex items-center gap-3 mb-2">
@@ -215,7 +215,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                             {sub.status === 'paid' && (
                                                 <button
                                                     onClick={() => window.open(`/profile/${sub.submitted_by}`, '_blank')}
-                                                    className="text-[#14F195] hover:underline text-xs flex items-center gap-1"
+                                                    className="text-solana-green hover:underline text-xs flex items-center gap-1"
                                                 >
                                                     View Winner Profile ↗
                                                 </button>
@@ -225,9 +225,9 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                     </div>
 
                                     <div className="flex items-center gap-4">
-                                        <div className="text-center bg-[#0a0a0a] p-2 rounded-lg border border-white/5">
+                                        <div className="text-center bg-surface p-2 rounded-lg border border-white/5">
                                             <div className="text-xs text-gray-500 uppercase">AI Score</div>
-                                            <div className={`font-bold text-lg ${sub.ai_score > 0.8 ? 'text-[#14F195]' : sub.ai_score > 0.6 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            <div className={`font-bold text-lg ${sub.ai_score > 0.8 ? 'text-solana-green' : sub.ai_score > 0.6 ? 'text-yellow-400' : 'text-red-400'}`}>
                                                 {(sub.ai_score * 100).toFixed(0)}%
                                             </div>
                                         </div>
@@ -236,7 +236,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                             <button
                                                 onClick={() => handleUpdateSubmission(sub.id, 'approved')}
                                                 disabled={sub.status === 'approved' || sub.status === 'paid'}
-                                                className="px-3 py-1 bg-[#14F195]/10 text-[#14F195] hover:bg-[#14F195]/20 border border-[#14F195]/30 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
+                                                className="px-3 py-1 bg-solana-green/10 text-solana-green hover:bg-solana-green/20 border border-solana-green/30 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
                                             >
                                                 Approve
                                             </button>

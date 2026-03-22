@@ -4,8 +4,33 @@
  */
 
 export { Modal } from './Modal';
-export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonTableRow, SkeletonGrid, SkeletonList, SkeletonTable, SkeletonActivityFeed } from './Skeleton';
-export type { SkeletonProps, SkeletonTextProps, SkeletonCardProps, SkeletonAvatarProps, SkeletonTableRowProps, SkeletonGridProps, SkeletonListProps, SkeletonTableProps, SkeletonActivityFeedProps } from './Skeleton';
+export {
+  Skeleton,
+  SkeletonText,
+  SkeletonCard,
+  SkeletonAvatar,
+  SkeletonTableRow,
+  SkeletonStatCard,
+  SkeletonBountyCard,
+  SkeletonBountyListRows,
+  SkeletonContributorProfile,
+  SkeletonGrid,
+  SkeletonList,
+  SkeletonTable,
+  SkeletonActivityFeed,
+} from './Skeleton';
+export type {
+  SkeletonProps,
+  SkeletonRounded,
+  SkeletonTextProps,
+  SkeletonCardProps,
+  SkeletonAvatarProps,
+  SkeletonTableRowProps,
+  SkeletonGridProps,
+  SkeletonListProps,
+  SkeletonTableProps,
+  SkeletonActivityFeedProps,
+} from './Skeleton';
 export { EmptyState, NoBountiesFound, NoContributionsYet, NoActivityYet, NoSearchResults, NoDataAvailable } from './EmptyState';
 export type { EmptyStateProps, EmptyStateVariant, NoBountiesProps, NoContributionsProps, NoActivityProps, NoSearchResultsProps, NoDataProps } from './EmptyState';
 export { Toast } from './Toast';

@@ -59,7 +59,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
             data-testid="header-badge-count"
           >
             <span className="text-lg" aria-hidden>🏅</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#9945FF]/20 to-[#14F195]/20 border border-purple-500/30 px-3 py-1 text-sm font-semibold text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-solana-purple/20 to-solana-green/20 border border-solana-purple/30 px-3 py-1 text-sm font-semibold text-gray-900 dark:text-white">
               {earnedCount}
               <span className="text-gray-400 font-normal text-xs">/ {badges.length}</span>
             </span>

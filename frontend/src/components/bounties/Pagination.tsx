@@ -46,7 +46,7 @@ export function Pagination({ page, totalPages, total, onPageChange }: Props) {
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
+          className="rounded-lg px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
           aria-label="Previous page"
         >
           &larr; Prev
@@ -63,7 +63,7 @@ export function Pagination({ page, totalPages, total, onPageChange }: Props) {
                 'rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors ' +
                 (p === page
                   ? 'bg-solana-green/15 text-solana-green'
-                  : 'text-gray-400 hover:text-white hover:bg-surface-200')
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-surface-200')
               }
               aria-current={p === page ? 'page' : undefined}
               aria-label={`Page ${p}`}
@@ -76,7 +76,7 @@ export function Pagination({ page, totalPages, total, onPageChange }: Props) {
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
+          className="rounded-lg px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
           aria-label="Next page"
         >
           Next &rarr;
@@ -94,7 +94,7 @@ export function Pagination({ page, totalPages, total, onPageChange }: Props) {
             value={goToValue}
             onChange={e => setGoToValue(e.target.value)}
             onKeyDown={handleGoToKeyDown}
-            className="w-16 rounded-lg border border-surface-300 bg-surface-50 px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-solana-green/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 text-center focus:outline-none focus:border-solana-green/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none dark:border-surface-300 dark:bg-surface-50 dark:text-white"
             aria-label={`Go to page, 1 to ${totalPages}`}
             data-testid="go-to-page-input"
           />
@@ -102,7 +102,7 @@ export function Pagination({ page, totalPages, total, onPageChange }: Props) {
             type="button"
             onClick={handleGoTo}
             disabled={!goToValue}
-            className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
+            className="rounded-lg px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-surface-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-solana-green/50 transition-colors"
             data-testid="go-to-page-btn"
           >
             Go

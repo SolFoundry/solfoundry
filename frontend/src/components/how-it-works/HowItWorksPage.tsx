@@ -128,7 +128,7 @@ const FAQ_ITEMS: FAQItem[] = [
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
-      className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+      className={`w-5 h-5 shrink-0 text-gray-500 dark:text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
       fill="none"
       viewBox="0 0 24 24"
       strokeWidth={2}
@@ -141,25 +141,59 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 // ── FAQ Accordion Item ───────────────────────────────────────────────────────
 
-function AccordionItem({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
+function AccordionItem({
+  item,
+  index,
+  isOpen,
+  onToggle,
+}: {
+  item: FAQItem;
+  index: number;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const panelId = `faq-panel-${index}`;
+  const triggerId = `faq-trigger-${index}`;
   return (
-    <div className="border border-white/10 rounded-xl overflow-hidden transition-colors hover:border-white/20">
+    <div
+      className={
+        'rounded-xl overflow-hidden border transition-colors ' +
+        (isOpen
+          ? 'border-solana-green/35 bg-white shadow-sm dark:border-solana-green/25 dark:bg-surface-50/80 dark:shadow-none'
+          : 'border-gray-200 bg-white hover:border-gray-300 dark:border-white/10 dark:bg-surface-50 dark:hover:border-white/20')
+      }
+    >
       <button
+        type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left cursor-pointer bg-surface-50 hover:bg-surface-100 transition-colors"
+        className={
+          'w-full flex items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left cursor-pointer transition-colors ' +
+          (isOpen
+            ? 'bg-gray-50 dark:bg-surface-100'
+            : 'bg-white hover:bg-gray-50 dark:bg-surface-50 dark:hover:bg-surface-100')
+        }
         aria-expanded={isOpen}
+        aria-controls={panelId}
+        id={triggerId}
       >
-        <span className="text-sm sm:text-base font-medium text-white">{item.question}</span>
+        <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white pr-2">
+          {item.question}
+        </span>
         <ChevronIcon open={isOpen} />
       </button>
       <div
+        id={panelId}
+        role="region"
+        aria-labelledby={triggerId}
         className="grid transition-all duration-300 ease-in-out"
         style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <p className="px-5 pb-4 sm:px-6 sm:pb-5 pt-0 text-sm text-gray-400 leading-relaxed">
-            {item.answer}
-          </p>
+          <div className="px-5 pb-4 sm:px-6 sm:pb-5 pt-0 border-t border-gray-100 dark:border-white/5 bg-gray-50/80 dark:bg-surface-100/50">
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed pt-4">
+              {item.answer}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -173,7 +207,7 @@ function StepCard({ step, isLast }: { step: Step; isLast: boolean }) {
     <div className="relative flex flex-col items-center text-center group">
       {/* Connector line (hidden on last item and mobile) */}
       {!isLast && (
-        <div className="hidden lg:block absolute top-10 left-[calc(50%+40px)] w-[calc(100%-80px)] h-px bg-gradient-to-r from-white/20 to-white/5 z-0" />
+        <div className="hidden lg:block absolute top-10 left-[calc(50%+40px)] w-[calc(100%-80px)] h-px bg-gradient-to-r from-gray-300 to-gray-200/50 dark:from-white/20 dark:to-white/5 z-0" />
       )}
 
       {/* Icon circle */}
@@ -196,8 +230,8 @@ function StepCard({ step, isLast }: { step: Step; isLast: boolean }) {
       </div>
 
       {/* Text */}
-      <h3 className="text-base sm:text-lg font-bold text-white mb-2">{step.title}</h3>
-      <p className="text-sm text-gray-400 leading-relaxed max-w-[240px]">{step.description}</p>
+      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2">{step.title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-[240px]">{step.description}</p>
     </div>
   );
 }
@@ -217,26 +251,26 @@ export function HowItWorksPage() {
       <section className="relative overflow-hidden">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#9945FF]/10 rounded-full blur-[120px]" />
-          <div className="absolute top-20 left-1/3 w-[400px] h-[300px] bg-[#14F195]/8 rounded-full blur-[100px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-solana-purple/10 rounded-full blur-[120px]" />
+          <div className="absolute top-20 left-1/3 w-[400px] h-[300px] bg-solana-green/8 rounded-full blur-[100px]" />
         </div>
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-12 sm:pb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#9945FF]/10 border border-[#9945FF]/20 text-[#9945FF] text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-solana-purple/10 border border-solana-purple/20 text-solana-purple text-xs font-medium mb-6">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
             </svg>
             New to SolFoundry?
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black dark:text-white mb-4 tracking-tight">
             Code.{' '}
-            <span className="bg-gradient-to-r from-[#9945FF] to-[#14F195] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-solana-purple to-solana-green bg-clip-text text-transparent">
               Contribute.
             </span>{' '}
             Earn.
           </h1>
-          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
             SolFoundry connects open-source contributors with paid bounties.
             Pick a task, write great code, and get rewarded in $FNDRY — all reviewed by AI in minutes.
           </p>
@@ -246,8 +280,8 @@ export function HowItWorksPage() {
       {/* ── Steps Section ─────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
         <div className="text-center mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">How It Works</h2>
-          <p className="text-sm text-gray-500">Five steps from discovery to payout</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">How It Works</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-500">Five steps from discovery to payout</p>
         </div>
 
         {/* Desktop: horizontal flow */}
@@ -273,7 +307,7 @@ export function HowItWorksPage() {
                   <div style={{ color: step.accent }}>{step.icon}</div>
                 </div>
                 {step.number < STEPS.length && (
-                  <div className="w-px flex-1 mt-2 bg-gradient-to-b from-white/15 to-transparent min-h-[24px]" />
+                  <div className="w-px flex-1 mt-2 bg-gradient-to-b from-gray-300 to-transparent dark:from-white/15 min-h-[24px]" />
                 )}
               </div>
 
@@ -286,9 +320,9 @@ export function HowItWorksPage() {
                   >
                     {step.number}
                   </span>
-                  <h3 className="text-base font-bold text-white">{step.title}</h3>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">{step.title}</h3>
                 </div>
-                <p className="text-sm text-gray-400 leading-relaxed">{step.description}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{step.description}</p>
               </div>
             </div>
           ))}
@@ -298,14 +332,19 @@ export function HowItWorksPage() {
       {/* ── FAQ Section ───────────────────────────────────────────────────── */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
         <div className="text-center mb-10">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Frequently Asked Questions</h2>
-          <p className="text-sm text-gray-500">Everything you need to know about contributing</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-500">
+            Everything you need to know about contributing
+          </p>
         </div>
 
         <div className="space-y-3">
           {FAQ_ITEMS.map((item, index) => (
             <AccordionItem
               key={index}
+              index={index}
               item={item}
               isOpen={openFAQ === index}
               onToggle={() => toggleFAQ(index)}
@@ -316,21 +355,21 @@ export function HowItWorksPage() {
 
       {/* ── CTA Section ───────────────────────────────────────────────────── */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-28">
-        <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-surface-50 p-8 sm:p-12 text-center">
+        <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-surface-50 dark:shadow-none p-8 sm:p-12 text-center">
           {/* Subtle glow */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-[#14F195]/5 rounded-full blur-[80px]" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-solana-green/10 dark:bg-solana-green/5 rounded-full blur-[80px]" />
           </div>
 
           <div className="relative">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-3">Ready to start earning?</h2>
-            <p className="text-sm sm:text-base text-gray-400 mb-8 max-w-md mx-auto">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Ready to start earning?</h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
               Browse open bounties and find your first task. No applications, no interviews — just great code.
             </p>
             <a
               href="/bounties"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#9945FF] to-[#14F195]
-                       text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-[#9945FF]/20"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-solana-purple to-solana-green
+                       text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-solana-purple/20"
             >
               Browse Open Bounties
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

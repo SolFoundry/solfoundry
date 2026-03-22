@@ -66,15 +66,15 @@ export function ScrollToTop({ threshold = 300, className = '' }: ScrollToTopProp
         fixed bottom-6 right-6 z-40
         w-12 h-12 sm:w-14 sm:h-14
         rounded-full
-        bg-gradient-to-br from-[#9945FF] to-[#14F195]
+        bg-gradient-to-br from-solana-purple to-solana-green
         text-white
-        shadow-lg shadow-[#9945FF]/30
-        hover:shadow-xl hover:shadow-[#9945FF]/40
+        shadow-lg shadow-solana-purple/30
+        hover:shadow-xl hover:shadow-solana-purple/40
         hover:scale-110
         active:scale-95
         transition-all duration-200 ease-out
         flex items-center justify-center
-        focus:outline-none focus:ring-2 focus:ring-[#14F195] focus:ring-offset-2 focus:ring-offset-[#0a0a0a]
+        focus:outline-none focus:ring-2 focus:ring-solana-green focus:ring-offset-2 focus:ring-offset-surface-light dark:focus:ring-offset-surface
         ${className}
       `}
       aria-label="Scroll to top"

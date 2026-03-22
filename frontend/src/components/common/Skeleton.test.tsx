@@ -52,7 +52,8 @@ describe('Skeleton Components', () => {
 
     it('applies last line width', () => {
       const { container } = render(<SkeletonText lines={2} lastLineWidth={50} />);
-      const lines = container.querySelectorAll('div > div');
+      const wrapper = container.firstChild as HTMLElement;
+      const lines = wrapper.querySelectorAll(':scope > div');
       const lastLine = lines[lines.length - 1] as HTMLElement;
       expect(lastLine.style.width).toBe('50%');
     });

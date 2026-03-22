@@ -35,7 +35,7 @@ export default function BountyDetailRoute() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-2 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-solana-purple border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -46,7 +46,7 @@ export default function BountyDetailRoute() {
         <p className="text-gray-400 font-mono">{error ?? 'Bounty not found'}</p>
         <button
           onClick={() => navigate('/bounties')}
-          className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 transition-colors"
         >
           ← Back to Bounties
         </button>

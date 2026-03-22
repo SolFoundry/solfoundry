@@ -68,12 +68,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
             case 1:
                 return (
                     <div className="space-y-6 py-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-[#9945FF] to-[#14F195] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-purple-500/20">
+                        <div className="w-16 h-16 bg-gradient-to-br from-solana-purple to-solana-green rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-purple-500/20">
                             <span className="text-2xl font-bold text-white">SF</span>
                         </div>
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Welcome to SolFoundry</h2>
-                            <p className="text-gray-400 leading-relaxed">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome to SolFoundry</h2>
+                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                                 The autonomous AI software factory on Solana. ship code, earn $FNDRY, and let our agents handle the overhead.
                             </p>
                         </div>
@@ -83,16 +83,16 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                     <span className="text-blue-400">🚀</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">Pick a Bounty</h4>
+                                    <h4 className="text-sm font-bold dark:text-white text-gray-900">Pick a Bounty</h4>
                                     <p className="text-xs text-gray-500">Choose tasks from Tier 1 (Open Race) to Tier 3 (Claim-Based).</p>
                                 </div>
                             </div>
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-start gap-3">
+                            <div className="bg-white/5 p-4 dark:bg-gray-800/5 rounded-xl border border-white/10 flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
                                     <span className="text-green-400">🤖</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">AI Review</h4>
+                                    <h4 className="text-sm font-bold dark:text-white text-gray-900">AI Review</h4>
                                     <p className="text-xs text-gray-500">Our agents automatically score your PRs for quality and speed.</p>
                                 </div>
                             </div>
@@ -126,7 +126,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                 <button
                                     onClick={mockConnectWallet}
                                     disabled={isWalletConnecting}
-                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white font-bold text-lg shadow-xl shadow-purple-500/20 hover:opacity-90 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-solana-purple to-solana-green text-white font-bold text-lg shadow-xl shadow-purple-500/20 hover:opacity-90 transition-all flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     {isWalletConnecting ? (
                                         <>
@@ -171,7 +171,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                         key={skill}
                                         onClick={() => toggleSkill(skill)}
                                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 ${isSelected
-                                                ? 'bg-[#14F195]/10 border-[#14F195] text-[#14F195]'
+                                                ? 'bg-solana-green/10 border-solana-green text-solana-green'
                                                 : 'bg-white/5 border-white/5 text-gray-400 hover:border-white/20'
                                             }`}
                                     >
@@ -201,22 +201,22 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                         <div className="space-y-3 mt-4">
                             {loadingBounties ? (
                                 <div className="py-12 flex justify-center">
-                                    <svg className="animate-spin h-8 w-8 text-[#14F195]" fill="none" viewBox="0 0 24 24">
+                                    <svg className="animate-spin h-8 w-8 text-solana-green" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 </div>
                             ) : recommendedBounties.length > 0 ? (
                                 recommendedBounties.map((b) => (
-                                    <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-[#14F195]/30 transition-colors">
+                                    <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-solana-green/30 transition-colors">
                                         <div className="space-y-1">
-                                            <h4 className="text-sm font-bold text-white group-hover:text-[#14F195] transition-colors">{b.title}</h4>
+                                            <h4 className="text-sm font-bold text-white group-hover:text-solana-green transition-colors">{b.title}</h4>
                                             <div className="flex items-center gap-3">
-                                                <span className="text-xs font-bold text-[#14F195]">{b.reward_amount?.toLocaleString() || b.rewardAmount?.toLocaleString()} $FNDRY</span>
+                                                <span className="text-xs font-bold text-solana-green">{b.reward_amount?.toLocaleString() || b.rewardAmount?.toLocaleString()} $FNDRY</span>
                                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 uppercase">Tier 1</span>
                                             </div>
                                         </div>
-                                        <button className="px-3 py-1.5 rounded-lg bg-[#14F195] text-black text-xs font-bold hover:bg-[#14F195]/90 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+                                        <button className="px-3 py-1.5 rounded-lg bg-solana-green text-black text-xs font-bold hover:bg-solana-green/90 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
                                             Claim
                                         </button>
                                     </div>
@@ -242,7 +242,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                     {[1, 2, 3, 4].map((s) => (
                         <div
                             key={s}
-                            className={`h-1.5 rounded-full flex-1 transition-all duration-500 ${s <= step ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195]' : 'bg-white/10'
+                            className={`h-1.5 rounded-full flex-1 transition-all duration-500 ${s <= step ? 'bg-gradient-to-r from-solana-purple to-solana-green' : 'bg-white/10'
                                 }`}
                         />
                     ))}

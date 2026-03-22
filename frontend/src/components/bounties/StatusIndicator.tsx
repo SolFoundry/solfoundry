@@ -1,6 +1,6 @@
 import type { BountyStatus } from '../../types/bounty';
 const C: Record<BountyStatus, [string, string, string]> = {
-  open: ['Open', 'bg-[#14F195]', 'text-[#14F195]'],
+  open: ['Open', 'bg-solana-green', 'text-solana-green'],
   'in-progress': ['In Progress', 'bg-yellow-400', 'text-yellow-400'],
   under_review: ['Under Review', 'bg-purple-400', 'text-purple-400'],
   completed: ['Completed', 'bg-green-500', 'text-green-500'],

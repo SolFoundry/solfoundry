@@ -42,8 +42,9 @@ describe('TierProgressBar', () => {
 
   it('shows correct stat counts', () => {
     render(<TierProgressBar completedT1={2} completedT2={1} completedT3={0} />);
-    expect(screen.getByText('2', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('1', { exact: false })).toBeInTheDocument();
+    const statsRow = screen.getByText(/T1 merges:/).parentElement;
+    expect(statsRow).toHaveTextContent('T1 merges: 2');
+    expect(statsRow).toHaveTextContent('T2 merges: 1');
   });
 
   it('shows T3 max-tier badge when T3 is unlocked', () => {

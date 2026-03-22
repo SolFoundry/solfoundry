@@ -128,7 +128,9 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
   const chipBase = 'rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors';
   const chipActive = 'bg-solana-green/15 text-solana-green border-solana-green/30';
-  const chipInactive = 'bg-surface-50 text-gray-400 border-surface-300 hover:text-white hover:border-surface-200';
+  const chipInactive =
+    'bg-gray-100 text-gray-600 border-gray-300 hover:text-gray-900 hover:border-gray-400 ' +
+    'dark:bg-surface-50 dark:text-gray-400 dark:border-surface-300 dark:hover:text-white dark:hover:border-surface-200';
 
   return (
     <div className="space-y-3" data-testid="bounty-filters">
@@ -152,14 +154,14 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             value={localQuery}
             onChange={e => handleSearch(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            className="w-full rounded-lg border border-surface-300 bg-surface-50 pl-10 pr-20 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors"
+            className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-20 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             aria-label="Search bounties"
             data-testid="bounty-search"
           />
 
           {/* Keyboard shortcut hint (hidden when typing) */}
           {!localQuery && (
-            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 rounded border border-surface-300 bg-surface-100 px-1.5 py-0.5 text-[10px] text-gray-500 pointer-events-none select-none">
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 rounded border border-gray-300 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 pointer-events-none select-none dark:border-surface-300 dark:bg-surface-100 dark:text-gray-500">
               {SHORTCUT_LABEL}
             </kbd>
           )}
@@ -169,7 +171,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-500 hover:text-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-500 hover:text-gray-900 transition-colors dark:hover:text-white"
               aria-label="Clear search"
               data-testid="clear-search"
             >
@@ -182,21 +184,21 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
         {/* Autocomplete dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-surface-300 bg-surface-100 shadow-xl overflow-hidden">
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-xl overflow-hidden dark:border-surface-300 dark:bg-surface-100">
             {suggestions.map((item, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => selectSuggestion(item)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-surface-200 transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors dark:hover:bg-surface-200"
               >
                 <span className={
                   'rounded px-1.5 py-0.5 text-[10px] font-medium ' +
-                  (item.type === 'skill' ? 'bg-solana-purple/15 text-solana-purple' : 'bg-surface-300 text-gray-400')
+                  (item.type === 'skill' ? 'bg-solana-purple/15 text-solana-purple' : 'bg-gray-200 text-gray-600 dark:bg-surface-300 dark:text-gray-400')
                 }>
                   {item.type}
                 </span>
-                <span className="text-white truncate">{item.text}</span>
+                <span className="text-gray-900 truncate dark:text-white">{item.text}</span>
               </button>
             ))}
           </div>
@@ -266,7 +268,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         <select
           value={f.creatorType}
           onChange={e => onFilterChange('creatorType', e.target.value as 'all' | 'platform' | 'community')}
-          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-50 dark:text-white"
           aria-label="Filter by creator type"
           data-testid="creator-type-filter"
         >
@@ -277,7 +279,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
           className={'rounded-lg border px-3 py-1.5 text-sm transition-colors ' +
-            (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-surface-300 text-gray-400 hover:text-white')}
+            (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-gray-300 text-gray-600 hover:text-gray-900 dark:border-surface-300 dark:text-gray-400 dark:hover:text-white')}
           data-testid="toggle-advanced"
         >
           {showAdvanced ? 'Less' : 'More'} Filters
@@ -287,7 +289,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           <button
             type="button"
             onClick={() => { onReset(); setSuggestions([]); }}
-            className="rounded-lg border border-surface-300 px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors dark:border-surface-300 dark:text-gray-400 dark:hover:text-white"
             data-testid="reset-filters"
           >
             Clear all
@@ -301,14 +303,14 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
       {/* Advanced filters: reward range + deadline */}
       {showAdvanced && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-surface-300 bg-surface-50" data-testid="advanced-filters">
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50" data-testid="advanced-filters">
           <span className="text-xs text-gray-500">Reward:</span>
           <input
             type="number"
             placeholder="Min"
             value={f.rewardMin}
             onChange={e => onFilterChange('rewardMin', e.target.value)}
-            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
             aria-label="Minimum reward"
             data-testid="reward-min"
           />
@@ -318,7 +320,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             placeholder="Max"
             value={f.rewardMax}
             onChange={e => onFilterChange('rewardMax', e.target.value)}
-            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
             aria-label="Maximum reward"
             data-testid="reward-max"
           />
@@ -329,7 +331,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             type="date"
             value={f.deadlineBefore}
             onChange={e => onFilterChange('deadlineBefore', e.target.value)}
-            className="rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white focus:outline-none focus:border-solana-green/50 scheme-dark"
+            className="rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white dark:scheme-dark"
             aria-label="Deadline before date"
             data-testid="deadline-filter"
           />
@@ -347,7 +349,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
               onClick={() => toggleSkill(s)}
               className={
                 'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ' +
-                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-surface-200 text-gray-400 hover:text-white')
+                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-gray-200 text-gray-600 hover:text-gray-900 dark:bg-surface-200 dark:text-gray-400 dark:hover:text-white')
               }
               aria-pressed={active}
               data-testid={'skill-filter-' + s}

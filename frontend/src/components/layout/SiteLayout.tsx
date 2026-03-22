@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle, SimpleThemeToggle } from './ThemeToggle';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ScrollToTop } from './ScrollToTop';
 import { Footer } from './Footer';
@@ -120,7 +120,7 @@ export function SiteLayout({
   };
 
   return (
-    <div className="site-layout min-h-screen bg-[#0a0a0a] font-mono text-white">
+    <div className="site-layout min-h-screen bg-white dark:bg-surface font-mono text-gray-900 dark:text-white">
       {/* Header */}
       <Header
         currentPath={currentPath}
@@ -159,7 +159,7 @@ export function SiteLayout({
       {/* Main Content */}
       <main className="min-h-screen pt-16">
         {/* Breadcrumbs — below top nav, above page content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200 dark:border-white/5">
           <Breadcrumbs />
         </div>
         {children}
@@ -221,7 +221,7 @@ function Header({
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-16 transition-colors duration-200
-                  ${scrolled ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10' : 'bg-transparent'}`}
+                  ${scrolled ? 'bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10' : 'bg-transparent'}`}
       role="banner"
     >
       <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -229,10 +229,10 @@ function Header({
         <div className="flex items-center gap-8">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center">
               <span className="text-white font-bold text-sm">SF</span>
             </div>
-            <span className="text-lg font-bold text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
+            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight hidden sm:block group-hover:text-solana-purple transition-colors">
               SolFoundry
             </span>
           </a>
@@ -248,8 +248,8 @@ function Header({
                 rel={link.external ? 'noopener noreferrer' : undefined}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
                   ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
-                    ? 'text-[#14F195] bg-[#14F195]/10'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'text-solana-green bg-solana-green/10'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
                 aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
               >
@@ -258,7 +258,7 @@ function Header({
             ))}
             <button
               onClick={onShowOnboarding}
-              className="px-4 py-2 rounded-lg text-sm font-bold text-[#14F195] hover:bg-[#14F195]/10 bg-[#14F195]/5 transition-all ml-4 border border-[#14F195]/20"
+              className="px-4 py-2 rounded-lg text-sm font-bold text-solana-green hover:bg-solana-green/10 bg-solana-green/5 transition-all ml-4 border border-solana-green/20"
             >
               Get Started
             </button>
@@ -275,12 +275,12 @@ function Header({
             <div className="relative">
               <button
                 onClick={onToggleUserMenu}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#14F195]/10 border border-[#14F195]/30
-                         text-[#14F195] text-sm font-medium hover:bg-[#14F195]/20 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-solana-green/10 border border-solana-green/30
+                         text-solana-green text-sm font-medium hover:bg-solana-green/20 transition-colors"
                 aria-expanded={userMenuOpen}
                 aria-haspopup="true"
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center overflow-hidden">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt={userName || 'User'} className="w-full h-full object-cover" />
                   ) : (
@@ -295,26 +295,26 @@ function Header({
 
               {/* User Dropdown Menu */}
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl">
-                  <div className="px-4 py-2 border-b border-white/10">
-                    <p className="text-sm font-medium text-white">{userName || 'User'}</p>
-                    <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
+                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-white dark:bg-surface-100 border border-gray-200 dark:border-white/10 shadow-xl">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-white/10">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{userName || 'User'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
-                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                  <a href="/creator" className="block px-4 py-2 text-sm text-solana-green hover:bg-gray-100 dark:hover:bg-white/5 hover:text-solana-green">
                     Creator Dashboard
                   </a>
-                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Contributor Dashboard
                   </a>
-                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Profile
                   </a>
-                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Settings
                   </a>
                   <button
                     onClick={onDisconnectWallet}
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 hover:text-red-300"
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-red-600 dark:hover:text-red-300"
                   >
                     Disconnect
                   </button>
@@ -324,8 +324,8 @@ function Header({
           ) : (
             <button
               onClick={onConnectWallet}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#9945FF] to-[#14F195]
-                       text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-[#9945FF]/20"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-solana-purple to-solana-green
+                       text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-solana-purple/20"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
@@ -338,7 +338,7 @@ function Header({
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg
-                     text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                     text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
           >
@@ -372,7 +372,7 @@ interface SidebarProps {
 function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
   return (
     <aside
-      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-[#0a0a0a] border-r border-white/10
+      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-white dark:bg-surface border-r border-gray-200 dark:border-white/10
                 transform transition-transform duration-300 ease-in-out lg:hidden
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       role="navigation"
@@ -389,8 +389,8 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
             rel={link.external ? 'noopener noreferrer' : undefined}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
               ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
-                ? 'text-[#14F195] bg-[#14F195]/10'
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
+                ? 'text-solana-green bg-solana-green/10'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
               }`}
             aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
           >
@@ -400,7 +400,11 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-500">Theme</span>
+          <SimpleThemeToggle showSystemOption />
+        </div>
         <p className="text-xs text-gray-500 text-center font-mono">
           SolFoundry v0.1.0
         </p>
