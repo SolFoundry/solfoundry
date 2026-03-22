@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.boosts import router as boosts_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
@@ -89,6 +90,9 @@ app.include_router(contributors_router, prefix="/api")
 
 # Bounties: router already has /api/bounties prefix — do NOT add another /api
 app.include_router(bounties_router)
+
+# Boosts: router has /api/bounties prefix — mounts at /api/bounties/{id}/boost*
+app.include_router(boosts_router)
 
 # Notifications: router has /notifications prefix — add /api here
 app.include_router(notifications_router, prefix="/api")

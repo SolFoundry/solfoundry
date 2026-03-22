@@ -88,6 +88,7 @@ async def init_db() -> None:
             from app.models.notification import NotificationDB  # noqa: F401
             from app.models.user import User  # noqa: F401
             from app.models.bounty_table import BountyTable  # noqa: F401
+            from app.models.boost import BoostTable  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 
