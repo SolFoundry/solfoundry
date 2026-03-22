@@ -74,19 +74,32 @@ function renderWithRouter(ui: React.ReactElement, initialEntries?: string[]) {
   return render(ui, { wrapper: createQueryWrapper(initialEntries) });
 }
 
+const memoryRouterWrapper = ({ children }: { children: React.ReactNode }) => (
+  <MemoryRouter>{children}</MemoryRouter>
+);
+
 const testBounty: Bounty = {
   id: 't1', title: 'Test', description: 'D', tier: 'T2',
   skills: ['React', 'TS', 'Rust', 'Sol'], rewardAmount: 3500,
   currency: 'USDC', deadline: new Date(Date.now() + 5 * 864e5).toISOString(),
   status: 'open', submissionCount: 3, createdAt: new Date().toISOString(), projectName: 'TP',
   creatorType: 'community',
+  category: 'frontend',
 };
 
 const b: Bounty = testBounty;
 
 /** Mock API responses so React Query resolves for BountyBoard tests. */
 function mockBountyApis(items: Bounty[] = mockBounties) {
-  const apiItems = items.map(b => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType }));
+  const apiItems = items.map(b => ({
+    ...b,
+    reward_amount: b.rewardAmount,
+    required_skills: b.skills,
+    created_at: b.createdAt,
+    submission_count: b.submissionCount,
+    creator_type: b.creatorType,
+    category: b.category,
+  }));
   mockFetch.mockImplementation((...args: unknown[]) => {
     const url = String(args[0] ?? '');
     if (url.includes('/api/bounties/search')) {
@@ -119,7 +132,15 @@ describe('Page+Board', () => {
   });
   it('filters by tier and resets', async () => {
     // Dynamic mock: check URL for tier param and return filtered results
-    const toApi = (b: Bounty) => ({ ...b, reward_amount: b.rewardAmount, required_skills: b.skills, created_at: b.createdAt, submission_count: b.submissionCount, creator_type: b.creatorType });
+    const toApi = (b: Bounty) => ({
+      ...b,
+      reward_amount: b.rewardAmount,
+      required_skills: b.skills,
+      created_at: b.createdAt,
+      submission_count: b.submissionCount,
+      creator_type: b.creatorType,
+      category: b.category,
+    });
     const TIER_NUM: Record<string, string> = { T1: '1', T2: '2', T3: '3' };
     mockFetch.mockImplementation((...args: unknown[]) => {
       const url = String(args[0] ?? '');
@@ -172,17 +193,18 @@ describe('Page+Board', () => {
 describe('BountyCard', () => {
   it('renders info and handles click', async () => {
     const handleClick = vi.fn();
-    render(<BountyCard bounty={testBounty} onClick={handleClick} />);
+    render(<BountyCard bounty={testBounty} onClick={handleClick} />, { wrapper: memoryRouterWrapper });
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('3.5k')).toBeInTheDocument();
     expect(screen.getByText('T2')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /test/i }));
+    await userEvent.click(screen.getByTestId('bounty-card-t1'));
     expect(handleClick).toHaveBeenCalledWith('t1');
   });
 
   it('expired shows text, urgent shows indicator testid', () => {
     const { rerender } = render(
       <BountyCard bounty={{ ...testBounty, deadline: new Date(Date.now() - 1000).toISOString() }} onClick={() => {}} />,
+      { wrapper: memoryRouterWrapper },
     );
     expect(screen.getByText('Expired')).toBeInTheDocument();
     rerender(
@@ -191,17 +213,17 @@ describe('BountyCard', () => {
     expect(screen.getByTestId('urgent-indicator')).toBeInTheDocument();
   });
   it('shows community badge for community bounty', () => {
-    render(<BountyCard bounty={{...b, creatorType: 'community'}} onClick={()=>{}} />);
+    render(<BountyCard bounty={{...b, creatorType: 'community'}} onClick={()=>{}} />, { wrapper: memoryRouterWrapper });
     expect(screen.getByTestId('creator-badge-community')).toBeInTheDocument();
     expect(screen.getByText('Community')).toBeInTheDocument();
   });
   it('shows platform badge for platform bounty', () => {
-    render(<BountyCard bounty={{...b, creatorType: 'platform'}} onClick={()=>{}} />);
+    render(<BountyCard bounty={{...b, creatorType: 'platform'}} onClick={()=>{}} />, { wrapper: memoryRouterWrapper });
     expect(screen.getByTestId('creator-badge-platform')).toBeInTheDocument();
     expect(screen.getByText('Official')).toBeInTheDocument();
   });
   it('shows submission count for all tiers', () => {
-    render(<BountyCard bounty={{...b, tier: 'T1', submissionCount: 5}} onClick={()=>{}} />);
+    render(<BountyCard bounty={{...b, tier: 'T1', submissionCount: 5}} onClick={()=>{}} />, { wrapper: memoryRouterWrapper });
     expect(screen.getByText('5 submissions')).toBeInTheDocument();
   });
 });
@@ -214,7 +236,7 @@ describe('Helpers + components', () => {
   });
 
   it('BountyCard shows status indicator', () => {
-    render(<BountyCard bounty={testBounty} onClick={() => {}} />);
+    render(<BountyCard bounty={testBounty} onClick={() => {}} />, { wrapper: memoryRouterWrapper });
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 

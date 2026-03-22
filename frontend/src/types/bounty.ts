@@ -82,6 +82,8 @@ export interface Bounty {
   projectName: string;
   creatorType: CreatorType;
   githubIssueUrl?: string;
+  /** Search / display category (API `category`). */
+  category?: BountyCategory;
   relevanceScore?: number;
   skillMatchCount?: number;
   submissions?: BountySubmission[];
@@ -92,6 +94,17 @@ export interface Bounty {
 }
 
 export type BountyCategory = 'smart-contract' | 'frontend' | 'backend' | 'design' | 'content' | 'security' | 'devops' | 'documentation';
+
+const BOUNTY_CATEGORY_VALUES: BountyCategory[] = [
+  'smart-contract', 'frontend', 'backend', 'design', 'content', 'security', 'devops', 'documentation',
+];
+
+/** Normalize API/category strings (underscores, casing) to a known category. */
+export function normalizeBountyCategory(raw: string | null | undefined): BountyCategory | undefined {
+  if (raw == null || typeof raw !== 'string') return undefined;
+  const r = raw.trim().toLowerCase().replace(/_/g, '-');
+  return (BOUNTY_CATEGORY_VALUES as string[]).includes(r) ? (r as BountyCategory) : undefined;
+}
 
 export interface BountyBoardFilters {
   tier: BountyTier | 'all';
@@ -117,7 +130,10 @@ export const DEFAULT_FILTERS: BountyBoardFilters = {
   deadlineBefore: '',
 };
 
-export const SKILL_OPTIONS = ['React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content'];
+export const SKILL_OPTIONS = [
+  'React', 'TypeScript', 'Rust', 'Anchor', 'Solana', 'Node.js', 'Python', 'FastAPI', 'Security', 'Content',
+  'Solidity', 'JavaScript',
+];
 
 export const TIER_OPTIONS: { value: BountyTier | 'all'; label: string }[] = [
   { value: 'all', label: 'All Tiers' },

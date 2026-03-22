@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type KeyboardEvent } from 'react';
 import type { Bounty } from '../../types/bounty';
 import { TierBadge } from './TierBadge';
 import { StatusIndicator } from './StatusIndicator';
-import { SkillTags } from './SkillTags';
+import { BountyTags } from './BountyTags';
 import { TimeAgo } from '../common/TimeAgo';
 export function formatTimeRemaining(dl: string): string {
   const d = new Date(dl).getTime() - Date.now();
@@ -56,7 +56,16 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
         <p className="text-xs text-gray-500 mb-3">{b.projectName}</p>
         <div className="flex items-baseline gap-1 mb-3"><span className="text-lg font-bold text-solana-green">{formatReward(b.rewardAmount)}</span><span className="text-xs text-gray-500">{b.currency}</span></div>
-        <SkillTags skills={b.skills} maxVisible={3} />
+        <BountyTags
+          tier={b.tier}
+          skills={b.skills}
+          category={b.category}
+          interactive
+          showTier={false}
+          maxSkills={4}
+          className="mb-3"
+          data-testid={'bounty-tags-' + b.id}
+        />
         <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 dark:border-surface-300">
           <span className={'text-xs ' + (urg ? 'text-accent-red' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
           <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
@@ -70,32 +79,39 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
     </>
   );
 
-  // If there's a GitHub issue URL, render as a link that opens in new tab
-  if (b.githubIssueUrl) {
-    return (
-      <a
-        href={b.githubIssueUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={'group relative w-full text-left rounded-xl border border-gray-200 bg-white hover:shadow-lg hover:border-solana-green/40 transition-all block dark:border-surface-300 dark:bg-surface-50' + (exp ? ' opacity-60' : '')}
-        data-testid={'bounty-card-' + b.id}
-        aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
-      >
-        {cardContent}
-      </a>
-    );
-  }
+  const shellClass =
+    'group relative w-full text-left rounded-xl border border-gray-200 bg-white hover:shadow-lg hover:border-solana-green/40 transition-all cursor-pointer dark:border-surface-300 dark:bg-surface-50' +
+    (exp ? ' opacity-60' : '');
 
-  // Fallback: button with onClick
+  const aria = 'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency;
+
+  const openGithub = () => {
+    if (b.githubIssueUrl) window.open(b.githubIssueUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const activateCard = () => {
+    if (b.githubIssueUrl) openGithub();
+    else onClick(b.id);
+  };
+
+  const onCardKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    activateCard();
+  };
+
+  // Clickable surface without role="button" so inner tag controls (role="button") are not nested interactives.
   return (
-    <button
-      type="button"
-      onClick={() => onClick(b.id)}
-      className={'group relative w-full text-left rounded-xl border border-gray-200 bg-white hover:shadow-lg hover:border-solana-green/40 transition-all focus-visible:ring-2 focus-visible:ring-solana-green dark:border-surface-300 dark:bg-surface-50' + (exp ? ' opacity-60' : '')}
+    <div
+      onClick={activateCard}
+      onKeyDown={onCardKeyDown}
+      tabIndex={0}
+      className={shellClass + ' focus-visible:ring-2 focus-visible:ring-solana-green focus-visible:outline-none'}
       data-testid={'bounty-card-' + b.id}
-      aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
+      aria-label={aria}
+      role="group"
     >
       {cardContent}
-    </button>
+    </div>
   );
 }
