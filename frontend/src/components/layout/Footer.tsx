@@ -66,7 +66,7 @@ export function Footer() {
 
   return (
     <footer
-      className="border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0a0a0a] font-mono"
+      className="border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-surface font-mono"
       role="contentinfo"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -75,7 +75,7 @@ export function Footer() {
           {/* Logo + tagline */}
           <div className="flex flex-col items-center md:items-start gap-1">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-solana-purple to-solana-green flex items-center justify-center shrink-0">
                 <span className="text-white font-bold text-xs">SF</span>
               </div>
               <span className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
@@ -98,7 +98,7 @@ export function Footer() {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-[#9945FF] transition-colors"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-solana-purple transition-colors"
               >
                 {link.label}
               </a>
@@ -108,7 +108,7 @@ export function Footer() {
           {/* $FNDRY token CA + copy button */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 shrink-0">$FNDRY CA:</span>
-            <code className="text-xs text-[#14F195] font-mono bg-[#14F195]/10 px-2 py-1 rounded truncate max-w-[120px] sm:max-w-none">
+            <code className="text-xs text-solana-green font-mono bg-solana-green/10 px-2 py-1 rounded truncate max-w-[120px] sm:max-w-none">
               {FNDRY_TOKEN_CA}
             </code>
             <button
@@ -119,7 +119,7 @@ export function Footer() {
                          border transition-colors
                          ${copyFailed
                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                           : 'bg-gray-100 dark:bg-white/5 hover:bg-[#14F195]/20 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-[#14F195]'
+                           : 'bg-gray-100 dark:bg-white/5 hover:bg-solana-green/20 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-solana-green'
                          }`}
             >
               {copyFailed ? (

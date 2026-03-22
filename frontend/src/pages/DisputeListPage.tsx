@@ -84,7 +84,7 @@ export default function DisputeListPage() {
         <select
           value={statusFilter}
           onChange={(event) => handleStatusFilterChange(event.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-[#9945FF] focus:outline-none min-w-[160px]"
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-solana-purple focus:outline-none min-w-[160px]"
           data-testid="status-filter"
         >
           {STATUS_FILTER_OPTIONS.map((option) => (

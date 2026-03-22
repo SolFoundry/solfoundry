@@ -193,7 +193,7 @@ export function ThemeToggle() {
         type="button"
         onClick={() => { setIsOpen(!isOpen); if (!isOpen) setFocusedIndex(0); }}
         onKeyDown={handleTriggerKeyDown}
-        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
+        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
         aria-label={`Theme: ${theme === 'system' ? `system (${resolvedTheme})` : theme}. Click to change.`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -206,7 +206,7 @@ export function ThemeToggle() {
       {isOpen && (
         <div
           id="theme-listbox"
-          className="absolute right-0 mt-2 w-44 py-1 rounded-lg bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 shadow-xl z-50"
+          className="absolute right-0 mt-2 w-44 py-1 rounded-lg bg-white dark:bg-surface-100 border border-gray-200 dark:border-white/10 shadow-xl z-50"
           role="listbox"
           aria-label="Select theme"
           tabIndex={-1}
@@ -223,15 +223,15 @@ export function ThemeToggle() {
               onKeyDown={(e) => handleOptionKeyDown(e, index)}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors outline-none
                 ${theme === option.value
-                  ? 'text-[#14F195] bg-[#14F195]/10'
+                  ? 'text-solana-green bg-solana-green/10'
                   : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'
                 }
-                ${focusedIndex === index ? 'ring-2 ring-inset ring-[#9945FF]' : ''}`}
+                ${focusedIndex === index ? 'ring-2 ring-inset ring-solana-purple' : ''}`}
             >
               {option.icon}
               <span className="flex-1 text-left">{option.label}</span>
               {theme === option.value && (
-                <CheckIcon className="w-4 h-4 text-[#14F195]" />
+                <CheckIcon className="w-4 h-4 text-solana-green" />
               )}
             </button>
           ))}
@@ -282,7 +282,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     return (
       <button
         type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF]"
+        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple"
         aria-label="Toggle theme"
       />
     );
@@ -292,7 +292,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     <button
       type="button"
       onClick={cycleTheme}
-      className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
+      className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
       aria-label={`Current theme: ${theme}. Click to change.`}
     >
       {theme === 'system' ? (

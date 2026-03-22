@@ -106,7 +106,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
               ) : (
                 <Link
                   to={crumb.href}
-                  className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                  className="text-gray-500 hover:text-solana-purple transition-colors"
                 >
                   {crumb.label}
                 </Link>
@@ -134,7 +134,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
                 ) : (
                   <Link
                     to={item.href}
-                    className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                    className="text-gray-500 hover:text-solana-purple transition-colors"
                   >
                     {item.label}
                   </Link>

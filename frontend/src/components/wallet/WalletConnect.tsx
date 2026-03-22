@@ -25,7 +25,7 @@ function WalletModal({ open, onClose }: { open: boolean; onClose: () => void }) 
       onClick={e => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); }}>
       <div ref={ref} className="w-full max-w-sm rounded-2xl border border-gray-700 bg-surface-50 p-6">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white"><span className="text-[#00FF88]">SolFoundry</span> Wallet</h2>
+          <h2 className="text-lg font-semibold text-white"><span className="text-solana-mint">SolFoundry</span> Wallet</h2>
           <button type="button" onClick={onClose} aria-label="Close wallet selector"
             className="h-8 w-8 rounded-lg text-gray-400 hover:text-white inline-flex items-center justify-center">X</button>
         </div>
@@ -58,7 +58,7 @@ export function WalletConnect() {
     <div className="flex items-center gap-2">
       <NetworkSelector />
       <button type="button" onClick={() => setModalOpen(true)} aria-label="Connect wallet"
-        className="rounded-lg bg-[#00FF88] px-4 py-2 text-sm font-semibold text-surface hover:bg-[#00FF88]/90">Connect Wallet</button>
+        className="rounded-lg bg-solana-mint px-4 py-2 text-sm font-semibold text-surface hover:bg-solana-mint/90">Connect Wallet</button>
       <WalletModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
@@ -66,7 +66,7 @@ export function WalletConnect() {
   if (status === 'connecting') return (
     <div className="flex items-center gap-2">
       <NetworkSelector />
-      <div className="rounded-lg border border-[#00FF88]/30 bg-[#00FF88]/10 px-4 py-2 text-sm text-[#00FF88]"
+      <div className="rounded-lg border border-solana-mint/30 bg-solana-mint/10 px-4 py-2 text-sm text-solana-mint"
         role="status" aria-label="Connecting wallet">Connecting...</div>
     </div>
   );
@@ -83,7 +83,7 @@ export function WalletConnect() {
           </>
         )}
         <button type="button" onClick={copyAddress} aria-label={copied ? 'Address copied' : 'Copy wallet address'}
-          className="h-7 w-7 rounded-md text-gray-400 hover:text-[#00FF88] inline-flex items-center justify-center">
+          className="h-7 w-7 rounded-md text-gray-400 hover:text-solana-mint inline-flex items-center justify-center">
           {copied ? '\u2713' : '\u2398'}
         </button>
         <button type="button" onClick={disconnect} aria-label="Disconnect wallet"

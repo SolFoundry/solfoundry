@@ -7,7 +7,7 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ContributorProfile from '../components/ContributorProfile';
-import { SkeletonProfile } from '../components/common/Skeleton';
+import { SkeletonContributorProfile } from '../components/common/Skeleton';
 import { apiClient } from '../services/apiClient';
 import type { ContributorBadgeStats } from '../types/badges';
 
@@ -61,8 +61,8 @@ export default function ContributorProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-3xl mx-auto" role="status">
-        <SkeletonProfile />
+      <div className="p-6 max-w-3xl mx-auto" role="status" aria-live="polite" aria-label="Loading profile">
+        <SkeletonContributorProfile />
       </div>
     );
   }
@@ -80,7 +80,7 @@ export default function ContributorProfilePage() {
           <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
           <button
             onClick={() => refetch()}
-            className="px-4 py-2 rounded-lg bg-[#9945FF]/20 text-[#9945FF] hover:bg-[#9945FF]/30 text-sm"
+            className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 text-sm"
           >
             Retry
           </button>

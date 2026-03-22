@@ -51,6 +51,14 @@ export function useTheme(): ThemeContextValue {
   return context;
 }
 
+/**
+ * Resolved theme when inside ThemeProvider; defaults to `dark` for SSR, tests, or leaf components
+ * rendered outside the provider tree.
+ */
+export function useResolvedThemeSafe(): ResolvedTheme {
+  return useContext(ThemeContext)?.resolvedTheme ?? 'dark';
+}
+
 // ============================================================================
 // Provider
 // ============================================================================

@@ -60,7 +60,7 @@ const Modal: React.FC<ModalProps> = ({
         >
             <div
                 ref={modalRef}
-                className={`w-full ${maxWidthClasses[maxWidth]} bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 dark:bg-[#111] dark:border-white/10`}
+                className={`w-full ${maxWidthClasses[maxWidth]} rounded-2xl border border-gray-200 bg-surface-light shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-surface-50`}
                 role="dialog"
                 aria-modal="true"
             >

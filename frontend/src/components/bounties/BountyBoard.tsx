@@ -7,7 +7,7 @@ import { BountyListView } from './BountyListView';
 import { ViewToggle } from './ViewToggle';
 import type { ViewMode } from './ViewToggle';
 import { NoBountiesFound } from '../common/EmptyState';
-import { SkeletonList } from '../common/Skeleton';
+import { SkeletonBountyCard, SkeletonBountyListRows } from '../common/Skeleton';
 import { HotBounties } from './HotBounties';
 import { RecommendedBounties } from './RecommendedBounties';
 import { Pagination } from './Pagination';
@@ -99,7 +99,22 @@ export function BountyBoard() {
       </div>
 
       {loading ? (
-        <SkeletonList count={6} showTier showSkills />
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Loading bounties"
+          data-testid="bounty-board-skeleton"
+        >
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }, (_, i) => (
+                <SkeletonBountyCard key={i} />
+              ))}
+            </div>
+          ) : (
+            <SkeletonBountyListRows count={6} />
+          )}
+        </div>
       ) : bounties.length > 0 ? (
         <div className="relative">
           {isFetching && !loading && (

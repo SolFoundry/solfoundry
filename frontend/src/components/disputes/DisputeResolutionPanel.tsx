@@ -93,10 +93,10 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
 
   return (
     <div
-      className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-[#9945FF]/30 shadow-sm dark:shadow-none"
+      className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-solana-purple/30 shadow-sm dark:shadow-none"
       data-testid="resolution-panel"
     >
-      <h3 className="text-lg font-semibold text-[#9945FF] mb-4">
+      <h3 className="text-lg font-semibold text-solana-purple mb-4">
         Admin Resolution Panel
       </h3>
 
@@ -148,7 +148,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
                   key={option.value}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedOutcome === option.value
-                      ? 'border-[#9945FF] bg-[#9945FF]/10'
+                      ? 'border-solana-purple bg-solana-purple/10'
                       : 'border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600'
                   }`}
                 >
@@ -158,7 +158,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
                     value={option.value}
                     checked={selectedOutcome === option.value}
                     onChange={() => setSelectedOutcome(option.value)}
-                    className="mt-1 accent-[#9945FF]"
+                    className="mt-1 accent-solana-purple"
                   />
                   <div>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -186,7 +186,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
               onChange={(event) => setResolutionNotes(event.target.value)}
               placeholder="Explain the rationale for this decision..."
               rows={4}
-              className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:border-[#9945FF] focus:outline-none resize-none"
+              className="w-full rounded-lg border border-gray-300 bg-surface-light px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-solana-purple focus:outline-none resize-none dark:border-surface-300 dark:bg-surface-50 dark:text-white dark:placeholder-gray-500"
             />
           </div>
 
@@ -199,7 +199,7 @@ export const DisputeResolutionPanel: React.FC<DisputeResolutionPanelProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-[#14F195] hover:bg-[#10D080] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-black font-bold rounded-lg transition-colors min-h-[44px]"
+            className="w-full px-4 py-3 bg-solana-green hover:brightness-95 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-black font-bold rounded-lg transition-colors min-h-[44px]"
           >
             {loading ? 'Resolving...' : 'Resolve Dispute'}
           </button>

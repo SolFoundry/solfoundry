@@ -44,7 +44,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
 
   const cardContent = (
     <>
-      {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#FF6B6B] animate-pulse" data-testid="urgent-indicator" />}
+      {urg && <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-accent-red animate-pulse" data-testid="urgent-indicator" />}
       <div className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
         <div className="flex items-baseline gap-1 mb-3"><span className="text-lg font-bold text-solana-green">{formatReward(b.rewardAmount)}</span><span className="text-xs text-gray-500">{b.currency}</span></div>
         <SkillTags skills={b.skills} maxVisible={3} />
         <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 dark:border-surface-300">
-          <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
+          <span className={'text-xs ' + (urg ? 'text-accent-red' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
           <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
         </div>
         {b.createdAt && (

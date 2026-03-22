@@ -28,9 +28,9 @@ jobs:
             | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
           # Extract linked issue number
-          ISSUE_NUM=$(python3 -c "
-          import re
-          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          ISSUE_NUM=$(PR_TITLE="$PR_TITLE" PR_BODY_TEXT="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE', '') + ' ' + os.environ.get('PR_BODY_TEXT', '')
           m = re.search(r'(?:closes|fixes|resolves)\s+(?:\S+#)?(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           " 2>/dev/null)

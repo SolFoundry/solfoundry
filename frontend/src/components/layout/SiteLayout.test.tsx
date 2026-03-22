@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { SiteLayout } from './SiteLayout';
 
@@ -22,9 +23,11 @@ Object.defineProperty(window, 'matchMedia', {
 /** Wrap component in ThemeProvider (required by ThemeToggle inside SiteLayout). */
 function renderWithTheme(element: React.ReactElement) {
   return render(
-    <ThemeProvider defaultTheme="dark">
-      {element}
-    </ThemeProvider>,
+    <MemoryRouter>
+      <ThemeProvider defaultTheme="dark">
+        {element}
+      </ThemeProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -76,7 +79,7 @@ describe('SiteLayout', () => {
     it('renders header with logo', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      expect(screen.getByText('SolFoundry')).toBeInTheDocument();
+      expect(screen.getAllByText('SolFoundry').length).toBeGreaterThanOrEqual(1);
       // Header and footer both contain "SF" logo
       expect(screen.getAllByText('SF').length).toBeGreaterThanOrEqual(1);
     });
@@ -96,8 +99,8 @@ describe('SiteLayout', () => {
 
       // Footer links exist (some may also appear in other locations)
       expect(screen.getAllByRole('link', { name: 'GitHub' }).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByRole('link', { name: 'Twitter' }).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByRole('link', { name: 'CA' }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole('link', { name: /X.*Twitter/i }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole('link', { name: 'Website' })).toBeInTheDocument();
     });
 
     it('renders copyright with current year', () => {
@@ -110,7 +113,7 @@ describe('SiteLayout', () => {
     it('renders contract address in footer', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      expect(screen.getByText(/Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7/)).toBeInTheDocument();
+      expect(screen.getByText(/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS/)).toBeInTheDocument();
     });
   });
 
@@ -210,15 +213,15 @@ describe('SiteLayout', () => {
       renderWithTheme(<SiteLayout currentPath="/bounties/123"><div /></SiteLayout>);
 
       const bountiesLink = screen.getByRole('link', { name: 'Bounties' });
-      expect(bountiesLink).toHaveClass('text-[#14F195]');
+      expect(bountiesLink).toHaveClass('text-solana-green');
     });
 
     it('does not highlight non-current navigation items', () => {
       renderWithTheme(<SiteLayout currentPath="/bounties"><div /></SiteLayout>);
 
-      const leaderboardLink = screen.getByRole('link', { name: 'Leaderboard' });
+      const leaderboardLink = screen.getAllByRole('link', { name: 'Leaderboard' })[0];
       expect(leaderboardLink).not.toHaveAttribute('aria-current', 'page');
-      expect(leaderboardLink).toHaveClass('text-gray-300');
+      expect(leaderboardLink).toHaveClass('text-gray-600');
     });
   });
 
@@ -314,7 +317,7 @@ describe('SiteLayout', () => {
       expect(header).toHaveClass('bg-transparent');
     });
 
-    it('adds background on scroll', () => {
+    it('adds background on scroll', async () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const header = screen.getByRole('banner');
@@ -323,9 +326,8 @@ describe('SiteLayout', () => {
       mockScrollY = 20;
       fireEvent.scroll(window);
 
-      // Wait for state update
-      waitFor(() => {
-        expect(header).toHaveClass('bg-[#0a0a0a]/95');
+      await waitFor(() => {
+        expect(header.className).toContain('dark:bg-surface/95');
       });
     });
   });
@@ -450,8 +452,8 @@ describe('SiteLayout', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const layout = document.querySelector('.site-layout');
-      expect(layout).toHaveClass('bg-[#0a0a0a]');
-      expect(layout).toHaveClass('text-white');
+      expect(layout).toHaveClass('dark:bg-surface');
+      expect(layout).toHaveClass('dark:text-white');
     });
 
     it('uses monospace font', () => {
@@ -461,18 +463,18 @@ describe('SiteLayout', () => {
       expect(layout).toHaveClass('font-mono');
     });
 
-    it('uses Solana purple (#9945FF) in gradient', () => {
+    it('uses Solana purple in gradient', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
-      expect(connectButton?.className).toMatch(/from-\[#9945FF\]/);
+      expect(connectButton?.className).toMatch(/from-solana-purple/);
     });
 
-    it('uses Solana green (#14F195) in gradient', () => {
+    it('uses Solana green in gradient', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
-      expect(connectButton?.className).toMatch(/to-\[#14F195\]/);
+      expect(connectButton?.className).toMatch(/to-solana-green/);
     });
   });
 
@@ -492,7 +494,7 @@ describe('SiteLayout', () => {
     it('opens Twitter link in new tab', () => {
       renderWithTheme(<SiteLayout><div /></SiteLayout>);
 
-      const twitterLink = screen.getByRole('link', { name: 'Twitter' });
+      const twitterLink = screen.getByRole('link', { name: /X.*Twitter/i });
       expect(twitterLink).toHaveAttribute('target', '_blank');
       expect(twitterLink).toHaveAttribute('rel', 'noopener noreferrer');
     });

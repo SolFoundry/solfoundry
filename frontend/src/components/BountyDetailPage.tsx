@@ -252,7 +252,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 text-center border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
                   <button
                     onClick={() => setShowSubmitForm(true)}
-                    className="px-6 py-3 bg-[#9945FF] hover:bg-[#7C3AED] text-white rounded-lg font-medium transition-colors min-h-[44px]"
+                    className="px-6 py-3 bg-solana-purple hover:bg-violet-600 text-white rounded-lg font-medium transition-colors min-h-[44px]"
                   >
                     Submit a Solution
                   </button>
@@ -330,7 +330,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 {canSubmit && !showSubmitForm && (
                   <button
                     onClick={() => setShowSubmitForm(true)}
-                    className="w-full bg-[#9945FF] hover:bg-[#7C3AED] text-white py-3 sm:py-4 rounded-lg font-medium transition-colors min-h-[44px] touch-manipulation"
+                    className="w-full bg-solana-purple hover:bg-violet-600 text-white py-3 sm:py-4 rounded-lg font-medium transition-colors min-h-[44px] touch-manipulation"
                   >
                     Submit PR
                   </button>

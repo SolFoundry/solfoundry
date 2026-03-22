@@ -32,7 +32,7 @@ function SuccessRateRing({ rate }: { rate: number }) {
   return (
     <div className="relative h-24 w-24 shrink-0">
       <svg className="h-24 w-24 -rotate-90" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r={radius} fill="none" className="stroke-gray-200 dark:stroke-[#2a2a2a]" strokeWidth="6" />
+        <circle cx="40" cy="40" r={radius} fill="none" className="stroke-gray-200 dark:stroke-surface-300" strokeWidth="6" />
         <circle
           cx="40" cy="40" r={radius} fill="none"
           stroke={color} strokeWidth="6" strokeLinecap="round"
