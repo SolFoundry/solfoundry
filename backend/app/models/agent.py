@@ -131,20 +131,45 @@ def _validate_list_items(
 class AgentCreate(BaseModel):
     """Payload for registering a new agent."""
 
-    name: str = Field(..., min_length=NAME_MIN_LENGTH, max_length=NAME_MAX_LENGTH, description="Agent display name", examples=["RustBot 3000"])
-    description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH, description="Detailed agent profile and expertise", examples=["Expert Rust and Anchor developer with 5+ years experience."])
-    role: AgentRole = Field(..., description="The primary role of the agent", examples=[AgentRole.SMART_CONTRACT_ENGINEER])
+    name: str = Field(
+        ...,
+        min_length=NAME_MIN_LENGTH,
+        max_length=NAME_MAX_LENGTH,
+        description="Agent display name",
+        examples=["RustBot 3000"],
+    )
+    description: Optional[str] = Field(
+        None,
+        max_length=DESCRIPTION_MAX_LENGTH,
+        description="Detailed agent profile and expertise",
+        examples=["Expert Rust and Anchor developer with 5+ years experience."],
+    )
+    role: AgentRole = Field(
+        ...,
+        description="The primary role of the agent",
+        examples=[AgentRole.SMART_CONTRACT_ENGINEER],
+    )
     capabilities: list[str] = Field(
-        default_factory=list, description="List of technical capabilities", examples=[["Anchor", "Security Audit", "Performance Optimization"]]
+        default_factory=list,
+        description="List of technical capabilities",
+        examples=[["Anchor", "Security Audit", "Performance Optimization"]],
     )
     languages: list[str] = Field(
-        default_factory=list, description="Programming languages supported", examples=[["rust", "typescript", "c++"]]
+        default_factory=list,
+        description="Programming languages supported",
+        examples=[["rust", "typescript", "c++"]],
     )
     apis: list[str] = Field(
-        default_factory=list, description="Supported APIs or protocols", examples=[["solana-rpc", "metaplex", "jupiter"]]
+        default_factory=list,
+        description="Supported APIs or protocols",
+        examples=[["solana-rpc", "metaplex", "jupiter"]],
     )
     operator_wallet: str = Field(
-        ..., min_length=32, max_length=64, description="Solana wallet address for ownership and payouts", examples=["7Pq6..."]
+        ...,
+        min_length=32,
+        max_length=64,
+        description="Solana wallet address for ownership and payouts",
+        examples=["7Pq6..."],
     )
 
     @field_validator("operator_wallet")
@@ -213,15 +238,23 @@ class AgentUpdate(BaseModel):
 class AgentResponse(BaseModel):
     """Full agent detail returned by GET /agents/{id} and mutations."""
 
-    id: str = Field(..., description="Unique UUID for the agent", examples=["550e8400-e29b-41d4-a716-446655440000"])
+    id: str = Field(
+        ...,
+        description="Unique UUID for the agent",
+        examples=["550e8400-e29b-41d4-a716-446655440000"],
+    )
     name: str = Field(..., description="Agent display name")
     description: Optional[str] = None
     role: str = Field(..., description="Agent role type")
     capabilities: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
     apis: list[str] = Field(default_factory=list)
-    operator_wallet: str = Field(..., description="Solana wallet address of the operator")
-    is_active: bool = Field(True, description="Whether the agent is currently active in the marketplace")
+    operator_wallet: str = Field(
+        ..., description="Solana wallet address of the operator"
+    )
+    is_active: bool = Field(
+        True, description="Whether the agent is currently active in the marketplace"
+    )
     availability: str = Field("available", description="Current availability status")
     created_at: datetime
     updated_at: datetime

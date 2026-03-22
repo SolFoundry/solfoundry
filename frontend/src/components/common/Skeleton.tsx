@@ -1,9 +1,3 @@
-/**
- * Skeleton - Reusable skeleton loading components
- * Supports: text line, card, avatar, table row with shimmer animation
- * @module components/common/Skeleton
- */
-
 import React from 'react';
 
 // ============================================================================
@@ -11,91 +5,98 @@ import React from 'react';
 // ============================================================================
 
 export interface SkeletonProps {
-  /** Additional CSS classes */
   className?: string;
-  /** Width of the skeleton (CSS value) */
   width?: string | number;
-  /** Height of the skeleton (CSS value) */
   height?: string | number;
-  /** Border radius variant */
   variant?: 'default' | 'circle' | 'pill';
-  /** Number of times to repeat the skeleton */
-  count?: number;
-  /** Gap between repeated skeletons */
-  gap?: string | number;
-  /** Animation style */
-  animation?: 'pulse' | 'shimmer' | 'none';
+  animation?: 'shimmer' | 'pulse' | 'none';
 }
 
-export interface SkeletonTextProps extends Omit<SkeletonProps, 'variant'> {
-  /** Number of lines to render */
+export interface SkeletonTextProps {
   lines?: number;
-  /** Line height */
   lineHeight?: string | number;
-  /** Last line width percentage (0-100) */
   lastLineWidth?: number;
+  className?: string;
+  animation?: 'shimmer' | 'pulse' | 'none';
 }
 
-export interface SkeletonCardProps extends SkeletonProps {
-  /** Show avatar in card */
+export interface SkeletonCardProps {
   showAvatar?: boolean;
-  /** Show header line */
   showHeader?: boolean;
-  /** Number of body lines */
   bodyLines?: number;
-  /** Show footer */
   showFooter?: boolean;
+  className?: string;
 }
 
-export interface SkeletonAvatarProps extends SkeletonProps {
-  /** Size preset */
+export interface SkeletonAvatarProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
 }
 
-export interface SkeletonTableRowProps extends SkeletonProps {
-  /** Number of columns */
+export interface SkeletonTableRowProps {
   columns?: number;
-  /** Show avatar in first column */
   showAvatar?: boolean;
-  /** Column widths (percentages) */
   columnWidths?: number[];
+  className?: string;
+}
+
+export interface SkeletonGridProps {
+  count?: number;
+  columns?: 1 | 2 | 3 | 4;
+  variant?: 'card' | 'list';
+  showAvatar?: boolean;
+  className?: string;
+}
+
+export interface SkeletonListProps {
+  count?: number;
+  showTier?: boolean;
+  showSkills?: boolean;
+  className?: string;
+}
+
+export interface SkeletonTableProps {
+  rows?: number;
+  columns?: number;
+  showAvatar?: boolean;
+  className?: string;
+}
+
+export interface SkeletonActivityFeedProps {
+  count?: number;
+  className?: string;
 }
 
 // ============================================================================
-// Base Skeleton Component
+// Base Skeleton
 // ============================================================================
 
-/**
- * Base skeleton element with shimmer/pulse animation
- */
+const VARIANT_CLASSES: Record<string, string> = {
+  default: 'rounded-lg',
+  circle: 'rounded-full',
+  pill: 'rounded-full',
+};
+
+const ANIMATION_CLASSES: Record<string, string> = {
+  shimmer: 'skeleton-shimmer',
+  pulse: 'skeleton-pulse bg-surface-200',
+  none: 'bg-surface-200',
+};
+
 export function Skeleton({
   className = '',
   width,
   height,
   variant = 'default',
-  animation = 'pulse',
+  animation = 'shimmer',
 }: SkeletonProps) {
-  const baseClasses = 'bg-surface-200';
-  
-  const variantClasses: Record<string, string> = {
-    default: 'rounded-lg',
-    circle: 'rounded-full!',
-    pill: 'rounded-full!',
-  };
-
-  const animationClasses: Record<string, string> = {
-    pulse: 'animate-pulse',
-    shimmer: 'animate-shimmer',
-    none: '',
-  };
-
   const style: React.CSSProperties = {};
   if (width) style.width = typeof width === 'number' ? `${width}px` : width;
   if (height) style.height = typeof height === 'number' ? `${height}px` : height;
 
   return (
     <div
-      className={`${baseClasses} ${variantClasses[variant]} ${animationClasses[animation]} ${className}`}
+      className={`${ANIMATION_CLASSES[animation]} ${VARIANT_CLASSES[variant]} ${className}`}
       style={style}
       role="presentation"
       aria-hidden="true"
@@ -107,31 +108,23 @@ export function Skeleton({
 // Skeleton Text
 // ============================================================================
 
-/**
- * Skeleton for text content - renders multiple lines
- */
 export function SkeletonText({
   lines = 1,
-  lineHeight = '1rem',
+  lineHeight = '0.875rem',
   lastLineWidth = 70,
   className = '',
-  gap = '0.5rem',
-  ...props
+  animation = 'shimmer',
 }: SkeletonTextProps) {
-  const gapValue = typeof gap === 'number' ? `${gap}px` : gap;
-  
   return (
-    <div className={`space-y-[${gapValue}] ${className}`} role="presentation" aria-hidden="true">
+    <div className={`flex flex-col gap-2 ${className}`} role="presentation" aria-hidden="true">
       {Array.from({ length: lines }, (_, i) => {
         const isLast = i === lines - 1 && lines > 1;
-        const width = isLast ? `${lastLineWidth}%` : '100%';
-        
         return (
           <Skeleton
             key={i}
             height={lineHeight}
-            width={width}
-            {...props}
+            width={isLast ? `${lastLineWidth}%` : '100%'}
+            animation={animation}
           />
         );
       })}
@@ -143,25 +136,19 @@ export function SkeletonText({
 // Skeleton Card
 // ============================================================================
 
-/**
- * Skeleton for card content - matches BountyCard, AgentCard layouts
- */
 export function SkeletonCard({
   showAvatar = false,
   showHeader = true,
   bodyLines = 2,
   showFooter = false,
   className = '',
-  ...props
 }: SkeletonCardProps) {
   return (
     <div
       className={`rounded-xl border border-surface-300 bg-surface-50 p-4 sm:p-5 ${className}`}
       role="presentation"
       aria-hidden="true"
-      {...props}
     >
-      {/* Header with optional avatar */}
       {showHeader && (
         <div className="flex items-start gap-3 mb-3">
           {showAvatar && (
@@ -173,15 +160,13 @@ export function SkeletonCard({
           </div>
         </div>
       )}
-      
-      {/* Body lines */}
+
       {bodyLines > 0 && (
-        <div className="space-y-2 mb-3">
-          <SkeletonText lines={bodyLines} lineHeight="0.875rem" lastLineWidth={75} />
+        <div className="mb-3">
+          <SkeletonText lines={bodyLines} lastLineWidth={75} />
         </div>
       )}
-      
-      {/* Footer */}
+
       {showFooter && (
         <div className="flex items-center justify-between pt-3 border-t border-surface-300">
           <Skeleton height="1.5rem" width="5rem" />
@@ -196,74 +181,45 @@ export function SkeletonCard({
 // Skeleton Avatar
 // ============================================================================
 
-/**
- * Skeleton for avatar with size presets
- */
+const AVATAR_SIZES: Record<string, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 56,
+  xl: 80,
+};
+
 export function SkeletonAvatar({
   size = 'md',
   className = '',
-  ...props
 }: SkeletonAvatarProps) {
-  const sizeMap: Record<string, { width: number; height: number }> = {
-    xs: { width: 24, height: 24 },
-    sm: { width: 32, height: 32 },
-    md: { width: 40, height: 40 },
-    lg: { width: 56, height: 56 },
-    xl: { width: 80, height: 80 },
-  };
-
-  const { width, height } = sizeMap[size];
-
-  return (
-    <Skeleton
-      variant="circle"
-      width={width}
-      height={height}
-      className={className}
-      {...props}
-    />
-  );
+  const px = AVATAR_SIZES[size];
+  return <Skeleton variant="circle" width={px} height={px} className={className} />;
 }
 
 // ============================================================================
 // Skeleton Table Row
 // ============================================================================
 
-/**
- * Skeleton for table row - matches leaderboard, bounty table layouts
- */
 export function SkeletonTableRow({
   columns = 4,
   showAvatar = false,
   columnWidths,
   className = '',
-  ...props
 }: SkeletonTableRowProps) {
-  const defaultWidths = Array.from({ length: columns }, (_, i) => {
-    if (i === 0) return 40; // Rank/index column
-    if (i === columns - 1) return 80; // Last column
+  const widths = columnWidths ?? Array.from({ length: columns }, (_, i) => {
+    if (i === 0) return 40;
+    if (i === columns - 1) return 80;
     return 100 / columns;
   });
-  
-  const widths = columnWidths || defaultWidths;
 
   return (
-    <tr
-      className={`border-b border-surface-300 ${className}`}
-      role="presentation"
-      aria-hidden="true"
-      {...props}
-    >
+    <tr className={`border-b border-surface-300 ${className}`} role="presentation" aria-hidden="true">
       {Array.from({ length: columns }, (_, i) => (
         <td key={i} className="py-3 px-2">
           <div className="flex items-center gap-2">
-            {showAvatar && i === 1 && (
-              <SkeletonAvatar size="sm" />
-            )}
-            <Skeleton
-              height="1rem"
-              width={`${widths[i]}%`}
-            />
+            {showAvatar && i === 1 && <SkeletonAvatar size="sm" />}
+            <Skeleton height="1rem" width={`${widths[i]}%`} />
           </div>
         </td>
       ))}
@@ -275,49 +231,25 @@ export function SkeletonTableRow({
 // Skeleton Grid
 // ============================================================================
 
-export interface SkeletonGridProps {
-  /** Number of skeleton cards to render */
-  count?: number;
-  /** Grid columns (responsive) */
-  columns?: 1 | 2 | 3 | 4;
-  /** Card variant */
-  variant?: 'card' | 'list';
-  /** Gap between cards */
-  gap?: string;
-  /** Show avatar in cards */
-  showAvatar?: boolean;
-  /** Additional classes */
-  className?: string;
-}
+const COLUMN_CLASSES: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+};
 
-/**
- * Skeleton grid for loading states of card grids
- */
 export function SkeletonGrid({
   count = 6,
   columns = 3,
   variant = 'card',
-  gap = '1rem',
   showAvatar = false,
   className = '',
 }: SkeletonGridProps) {
-  const columnClasses: Record<number, string> = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-  };
-
   if (variant === 'list') {
     return (
       <div className={`space-y-3 ${className}`} role="status" aria-label="Loading content">
         {Array.from({ length: count }, (_, i) => (
-          <SkeletonCard
-            key={i}
-            showAvatar={showAvatar}
-            bodyLines={2}
-            showFooter
-          />
+          <SkeletonCard key={i} showAvatar={showAvatar} bodyLines={2} showFooter />
         ))}
       </div>
     );
@@ -325,40 +257,21 @@ export function SkeletonGrid({
 
   return (
     <div
-      className={`grid ${columnClasses[columns]} gap-[${gap}] ${className}`}
+      className={`grid ${COLUMN_CLASSES[columns]} gap-4 ${className}`}
       role="status"
       aria-label="Loading content"
     >
       {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard
-          key={i}
-          showAvatar={showAvatar}
-          bodyLines={2}
-          showFooter
-        />
+        <SkeletonCard key={i} showAvatar={showAvatar} bodyLines={2} showFooter />
       ))}
     </div>
   );
 }
 
 // ============================================================================
-// Skeleton List (for Bounty List)
+// Skeleton List (Bounty List)
 // ============================================================================
 
-export interface SkeletonListProps {
-  /** Number of items */
-  count?: number;
-  /** Show tier badge area */
-  showTier?: boolean;
-  /** Show skills tags */
-  showSkills?: boolean;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Skeleton list matching BountyCard layout
- */
 export function SkeletonList({
   count = 5,
   showTier = true,
@@ -370,7 +283,7 @@ export function SkeletonList({
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-surface-300 bg-surface-50 p-4 hover:border-solana-purple/30 transition-colors"
+          className="rounded-xl border border-surface-300 bg-surface-50 p-4"
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -381,7 +294,7 @@ export function SkeletonList({
               <Skeleton height="1.5rem" width="3rem" className="ml-3 shrink-0" />
             )}
           </div>
-          
+
           {showSkills && (
             <div className="flex flex-wrap gap-2 mb-3">
               {Array.from({ length: 3 }, (_, j) => (
@@ -389,7 +302,7 @@ export function SkeletonList({
               ))}
             </div>
           )}
-          
+
           <div className="flex items-center justify-between pt-3 border-t border-surface-300">
             <Skeleton height="1.25rem" width="5rem" />
             <Skeleton height="1.25rem" width="4rem" />
@@ -404,20 +317,6 @@ export function SkeletonList({
 // Skeleton Table
 // ============================================================================
 
-export interface SkeletonTableProps {
-  /** Number of rows */
-  rows?: number;
-  /** Number of columns */
-  columns?: number;
-  /** Show avatar in second column */
-  showAvatar?: boolean;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Skeleton table for leaderboard and data tables
- */
 export function SkeletonTable({
   rows = 10,
   columns = 5,
@@ -427,7 +326,7 @@ export function SkeletonTable({
   return (
     <table className={`w-full text-sm ${className}`} role="status" aria-label="Loading data">
       <thead>
-        <tr className="border-b border-gray-700 text-gray-400 text-left text-xs">
+        <tr className="border-b border-gray-700 text-left text-xs">
           {Array.from({ length: columns }, (_, i) => (
             <th key={i} className="py-2">
               <Skeleton height="0.75rem" width="3rem" />
@@ -448,16 +347,6 @@ export function SkeletonTable({
 // Skeleton Activity Feed
 // ============================================================================
 
-export interface SkeletonActivityFeedProps {
-  /** Number of activity items */
-  count?: number;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Skeleton for activity feed loading state
- */
 export function SkeletonActivityFeed({
   count = 5,
   className = '',
@@ -468,20 +357,18 @@ export function SkeletonActivityFeed({
       role="status"
       aria-label="Loading activity"
     >
-      {/* Header */}
       <div className="flex items-center justify-between p-5 border-b border-surface-300">
         <div className="flex items-center gap-2">
-          <Skeleton height="0.5rem" width="0.5rem" variant="circle" />
+          <Skeleton height={8} width={8} variant="circle" />
           <Skeleton height="1rem" width="6rem" />
         </div>
         <Skeleton height="0.75rem" width="4rem" />
       </div>
-      
-      {/* Items */}
+
       <div className="divide-y divide-surface-300">
         {Array.from({ length: count }, (_, i) => (
           <div key={i} className="flex items-start gap-3 p-4">
-            <Skeleton height="2rem" width="2rem" className="shrink-0 rounded-lg" />
+            <Skeleton height={32} width={32} className="shrink-0 rounded-lg" />
             <div className="flex-1 space-y-2">
               <Skeleton height="0.875rem" width="80%" />
               <Skeleton height="0.625rem" width="4rem" />
@@ -494,7 +381,243 @@ export function SkeletonActivityFeed({
 }
 
 // ============================================================================
-// Exports
+// Skeleton Dashboard (ContributorDashboard layout)
+// ============================================================================
+
+export interface SkeletonDashboardProps {
+  className?: string;
+}
+
+function SkeletonStatCard() {
+  return (
+    <div className="bg-surface-100 rounded-xl p-4 sm:p-5 border border-surface-300">
+      <div className="flex items-center justify-between mb-3">
+        <Skeleton height="0.75rem" width="5rem" />
+        <Skeleton height={20} width={20} variant="circle" />
+      </div>
+      <Skeleton height="1.75rem" width="60%" className="mb-1" />
+      <Skeleton height="0.625rem" width="40%" />
+    </div>
+  );
+}
+
+export function SkeletonDashboard({ className = '' }: SkeletonDashboardProps) {
+  return (
+    <div className={`min-h-screen bg-surface text-white p-4 sm:p-6 lg:p-8 ${className}`} role="status" aria-label="Loading dashboard" aria-live="polite">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <Skeleton height="2rem" width="16rem" className="mb-2" />
+          <Skeleton height="0.875rem" width="22rem" />
+        </div>
+
+        {/* 4 Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }, (_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex gap-3 mb-6">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} height="2.5rem" width="8rem" variant="pill" />
+          ))}
+        </div>
+
+        {/* Two-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Active Bounties */}
+          <div className="bg-surface-100 rounded-xl p-5 border border-surface-300">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton height="1rem" width="7rem" />
+              <Skeleton height="0.75rem" width="3rem" />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-surface-50">
+                  <div className="flex-1">
+                    <Skeleton height="0.875rem" width="70%" className="mb-2" />
+                    <Skeleton height="0.5rem" width="100%" variant="pill" />
+                  </div>
+                  <Skeleton height="1.5rem" width="4rem" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity Feed */}
+          <div className="rounded-xl border border-surface-300 bg-surface-50">
+            <div className="flex items-center justify-between p-5 border-b border-surface-300">
+              <Skeleton height="1rem" width="6rem" />
+              <Skeleton height="0.75rem" width="4rem" />
+            </div>
+            <div className="divide-y divide-surface-300">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="flex items-start gap-3 p-4">
+                  <Skeleton height={32} width={32} className="shrink-0 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton height="0.875rem" width="80%" />
+                    <Skeleton height="0.625rem" width="4rem" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Skeleton Creator Dashboard
+// ============================================================================
+
+export interface SkeletonCreatorDashboardProps {
+  className?: string;
+}
+
+export function SkeletonCreatorDashboard({ className = '' }: SkeletonCreatorDashboardProps) {
+  return (
+    <div className={`min-h-screen bg-surface text-white p-4 sm:p-6 lg:p-8 ${className}`} role="status" aria-label="Loading creator dashboard">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div>
+          <Skeleton height="2rem" width="14rem" className="mb-2" />
+          <Skeleton height="0.875rem" width="26rem" />
+        </div>
+
+        {/* 3 Escrow stat cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="bg-surface-100 rounded-xl p-5 border border-surface-300 border-l-4 border-l-surface-400">
+              <Skeleton height="0.75rem" width="8rem" className="mb-3" />
+              <Skeleton height="2rem" width="10rem" />
+            </div>
+          ))}
+        </div>
+
+        {/* Tab bar */}
+        <div className="bg-surface-100 p-2 rounded-lg border border-surface-300">
+          <div className="flex gap-2">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} height="2.25rem" width={i === 0 ? '5rem' : '4rem'} variant="pill" />
+            ))}
+          </div>
+        </div>
+
+        {/* Bounty list */}
+        <div className="space-y-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="rounded-xl border border-surface-300 bg-surface-50 p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <Skeleton height="1.25rem" width="70%" className="mb-2" />
+                  <Skeleton height="0.875rem" width="50%" />
+                </div>
+                <Skeleton height="1.5rem" width="3rem" className="ml-3 shrink-0" />
+              </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {Array.from({ length: 3 }, (_, j) => (
+                  <Skeleton key={j} height="1.5rem" width="4rem" variant="pill" />
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-surface-300">
+                <Skeleton height="1.25rem" width="5rem" />
+                <Skeleton height="1.25rem" width="4rem" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Skeleton Profile (ContributorProfile layout)
+// ============================================================================
+
+export interface SkeletonProfileProps {
+  className?: string;
+}
+
+export function SkeletonProfile({ className = '' }: SkeletonProfileProps) {
+  return (
+    <div className={`bg-gray-900 rounded-lg p-4 sm:p-6 space-y-6 ${className}`} role="status" aria-label="Loading profile">
+      {/* Profile Header: avatar + name + wallet */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <SkeletonAvatar size="xl" className="mx-auto sm:mx-0" />
+        <div className="flex-1 text-center sm:text-left space-y-2">
+          <Skeleton height="1.75rem" width="10rem" className="mx-auto sm:mx-0" />
+          <Skeleton height="0.875rem" width="8rem" className="mx-auto sm:mx-0" />
+        </div>
+        <Skeleton height="2rem" width="4.5rem" variant="pill" />
+      </div>
+
+      {/* 3 Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="bg-gray-800 rounded-lg p-3 sm:p-4">
+            <Skeleton height="0.75rem" width="5rem" className="mb-2" />
+            <Skeleton height="1.5rem" width="6rem" />
+          </div>
+        ))}
+      </div>
+
+      {/* Recent activity bar */}
+      <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
+        <Skeleton height="0.75rem" width="6rem" />
+        <Skeleton height="0.75rem" width="4rem" />
+      </div>
+
+      {/* Badge grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className="bg-gray-800/50 rounded-xl p-3 flex flex-col items-center gap-2">
+            <Skeleton height={40} width={40} variant="circle" />
+            <Skeleton height="0.625rem" width="3.5rem" />
+          </div>
+        ))}
+      </div>
+
+      {/* CTA button */}
+      <Skeleton height="3rem" width="100%" />
+    </div>
+  );
+}
+
+// ============================================================================
+// Skeleton Leaderboard (full leaderboard loading state)
+// ============================================================================
+
+export interface SkeletonLeaderboardProps {
+  className?: string;
+}
+
+export function SkeletonLeaderboard({ className = '' }: SkeletonLeaderboardProps) {
+  return (
+    <div className={`p-6 max-w-5xl mx-auto space-y-6 ${className}`} role="status" aria-label="Loading leaderboard" data-testid="leaderboard-page">
+      {/* Title */}
+      <Skeleton height="2rem" width="16rem" />
+
+      {/* Controls: search + time range + sort */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Skeleton height="2.5rem" width="16rem" />
+        <div className="flex gap-1">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} height="2rem" width="4rem" variant="pill" />
+          ))}
+        </div>
+        <Skeleton height="2.5rem" width="6rem" />
+      </div>
+
+      {/* Table */}
+      <SkeletonTable rows={10} columns={6} showAvatar />
+    </div>
+  );
+}
+
+// ============================================================================
+// Default export
 // ============================================================================
 
 export default Skeleton;

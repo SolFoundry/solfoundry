@@ -9,6 +9,7 @@ meaningful HTTP status codes in API endpoints.
 class ContributorNotFoundError(Exception):
     """Raised when a contributor ID does not exist in the store."""
 
+
 class TierNotUnlockedError(Exception):
     """Raised when a contributor attempts a bounty tier they have not unlocked."""
 
@@ -105,6 +106,7 @@ class InvalidPayoutTransitionError(PayoutError):
 # ---------------------------------------------------------------------------
 # Escrow exceptions
 # ---------------------------------------------------------------------------
+
 
 class EscrowError(Exception):
     """Base class for all escrow-related errors."""

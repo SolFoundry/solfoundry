@@ -103,8 +103,8 @@ export function BountyBoard() {
       ) : bounties.length > 0 ? (
         <div className="relative">
           {isFetching && !loading && (
-            <div className="absolute inset-0 z-10 bg-surface/60 rounded-xl flex items-center justify-center" data-testid="page-loading-overlay">
-              <div className="w-6 h-6 border-2 border-solana-green border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[1px] rounded-xl" data-testid="page-loading-overlay">
+              <div className="absolute inset-x-0 top-0 h-1 skeleton-shimmer rounded-full" />
             </div>
           )}
           {viewMode === 'grid' ? (

@@ -36,7 +36,9 @@ SOLANA_WALLET_PATTERN: re.Pattern = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 XSS_PATTERNS: list[re.Pattern] = [
     re.compile(r"<\s*script\b", re.IGNORECASE),
     re.compile(r"javascript\s*:", re.IGNORECASE),
-    re.compile(r"on(load|error|click|mouseover|focus|blur|submit|change)\s*=", re.IGNORECASE),
+    re.compile(
+        r"on(load|error|click|mouseover|focus|blur|submit|change)\s*=", re.IGNORECASE
+    ),
     re.compile(r"<\s*iframe\b", re.IGNORECASE),
     re.compile(r"<\s*object\b", re.IGNORECASE),
     re.compile(r"<\s*embed\b", re.IGNORECASE),
@@ -242,7 +244,9 @@ class InputSanitizationMiddleware(BaseHTTPMiddleware):
                     threat,
                 )
                 return Response(
-                    content=json.dumps({"detail": "Request contains prohibited content"}),
+                    content=json.dumps(
+                        {"detail": "Request contains prohibited content"}
+                    ),
                     status_code=400,
                     media_type="application/json",
                 )
@@ -265,9 +269,11 @@ class InputSanitizationMiddleware(BaseHTTPMiddleware):
                                     threat,
                                 )
                                 return Response(
-                                    content=json.dumps({
-                                        "detail": "Request contains prohibited content"
-                                    }),
+                                    content=json.dumps(
+                                        {
+                                            "detail": "Request contains prohibited content"
+                                        }
+                                    ),
                                     status_code=400,
                                     media_type="application/json",
                                 )

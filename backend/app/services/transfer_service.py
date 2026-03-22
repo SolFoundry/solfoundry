@@ -66,6 +66,7 @@ FNDRY_TOKEN_DECIMALS: int = int(os.getenv("FNDRY_TOKEN_DECIMALS", "9"))
 # Keypair loading
 # ---------------------------------------------------------------------------
 
+
 def _load_treasury_keypair() -> Optional[bytes]:
     """Load the treasury keypair bytes from the configured JSON file.
 
@@ -98,9 +99,7 @@ def _load_treasury_keypair() -> Optional[bytes]:
         ) from error
 
 
-def _build_mock_signature(
-    recipient_wallet: str, amount: float, mint: str
-) -> str:
+def _build_mock_signature(recipient_wallet: str, amount: float, mint: str) -> str:
     """Generate a deterministic mock transaction signature for dev/test mode.
 
     The mock hash is a SHA-256 digest of the transfer parameters so tests
@@ -121,6 +120,7 @@ def _build_mock_signature(
 # ---------------------------------------------------------------------------
 # SPL transfer (solders-based)
 # ---------------------------------------------------------------------------
+
 
 async def _build_and_send_transfer(
     recipient_wallet: str,
@@ -162,22 +162,30 @@ async def _build_and_send_transfer(
     mint_pubkey = Pubkey.from_string(mint)
     destination_pubkey = Pubkey.from_string(recipient_wallet)
     token_program = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-    associated_token_program = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
+    associated_token_program = Pubkey.from_string(
+        "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+    )
 
     # Derive Associated Token Accounts (ATAs) for source and destination.
     # NOTE: If the destination ATA does not exist on-chain, the transaction
     # will fail.  In production, prepend a create_associated_token_account
     # instruction to handle first-time recipients.  The RPC error will be
     # caught by the retry loop and surfaced as a TransferError.
-    source_ata = _derive_associated_token_address(signer.pubkey(), mint_pubkey, token_program, associated_token_program)
-    destination_ata = _derive_associated_token_address(destination_pubkey, mint_pubkey, token_program, associated_token_program)
+    source_ata = _derive_associated_token_address(
+        signer.pubkey(), mint_pubkey, token_program, associated_token_program
+    )
+    destination_ata = _derive_associated_token_address(
+        destination_pubkey, mint_pubkey, token_program, associated_token_program
+    )
 
     # Convert human-readable amount to raw token units
-    raw_amount = int(amount * (10 ** FNDRY_TOKEN_DECIMALS))
+    raw_amount = int(amount * (10**FNDRY_TOKEN_DECIMALS))
 
     # Build transfer_checked instruction (opcode 12 in Token Program)
     # Layout: [12 (u8), amount (u64 LE), decimals (u8)]
-    instruction_data = bytes([12]) + raw_amount.to_bytes(8, "little") + bytes([FNDRY_TOKEN_DECIMALS])
+    instruction_data = (
+        bytes([12]) + raw_amount.to_bytes(8, "little") + bytes([FNDRY_TOKEN_DECIMALS])
+    )
 
     transfer_instruction = Instruction(
         program_id=token_program,
@@ -194,7 +202,12 @@ async def _build_and_send_transfer(
     async with httpx.AsyncClient(timeout=RPC_TIMEOUT) as client:
         blockhash_response = await client.post(
             SOLANA_RPC_URL,
-            json={"jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash", "params": []},
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getLatestBlockhash",
+                "params": [],
+            },
         )
         blockhash_response.raise_for_status()
         blockhash_data = blockhash_response.json()
@@ -225,7 +238,11 @@ async def _build_and_send_transfer(
                 "method": "sendTransaction",
                 "params": [
                     encoded_transaction,
-                    {"encoding": "base64", "skipPreflight": False, "preflightCommitment": "confirmed"},
+                    {
+                        "encoding": "base64",
+                        "skipPreflight": False,
+                        "preflightCommitment": "confirmed",
+                    },
                 ],
             },
         )
@@ -237,7 +254,12 @@ async def _build_and_send_transfer(
         raise SolanaRPCError(f"sendTransaction failed: {error_message}")
 
     tx_signature = str(send_data.get("result", ""))
-    logger.info("SPL transfer submitted: tx=%s, recipient=%s, amount=%s", tx_signature, recipient_wallet, amount)
+    logger.info(
+        "SPL transfer submitted: tx=%s, recipient=%s, amount=%s",
+        tx_signature,
+        recipient_wallet,
+        amount,
+    )
     return tx_signature
 
 
@@ -274,6 +296,7 @@ def _derive_associated_token_address(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def send_spl_transfer(
     recipient_wallet: str,
     amount: float,
@@ -308,7 +331,9 @@ async def send_spl_transfer(
             if keypair_bytes is None:
                 logger.info(
                     "Mock transfer (no keypair): recipient=%s, amount=%s, mint=%s",
-                    recipient_wallet, amount, mint,
+                    recipient_wallet,
+                    amount,
+                    mint,
                 )
                 return _build_mock_signature(recipient_wallet, amount, mint)
 
@@ -321,7 +346,9 @@ async def send_spl_transfer(
             last_error = error
             logger.warning(
                 "Transfer attempt %d/%d failed: %s",
-                attempt, MAX_RETRIES, error,
+                attempt,
+                MAX_RETRIES,
+                error,
             )
             if attempt < MAX_RETRIES:
                 backoff_seconds = BASE_BACKOFF * (2 ** (attempt - 1))
@@ -377,21 +404,26 @@ async def confirm_transaction(
                 if status_entry.get("err"):
                     logger.warning(
                         "Transaction %s failed on-chain: %s",
-                        tx_signature, status_entry["err"],
+                        tx_signature,
+                        status_entry["err"],
                     )
                     return False
                 confirmation_status = status_entry.get("confirmationStatus", "")
                 if confirmation_status in ("confirmed", "finalized"):
                     logger.info(
                         "Transaction %s confirmed (status=%s)",
-                        tx_signature, confirmation_status,
+                        tx_signature,
+                        confirmation_status,
                     )
                     return True
 
         except Exception as error:
             logger.warning(
                 "Confirmation poll %d/%d failed for %s: %s",
-                attempt, max_retries, tx_signature, error,
+                attempt,
+                max_retries,
+                tx_signature,
+                error,
             )
 
         if attempt < max_retries:

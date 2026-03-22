@@ -44,7 +44,10 @@ router = APIRouter(prefix="/escrow", tags=["escrow"])
     status_code=status.HTTP_201_CREATED,
     summary="Fund a bounty escrow",
     responses={
-        409: {"model": ErrorResponse, "description": "Escrow already exists or double-spend detected"},
+        409: {
+            "model": ErrorResponse,
+            "description": "Escrow already exists or double-spend detected",
+        },
         502: {"model": ErrorResponse, "description": "On-chain transfer failed"},
     },
 )
@@ -79,7 +82,10 @@ async def fund_escrow(body: EscrowFundRequest) -> EscrowResponse:
     summary="Release escrow to bounty winner",
     responses={
         404: {"model": ErrorResponse, "description": "Escrow not found"},
-        409: {"model": ErrorResponse, "description": "Invalid state transition or double-spend"},
+        409: {
+            "model": ErrorResponse,
+            "description": "Invalid state transition or double-spend",
+        },
         502: {"model": ErrorResponse, "description": "On-chain transfer failed"},
     },
 )

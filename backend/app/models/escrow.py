@@ -37,6 +37,7 @@ def _now() -> datetime:
 # Escrow states
 # ---------------------------------------------------------------------------
 
+
 class EscrowState(str, Enum):
     """Lifecycle states for a custodial escrow."""
 
@@ -70,6 +71,7 @@ class LedgerAction(str, Enum):
 # ---------------------------------------------------------------------------
 # SQLAlchemy ORM models
 # ---------------------------------------------------------------------------
+
 
 class EscrowTable(Base):
     """Persistent escrow record for a bounty's staked $FNDRY.
@@ -140,13 +142,18 @@ class EscrowLedgerTable(Base):
 # Pydantic request / response schemas
 # ---------------------------------------------------------------------------
 
+
 class EscrowFundRequest(BaseModel):
     """Request body for POST /escrow/fund."""
 
     bounty_id: str = Field(..., description="UUID of the bounty to escrow funds for")
-    creator_wallet: str = Field(..., min_length=32, max_length=44, description="Creator's Solana wallet address")
+    creator_wallet: str = Field(
+        ..., min_length=32, max_length=44, description="Creator's Solana wallet address"
+    )
     amount: float = Field(..., gt=0, description="Amount of $FNDRY to lock in escrow")
-    expires_at: Optional[datetime] = Field(None, description="ISO 8601 expiry for auto-refund (optional)")
+    expires_at: Optional[datetime] = Field(
+        None, description="ISO 8601 expiry for auto-refund (optional)"
+    )
 
     @field_validator("creator_wallet")
     @classmethod
@@ -159,8 +166,12 @@ class EscrowFundRequest(BaseModel):
 class EscrowReleaseRequest(BaseModel):
     """Request body for POST /escrow/release."""
 
-    bounty_id: str = Field(..., description="UUID of the bounty whose escrow to release")
-    winner_wallet: str = Field(..., min_length=32, max_length=44, description="Winner's Solana wallet address")
+    bounty_id: str = Field(
+        ..., description="UUID of the bounty whose escrow to release"
+    )
+    winner_wallet: str = Field(
+        ..., min_length=32, max_length=44, description="Winner's Solana wallet address"
+    )
 
     @field_validator("winner_wallet")
     @classmethod
@@ -182,11 +193,17 @@ class EscrowResponse(BaseModel):
     id: str = Field(..., description="Escrow UUID")
     bounty_id: str = Field(..., description="Associated bounty UUID")
     creator_wallet: str = Field(..., description="Creator's Solana wallet")
-    winner_wallet: Optional[str] = Field(None, description="Winner's Solana wallet (set on release)")
+    winner_wallet: Optional[str] = Field(
+        None, description="Winner's Solana wallet (set on release)"
+    )
     amount: float = Field(..., description="Escrowed $FNDRY amount")
     state: EscrowState = Field(..., description="Current escrow lifecycle state")
-    fund_tx_hash: Optional[str] = Field(None, description="Funding transaction signature")
-    release_tx_hash: Optional[str] = Field(None, description="Release/refund transaction signature")
+    fund_tx_hash: Optional[str] = Field(
+        None, description="Funding transaction signature"
+    )
+    release_tx_hash: Optional[str] = Field(
+        None, description="Release/refund transaction signature"
+    )
     expires_at: Optional[datetime] = Field(None, description="Auto-refund deadline")
     created_at: datetime = Field(..., description="Creation timestamp (UTC)")
     updated_at: datetime = Field(..., description="Last state-change timestamp (UTC)")
@@ -211,4 +228,6 @@ class EscrowStatusResponse(BaseModel):
     """GET /escrow/{bounty_id} response with state + balance + ledger."""
 
     escrow: EscrowResponse
-    ledger: list[EscrowLedgerEntry] = Field(default_factory=list, description="Full audit trail")
+    ledger: list[EscrowLedgerEntry] = Field(
+        default_factory=list, description="Full audit trail"
+    )

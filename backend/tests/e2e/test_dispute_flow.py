@@ -106,9 +106,7 @@ class TestDisputeViaAPI:
         )
         assert response.status_code == 422
 
-    def test_dispute_reason_too_short_rejected(
-        self, client: TestClient
-    ) -> None:
+    def test_dispute_reason_too_short_rejected(self, client: TestClient) -> None:
         """Verify disputes with too-short reasons are rejected by validation."""
         bounty = create_bounty_via_api(
             client,
@@ -132,9 +130,7 @@ class TestDisputeViaAPI:
 class TestDisputeCreation:
     """Validate dispute creation payload construction and model constraints."""
 
-    def test_create_dispute_for_rejected_submission(
-        self, client: TestClient
-    ) -> None:
+    def test_create_dispute_for_rejected_submission(self, client: TestClient) -> None:
         """Verify a dispute can be filed after a submission is rejected.
 
         Steps:
@@ -306,9 +302,7 @@ class TestDisputeIntegrationWithBountyLifecycle:
     its lifecycle after resolution.
     """
 
-    def test_bounty_can_reopen_after_dispute_approved(
-        self, client: TestClient
-    ) -> None:
+    def test_bounty_can_reopen_after_dispute_approved(self, client: TestClient) -> None:
         """Verify a bounty can return to ``open`` status after dispute approval.
 
         When an approved dispute invalidates a previous completion, the
@@ -402,7 +396,9 @@ class TestDisputeIntegrationWithBountyLifecycle:
         advance_bounty_status(client, bounty_id, "in_progress")
         client.post(
             f"/api/bounties/{bounty_id}/submissions/{first_sub_id}/dispute",
-            json={"reason": "Submission does not meet requirements after manual review"},
+            json={
+                "reason": "Submission does not meet requirements after manual review"
+            },
         )
 
         # Revert to open (dispute mediation outcome)
@@ -422,10 +418,7 @@ class TestDisputeIntegrationWithBountyLifecycle:
         assert final["status"] == "paid"
         assert final["submission_count"] == 2
         # Both submissions use the authenticated user's wallet
-        assert all(
-            s["submitted_by"] == DEFAULT_WALLET
-            for s in final["submissions"]
-        )
+        assert all(s["submitted_by"] == DEFAULT_WALLET for s in final["submissions"])
 
     def test_dispute_payload_validation_enforced(self) -> None:
         """Verify Pydantic validation catches invalid dispute payloads.

@@ -182,9 +182,9 @@ class NotificationService:
         return count
 
     async def create_notification(
-        self, 
+        self,
         data: NotificationCreate,
-        background_tasks: Optional["BackgroundTasks"] = None
+        background_tasks: Optional["BackgroundTasks"] = None,
     ) -> NotificationDB:
         """
         Create a new notification and optionally trigger an email.
@@ -216,7 +216,7 @@ class NotificationService:
         )
 
         self.db.add(notification)
-        
+
         # Trigger email notification in background if applicable
         if background_tasks:
             background_tasks.add_task(
@@ -226,7 +226,7 @@ class NotificationService:
                 title=data.title,
                 message=data.message,
                 bounty_id=data.bounty_id,
-                extra_data=data.extra_data
+                extra_data=data.extra_data,
             )
 
         return notification
@@ -238,14 +238,14 @@ class NotificationService:
         title: str,
         message: str,
         bounty_id: Optional[str] = None,
-        extra_data: Optional[dict] = None
+        extra_data: Optional[dict] = None,
     ) -> None:
         """Background task to send an email notification."""
         from app.services import contributor_service
         from app.services.email_service import (
             can_send_email,
             increment_email_count,
-            send_notification_email
+            send_notification_email,
         )
 
         # 1. Fetch contributor to get email and preferences
@@ -256,7 +256,7 @@ class NotificationService:
         # 2. Check preferences
         if not contributor.email_notifications_enabled:
             return
-        
+
         # Check specific preference
         prefs = contributor.notification_preferences or {}
         if not prefs.get(notification_type, True):
@@ -273,14 +273,14 @@ class NotificationService:
             "bounty_id": bounty_id,
             "extra_data": extra_data,
             "unsubscribe_token": contributor.unsubscribe_token,
-            "username": contributor.username
+            "username": contributor.username,
         }
-        
+
         success = await send_notification_email(
             to=contributor.email,
             subject=f"[SolFoundry] {title}",
             template_name="notification",
-            context=context
+            context=context,
         )
 
         # 5. Increment count on success

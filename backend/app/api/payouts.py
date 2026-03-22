@@ -76,18 +76,27 @@ _TX_HASH_RE = re.compile(r"^[0-9a-fA-F]{64}$|^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 # List & create payouts
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "",
     response_model=PayoutListResponse,
     summary="List payout history with filters",
 )
 async def get_payouts(
-    recipient: Optional[str] = Query(None, min_length=1, max_length=100, description="Filter by recipient username"),
+    recipient: Optional[str] = Query(
+        None, min_length=1, max_length=100, description="Filter by recipient username"
+    ),
     status: Optional[PayoutStatus] = Query(None, description="Filter by payout status"),
     bounty_id: Optional[str] = Query(None, description="Filter by bounty UUID"),
-    token: Optional[str] = Query(None, pattern=r"^(FNDRY|SOL)$", description="Filter by token type"),
-    start_date: Optional[datetime] = Query(None, description="Include payouts created at or after this ISO 8601 datetime"),
-    end_date: Optional[datetime] = Query(None, description="Include payouts created at or before this ISO 8601 datetime"),
+    token: Optional[str] = Query(
+        None, pattern=r"^(FNDRY|SOL)$", description="Filter by token type"
+    ),
+    start_date: Optional[datetime] = Query(
+        None, description="Include payouts created at or after this ISO 8601 datetime"
+    ),
+    end_date: Optional[datetime] = Query(
+        None, description="Include payouts created at or before this ISO 8601 datetime"
+    ),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=100, description="Maximum records per page"),
 ) -> PayoutListResponse:
@@ -115,8 +124,14 @@ async def get_payouts(
     status_code=status.HTTP_201_CREATED,
     summary="Record a payout",
     responses={
-        409: {"model": ErrorResponse, "description": "Duplicate tx_hash or double-pay for bounty"},
-        423: {"model": ErrorResponse, "description": "Could not acquire per-bounty lock"},
+        409: {
+            "model": ErrorResponse,
+            "description": "Duplicate tx_hash or double-pay for bounty",
+        },
+        423: {
+            "model": ErrorResponse,
+            "description": "Could not acquire per-bounty lock",
+        },
     },
 )
 async def record_payout(data: PayoutCreate) -> PayoutResponse:
@@ -139,6 +154,7 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
 # ---------------------------------------------------------------------------
 # Treasury & tokenomics (static prefixes must precede /{tx_hash} wildcard)
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/treasury",
@@ -202,6 +218,7 @@ async def tokenomics() -> TokenomicsResponse:
 # Wallet validation
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/validate-wallet",
     response_model=WalletValidationResponse,
@@ -235,6 +252,7 @@ async def validate_wallet(body: WalletValidationRequest) -> WalletValidationResp
 # Payout by ID (static prefix)
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/id/{payout_id}",
     response_model=PayoutResponse,
@@ -265,6 +283,7 @@ async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
 # ---------------------------------------------------------------------------
 # Admin approval gate
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{payout_id}/approve",
@@ -298,6 +317,7 @@ async def admin_approve_payout(
 # Transfer execution
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/{payout_id}/execute",
     response_model=PayoutResponse,
@@ -327,6 +347,7 @@ async def execute_payout(payout_id: str) -> PayoutResponse:
 # ---------------------------------------------------------------------------
 # Lookup by tx hash (wildcard -- MUST be last to avoid catching other routes)
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/{tx_hash}",

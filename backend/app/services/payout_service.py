@@ -84,7 +84,9 @@ def _payout_to_response(payout: PayoutRecord) -> PayoutResponse:
         status=payout.status,
         solscan_url=payout.solscan_url,
         created_at=payout.created_at,
-        updated_at=payout.updated_at if payout.updated_at is not None else payout.created_at,
+        updated_at=payout.updated_at
+        if payout.updated_at is not None
+        else payout.created_at,
     )
 
 
@@ -412,7 +414,9 @@ def reject_payout(payout_id: str, admin_id: str, reason: Optional[str] = None):
     record.failure_reason = reason
     record.updated_at = datetime.now(timezone.utc)
 
-    audit_event("payout_rejected", payout_id=payout_id, admin_id=admin_id, reason=reason)
+    audit_event(
+        "payout_rejected", payout_id=payout_id, admin_id=admin_id, reason=reason
+    )
     return AdminApprovalResponse(
         payout_id=payout_id,
         status=record.status,
@@ -434,7 +438,11 @@ async def process_payout(payout_id: str) -> PayoutResponse:
         PayoutNotFoundError: If the payout does not exist.
         InvalidPayoutTransitionError: If the payout is not APPROVED.
     """
-    from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError, TransferError
+    from app.exceptions import (
+        PayoutNotFoundError,
+        InvalidPayoutTransitionError,
+        TransferError,
+    )
     from app.services.transfer_service import send_spl_transfer, confirm_transaction
     from datetime import datetime, timezone
 
@@ -475,6 +483,7 @@ async def process_payout(payout_id: str) -> PayoutResponse:
 
     try:
         from app.services.pg_store import persist_payout
+
         await persist_payout(record)
     except Exception as exc:
         logger.error("PostgreSQL payout update failed: %s", exc)

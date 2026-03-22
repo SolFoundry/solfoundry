@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreatorBountyCard } from './bounties/CreatorBountyCard';
+import { SkeletonCreatorDashboard } from './common/Skeleton';
 
 interface CreatorDashboardProps {
     userId?: string;
@@ -93,15 +94,7 @@ export function CreatorDashboard({
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div
-                    role="status"
-                    aria-label="Loading"
-                    className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin"
-                />
-            </div>
-        );
+        return <SkeletonCreatorDashboard />;
     }
 
     if (!walletAddress) {

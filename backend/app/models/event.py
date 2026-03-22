@@ -111,15 +111,15 @@ class EventEnvelope(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_type: EventType
     channel: str = Field(..., min_length=1)
-    timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     payload: Dict[str, Any] = Field(default_factory=dict)
     model_config = {"from_attributes": True}
 
 
 def create_event(
-    event_type: EventType, channel: str, payload: Dict[str, Any],
+    event_type: EventType,
+    channel: str,
+    payload: Dict[str, Any],
 ) -> EventEnvelope:
     """Create and validate an event envelope for the given type."""
     payload_model = PAYLOAD_TYPE_MAP.get(event_type)
@@ -127,5 +127,7 @@ def create_event(
         validated = payload_model(**payload)
         payload = validated.model_dump(mode="json")
     return EventEnvelope(
-        event_type=event_type, channel=channel, payload=payload,
+        event_type=event_type,
+        channel=channel,
+        payload=payload,
     )

@@ -20,9 +20,11 @@ from app.main import app
 @pytest.fixture(scope="module", autouse=True)
 def _create_escrow_tables():
     """Ensure escrow tables exist in the test database."""
+
     async def _create():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
     asyncio.run(_create())
 
 
@@ -64,8 +66,10 @@ def mock_confirm():
 @pytest.fixture
 def mock_transfer_simple():
     """Mock that returns a unique tx hash per call."""
+
     async def _transfer(*args, **kwargs):
         return _unique_tx()
+
     with patch(TRANSFER_PATCH, side_effect=_transfer) as mock:
         yield mock
 
@@ -117,7 +121,9 @@ class TestFundEscrow:
             assert data["fund_tx_hash"] is not None
 
     @pytest.mark.asyncio
-    async def test_fund_duplicate_bounty_rejected(self, mock_transfer_simple, mock_confirm):
+    async def test_fund_duplicate_bounty_rejected(
+        self, mock_transfer_simple, mock_confirm
+    ):
         """Creating a second escrow for the same bounty returns 409."""
         bid = "00000000-0000-0000-0000-000000000002"
         async with AsyncClient(
@@ -133,7 +139,9 @@ class TestFundEscrow:
     async def test_fund_transfer_failure_returns_502(self, mock_confirm):
         """When SPL transfer fails, returns 502 and escrow is marked refunded."""
         with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock, side_effect=Exception("RPC timeout"),
+            TRANSFER_PATCH,
+            new_callable=AsyncMock,
+            side_effect=Exception("RPC timeout"),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -156,7 +164,9 @@ class TestFundEscrow:
                 assert response.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_fund_invalid_wallet_rejected(self, mock_transfer_simple, mock_confirm):
+    async def test_fund_invalid_wallet_rejected(
+        self, mock_transfer_simple, mock_confirm
+    ):
         """Invalid wallet address returns 422."""
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -188,7 +198,9 @@ class TestFundEscrow:
             assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_fund_negative_amount_rejected(self, mock_transfer_simple, mock_confirm):
+    async def test_fund_negative_amount_rejected(
+        self, mock_transfer_simple, mock_confirm
+    ):
         """Negative amount is rejected."""
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -217,10 +229,16 @@ class TestReleaseEscrow:
         """Full lifecycle: fund → active → release → completed."""
         fund_tx = _unique_tx()
         release_tx = _unique_tx()
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [fund_tx, release_tx]
 
@@ -263,10 +281,16 @@ class TestReleaseEscrow:
     @pytest.mark.asyncio
     async def test_release_already_completed_409(self):
         """Releasing an already-completed escrow returns 409."""
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [_unique_tx(), _unique_tx(), _unique_tx()]
 
@@ -305,10 +329,17 @@ class TestReleaseEscrow:
                 return fund_tx
             raise Exception("Network error")
 
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock, side_effect=_side_effect,
-        ), patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+                side_effect=_side_effect,
+            ),
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -345,10 +376,16 @@ class TestRefundEscrow:
     async def test_refund_active_escrow(self):
         """Refunding an active escrow returns tokens to creator."""
         refund_tx = _unique_tx()
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [_unique_tx(), refund_tx]
 
@@ -382,10 +419,16 @@ class TestRefundEscrow:
     @pytest.mark.asyncio
     async def test_refund_completed_escrow_409(self):
         """Refunding a completed escrow returns 409."""
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [_unique_tx(), _unique_tx(), _unique_tx()]
 
@@ -421,10 +464,17 @@ class TestRefundEscrow:
                 return fund_tx
             raise Exception("RPC down")
 
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock, side_effect=_side_effect,
-        ), patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+                side_effect=_side_effect,
+            ),
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -484,10 +534,16 @@ class TestGetEscrowStatus:
         """Full lifecycle produces ledger entries for every state change."""
         fund_tx = _unique_tx()
         release_tx = _unique_tx()
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [fund_tx, release_tx]
 
@@ -516,9 +572,7 @@ class TestGetEscrowStatus:
                 assert "release" in actions
 
                 tx_hashes = [
-                    entry["tx_hash"]
-                    for entry in data["ledger"]
-                    if entry["tx_hash"]
+                    entry["tx_hash"] for entry in data["ledger"] if entry["tx_hash"]
                 ]
                 assert fund_tx in tx_hashes
                 assert release_tx in tx_hashes
@@ -549,7 +603,9 @@ class TestEscrowStateMachine:
         assert EscrowState.REFUNDED in ALLOWED_ESCROW_TRANSITIONS[EscrowState.ACTIVE]
 
         # RELEASING can go to COMPLETED or back to ACTIVE
-        assert EscrowState.COMPLETED in ALLOWED_ESCROW_TRANSITIONS[EscrowState.RELEASING]
+        assert (
+            EscrowState.COMPLETED in ALLOWED_ESCROW_TRANSITIONS[EscrowState.RELEASING]
+        )
         assert EscrowState.ACTIVE in ALLOWED_ESCROW_TRANSITIONS[EscrowState.RELEASING]
 
         # Terminal states have no transitions
@@ -584,10 +640,16 @@ class TestAutoRefund:
         """Escrows past their expires_at are automatically refunded."""
         past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
 
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [_unique_tx(), _unique_tx()]
 
@@ -614,7 +676,9 @@ class TestAutoRefund:
                 assert status.json()["escrow"]["state"] == "refunded"
 
     @pytest.mark.asyncio
-    async def test_non_expired_escrow_not_refunded(self, mock_transfer_simple, mock_confirm):
+    async def test_non_expired_escrow_not_refunded(
+        self, mock_transfer_simple, mock_confirm
+    ):
         """Escrows with future expires_at are not auto-refunded."""
         future = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
 
@@ -629,7 +693,7 @@ class TestAutoRefund:
 
             from app.services.escrow_service import refund_expired_escrows
 
-            await refund_expired_escrows()
+            _count = await refund_expired_escrows()
             # This specific escrow should NOT be refunded
             status = await client.get(
                 "/api/escrow/00000000-0000-0000-0000-000000000041"
@@ -670,10 +734,16 @@ class TestFullLifecycle:
         """Complete lifecycle: fund → active → release → completed with audit trail."""
         fund_tx = _unique_tx()
         release_tx = _unique_tx()
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [fund_tx, release_tx]
 
@@ -709,10 +779,16 @@ class TestFullLifecycle:
     @pytest.mark.asyncio
     async def test_fund_refund_lifecycle(self):
         """Complete lifecycle: fund → active → refund with audit trail."""
-        with patch(
-            TRANSFER_PATCH, new_callable=AsyncMock,
-        ) as mock_transfer, patch(
-            CONFIRM_PATCH, new_callable=AsyncMock, return_value=True,
+        with (
+            patch(
+                TRANSFER_PATCH,
+                new_callable=AsyncMock,
+            ) as mock_transfer,
+            patch(
+                CONFIRM_PATCH,
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
         ):
             mock_transfer.side_effect = [_unique_tx(), _unique_tx()]
 
@@ -743,7 +819,9 @@ class TestFullLifecycle:
                 assert release_resp.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_multiple_independent_escrows(self, mock_transfer_simple, mock_confirm):
+    async def test_multiple_independent_escrows(
+        self, mock_transfer_simple, mock_confirm
+    ):
         """Multiple bounties can have independent escrows."""
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"

@@ -7,6 +7,7 @@ import json
 
 client = TestClient(app)
 
+
 def test_request_id_in_header():
     """Verify that X-Request-ID is present in response headers."""
     response = client.get("/health")
@@ -14,6 +15,7 @@ def test_request_id_in_header():
     assert "X-Request-ID" in response.headers
     request_id = response.headers["X-Request-ID"]
     assert len(request_id) > 0
+
 
 def test_structured_error_404():
     """Verify 404 error follows structured JSON format."""
@@ -24,6 +26,7 @@ def test_structured_error_404():
     assert "request_id" in data
     assert "code" in data
     assert data["code"] == "HTTP_404"
+
 
 def test_structured_error_401_auth_error():
     """Verify AuthError follows structured JSON format."""
@@ -43,8 +46,10 @@ def test_structured_error_401_auth_error():
     assert data["error"] == "Unauthorized specifically"
     assert data["code"] == "AUTH_ERROR"
 
+
 def test_structured_error_400_value_error():
     """Verify ValueError follows structured JSON format."""
+
     @app.get("/test-value-error")
     async def trigger_value_error():
         """Trigger value error."""
@@ -56,6 +61,7 @@ def test_structured_error_400_value_error():
     assert data["error"] == "Invalid input data"
     assert data["code"] == "VALIDATION_ERROR"
 
+
 def test_health_check_format():
     """Verify /health returns enhanced status."""
     response = client.get("/health")
@@ -64,6 +70,7 @@ def test_health_check_format():
     assert data["status"] in ["ok", "degraded"]
     assert "database" in data
     assert "version" in data
+
 
 def test_audit_log_creation():
     """Verify that audit logs are written for sensitive operations."""
@@ -78,7 +85,7 @@ def test_audit_log_creation():
         amount=100.0,
         token="FNDRY",
         bounty_id="b1",
-        bounty_title="Test Bounty"
+        bounty_title="Test Bounty",
     )
 
     # Just call the service method

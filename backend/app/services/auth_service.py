@@ -9,6 +9,7 @@ Fixes for review feedback:
 
 import os
 import secrets
+from uuid import UUID
 import base64
 import logging
 from datetime import datetime, timezone, timedelta
@@ -45,36 +46,43 @@ _auth_challenges: Dict[str, Dict] = {}
 
 class AuthError(Exception):
     """Base exception for authentication errors."""
+
     pass
 
 
 class GitHubOAuthError(AuthError):
     """Raised when GitHub OAuth flow fails."""
+
     pass
 
 
 class WalletVerificationError(AuthError):
     """Raised when wallet signature verification fails."""
+
     pass
 
 
 class TokenExpiredError(AuthError):
     """Raised when a JWT token has expired."""
+
     pass
 
 
 class InvalidTokenError(AuthError):
     """Raised when a JWT token is malformed or invalid."""
+
     pass
 
 
 class InvalidStateError(AuthError):
     """Raised when an OAuth state parameter is invalid."""
+
     pass
 
 
 class InvalidNonceError(AuthError):
     """Raised when a wallet auth nonce is invalid."""
+
     pass
 
 
@@ -384,7 +392,7 @@ async def link_wallet_to_user(
     if existing and str(existing.id) != user_id:
         raise AuthError("Wallet already linked")
 
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
     user = result.scalar_one_or_none()
     if not user:
         raise AuthError("User not found")
@@ -395,15 +403,14 @@ async def link_wallet_to_user(
 
     await db.commit()
     await db.refresh(user)
-    
+
     audit_event(
-        "auth_wallet_linked",
-        user_id=str(user.id),
-        wallet_address=user.wallet_address
+        "auth_wallet_linked", user_id=str(user.id), wallet_address=user.wallet_address
     )
-    
+
     return {
         "success": True,
+        "wallet_address": user.wallet_address,
         "message": "Wallet linked",
         "user": _user_to_response(user),
     }
@@ -412,7 +419,7 @@ async def link_wallet_to_user(
 async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
     """Exchange a refresh token for a new access token."""
     user_id = decode_token(refresh_token, "refresh")
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
     if not result.scalar_one_or_none():
         raise InvalidTokenError("User not found")
     return {
@@ -424,7 +431,7 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str) -> Dict:
 
 async def get_current_user(db: AsyncSession, user_id: str) -> UserResponse:
     """Retrieve the current authenticated user by ID."""
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
     user = result.scalar_one_or_none()
     if not user:
         raise AuthError("User not found")

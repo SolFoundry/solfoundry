@@ -213,8 +213,14 @@ async def list_agents(
     summary="Update agent profile",
     description="Update an existing agent's profile. Requires operator wallet verification.",
     responses={
-        401: {"model": ErrorResponse, "description": "X-Operator-Wallet header missing"},
-        403: {"model": ErrorResponse, "description": "Not authorized (not the operator)"},
+        401: {
+            "model": ErrorResponse,
+            "description": "X-Operator-Wallet header missing",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized (not the operator)",
+        },
         404: {"model": ErrorResponse, "description": "Agent not found"},
     },
 )

@@ -23,18 +23,21 @@ _cache: Dict[str, tuple[float, dict]] = {}
 
 class TierStats(BaseModel):
     """Statistics for a single tier."""
+
     open: int
     completed: int
 
 
 class TopContributor(BaseModel):
     """Top contributor information."""
+
     username: str
     bounties_completed: int
 
 
 class StatsResponse(BaseModel):
     """Bounty program statistics response."""
+
     total_bounties_created: int
     total_bounties_completed: int
     total_bounties_open: int
@@ -56,26 +59,26 @@ def _compute_stats() -> dict:
     total_open = 0
     total_fndry_paid = 0
     total_prs_reviewed = 0
-    
+
     # Tier breakdown
     tier_stats: Dict[str, Dict[str, int]] = {
         "tier-1": {"open": 0, "completed": 0},
         "tier-2": {"open": 0, "completed": 0},
         "tier-3": {"open": 0, "completed": 0},
     }
-    
+
     # Count bounties
     for bounty in _bounty_store.values():
         # Status counts
         if bounty.status == "completed":
             total_completed += 1
             total_fndry_paid += bounty.reward_amount
-            
+
             # Count PRs from submissions
             total_prs_reviewed += len([s for s in bounty.submissions if s.pr_url])
         elif bounty.status in ("open", "in_progress"):
             total_open += 1
-        
+
         # Tier counts
         tier = bounty.tier
         if tier in tier_stats:
@@ -83,10 +86,10 @@ def _compute_stats() -> dict:
                 tier_stats[tier]["completed"] += 1
             elif bounty.status in ("open", "in_progress"):
                 tier_stats[tier]["open"] += 1
-    
+
     # Contributor counts
     total_contributors = len(_contributor_store)
-    
+
     # Top contributor (by bounties_completed)
     top_contributor = None
     if _contributor_store:
@@ -99,7 +102,7 @@ def _compute_stats() -> dict:
                 "username": top.username,
                 "bounties_completed": top.total_bounties_completed,
             }
-    
+
     return {
         "total_bounties_created": total_created,
         "total_bounties_completed": total_completed,
@@ -119,14 +122,14 @@ def _get_cached_stats() -> dict:
     """Get stats from cache or compute fresh."""
     cache_key = "bounty_stats"
     now = time.time()
-    
+
     # Check cache
     if cache_key in _cache:
         cached_at, data = _cache[cache_key]
         if now - cached_at < _cache_ttl_seconds:
             logger.debug("Returning cached stats (age: %.1fs)", now - cached_at)
             return data
-    
+
     # Compute fresh
     data = _compute_stats()
     _cache[cache_key] = (now, data)
@@ -137,7 +140,7 @@ def _get_cached_stats() -> dict:
 @router.get("/api/stats", response_model=StatsResponse)
 async def get_stats() -> StatsResponse:
     """Get bounty program statistics.
-    
+
     Returns aggregate statistics about the bounty program:
     - Total bounties (created, completed, open)
     - Total contributors
@@ -145,7 +148,7 @@ async def get_stats() -> StatsResponse:
     - Total PRs reviewed
     - Breakdown by tier
     - Top contributor
-    
+
     No authentication required - public endpoint.
     Cached for 5 minutes.
     """

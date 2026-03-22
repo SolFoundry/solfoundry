@@ -45,8 +45,13 @@ KNOWN_PAYOUTS: dict[str, dict] = {
         "bounties_completed": 12,
         "total_fndry": 1_800_000,
         "skills": [
-            "Python", "FastAPI", "React", "TypeScript",
-            "WebSocket", "Redis", "PostgreSQL",
+            "Python",
+            "FastAPI",
+            "React",
+            "TypeScript",
+            "WebSocket",
+            "Redis",
+            "PostgreSQL",
         ],
         "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
     },
@@ -113,7 +118,9 @@ async def fetch_merged_pull_requests() -> list[dict]:
             if response.status_code != 200:
                 logger.error(
                     "GitHub API error (page %d): %d %s",
-                    page, response.status_code, response.text[:200],
+                    page,
+                    response.status_code,
+                    response.text[:200],
                 )
                 break
 
@@ -125,7 +132,9 @@ async def fetch_merged_pull_requests() -> list[dict]:
             all_prs.extend(merged)
             logger.info(
                 "Fetched page %d: %d PRs (%d merged)",
-                page, len(prs), len(merged),
+                page,
+                len(prs),
+                len(merged),
             )
 
             if len(prs) < per_page:
@@ -254,12 +263,9 @@ async def seed_from_github() -> int:
         bounties = known.get("bounties_completed", total_prs)
         earnings = known.get("total_fndry", 0)
         skills = known.get("skills", [])
-        bio = known.get(
-            "bio", f"SolFoundry contributor -- {total_prs} merged PRs"
-        )
+        bio = known.get("bio", f"SolFoundry contributor -- {total_prs} merged PRs")
         avatar = (
-            stats.get("avatar_url")
-            or f"https://avatars.githubusercontent.com/{author}"
+            stats.get("avatar_url") or f"https://avatars.githubusercontent.com/{author}"
         )
         badges = _compute_badges(bounties, total_prs)
         reputation = _compute_reputation(total_prs, bounties, len(skills))
@@ -284,7 +290,10 @@ async def seed_from_github() -> int:
         seeded_count += 1
         logger.info(
             "Upserted %s: %d PRs, %d bounties, %s $FNDRY",
-            author, total_prs, bounties, earnings,
+            author,
+            total_prs,
+            bounties,
+            earnings,
         )
 
     # Refresh in-memory cache

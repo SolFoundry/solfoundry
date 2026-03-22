@@ -86,7 +86,8 @@ def build_bounty_create_payload(
     sequence_number = next(_bounty_counter)
     return {
         "title": title or f"E2E Test Bounty #{sequence_number}",
-        "description": description or (
+        "description": description
+        or (
             f"End-to-end test bounty number {sequence_number} for validating "
             "the full marketplace lifecycle."
         ),
@@ -152,7 +153,8 @@ def build_submission_payload(
     """
     sequence_number = next(_submission_counter)
     return {
-        "pr_url": pr_url or f"https://github.com/SolFoundry/solfoundry/pull/{sequence_number}",
+        "pr_url": pr_url
+        or f"https://github.com/SolFoundry/solfoundry/pull/{sequence_number}",
         "submitted_by": submitted_by or f"contributor-{sequence_number}",
         "notes": notes or f"E2E submission #{sequence_number}",
     }
@@ -300,11 +302,13 @@ def build_dispute_create_payload(
     return {
         "bounty_id": bounty_id,
         "reason": reason,
-        "description": description or (
+        "description": description
+        or (
             "The AI review incorrectly scored this submission. "
             "The solution fully addresses the issue requirements."
         ),
-        "evidence_links": evidence_links or [
+        "evidence_links": evidence_links
+        or [
             {"type": "screenshot", "description": "Test output showing all tests pass"},
         ],
     }
@@ -329,7 +333,8 @@ def build_dispute_resolve_payload(
     return {
         "outcome": outcome,
         "review_notes": review_notes,
-        "resolution_action": resolution_action or "Re-score submission and proceed to payout.",
+        "resolution_action": resolution_action
+        or "Re-score submission and proceed to payout.",
     }
 
 

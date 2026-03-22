@@ -109,13 +109,17 @@ async def lifespan(app: FastAPI):
     # Hydrate in-memory caches from PostgreSQL (source of truth)
     try:
         from app.services.payout_service import hydrate_from_database as hydrate_payouts
-        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+        from app.services.reputation_service import (
+            hydrate_from_database as hydrate_reputation,
+        )
 
         await hydrate_payouts()
         await hydrate_reputation()
         logger.info("PostgreSQL hydration complete (payouts + reputation)")
     except Exception as exc:
-        logger.warning("PostgreSQL hydration failed: %s — starting with empty caches", exc)
+        logger.warning(
+            "PostgreSQL hydration failed: %s — starting with empty caches", exc
+        )
 
     # Sync bounties + contributors from GitHub Issues (replaces static seeds)
     try:
@@ -145,7 +149,9 @@ async def lifespan(app: FastAPI):
     deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
 
     # Start escrow auto-refund checker (every 60 seconds)
-    escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
+    escrow_refund_task = asyncio.create_task(
+        periodic_escrow_refund(interval_seconds=60)
+    )
 
     yield
 
@@ -217,12 +223,24 @@ Bounty rewards are managed through an escrow system.
 """
 
 TAGS_METADATA = [
-    {"name": "authentication", "description": "Identity and security (OAuth, Wallets, JWT)"},
-    {"name": "bounties", "description": "Core marketplace: search, create, and manage bounties"},
-    {"name": "payouts", "description": "Financial operations: treasury stats, escrow, and buybacks"},
+    {
+        "name": "authentication",
+        "description": "Identity and security (OAuth, Wallets, JWT)",
+    },
+    {
+        "name": "bounties",
+        "description": "Core marketplace: search, create, and manage bounties",
+    },
+    {
+        "name": "payouts",
+        "description": "Financial operations: treasury stats, escrow, and buybacks",
+    },
     {"name": "notifications", "description": "Real-time user alerts and event history"},
     {"name": "agents", "description": "AI Agent registration and coordination"},
-    {"name": "disputes", "description": "Dispute resolution: initiate, evidence, mediation, resolve"},
+    {
+        "name": "disputes",
+        "description": "Dispute resolution: initiate, evidence, mediation, resolve",
+    },
     {"name": "websocket", "description": "Real-time event streaming and pub/sub"},
 ]
 
@@ -269,6 +287,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # -- Global Exception Handlers ------------------------------------------------
 
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Handle HTTP exceptions with structured JSON."""
@@ -278,14 +297,16 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         content={
             "message": exc.detail,
             "request_id": request_id,
-            "code": f"HTTP_{exc.status_code}"
-        }
+            "code": f"HTTP_{exc.status_code}",
+        },
     )
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler for unexpected errors."""
     import structlog
+
     log = structlog.get_logger(__name__)
 
     request_id = getattr(request.state, "request_id", None)
@@ -298,9 +319,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "message": "Internal Server Error",
             "request_id": request_id,
-            "code": "INTERNAL_ERROR"
-        }
+            "code": "INTERNAL_ERROR",
+        },
     )
+
 
 @app.exception_handler(AuthError)
 async def auth_exception_handler(request: Request, exc: AuthError):
@@ -308,12 +330,9 @@ async def auth_exception_handler(request: Request, exc: AuthError):
     request_id = getattr(request.state, "request_id", None)
     return JSONResponse(
         status_code=401,
-        content={
-            "message": str(exc),
-            "request_id": request_id,
-            "code": "AUTH_ERROR"
-        }
+        content={"message": str(exc), "request_id": request_id, "code": "AUTH_ERROR"},
     )
+
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
@@ -324,9 +343,10 @@ async def value_error_handler(request: Request, exc: ValueError):
         content={
             "message": str(exc),
             "request_id": request_id,
-            "code": "VALIDATION_ERROR"
-        }
+            "code": "VALIDATION_ERROR",
+        },
     )
+
 
 # ── Route Registration ──────────────────────────────────────────────────────
 

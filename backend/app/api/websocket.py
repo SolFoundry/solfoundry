@@ -44,8 +44,10 @@ async def websocket_endpoint(
 
 # -- Response models --
 
+
 class EventListResponse(BaseModel):
     """Paginated list of buffered events for a channel."""
+
     events: List[Dict[str, Any]]
     channel: str
     count: int
@@ -53,6 +55,7 @@ class EventListResponse(BaseModel):
 
 class ConnectionStatusResponse(BaseModel):
     """WebSocket connection statistics."""
+
     active_connections: int
     max_connections: int
     total_channels: int
@@ -61,11 +64,13 @@ class ConnectionStatusResponse(BaseModel):
 
 class EventTypesResponse(BaseModel):
     """Supported event types with descriptions."""
+
     event_types: List[str]
     description: Dict[str, str]
 
 
 # -- Static routes before dynamic {channel} route --
+
 
 @router.get("/api/events/status", response_model=ConnectionStatusResponse)
 async def get_connection_status() -> ConnectionStatusResponse:

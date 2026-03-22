@@ -1,4 +1,5 @@
 """Module logging_middleware."""
+
 import time
 import uuid
 import structlog
@@ -7,8 +8,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = structlog.get_logger(__name__)
 
+
 class LoggingMiddleware(BaseHTTPMiddleware):
     """LoggingMiddleware."""
+
     async def dispatch(self, request: Request, call_next):
         # 1. Generate or extract correlation ID
         """Dispatch."""
@@ -23,7 +26,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # 3. Request Logging
         start_time = time.time()
-        
+
         # Avoid logging sensitive paths or heavy bodies if needed
         logger.info(
             "request_started",
@@ -50,7 +53,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # 4. Response Logging
         duration = time.time() - start_time
         response.headers["X-Request-ID"] = request_id
-        
+
         logger.info(
             "request_finished",
             method=request.method,
