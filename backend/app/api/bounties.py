@@ -7,11 +7,19 @@ search, autocomplete, hot bounties, recommended bounties.
 
 from typing import Optional
 
+from pydantic import BaseModel, Field as PydanticField
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.errors import ErrorResponse
+from app.services.bounty_lifecycle_service import (
+    LifecycleError,
+    publish_bounty as _publish_bounty,
+    claim_bounty as _claim_bounty,
+    unclaim_bounty as _unclaim_bounty,
+    transition_status as _transition_status,
+)
 from app.models.bounty import (
     AutocompleteResponse,
     BountyCreate,
@@ -452,9 +460,6 @@ async def get_review_scores(
 # ---------------------------------------------------------------------------
 
 
-from pydantic import BaseModel, Field as PydanticField
-
-
 class ApprovalRequest(BaseModel):
     """Request body for approving a submission."""
     notes: Optional[str] = None
@@ -629,15 +634,6 @@ async def cancel_bounty(
 # ---------------------------------------------------------------------------
 # Lifecycle engine endpoints
 # ---------------------------------------------------------------------------
-
-from app.services.bounty_lifecycle_service import (
-    LifecycleError,
-    publish_bounty as _publish_bounty,
-    claim_bounty as _claim_bounty,
-    unclaim_bounty as _unclaim_bounty,
-    transition_status as _transition_status,
-)
-
 
 class ClaimRequest(BaseModel):
     """Optional claim duration override."""

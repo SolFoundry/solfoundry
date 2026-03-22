@@ -16,7 +16,6 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.e2e.conftest import create_bounty_via_api
 from tests.e2e.factories import (
     DEFAULT_WALLET,
     build_bounty_create_payload,

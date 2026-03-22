@@ -49,10 +49,9 @@ from app.api.agents import router as agents_router
 from app.api.disputes import router as disputes_router
 from app.api.stats import router as stats_router
 from app.api.escrow import router as escrow_router
-from app.database import init_db, close_db, engine
+from app.database import init_db, close_db
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
-from app.middleware.rate_limiter import RateLimitMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
@@ -62,7 +61,6 @@ from app.services.bounty_lifecycle_service import periodic_deadline_check
 from app.services.escrow_service import periodic_escrow_refund
 from app.core.redis import close_redis
 from app.core.config import ALLOWED_ORIGINS
-from app.middleware.security import SecurityMiddleware
 from app.middleware.ip_blocklist import IPBlocklistMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
 

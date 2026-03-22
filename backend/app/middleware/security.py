@@ -26,12 +26,11 @@ References:
 
 import logging
 import os
-from typing import Callable, Optional
+from typing import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse, JSONResponse
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 

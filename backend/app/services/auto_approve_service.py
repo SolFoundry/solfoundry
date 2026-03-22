@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from app.models.review import AI_REVIEW_SCORE_THRESHOLD, AUTO_APPROVE_TIMEOUT_HOURS
 from app.services import bounty_service

@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
-from tests.e2e.conftest import DEFAULT_WALLET, create_bounty_via_api
+from tests.e2e.conftest import create_bounty_via_api
 from tests.e2e.factories import (
     build_bounty_create_payload,
     build_submission_payload,

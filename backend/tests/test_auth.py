@@ -8,6 +8,8 @@ This module tests:
 - Protected routes
 """
 
+import asyncio
+
 import pytest
 import base64
 from datetime import datetime, timezone, timedelta
@@ -16,6 +18,7 @@ from fastapi.testclient import TestClient
 from solders.keypair import Keypair
 
 from app.main import app
+from app.database import async_session_factory
 from app.services import auth_service
 
 auth_service.GITHUB_CLIENT_ID = "test-client-id"
@@ -32,9 +35,6 @@ def test_keypair():
     """Create a test Solana keypair for wallet auth tests."""
     return Keypair()
 
-
-import asyncio
-from app.database import async_session_factory
 
 @pytest.fixture
 def auth_headers(client):

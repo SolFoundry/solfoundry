@@ -6,7 +6,6 @@ Includes template rendering and delivery logic.
 
 import logging
 import os
-import time
 from typing import Dict, Any, Optional
 
 import httpx

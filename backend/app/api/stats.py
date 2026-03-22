@@ -6,8 +6,7 @@ Cached for 5 minutes to avoid recomputing on every request.
 
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel

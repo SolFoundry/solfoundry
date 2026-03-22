@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 from app.api.auth import get_current_user
 from app.models.user import UserResponse
 from app.api.bounties import router as bounties_router
-from app.models.bounty import BountyCreate, BountyStatus, SubmissionStatus
 from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service

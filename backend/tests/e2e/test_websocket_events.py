@@ -15,7 +15,6 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from app.services.websocket_manager import (
-    InMemoryPubSubAdapter,
     WebSocketManager,
 )
 from tests.e2e.conftest import FakeWebSocket

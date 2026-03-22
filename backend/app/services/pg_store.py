@@ -10,10 +10,9 @@ Submission rows are first-class entities persisted alongside bounties.
 
 import uuid as _uuid
 import logging
-from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import select, delete as sa_del, func, and_
+from sqlalchemy import select, delete as sa_del, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session

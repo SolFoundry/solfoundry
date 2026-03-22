@@ -11,7 +11,6 @@ from typing import Any, Callable, Optional
 
 import structlog
 
-from app.models.errors import AuditLogEntry
 
 logger = structlog.get_logger("audit")
 

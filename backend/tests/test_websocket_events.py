@@ -31,7 +31,8 @@ class FakeWebSocket:
     async def accept(self): self.accepted = True
     async def close(self, code=1000):
         """Close the fake WebSocket connection."""
-        self.closed = True; self.close_code = code
+        self.closed = True
+        self.close_code = code
         self.client_state = WebSocketState.DISCONNECTED
 
     async def send_json(self, data):

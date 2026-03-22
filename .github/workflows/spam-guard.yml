@@ -47,7 +47,9 @@ jobs:
               print(f"Content bounty #{issue} — skipping")
               exit(0)
 
-          if issue == "48":
+          # Skip star-reward and content-bounty labeled issues
+          label_names = [l.strip() for l in labels.split(",")]
+          if any(lbl in ("star-reward", "content-bounty") for lbl in label_names):
               exit(0)
 
           repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")

@@ -356,7 +356,7 @@ async def approve_payout(payout_id: str, admin_id: str):
         InvalidPayoutTransitionError: If the payout is not PENDING.
     """
     from app.exceptions import PayoutNotFoundError, InvalidPayoutTransitionError
-    from app.models.payout import AdminApprovalResponse, ALLOWED_TRANSITIONS
+    from app.models.payout import AdminApprovalResponse
     from datetime import datetime, timezone
 
     with _lock:

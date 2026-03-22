@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session_factory
 from app.models.contributor import (
     ContributorCreate,
-    ContributorDB,
     ContributorListItem,
     ContributorListResponse,
     ContributorResponse,

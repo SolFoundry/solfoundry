@@ -73,10 +73,11 @@ jobs:
                   issue_num = str(iss["number"])
                   issue_title = iss.get("title", "").lower()
 
-                  # Skip content bounties
+                  # Skip content bounties and star-reward/content-bounty labeled issues
+                  issue_labels = [l["name"] for l in iss.get("labels", [])]
                   if any(kw in issue_title for kw in content_keywords):
                       continue
-                  if issue_num == "48":
+                  if any(lbl in ("star-reward", "content-bounty") for lbl in issue_labels):
                       continue
 
                   issues_swept += 1
