@@ -259,9 +259,15 @@ def process_callback(callback):
 
     # Answer the callback
     if success:
+        # Build response text based on callback type
+        if data.startswith("t3claim_"):
+            answer_text = f"✅ Claim {action} for @{username} on #{issue_num}"
+        else:
+            answer_text = f"✅ PR {action}: {msg}"
+
         tg_api("answerCallbackQuery", {
             "callback_query_id": callback_id,
-            "text": f"✅ Claim {action} for @{username} on #{issue_num}",
+            "text": answer_text,
             "show_alert": False
         })
 
@@ -270,7 +276,7 @@ def process_callback(callback):
             original_text = message.get("text", "")
             new_text = (
                 f"{original_text}\n\n"
-                f"{'✅' if action == 'approved' else '❌'} "
+                f"{'✅' if action in ('approved',) else '❌'} "
                 f"<b>Decision: {action.upper()}</b> by owner"
             )
             tg_api("editMessageText", {
