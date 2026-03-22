@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
+import { SkeletonDashboard } from './common/Skeleton';
 
 // ============================================================================
 // Types
@@ -652,22 +653,7 @@ export function ContributorDashboard({
 
   // Loading state UI
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0a0a0a] dark:text-white p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
-          </div>
-          <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   // Error state UI

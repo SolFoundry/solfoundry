@@ -45,6 +45,20 @@ jobs:
   backend-tests:
     name: Backend Tests (pytest)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,6 +83,7 @@ jobs:
         env:
           PYTHONPATH: .
           DATABASE_URL: postgresql://test:test@localhost:5432/test
+          TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
           SECRET_KEY: test-secret-key-for-ci
 
   # ==================== FRONTEND (React/TypeScript) ====================

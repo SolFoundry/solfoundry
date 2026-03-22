@@ -274,24 +274,38 @@ html:not(.theme-transitioning) {
   }
 }
 
-.animate-shimmer {
+.skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0) 100%
+    #222222 25%,
+    #2a2a2a 37%,
+    #333333 50%,
+    #2a2a2a 63%,
+    #222222 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
 /* Light mode shimmer */
-:root:not(.dark) .animate-shimmer {
+:root:not(.dark) .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.05) 50%,
-    rgba(0, 0, 0, 0) 100%
+    #e5e5e5 25%,
+    #f0f0f0 37%,
+    #f5f5f5 50%,
+    #f0f0f0 63%,
+    #e5e5e5 75%
   );
   background-size: 200% 100%;
+}
+
+/* Pulse fallback — subtle opacity animation */
+.skeleton-pulse {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

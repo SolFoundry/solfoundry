@@ -16,7 +16,6 @@ References:
     - Double-Spend Prevention: https://solana.com/docs/advanced/confirmation
 """
 
-import hashlib
 import logging
 import os
 import threading
@@ -168,7 +167,10 @@ def validate_solana_address(address: str) -> bool:
     """
     if not address:
         return False
-    if len(address) < SOLANA_ADDRESS_LENGTH_MIN or len(address) > SOLANA_ADDRESS_LENGTH_MAX:
+    if (
+        len(address) < SOLANA_ADDRESS_LENGTH_MIN
+        or len(address) > SOLANA_ADDRESS_LENGTH_MAX
+    ):
         return False
     return all(char in SOLANA_BASE58_CHARS for char in address)
 
@@ -452,7 +454,9 @@ class TransactionVerifier:
         with self._lock:
             return self._active_operations
 
-    def cleanup_old_records(self, max_age_seconds: int = SIGNATURE_CACHE_TTL_SECONDS) -> int:
+    def cleanup_old_records(
+        self, max_age_seconds: int = SIGNATURE_CACHE_TTL_SECONDS
+    ) -> int:
         """Remove processed transaction records older than max_age_seconds.
 
         Keeps the in-memory store bounded. In production with PostgreSQL,
@@ -469,7 +473,8 @@ class TransactionVerifier:
 
         with self._lock:
             stale_hashes = [
-                tx_hash for tx_hash, record in self._processed_transactions.items()
+                tx_hash
+                for tx_hash, record in self._processed_transactions.items()
                 if record.processed_at < cutoff
             ]
             for tx_hash in stale_hashes:

@@ -10,7 +10,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.main import app
-from app.models.bounty import BountyDB, BountyTier, BountyStatus, SubmissionRecord
+from app.models.bounty import BountyDB
 from app.database import Base, get_db
 
 
@@ -28,13 +28,9 @@ async def db_engine():
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 

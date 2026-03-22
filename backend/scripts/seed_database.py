@@ -38,7 +38,7 @@ async def seed_all() -> dict[str, int]:
     await init_db()
 
     # Seed bounties directly into PostgreSQL
-    from app.seed_data import seed_bounties, LIVE_BOUNTIES
+    from app.seed_data import seed_bounties
     from app.services.bounty_service import _bounty_store
     from app.services.pg_store import persist_bounty
 

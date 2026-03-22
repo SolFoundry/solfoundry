@@ -166,7 +166,7 @@ jobs:
                   issue_data = json.loads(resp_i.read().decode())
                   title_lower = issue_data.get("title", "").lower()
                   ilabels = [l["name"] for l in issue_data.get("labels", [])]
-                  if str(issue_num) == "48":
+                  if any(l["name"] in ("star-reward", "content-bounty") for l in issue_data.get("labels", [])):
                       return None
                   content_kw = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
                   if any(kw in title_lower for kw in content_kw):

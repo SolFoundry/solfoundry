@@ -24,6 +24,8 @@ from fastapi import FastAPI
 
 from app.api.agents import router as agents_router
 from app.database import Base, engine, async_session_factory
+from app.models.agent import Agent
+from sqlalchemy import delete
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +63,6 @@ VALID_AGENT = {
 @pytest_asyncio.fixture(scope="function")
 async def db_session():
     """Create a fresh database session for each test."""
-    # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -69,9 +70,10 @@ async def db_session():
     async with async_session_factory() as session:
         yield session
 
-    # Drop tables after test
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    # Clean up table instead of drop_all to avoid breaking other tests
+    async with async_session_factory() as session:
+        await session.execute(delete(Agent))
+        await session.commit()
 
 
 @pytest_asyncio.fixture(scope="function")

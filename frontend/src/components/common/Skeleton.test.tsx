@@ -19,8 +19,8 @@ describe('Skeleton Components', () => {
     it('renders with default props', () => {
       const { container } = render(<Skeleton />);
       const skeleton = container.firstChild;
-      expect(skeleton).toHaveClass('bg-surface-200');
-      expect(skeleton).toHaveClass('animate-pulse');
+      expect(skeleton).toHaveClass('skeleton-shimmer');
+      expect(skeleton).toHaveClass('rounded-lg');
     });
 
     it('renders with custom dimensions', () => {
@@ -33,13 +33,13 @@ describe('Skeleton Components', () => {
     it('renders circle variant', () => {
       const { container } = render(<Skeleton variant="circle" />);
       const skeleton = container.firstChild;
-      expect(skeleton).toHaveClass('rounded-full!');
+      expect(skeleton).toHaveClass('rounded-full');
     });
 
     it('supports shimmer animation', () => {
       const { container } = render(<Skeleton animation="shimmer" />);
       const skeleton = container.firstChild;
-      expect(skeleton).toHaveClass('animate-shimmer');
+      expect(skeleton).toHaveClass('skeleton-shimmer');
     });
   });
 

@@ -7,7 +7,7 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ContributorProfile from '../components/ContributorProfile';
-import { SkeletonCard } from '../components/common/Skeleton';
+import { SkeletonProfile } from '../components/common/Skeleton';
 import { apiClient } from '../services/apiClient';
 import type { ContributorBadgeStats } from '../types/badges';
 
@@ -62,7 +62,7 @@ export default function ContributorProfilePage() {
   if (isLoading) {
     return (
       <div className="p-6 max-w-3xl mx-auto" role="status">
-        <SkeletonCard showAvatar bodyLines={3} showFooter />
+        <SkeletonProfile />
       </div>
     );
   }

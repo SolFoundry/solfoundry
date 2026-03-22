@@ -6,7 +6,7 @@
  * @module components/leaderboard/LeaderboardPage
  */
 import { useLeaderboard } from '../../hooks/useLeaderboard';
-import { SkeletonTable } from '../common/Skeleton';
+import { SkeletonLeaderboard } from '../common/Skeleton';
 import { NoDataAvailable } from '../common/EmptyState';
 import type { TimeRange, SortField } from '../../types/leaderboard';
 
@@ -23,20 +23,7 @@ export function LeaderboardPage() {
   const { contributors, loading, error, timeRange, setTimeRange, sortBy, setSortBy, search, setSearch } = useLeaderboard();
 
   if (loading) {
-    return (
-      <div className="p-6 max-w-5xl mx-auto space-y-6" data-testid="leaderboard-page">
-        <div className="h-8 w-64 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="h-10 w-64 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-          <div className="flex gap-1">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-8 w-16 bg-gray-200 dark:bg-surface-200 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-        <SkeletonTable rows={10} columns={6} showAvatar />
-      </div>
-    );
+    return <SkeletonLeaderboard />;
   }
 
   if (error) {

@@ -8,9 +8,8 @@ bounties, and the refund eligibility logic.
 Requirement: Issue #196 item 3.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.e2e.conftest import create_bounty_via_api
@@ -42,9 +41,7 @@ def _parse_aware_datetime(iso_string: str) -> datetime:
 class TestDeadlineExpiration:
     """Validate bounty deadline handling and expiration detection."""
 
-    def test_bounty_with_past_deadline_is_detectable(
-        self, client: TestClient
-    ) -> None:
+    def test_bounty_with_past_deadline_is_detectable(self, client: TestClient) -> None:
         """Verify that a bounty with an already-past deadline can be identified.
 
         Creates a bounty with a deadline in the past and verifies the
@@ -62,9 +59,7 @@ class TestDeadlineExpiration:
         bounty_deadline = _parse_aware_datetime(bounty["deadline"])
         assert bounty_deadline < datetime.now(timezone.utc)
 
-    def test_bounty_with_future_deadline_is_valid(
-        self, client: TestClient
-    ) -> None:
+    def test_bounty_with_future_deadline_is_valid(self, client: TestClient) -> None:
         """Verify that a bounty with a future deadline is correctly stored."""
         valid_deadline = future_deadline(hours=72)
         payload = build_bounty_create_payload(
@@ -78,9 +73,7 @@ class TestDeadlineExpiration:
         bounty_deadline = _parse_aware_datetime(bounty["deadline"])
         assert bounty_deadline > datetime.now(timezone.utc)
 
-    def test_expired_bounty_with_no_submissions(
-        self, client: TestClient
-    ) -> None:
+    def test_expired_bounty_with_no_submissions(self, client: TestClient) -> None:
         """Verify an expired bounty with no submissions is refund-eligible.
 
         The bounty should remain in ``open`` status with zero submissions,
@@ -190,10 +183,9 @@ class TestRefundEligibility:
         )
         detail = client.get(f"/api/bounties/{bounty['id']}").json()
 
-        is_expired = (
-            detail["deadline"] is not None
-            and _parse_aware_datetime(detail["deadline"]) < datetime.now(timezone.utc)
-        )
+        is_expired = detail["deadline"] is not None and _parse_aware_datetime(
+            detail["deadline"]
+        ) < datetime.now(timezone.utc)
         is_open = detail["status"] == "open"
         no_submissions = detail["submission_count"] == 0
 
@@ -228,9 +220,7 @@ class TestRefundEligibility:
         has_submissions = detail["submission_count"] > 0
         assert has_submissions, "Bounty with submissions should not be auto-refunded"
 
-    def test_in_progress_bounty_not_refundable(
-        self, client: TestClient
-    ) -> None:
+    def test_in_progress_bounty_not_refundable(self, client: TestClient) -> None:
         """Verify that ``in_progress`` bounties are not refund-eligible.
 
         Once a contributor is actively working on a bounty, it should not
@@ -309,9 +299,7 @@ class TestTimeoutBountyBatchDetection:
         for aid in active_ids:
             assert aid in active_found, f"Active bounty {aid} not found"
 
-    def test_bounty_without_deadline_never_expires(
-        self, client: TestClient
-    ) -> None:
+    def test_bounty_without_deadline_never_expires(self, client: TestClient) -> None:
         """Verify that bounties without a deadline are never considered expired.
 
         Bounties with ``deadline=None`` should remain open indefinitely.
@@ -333,10 +321,10 @@ class TestTimeoutBountyBatchDetection:
         at different points in time.
         """
         deadlines = [
-            past_deadline(hours=1),     # Recently expired
-            past_deadline(hours=168),   # Expired a week ago
-            future_deadline(hours=1),   # Expires in 1 hour
-            future_deadline(hours=720), # Expires in a month
+            past_deadline(hours=1),  # Recently expired
+            past_deadline(hours=168),  # Expired a week ago
+            future_deadline(hours=1),  # Expires in 1 hour
+            future_deadline(hours=720),  # Expires in a month
         ]
 
         bounties = []
