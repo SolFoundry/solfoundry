@@ -3,6 +3,7 @@ import type { Bounty } from '../../types/bounty';
 import { TierBadge } from './TierBadge';
 import { StatusIndicator } from './StatusIndicator';
 import { SkillTags } from './SkillTags';
+import { TimeAgo } from '../common/TimeAgo';
 export function formatTimeRemaining(dl: string): string {
   const d = new Date(dl).getTime() - Date.now();
   if (d <= 0) return 'Expired';
@@ -60,6 +61,11 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
           <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
         </div>
+        {b.createdAt && (
+          <div className="mt-2 text-right">
+            <TimeAgo date={b.createdAt} className="text-[10px] text-gray-600" />
+          </div>
+        )}
       </div>
     </>
   );

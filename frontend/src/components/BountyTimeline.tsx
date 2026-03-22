@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { BountyTimelineData, TimelineStage, TimelineStageType } from '../types/timeline';
 import { STAGE_INFO } from '../types/timeline';
+import { TimeAgo } from './common/TimeAgo';
 
 interface BountyTimelineProps {
   bountyId: string;
@@ -141,23 +142,6 @@ const TimelineStageItem: React.FC<TimelineStageItemProps> = ({
         <span className="text-sm sm:text-base">{stageInfo.icon}</span>
       </div>
     );
-  };
-
-  // Format date
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return '';
-    }
   };
 
   // Get stage description
@@ -312,9 +296,10 @@ const TimelineStageItem: React.FC<TimelineStageItemProps> = ({
             )}
           </div>
           {date && (
-            <span className={`text-xs sm:text-sm ${status === 'pending' ? 'text-gray-600' : 'text-gray-500'}`}>
-              {formatDate(date)}
-            </span>
+            <TimeAgo
+              date={date}
+              className={`text-xs sm:text-sm ${status === 'pending' ? 'text-gray-600' : 'text-gray-500'}`}
+            />
           )}
         </div>
         
