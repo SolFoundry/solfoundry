@@ -1,0 +1,187 @@
+# GitHub Actions workflow for E2E integration test suite.
+#
+# IMPORTANT: This file is stored as documentation because the PAT cannot
+# push workflow files directly. To activate, copy this file to:
+#   .github/workflows/e2e-tests.yml
+#
+# The workflow runs on every pull request to main and can be triggered
+# manually via workflow_dispatch.
+
+name: E2E Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+  DATABASE_URL: 'sqlite+aiosqlite:///:memory:'
+  AUTH_ENABLED: 'true'
+  SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-test-secret-key' }}
+
+jobs:
+  # ── Backend E2E Tests ───────────────────────────────────────────────────
+  backend-e2e:
+    name: Backend E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        test-group:
+          - lifecycle
+          - dispute
+          - timeout
+          - concurrent
+          - auth
+          - websocket
+          - load
+          - negative
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest-asyncio pytest-html pytest-xdist httpx aiosqlite
+
+      - name: Run E2E tests (${{ matrix.test-group }})
+        working-directory: backend
+        run: |
+          python -m pytest tests/e2e/ \
+            -m "${{ matrix.test-group }}" \
+            -v \
+            --tb=short \
+            --html=reports/e2e-${{ matrix.test-group }}.html \
+            --self-contained-html \
+            --junitxml=reports/e2e-${{ matrix.test-group }}.xml
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ matrix.test-group }}
+          path: backend/reports/
+          retention-days: 14
+
+  # ── E2E Full Suite (non-parallel, for total pass/fail) ──────────────────
+  backend-e2e-full:
+    name: Full E2E Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest-asyncio pytest-html pytest-xdist httpx aiosqlite
+
+      - name: Run full E2E suite
+        working-directory: backend
+        run: |
+          python -m pytest tests/e2e/ \
+            -v \
+            --tb=short \
+            --html=reports/e2e-full.html \
+            --self-contained-html \
+            --junitxml=reports/e2e-full.xml
+
+      - name: Upload full report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-full
+          path: backend/reports/
+          retention-days: 30
+
+  # ── Frontend Playwright E2E Tests ──────────────────────────────────────
+  frontend-e2e:
+    name: Frontend Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run Playwright E2E tests
+        working-directory: frontend
+        run: npx playwright test --reporter=html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: frontend/test-results/
+          retention-days: 14
+
+  # ── Summary Gate ────────────────────────────────────────────────────────
+  e2e-summary:
+    name: E2E Gate
+    needs: [backend-e2e, backend-e2e-full, frontend-e2e]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.backend-e2e-full.result }}" != "success" ]; then
+            echo "Backend E2E tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.frontend-e2e.result }}" != "success" ]; then
+            echo "Frontend Playwright tests failed"
+            exit 1
+          fi
+          echo "All E2E tests passed (backend + frontend)"
