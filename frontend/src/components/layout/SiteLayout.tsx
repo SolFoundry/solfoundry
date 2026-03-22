@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import OnboardingWizard from '../OnboardingWizard';
+import { ThemeToggle } from './ThemeToggle';
+import { Breadcrumbs } from './Breadcrumbs';
+import { ScrollToTop } from './ScrollToTop';
+import { Footer } from './Footer';
 
 // ============================================================================
 // Types
@@ -26,19 +31,13 @@ export interface SiteLayoutProps {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Bounties', href: '/bounties' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Leaderboard', href: '/leaderboard' },
+  { label: 'Analytics', href: '/analytics/leaderboard' },
   { label: 'Agents', href: '/agents' },
   { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme', external: true },
 ];
 
-const FOOTER_LINKS = [
-  { label: 'GitHub', href: 'https://github.com/SolFoundry/solfoundry' },
-  { label: 'Twitter', href: 'https://twitter.com/foundrysol' },
-  { label: 'Docs', href: 'https://github.com/SolFoundry/solfoundry#readme' },
-  { label: 'CA', href: 'https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS' },
-];
-
-const WALLET_ADDRESS = 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7';
 
 // ============================================================================
 // Components
@@ -67,6 +66,17 @@ export function SiteLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    const onboarded = localStorage.getItem('sf_onboarded');
+    if (!onboarded) {
+      // Small delay to let the initial page load feel smooth
+      const timer = setTimeout(() => setShowOnboarding(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Handle scroll for header background
   useEffect(() => {
@@ -127,6 +137,7 @@ export function SiteLayout({
         userName={userName}
         onNavClick={handleNavClick}
         truncateAddress={truncateAddress}
+        onShowOnboarding={() => setShowOnboarding(true)}
       />
 
       {/* Mobile Sidebar Overlay */}
@@ -148,11 +159,25 @@ export function SiteLayout({
 
       {/* Main Content */}
       <main className="min-h-screen pt-16">
+        {/* Breadcrumbs — below top nav, above page content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-white/5">
+          <Breadcrumbs />
+        </div>
         {children}
       </main>
 
       {/* Footer */}
       <Footer />
+
+      {/* Onboarding Wizard */}
+      <OnboardingWizard
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={() => setShowOnboarding(false)}
+      />
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   );
 }
@@ -175,6 +200,7 @@ interface HeaderProps {
   userName?: string;
   onNavClick: (href: string) => void;
   truncateAddress: (address: string) => string;
+  onShowOnboarding?: () => void;
 }
 
 function Header({
@@ -191,6 +217,7 @@ function Header({
   userName,
   onNavClick,
   truncateAddress,
+  onShowOnboarding,
 }: HeaderProps) {
   return (
     <header
@@ -230,11 +257,20 @@ function Header({
                 {link.label}
               </a>
             ))}
+            <button
+              onClick={onShowOnboarding}
+              className="px-4 py-2 rounded-lg text-sm font-bold text-[#14F195] hover:bg-[#14F195]/10 bg-[#14F195]/5 transition-all ml-4 border border-[#14F195]/20"
+            >
+              Get Started
+            </button>
           </nav>
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Wallet Connect Button */}
           {walletAddress ? (
             <div className="relative">
@@ -265,6 +301,12 @@ function Header({
                     <p className="text-sm font-medium text-white">{userName || 'User'}</p>
                     <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
+                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                    Creator Dashboard
+                  </a>
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                    Contributor Dashboard
+                  </a>
                   <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
                     Profile
                   </a>
@@ -365,55 +407,6 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
         </p>
       </div>
     </aside>
-  );
-}
-
-// ============================================================================
-// Footer Component
-// ============================================================================
-
-function Footer() {
-  const currentYear = new Date().getFullYear();
-
-  return (
-    <footer className="border-t border-white/10 bg-[#0a0a0a]" role="contentinfo">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Logo + Copyright */}
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
-              <span className="text-white font-bold text-xs">SF</span>
-            </div>
-            <span className="text-sm text-gray-400">
-              © {currentYear} SolFoundry. All rights reserved.
-            </span>
-          </div>
-
-          {/* Footer Links */}
-          <div className="flex items-center gap-6">
-            {FOOTER_LINKS.map((link) => (
-              <a
-                key={link.href + link.label}
-                href={link.href}
-                target={link.href.startsWith('http') ? '_blank' : undefined}
-                rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                className="text-sm text-gray-400 hover:text-[#9945FF] transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          {/* Contract Address */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">CA:</span>
-            <code className="text-xs text-[#14F195] font-mono bg-[#14F195]/10 px-2 py-1 rounded">
-              {WALLET_ADDRESS}
-            </code>
-          </div>
-        </div>
-      </div>
-    </footer>
   );
 }
 
