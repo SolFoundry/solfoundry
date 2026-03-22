@@ -420,6 +420,13 @@ jobs:
             PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
 
             if [ "$MERGEABLE" = "true" ]; then
+              # Skip notification if PR is already paid (bot already handled it)
+              PR_LABELS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/labels" --jq '.[].name' 2>/dev/null || echo "")
+              if echo "$PR_LABELS" | grep -q "^paid$"; then
+                echo "PR #${PR_NUM} already paid — skipping duplicate 'Ready to Merge' notification"
+                exit 0
+              fi
+
               # Extract bounty info for payout context
               PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null || echo "")
               BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "

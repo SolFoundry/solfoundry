@@ -156,6 +156,12 @@ jobs:
                   if wallet_match:
                       wallet = wallet_match.group(1)
 
+                  # Check if this PR was already paid by the bot
+                  pr_labels = [l["name"] for l in closing_pr.get("labels", [])]
+                  if "paid" in pr_labels:
+                      print(f"PR #{pr_num} already has 'paid' label — skipping duplicate notification")
+                      sys.exit(0)
+
                   keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
 
                   msg = (
