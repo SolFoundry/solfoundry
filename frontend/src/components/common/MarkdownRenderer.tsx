@@ -8,13 +8,16 @@
  *
  * @module components/common/MarkdownRenderer
  */
-import { useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Components } from 'react-markdown';
-import type { ResolvedTheme } from '../../contexts/ThemeContext';
-import { useResolvedThemeSafe } from '../../contexts/ThemeContext';
+import { useMemo } from "react";
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+  oneLight,
+  vscDarkPlus,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
+import type { Components } from "react-markdown";
+import type { ResolvedTheme } from "../../contexts/ThemeContext";
+import { useResolvedThemeSafe } from "../../contexts/ThemeContext";
 
 export interface MarkdownRendererProps {
   /** Markdown string to render. Renders nothing when empty or undefined. */
@@ -24,11 +27,11 @@ export interface MarkdownRendererProps {
 }
 
 function makeMarkdownComponents(resolved: ResolvedTheme): Components {
-  const codeStyle = resolved === 'dark' ? vscDarkPlus : oneLight;
+  const codeStyle = resolved === "dark" ? vscDarkPlus : oneLight;
 
   return {
     code({ node: _node, className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className ?? '');
+      const match = /language-(\w+)/.exec(className ?? "");
       const isInline = !match;
 
       if (isInline) {
@@ -50,7 +53,7 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
             PreTag="div"
             className="!m-0 !rounded-none text-sm"
           >
-            {String(children).replace(/\n$/, '')}
+            {String(children).replace(/\n$/, "")}
           </SyntaxHighlighter>
         </div>
       );
@@ -71,17 +74,25 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
     },
 
     h1: ({ children }) => (
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-3">{children}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-3">
+        {children}
+      </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-5 mb-2">{children}</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-5 mb-2">
+        {children}
+      </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-4 mb-2">{children}</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-4 mb-2">
+        {children}
+      </h3>
     ),
 
     p: ({ children }) => (
-      <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-3">{children}</p>
+      <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+        {children}
+      </p>
     ),
 
     blockquote: ({ children }) => (
@@ -92,7 +103,9 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
 
     table: ({ children }) => (
       <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 dark:border-white/10">
-        <table className="w-full border-collapse text-sm text-gray-700 dark:text-gray-300">{children}</table>
+        <table className="w-full border-collapse text-sm text-gray-700 dark:text-gray-300">
+          {children}
+        </table>
       </div>
     ),
     thead: ({ children }) => (
@@ -101,18 +114,26 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
       </thead>
     ),
     th: ({ children }) => (
-      <th className="px-3 py-2 text-left font-semibold text-gray-900 dark:text-white">{children}</th>
+      <th className="px-3 py-2 text-left font-semibold text-gray-900 dark:text-white">
+        {children}
+      </th>
     ),
     td: ({ children }) => (
-      <td className="px-3 py-2 border-b border-gray-100 dark:border-white/5">{children}</td>
+      <td className="px-3 py-2 border-b border-gray-100 dark:border-white/5">
+        {children}
+      </td>
     ),
 
     hr: () => <hr className="border-gray-200 dark:border-white/10 my-4" />,
 
     strong: ({ children }) => (
-      <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>
+      <strong className="font-semibold text-gray-900 dark:text-white">
+        {children}
+      </strong>
     ),
-    em: ({ children }) => <em className="italic text-gray-700 dark:text-gray-300">{children}</em>,
+    em: ({ children }) => (
+      <em className="italic text-gray-700 dark:text-gray-300">{children}</em>
+    ),
   };
 }
 
@@ -120,9 +141,15 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
  * Renders Markdown with light/dark prose and syntax-highlighted code blocks.
  * Safe against XSS: relies on react-markdown which does not use dangerouslySetInnerHTML.
  */
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+  content,
+  className,
+}: MarkdownRendererProps) {
   const resolved = useResolvedThemeSafe();
-  const components = useMemo(() => makeMarkdownComponents(resolved), [resolved]);
+  const components = useMemo(
+    () => makeMarkdownComponents(resolved),
+    [resolved],
+  );
 
   if (!content) return null;
 
@@ -132,12 +159,10 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
         `[&_ul]:list-disc [&_ul]:list-outside [&_ul]:ml-6 [&_ul]:space-y-1 [&_ul]:mb-3 ` +
         `[&_ol]:list-decimal [&_ol]:list-outside [&_ol]:ml-6 [&_ol]:space-y-1 [&_ol]:mb-3 ` +
         `[&_li]:leading-relaxed [&_ul]:text-gray-700 [&_ul]:dark:text-gray-300 ` +
-        `[&_ol]:text-gray-700 [&_ol]:dark:text-gray-300 ${className ?? ''}`
+        `[&_ol]:text-gray-700 [&_ol]:dark:text-gray-300 ${className ?? ""}`
       }
     >
-      <ReactMarkdown components={components}>
-        {content}
-      </ReactMarkdown>
+      <ReactMarkdown components={components}>{content}</ReactMarkdown>
     </div>
   );
 }
