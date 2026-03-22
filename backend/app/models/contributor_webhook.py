@@ -29,7 +29,7 @@ class ContributorWebhookDB(Base):
     __tablename__ = "contributor_webhooks"
 
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(String(100), nullable=False, index=True)
+    user_id = Column(String(100), nullable=False)
     url = Column(String(2048), nullable=False)
     secret_encrypted = Column(Text, nullable=False)
     secret_hash = Column(String(64), nullable=False)
