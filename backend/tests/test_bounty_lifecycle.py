@@ -15,7 +15,6 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 
 from app.models.bounty import (
     BountyCreate,
-    BountyDB,
     BountyStatus,
     BountyTier,
     VALID_STATUS_TRANSITIONS,
@@ -217,7 +216,7 @@ class TestClaimFlow:
 
     def test_claim_custom_duration(self):
         bid = _create_bounty(tier=BountyTier.T2)
-        resp = claim_bounty(bid, "claimer_1", claim_duration_hours=24)
+        claim_bounty(bid, "claimer_1", claim_duration_hours=24)
         bounty = bounty_service._bounty_store[bid]
         expected = bounty.claimed_at + timedelta(hours=24)
         assert abs((bounty.claim_deadline - expected).total_seconds()) < 2

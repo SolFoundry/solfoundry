@@ -15,7 +15,7 @@ import time
 import pytest
 from httpx import AsyncClient
 
-from tests.e2e.factories import build_bounty_create_payload, build_submission_payload
+from tests.e2e.factories import build_bounty_create_payload
 
 
 class TestConcurrentBountyCreation:
@@ -52,7 +52,7 @@ class TestConcurrentBountyCreation:
         results = await asyncio.gather(
             *(create_bounty(i) for i in range(target_count))
         )
-        elapsed = time.monotonic() - start_time
+        time.monotonic() - start_time
 
         # All should succeed
         successes = [r for r in results if r["status"] == 201]
@@ -163,7 +163,7 @@ class TestConcurrentSubmissions:
         results = await asyncio.gather(
             *(submit_solution(i) for i in range(target_count))
         )
-        elapsed = time.monotonic() - start_time
+        time.monotonic() - start_time
 
         successes = sum(1 for r in results if r == 201)
         assert successes == target_count, (

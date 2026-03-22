@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from app.services.email_service import can_send_email, increment_email_count, _render_template, send_notification_email
 
 @pytest.mark.asyncio

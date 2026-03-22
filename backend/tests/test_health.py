@@ -9,7 +9,7 @@ Testing exception handling directly on dependencies.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from sqlalchemy.exc import SQLAlchemyError
 from redis.asyncio import RedisError
 from httpx import ASGITransport, AsyncClient
