@@ -237,8 +237,25 @@ jobs:
                   f.write("skip=false\n")
           PYEOF
 
-      - name: Trigger private review pipeline
+      # Skip re-review if PR already has our APPROVED review
+      - name: Check if already approved
+        id: already_approved
         if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
+          APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
+            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")] | length' 2>/dev/null || echo 0)
+          if [ "$APPROVED" -gt "0" ]; then
+            echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger private review pipeline
+        if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true' && steps.already_approved.outputs.skip != 'true'
         env:
           REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
