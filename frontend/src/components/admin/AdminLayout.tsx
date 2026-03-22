@@ -48,9 +48,13 @@ function AdminLoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   /** Redirect to GitHub OAuth — on return the token lands via URL param. */
   const handleGitHubLogin = () => {
-    // Store a flag so AdminPage can capture the token on redirect-back
-    sessionStorage.setItem('sf_admin_oauth_pending', '1');
-    window.location.href = `${API_BASE}/api/auth/github/authorize?state=admin_login`;
+    // Generate a cryptographically random CSRF state token and persist it so
+    // AdminPage can verify it matches the value echoed back by the OAuth callback.
+    const stateBytes = new Uint8Array(16);
+    crypto.getRandomValues(stateBytes);
+    const state = Array.from(stateBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    sessionStorage.setItem('sf_admin_oauth_state', state);
+    window.location.href = `${API_BASE}/api/auth/github/authorize?state=${state}`;
   };
 
   const handleKeySubmit = (e: React.FormEvent) => {

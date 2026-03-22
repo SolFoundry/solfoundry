@@ -23,16 +23,26 @@ const DEFAULT_SECTION: AdminSection = 'overview';
 export default function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Capture GitHub OAuth token from redirect callback (?access_token=...)
+  // Capture GitHub OAuth token from redirect callback (?access_token=&state=...)
   useEffect(() => {
     const token = searchParams.get('access_token');
+    const returnedState = searchParams.get('state');
     if (token) {
-      setAdminToken(token);
-      sessionStorage.removeItem('sf_admin_oauth_pending');
-      // Strip token from URL for security
+      const expectedState = sessionStorage.getItem('sf_admin_oauth_state');
+      sessionStorage.removeItem('sf_admin_oauth_state');
+
+      if (!expectedState || returnedState !== expectedState) {
+        // State mismatch — possible CSRF; reject the token
+        console.error('[AdminPage] OAuth state mismatch — login rejected');
+      } else {
+        setAdminToken(token);
+      }
+
+      // Strip token and state from URL regardless of outcome
       setSearchParams(
         prev => {
           prev.delete('access_token');
+          prev.delete('state');
           return prev;
         },
         { replace: true },

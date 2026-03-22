@@ -79,7 +79,7 @@ async def _resolve_role(credentials: Optional[HTTPAuthorizationCredentials]) -> 
 
     # ── Try JWT first ────────────────────────────────────────────────────────
     try:
-        from app.services.auth_service import decode_token, InvalidTokenError, TokenExpiredError
+        from app.services.auth_service import decode_token
 
         username: str = decode_token(token, token_type="access").lower()
 
@@ -160,6 +160,7 @@ async def require_any(
 
 async def _log(event: str, actor: str, role: str = "admin", **details: Any) -> None:
     """Insert an audit entry into PostgreSQL and emit to structlog."""
+    import logging as _logging
     audit_event(event, actor=actor, **details)
     try:
         async with get_db_session() as session:
@@ -173,9 +174,11 @@ async def _log(event: str, actor: str, role: str = "admin", **details: Any) -> N
             )
             session.add(row)
             await session.commit()
-    except Exception:
-        # Never let audit log failures bubble up to the caller
-        pass
+    except Exception as exc:
+        # Log the failure so missing audit records are distinguishable from empty results
+        _logging.getLogger(__name__).error(
+            "audit_log_write_failed event=%r actor=%r error=%r", event, actor, exc
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +404,7 @@ async def get_overview(auth: tuple = Depends(require_any)) -> AdminOverview:
     contributors = list(_contributor_store.values())
 
     total_fndry = sum(
-        b.reward_amount for b in bounties if b.status in (BountyStatus.PAID, BountyStatus.COMPLETED)
+        b.reward_amount for b in bounties if b.status == BountyStatus.PAID
     )
     total_submissions = sum(len(b.submissions) for b in bounties if b.submissions)
     pending_reviews = sum(
@@ -413,7 +416,7 @@ async def get_overview(auth: tuple = Depends(require_any)) -> AdminOverview:
     return AdminOverview(
         total_bounties=len(bounties),
         open_bounties=sum(1 for b in bounties if b.status == BountyStatus.OPEN),
-        completed_bounties=sum(1 for b in bounties if b.status in (BountyStatus.COMPLETED, BountyStatus.PAID)),
+        completed_bounties=sum(1 for b in bounties if b.status == BountyStatus.COMPLETED),
         cancelled_bounties=sum(1 for b in bounties if b.status == BountyStatus.CANCELLED),
         total_contributors=len(contributors),
         active_contributors=sum(1 for c in contributors if not getattr(c, "is_banned", False)),
@@ -545,6 +548,17 @@ async def close_bounty_admin(
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         raise HTTPException(status_code=404, detail=f"Bounty {bounty_id!r} not found")
+
+    current = BountyStatus(bounty.status)
+    allowed = VALID_STATUS_TRANSITIONS.get(current, set())
+    if BountyStatus.CANCELLED not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot force-close a bounty in {current.value!r} state. "
+                f"Allowed transitions: {[s.value for s in allowed]}"
+            ),
+        )
 
     old_status = bounty.status
     bounty.status = BountyStatus.CANCELLED
@@ -725,7 +739,7 @@ async def get_review_pipeline(_auth: tuple = Depends(require_any)) -> ReviewPipe
 @router.get("/financial/overview", response_model=FinancialOverview, summary="Token distribution summary")
 async def get_financial_overview(_auth: tuple = Depends(require_any)) -> FinancialOverview:
     bounties = list(_bounty_store.values())
-    paid = [b for b in bounties if b.status in (BountyStatus.PAID, BountyStatus.COMPLETED)]
+    paid = [b for b in bounties if b.status == BountyStatus.PAID]
     pending = [b for b in bounties if b.status in (BountyStatus.UNDER_REVIEW, BountyStatus.COMPLETED)]
 
     total_distributed = sum(b.reward_amount for b in paid)
@@ -750,7 +764,7 @@ async def get_payout_history(
     _auth: tuple = Depends(require_any),
 ) -> PayoutHistoryResponse:
     paid_bounties = sorted(
-        [b for b in _bounty_store.values() if b.status in (BountyStatus.PAID, BountyStatus.COMPLETED)],
+        [b for b in _bounty_store.values() if b.status == BountyStatus.PAID],
         key=lambda b: getattr(b, "created_at", datetime.min),
         reverse=True,
     )
@@ -889,7 +903,9 @@ async def get_audit_log(
             q = q.limit(limit)
             result = await session.execute(q)
             rows = result.scalars().all()
-    except Exception:
+    except Exception as exc:
+        import logging as _logging
+        _logging.getLogger(__name__).error("audit_log_read_failed error=%r", exc)
         return AuditLogResponse(entries=[], total=0)
 
     return AuditLogResponse(
