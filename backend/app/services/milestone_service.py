@@ -18,7 +18,10 @@ from app.models.bounty_table import BountyTable
 from app.models.bounty import BountyTier
 from app.exceptions import (
     BountyNotFoundError,
-    UnauthorizedDisputeAccessError, # Reusing for general unauthorized access
+    MilestoneNotFoundError,
+    MilestoneValidationError,
+    MilestoneSequenceError,
+    UnauthorizedMilestoneAccessError,
 )
 from app.services.telegram_service import send_telegram_notification
 from app.services.payout_service import create_payout
@@ -45,15 +48,15 @@ class MilestoneService:
             raise BountyNotFoundError(f"Bounty {bounty_id} not found")
 
         if str(bounty.created_by) != user_id:
-            raise UnauthorizedDisputeAccessError("Only the bounty creator can create milestones")
+            raise UnauthorizedMilestoneAccessError("Only the bounty creator can create milestones")
 
         if bounty.tier != BountyTier.T3:
-            raise ValueError("Milestones can only be added to T3 bounties")
+            raise MilestoneValidationError("Milestones can only be added to T3 (Large) bounties")
 
         # Validate total percentage
         total_percentage = sum(m.percentage for m in milestones_data)
         if abs(total_percentage - 100.0) > 0.001:
-            raise ValueError(f"Total percentage must be 100, got {total_percentage}")
+            raise MilestoneValidationError(f"Total percentage must be 100, got {total_percentage:.2f}")
 
         # Delete existing milestones if any
         stmt = select(MilestoneTable).where(MilestoneTable.bounty_id == uuid.UUID(bounty_id))
@@ -102,16 +105,15 @@ class MilestoneService:
             raise BountyNotFoundError(f"Bounty {bounty_id} not found")
 
         # Check if user is the claimant
-        # In this system, 'claimed_by' stores the user ID
-        if str(bounty.claimed_by) != user_id:
-            raise UnauthorizedDisputeAccessError("Only the bounty claimant can submit milestones")
+        if not bounty.claimed_by or str(bounty.claimed_by) != user_id:
+            raise UnauthorizedMilestoneAccessError("Only the verified bounty claimant can submit milestones")
 
         milestone = await self.db.get(MilestoneTable, uuid.UUID(milestone_id))
         if not milestone or str(milestone.bounty_id) != bounty_id:
-            raise ValueError("Milestone not found for this bounty")
+            raise MilestoneNotFoundError(f"Milestone {milestone_id} not found for this bounty")
 
         if milestone.status != MilestoneStatus.PENDING.value:
-            raise ValueError(f"Milestone is already {milestone.status}")
+            raise MilestoneSequenceError(f"Milestone is already in {milestone.status} state")
 
         milestone.status = MilestoneStatus.SUBMITTED.value
         milestone.submitted_at = datetime.now(timezone.utc)
@@ -139,14 +141,14 @@ class MilestoneService:
             raise BountyNotFoundError(f"Bounty {bounty_id} not found")
 
         if str(bounty.created_by) != user_id:
-            raise UnauthorizedDisputeAccessError("Only the bounty creator can approve milestones")
+            raise UnauthorizedMilestoneAccessError("Only the bounty creator can approve milestones")
 
         milestone = await self.db.get(MilestoneTable, uuid.UUID(milestone_id))
         if not milestone or str(milestone.bounty_id) != bounty_id:
-            raise ValueError("Milestone not found for this bounty")
+            raise MilestoneNotFoundError(f"Milestone {milestone_id} not found for this bounty")
 
         if milestone.status != MilestoneStatus.SUBMITTED.value:
-            raise ValueError(f"Milestone cannot be approved in state: {milestone.status}")
+            raise MilestoneSequenceError(f"Milestone cannot be approved in {milestone.status} state. It must be 'submitted' first.")
 
         # Check sequence: cannot approve N+1 before N
         if milestone.milestone_number > 1:
@@ -159,7 +161,7 @@ class MilestoneService:
             prev_result = await self.db.execute(prev_stmt)
             prev_milestone = prev_result.scalar_one_or_none()
             if prev_milestone and prev_milestone.status != MilestoneStatus.APPROVED.value:
-                raise ValueError(f"Milestone #{milestone.milestone_number - 1} must be approved first")
+                raise MilestoneSequenceError(f"Milestone #{milestone.milestone_number - 1} must be approved first")
 
         # Approve and set timestamp
         milestone.status = MilestoneStatus.APPROVED.value
@@ -173,20 +175,28 @@ class MilestoneService:
         # For milestones, we use the claimant's wallet.
         
         from app.services.contributor_service import get_contributor
-        contributor = await get_contributor(str(bounty.claimed_by))
-        wallet = contributor.wallet_address if contributor else None
+        try:
+            contributor = await get_contributor(str(bounty.claimed_by))
+            wallet = contributor.wallet_address if contributor else None
 
-        if wallet:
-            payout_request = PayoutCreate(
-                recipient=str(bounty.claimed_by),
-                recipient_wallet=wallet,
-                amount=payout_amount,
-                token="FNDRY",
-                bounty_id=str(bounty.id),
-                bounty_title=f"{bounty.title} - Milestone #{milestone.milestone_number}",
-            )
-            payout_response = await create_payout(payout_request)
-            milestone.payout_tx_hash = payout_response.tx_hash
+            if not wallet:
+                logger.warning("No wallet address found for claimant %s, skipping automatic payout", bounty.claimed_by)
+            else:
+                payout_request = PayoutCreate(
+                    recipient=str(bounty.claimed_by),
+                    recipient_wallet=wallet,
+                    amount=payout_amount,
+                    token="FNDRY",
+                    bounty_id=str(bounty.id),
+                    bounty_title=f"{bounty.title} - Milestone #{milestone.milestone_number}",
+                )
+                payout_response = await create_payout(payout_request)
+                milestone.payout_tx_hash = payout_response.tx_hash
+        except Exception as payout_err:
+            # We don't want to revert the approval if only the notification/payout record fails, 
+            # but we should log it prominently.
+            import logging
+            logging.getLogger(__name__).error(f"Failed to process payout for milestone {milestone_id}: {payout_err}")
         
         await self.db.commit()
         await self.db.refresh(milestone)

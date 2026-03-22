@@ -71,9 +71,18 @@ def upgrade() -> None:
         ["status"],
     )
 
+    # Add missing claim fields to bounties table
+    op.add_column("bounties", sa.Column("claimed_by", sa.String(length=100), nullable=True))
+    op.add_column("bounties", sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("bounties", sa.Column("claim_deadline", sa.DateTime(timezone=True), nullable=True))
+
 
 def downgrade() -> None:
     """Drop the bounties_milestones table."""
     op.drop_index("ix_bounties_milestones_status", table_name="bounties_milestones")
     op.drop_index("ix_bounties_milestones_bounty_id", table_name="bounties_milestones")
     op.drop_table("bounties_milestones")
+    
+    op.drop_column("bounties", "claim_deadline")
+    op.drop_column("bounties", "claimed_at")
+    op.drop_column("bounties", "claimed_by")

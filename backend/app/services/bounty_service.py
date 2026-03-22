@@ -27,6 +27,7 @@ from app.models.bounty import (
     VALID_SUBMISSION_TRANSITIONS,
     VALID_STATUS_TRANSITIONS,
 )
+from app.exceptions import MilestoneValidationError
 from app.models.milestone import MilestoneResponse, MilestoneStatus
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,7 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
                 ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
                 submitted_at=sr.submitted_at,
             )
+            for sr in sub_rows
         ]
 
         milestone_rows = await load_milestones_for_bounty(bounty_id)
@@ -254,6 +256,9 @@ def _to_bounty_response(bounty: BountyDB) -> BountyResponse:
         submissions=subs,
         submission_count=len(subs),
         milestones=bounty.milestones,
+        claimed_by=bounty.claimed_by,
+        claimed_at=bounty.claimed_at,
+        claim_deadline=bounty.claim_deadline,
         created_at=bounty.created_at,
         updated_at=bounty.updated_at,
     )
@@ -283,6 +288,7 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
         created_by=bounty.created_by,
         submissions=subs,
         submission_count=len(bounty.submissions),
+        claimed_by=bounty.claimed_by,
         created_at=bounty.created_at,
     )
 
@@ -312,6 +318,14 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
     Returns:
         The newly created bounty as a BountyResponse.
     """
+    if data.milestones:
+        if data.tier != 3: # BountyTier.T3
+            raise MilestoneValidationError("Milestones can only be added to T3 (Large) bounties")
+        
+        total_percentage = sum(m.percentage for m in data.milestones)
+        if abs(total_percentage - 100.0) > 0.001:
+            raise MilestoneValidationError(f"Total milestone percentage must be 100, got {total_percentage:.2f}")
+
     bounty = BountyDB(
         title=data.title,
         description=data.description,

@@ -679,7 +679,7 @@ async def publish_bounty(
     await _verify_bounty_ownership(bounty_id, user)
     actor_id = user.wallet_address or str(user.id)
     try:
-        return _publish_bounty(bounty_id, actor_id=actor_id)
+        return await _publish_bounty(bounty_id, actor_id=actor_id)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
@@ -708,7 +708,7 @@ async def claim_bounty(
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
-        return _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        return await _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
@@ -731,7 +731,7 @@ async def unclaim_bounty(
 ) -> BountyResponse:
     actor_id = user.wallet_address or str(user.id)
     try:
-        return _unclaim_bounty(bounty_id, actor_id=actor_id, reason="manual")
+        return await _unclaim_bounty(bounty_id, actor_id=actor_id, reason="manual")
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)

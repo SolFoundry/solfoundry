@@ -132,3 +132,24 @@ class EscrowFundingError(EscrowError):
 
 class EscrowDoubleSpendError(EscrowError):
     """Raised when a funding transaction could not be confirmed on-chain."""
+
+
+# ---------------------------------------------------------------------------
+# Milestone exceptions
+# ---------------------------------------------------------------------------
+
+
+class MilestoneNotFoundError(Exception):
+    """Raised when a milestone ID does not exist in the database."""
+
+
+class MilestoneValidationError(Exception):
+    """Raised when milestone data fails validation (e.g. percentages)."""
+
+
+class MilestoneSequenceError(Exception):
+    """Raised when milestones are submitted or approved out of order."""
+
+
+class UnauthorizedMilestoneAccessError(Exception):
+    """Raised when a non-authorized user attempts a restricted milestone action."""
