@@ -93,9 +93,9 @@ def test_sign_payload_hmac_correct():
     """Signature must match an independently computed HMAC-SHA256."""
     payload = b'{"event":"bounty.claimed"}'
     secret = "test-secret-abc"
-    expected = "sha256=" + hmac.new(
-        secret.encode(), payload, hashlib.sha256
-    ).hexdigest()
+    expected = (
+        "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    )
     assert _sign_payload(payload, secret) == expected
 
 
@@ -246,8 +246,10 @@ async def test_deliver_success_on_first_attempt():
     mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session_cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("app.services.contributor_webhook_service.aiohttp.ClientSession",
-               return_value=mock_session_cm):
+    with patch(
+        "app.services.contributor_webhook_service.aiohttp.ClientSession",
+        return_value=mock_session_cm,
+    ):
         payload_bytes = _build_payload("bounty.claimed", "b-1", {})
         await service._deliver_with_retry(record, "bounty.claimed", payload_bytes)
 
@@ -275,14 +277,20 @@ async def test_deliver_retries_on_non_2xx():
     mock_session_cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.services.contributor_webhook_service.aiohttp.ClientSession",
-              return_value=mock_session_cm),
-        patch("app.services.contributor_webhook_service.asyncio.sleep", new_callable=AsyncMock),
+        patch(
+            "app.services.contributor_webhook_service.aiohttp.ClientSession",
+            return_value=mock_session_cm,
+        ),
+        patch(
+            "app.services.contributor_webhook_service.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
     ):
         payload_bytes = _build_payload("review.failed", "b-2", {})
         await service._deliver_with_retry(record, "review.failed", payload_bytes)
 
     from app.services.contributor_webhook_service import MAX_ATTEMPTS
+
     assert mock_session.post.call_count == MAX_ATTEMPTS
 
 
@@ -300,14 +308,20 @@ async def test_deliver_retries_on_network_error():
     mock_session_cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.services.contributor_webhook_service.aiohttp.ClientSession",
-              return_value=mock_session_cm),
-        patch("app.services.contributor_webhook_service.asyncio.sleep", new_callable=AsyncMock),
+        patch(
+            "app.services.contributor_webhook_service.aiohttp.ClientSession",
+            return_value=mock_session_cm,
+        ),
+        patch(
+            "app.services.contributor_webhook_service.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
     ):
         payload_bytes = _build_payload("bounty.paid", "b-3", {})
         await service._deliver_with_retry(record, "bounty.paid", payload_bytes)
 
     from app.services.contributor_webhook_service import MAX_ATTEMPTS
+
     assert mock_session.post.call_count == MAX_ATTEMPTS
 
 
@@ -340,9 +354,14 @@ async def test_deliver_succeeds_on_second_attempt():
     mock_session_cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.services.contributor_webhook_service.aiohttp.ClientSession",
-              return_value=mock_session_cm),
-        patch("app.services.contributor_webhook_service.asyncio.sleep", new_callable=AsyncMock),
+        patch(
+            "app.services.contributor_webhook_service.aiohttp.ClientSession",
+            return_value=mock_session_cm,
+        ),
+        patch(
+            "app.services.contributor_webhook_service.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
     ):
         payload_bytes = _build_payload("review.passed", "b-4", {})
         await service._deliver_with_retry(record, "review.passed", payload_bytes)
@@ -368,6 +387,7 @@ async def test_register_endpoint_returns_201():
 
     mock_service = AsyncMock()
     from app.models.contributor_webhook import WebhookResponse
+
     mock_service.register.return_value = WebhookResponse(
         id=str(created.id),
         url="https://example.com/hook",
@@ -390,7 +410,10 @@ async def test_register_endpoint_returns_201():
         ) as client:
             response = await client.post(
                 "/webhooks/register",
-                json={"url": "https://example.com/hook", "secret": "supersecret1234567890"},
+                json={
+                    "url": "https://example.com/hook",
+                    "secret": "supersecret1234567890",
+                },
             )
     assert response.status_code == 201
     body = response.json()
@@ -442,7 +465,10 @@ async def test_register_endpoint_returns_400_on_limit():
         ) as client:
             response = await client.post(
                 "/webhooks/register",
-                json={"url": "https://example.com/hook", "secret": "supersecret1234567890"},
+                json={
+                    "url": "https://example.com/hook",
+                    "secret": "supersecret1234567890",
+                },
             )
     assert response.status_code == 400
 

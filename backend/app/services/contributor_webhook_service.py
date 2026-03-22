@@ -161,9 +161,7 @@ class ContributorWebhookService:
 
         payload_bytes = _build_payload(event, bounty_id, data)
 
-        tasks = [
-            self._deliver_with_retry(wh, event, payload_bytes) for wh in webhooks
-        ]
+        tasks = [self._deliver_with_retry(wh, event, payload_bytes) for wh in webhooks]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -193,9 +191,7 @@ class ContributorWebhookService:
                         timeout=aiohttp.ClientTimeout(total=DISPATCH_TIMEOUT_SECONDS),
                     ) as resp:
                         if 200 <= resp.status < 300:
-                            await self._record_delivery(
-                                webhook.id, success=True
-                            )
+                            await self._record_delivery(webhook.id, success=True)
                             logger.info(
                                 "Webhook delivered: id=%s event=%s attempt=%d status=%d",
                                 webhook.id,
@@ -226,7 +222,7 @@ class ContributorWebhookService:
                 )
 
             if attempt < MAX_ATTEMPTS:
-                delay = BACKOFF_BASE_SECONDS ** attempt
+                delay = BACKOFF_BASE_SECONDS**attempt
                 await asyncio.sleep(delay)
 
         # All attempts exhausted
