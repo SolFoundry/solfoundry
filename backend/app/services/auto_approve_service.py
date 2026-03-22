@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from app.models.review import AI_REVIEW_SCORE_THRESHOLD, AUTO_APPROVE_TIMEOUT_HOURS
 from app.services import bounty_service
@@ -71,7 +71,9 @@ def check_auto_approve_candidates() -> list[dict]:
                     actor_type="auto",
                     details={
                         "reason": "AI score >= threshold and 48h elapsed with no dispute",
-                        "ai_score": review_service.get_aggregated_score(sub.id, bounty_id).overall_score,
+                        "ai_score": review_service.get_aggregated_score(
+                            sub.id, bounty_id
+                        ).overall_score,
                         "threshold": AI_REVIEW_SCORE_THRESHOLD,
                         "timeout_hours": AUTO_APPROVE_TIMEOUT_HOURS,
                     },

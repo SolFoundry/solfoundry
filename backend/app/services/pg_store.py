@@ -10,10 +10,9 @@ Submission rows are first-class entities persisted alongside bounties.
 
 import uuid as _uuid
 import logging
-from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import select, delete as sa_del, func, and_
+from sqlalchemy import select, delete as sa_del, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
@@ -43,7 +42,9 @@ def _to_uuid(val: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
+async def _upsert(
+    session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any
+) -> None:
     """Insert or update a row using merge (session-level upsert).
 
     Uses a SELECT-then-INSERT/UPDATE pattern within a single session to
@@ -65,7 +66,9 @@ async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **colum
             setattr(obj, key, value)
 
 
-async def _insert_if_absent(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
+async def _insert_if_absent(
+    session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any
+) -> None:
     """Insert a row only if its primary key does not already exist.
 
     Idempotent -- calling with an existing PK is a no-op.
@@ -146,16 +149,18 @@ async def _persist_bounty_submission(
     pk = str(sub.id)
     existing = await session.get(BountySubmissionTable, pk)
     if existing is None:
-        session.add(BountySubmissionTable(
-            id=pk,
-            bounty_id=str(bounty_id),
-            pr_url=sub.pr_url,
-            submitted_by=sub.submitted_by,
-            notes=sub.notes,
-            status=sub_status,
-            ai_score=sub.ai_score,
-            submitted_at=sub.submitted_at,
-        ))
+        session.add(
+            BountySubmissionTable(
+                id=pk,
+                bounty_id=str(bounty_id),
+                pr_url=sub.pr_url,
+                submitted_by=sub.submitted_by,
+                notes=sub.notes,
+                status=sub_status,
+                ai_score=sub.ai_score,
+                submitted_at=sub.submitted_at,
+            )
+        )
     else:
         existing.status = sub_status
         existing.ai_score = sub.ai_score
@@ -186,9 +191,7 @@ async def delete_bounty_row(bounty_id: str) -> None:
         await session.commit()
 
 
-async def load_bounties(
-    *, offset: int = 0, limit: int = 10000
-) -> list[Any]:
+async def load_bounties(*, offset: int = 0, limit: int = 10000) -> list[Any]:
     """Load bounties from PostgreSQL ordered by created_at descending.
 
     Args:
@@ -328,9 +331,7 @@ async def delete_contributor_row(contributor_id: str) -> None:
         await session.commit()
 
 
-async def load_contributors(
-    *, offset: int = 0, limit: int = 10000
-) -> list[Any]:
+async def load_contributors(*, offset: int = 0, limit: int = 10000) -> list[Any]:
     """Load contributors from PostgreSQL ordered by created_at descending.
 
     Args:
@@ -446,9 +447,7 @@ async def persist_payout(record: Any) -> None:
         await session.commit()
 
 
-async def load_payouts(
-    *, offset: int = 0, limit: int = 10000
-) -> dict[str, Any]:
+async def load_payouts(*, offset: int = 0, limit: int = 10000) -> dict[str, Any]:
     """Load payouts from PostgreSQL into a dict keyed by ID string.
 
     Results are ordered by created_at descending and converted to
@@ -490,9 +489,7 @@ async def load_payouts(
     return out
 
 
-async def load_buybacks(
-    *, offset: int = 0, limit: int = 10000
-) -> dict[str, Any]:
+async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> dict[str, Any]:
     """Load buyback records from PostgreSQL into a dict keyed by ID string.
 
     Args:

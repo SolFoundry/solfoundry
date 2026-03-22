@@ -52,7 +52,9 @@ async def hydrate_from_database() -> None:
         _reputation_store.update(loaded)
 
 
-async def _load_reputation_from_db() -> Optional[dict[str, list[ReputationHistoryEntry]]]:
+async def _load_reputation_from_db() -> Optional[
+    dict[str, list[ReputationHistoryEntry]]
+]:
     """Load all reputation data from PostgreSQL.
 
     Returns None on DB failure so callers can fall back to the cache.
@@ -137,9 +139,15 @@ def determine_current_tier(tier_counts: dict[int, int]) -> ContributorTier:
     Returns:
         The contributor's current maximum access tier.
     """
-    if tier_counts.get(2, 0) >= TIER_REQUIREMENTS[ContributorTier.T3]["merged_bounties"]:
+    if (
+        tier_counts.get(2, 0)
+        >= TIER_REQUIREMENTS[ContributorTier.T3]["merged_bounties"]
+    ):
         return ContributorTier.T3
-    if tier_counts.get(1, 0) >= TIER_REQUIREMENTS[ContributorTier.T2]["merged_bounties"]:
+    if (
+        tier_counts.get(1, 0)
+        >= TIER_REQUIREMENTS[ContributorTier.T2]["merged_bounties"]
+    ):
         return ContributorTier.T2
     return ContributorTier.T1
 
@@ -226,9 +234,7 @@ async def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEn
         TierNotUnlockedError: If the bounty tier is not yet unlocked.
     """
     async with _reputation_lock:
-        contributor = await contributor_service.get_contributor_db(
-            data.contributor_id
-        )
+        contributor = await contributor_service.get_contributor_db(data.contributor_id)
         if contributor is None:
             raise ContributorNotFoundError(
                 f"Contributor '{data.contributor_id}' not found"
@@ -272,10 +278,7 @@ async def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEn
         _reputation_store.setdefault(data.contributor_id, []).append(entry)
 
         # Update reputation score in PostgreSQL
-        total = sum(
-            r.earned_reputation
-            for r in _reputation_store[data.contributor_id]
-        )
+        total = sum(r.earned_reputation for r in _reputation_store[data.contributor_id])
         await contributor_service.update_reputation_score(
             data.contributor_id, round(total, 2)
         )

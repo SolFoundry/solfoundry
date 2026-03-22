@@ -1,9 +1,3 @@
-/**
- * Skeleton - Reusable skeleton loading components
- * Supports: text line, card, avatar, table row with shimmer animation
- * @module components/common/Skeleton
- */
-
 import React from 'react';
 
 // ============================================================================
@@ -13,61 +7,66 @@ import React from 'react';
 export type SkeletonRounded = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 
 export interface SkeletonProps {
-  /** Additional CSS classes */
   className?: string;
-  /** Width of the skeleton (CSS value) */
   width?: string | number;
-  /** Height of the skeleton (CSS value) */
   height?: string | number;
   /** Border radius preset (overridden by circle/pill variants) */
   rounded?: SkeletonRounded;
-  /** Semantic shape presets */
   variant?: 'default' | 'circle' | 'pill';
-  /** Number of times to repeat the skeleton */
-  count?: number;
-  /** Gap between repeated skeletons */
-  gap?: string | number;
-  /** Animation style */
-  animation?: 'pulse' | 'shimmer' | 'none';
+  animation?: 'shimmer' | 'pulse' | 'none';
 }
 
-export interface SkeletonTextProps extends Omit<SkeletonProps, 'variant' | 'rounded'> {
-  /** Number of lines to render */
+export interface SkeletonTextProps extends Omit<SkeletonProps, 'variant' | 'width' | 'height'> {
   lines?: number;
-  /** Line height */
   lineHeight?: string | number;
-  /** Last line width percentage (0-100) */
   lastLineWidth?: number;
-  /** Border radius for each line */
-  rounded?: SkeletonRounded;
+  gap?: string | number;
 }
 
 export interface SkeletonCardProps {
-  /** Show avatar in card */
   showAvatar?: boolean;
-  /** Show header line */
   showHeader?: boolean;
-  /** Number of body lines */
   bodyLines?: number;
-  /** Show footer */
   showFooter?: boolean;
-  /** Additional classes */
   className?: string;
 }
 
 export interface SkeletonAvatarProps extends Omit<SkeletonProps, 'variant'> {
-  /** Size preset */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
 }
 
 export interface SkeletonTableRowProps {
-  /** Number of columns */
   columns?: number;
-  /** Show avatar in first data column (e.g. contributor name) */
   showAvatar?: boolean;
-  /** Column widths (percentages) */
   columnWidths?: number[];
-  /** Row class */
+  className?: string;
+}
+
+export interface SkeletonGridProps {
+  count?: number;
+  columns?: 1 | 2 | 3 | 4;
+  variant?: 'card' | 'list';
+  showAvatar?: boolean;
+  className?: string;
+}
+
+export interface SkeletonListProps {
+  count?: number;
+  showTier?: boolean;
+  showSkills?: boolean;
+  className?: string;
+}
+
+export interface SkeletonTableProps {
+  rows?: number;
+  columns?: number;
+  showAvatar?: boolean;
+  className?: string;
+}
+
+export interface SkeletonActivityFeedProps {
+  count?: number;
   className?: string;
 }
 
@@ -81,13 +80,16 @@ const ROUNDED_MAP: Record<SkeletonRounded, string> = {
   full: 'rounded-full',
 };
 
+const ANIMATION_CLASSES: Record<string, string> = {
+  shimmer: 'skeleton-shimmer',
+  pulse: 'skeleton-pulse bg-surface-200',
+  none: 'bg-surface-200',
+};
+
 // ============================================================================
-// Base Skeleton Component
+// Base Skeleton
 // ============================================================================
 
-/**
- * Base skeleton element with shimmer/pulse animation
- */
 export function Skeleton({
   className = '',
   width,
@@ -96,16 +98,8 @@ export function Skeleton({
   variant = 'default',
   animation = 'shimmer',
 }: SkeletonProps) {
-  const baseClasses = 'bg-gray-200 dark:bg-surface-200';
-
   const radiusClass =
     variant === 'circle' || variant === 'pill' ? 'rounded-full' : ROUNDED_MAP[rounded];
-
-  const animationClasses: Record<string, string> = {
-    pulse: 'animate-pulse',
-    shimmer: 'animate-shimmer',
-    none: '',
-  };
 
   const style: React.CSSProperties = {};
   if (width !== undefined) style.width = typeof width === 'number' ? `${width}px` : width;
@@ -113,7 +107,7 @@ export function Skeleton({
 
   return (
     <div
-      className={`${baseClasses} ${radiusClass} ${animationClasses[animation]} ${className}`.trim()}
+      className={`${ANIMATION_CLASSES[animation]} ${radiusClass} ${className}`.trim()}
       style={style}
       role="presentation"
       aria-hidden="true"
@@ -125,16 +119,13 @@ export function Skeleton({
 // Skeleton Text
 // ============================================================================
 
-/**
- * Skeleton for text content - renders multiple lines
- */
 export function SkeletonText({
   lines = 1,
-  lineHeight = '1rem',
+  lineHeight = '0.875rem',
   lastLineWidth = 70,
-  className = '',
   gap = '0.5rem',
   rounded = 'md',
+  className = '',
   animation = 'shimmer',
   ...rest
 }: SkeletonTextProps) {
@@ -150,7 +141,6 @@ export function SkeletonText({
       {Array.from({ length: lines }, (_, i) => {
         const isLast = i === lines - 1 && lines > 1;
         const w = isLast ? `${lastLineWidth}%` : '100%';
-
         return (
           <Skeleton
             key={i}
@@ -170,9 +160,6 @@ export function SkeletonText({
 // Skeleton Card
 // ============================================================================
 
-/**
- * Skeleton for generic card content
- */
 export function SkeletonCard({
   showAvatar = false,
   showHeader = true,
@@ -188,9 +175,7 @@ export function SkeletonCard({
     >
       {showHeader && (
         <div className="flex items-start gap-3 mb-3">
-          {showAvatar && (
-            <SkeletonAvatar size="md" className="shrink-0" />
-          )}
+          {showAvatar && <SkeletonAvatar size="md" className="shrink-0" />}
           <div className="flex-1 flex flex-col gap-2">
             <Skeleton height="1.25rem" width="60%" rounded="md" />
             <Skeleton height="0.875rem" width="40%" rounded="md" />
@@ -218,30 +203,26 @@ export function SkeletonCard({
 // Skeleton Avatar
 // ============================================================================
 
-/**
- * Skeleton for avatar with size presets
- */
+const AVATAR_SIZES: Record<string, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 56,
+  xl: 80,
+};
+
 export function SkeletonAvatar({
   size = 'md',
   className = '',
   animation = 'shimmer',
   ...rest
 }: SkeletonAvatarProps) {
-  const sizeMap: Record<string, { width: number; height: number }> = {
-    xs: { width: 24, height: 24 },
-    sm: { width: 32, height: 32 },
-    md: { width: 40, height: 40 },
-    lg: { width: 56, height: 56 },
-    xl: { width: 80, height: 80 },
-  };
-
-  const { width, height } = sizeMap[size];
-
+  const px = AVATAR_SIZES[size];
   return (
     <Skeleton
       variant="circle"
-      width={width}
-      height={height}
+      width={px}
+      height={px}
       className={className}
       animation={animation}
       {...rest}
@@ -253,9 +234,6 @@ export function SkeletonAvatar({
 // Skeleton Table Row
 // ============================================================================
 
-/**
- * Skeleton for table row - matches leaderboard, bounty table layouts
- */
 export function SkeletonTableRow({
   columns = 4,
   showAvatar = false,
@@ -267,7 +245,6 @@ export function SkeletonTableRow({
     if (i === columns - 1) return 80;
     return 100 / columns;
   });
-
   const widths = columnWidths ?? defaultWidths;
 
   return (
@@ -279,14 +256,8 @@ export function SkeletonTableRow({
       {Array.from({ length: columns }, (_, i) => (
         <td key={i} className="py-3 px-2">
           <div className="flex items-center gap-2">
-            {showAvatar && i === 1 && (
-              <SkeletonAvatar size="sm" />
-            )}
-            <Skeleton
-              height="1rem"
-              width={`${widths[i]}%`}
-              rounded="md"
-            />
+            {showAvatar && i === 1 && <SkeletonAvatar size="sm" />}
+            <Skeleton height="1rem" width={`${widths[i]}%`} rounded="md" />
           </div>
         </td>
       ))}
@@ -428,49 +399,25 @@ export function SkeletonContributorProfile({ className = '' }: { className?: str
 // Skeleton Grid
 // ============================================================================
 
-export interface SkeletonGridProps {
-  /** Number of skeleton cards to render */
-  count?: number;
-  /** Grid columns (responsive) */
-  columns?: 1 | 2 | 3 | 4;
-  /** Card variant */
-  variant?: 'card' | 'list';
-  /** Gap between cards */
-  gap?: string;
-  /** Show avatar in cards */
-  showAvatar?: boolean;
-  /** Additional classes */
-  className?: string;
-}
+const COLUMN_CLASSES: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+};
 
-/**
- * Skeleton grid for loading states of card grids
- */
 export function SkeletonGrid({
   count = 6,
   columns = 3,
   variant = 'card',
-  gap = '1rem',
   showAvatar = false,
   className = '',
 }: SkeletonGridProps) {
-  const columnClasses: Record<number, string> = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-  };
-
   if (variant === 'list') {
     return (
       <div className={`space-y-3 ${className}`.trim()} role="presentation" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
-          <SkeletonCard
-            key={i}
-            showAvatar={showAvatar}
-            bodyLines={2}
-            showFooter
-          />
+          <SkeletonCard key={i} showAvatar={showAvatar} bodyLines={2} showFooter />
         ))}
       </div>
     );
@@ -478,38 +425,25 @@ export function SkeletonGrid({
 
   return (
     <div
-      className={`grid ${columnClasses[columns]} ${className}`.trim()}
-      style={{ gap }}
+      className={`grid ${COLUMN_CLASSES[columns]} gap-4 ${className}`.trim()}
       role="presentation"
       aria-hidden="true"
     >
       {Array.from({ length: count }, (_, i) => (
-        <SkeletonBountyCard key={i} />
+        <SkeletonCard key={i} showAvatar={showAvatar} bodyLines={2} showFooter />
       ))}
     </div>
   );
 }
 
 // ============================================================================
-// Skeleton List (legacy layout — prefer SkeletonBountyCard grid / SkeletonBountyListRows)
+// Skeleton List (Bounty List)
 // ============================================================================
 
-export interface SkeletonListProps {
-  /** Number of items */
-  count?: number;
-  /** Show tier badge area */
-  showTier?: boolean;
-  /** Show skills tags */
-  showSkills?: boolean;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Vertical list placeholder; marketplace uses SkeletonBountyCard in a grid for parity with BountyCard.
- */
 export function SkeletonList({
   count = 5,
+  showTier = false,
+  showSkills = false,
   className = '',
 }: SkeletonListProps) {
   return (
@@ -519,7 +453,33 @@ export function SkeletonList({
       aria-hidden="true"
     >
       {Array.from({ length: count }, (_, i) => (
-        <SkeletonBountyCard key={i} />
+        <div
+          key={i}
+          className="rounded-xl border border-surface-300 bg-surface-50 p-4"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <Skeleton height="1.25rem" width="70%" className="mb-2" rounded="md" />
+              <Skeleton height="0.875rem" width="50%" rounded="md" />
+            </div>
+            {showTier && (
+              <Skeleton height="1.5rem" width="3rem" className="ml-3 shrink-0" rounded="md" />
+            )}
+          </div>
+
+          {showSkills && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {Array.from({ length: 3 }, (_, j) => (
+                <Skeleton key={j} height="1.5rem" width="4rem" variant="pill" />
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-3 border-t border-surface-300">
+            <Skeleton height="1.25rem" width="5rem" rounded="md" />
+            <Skeleton height="1.25rem" width="4rem" rounded="md" />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -529,20 +489,6 @@ export function SkeletonList({
 // Skeleton Table
 // ============================================================================
 
-export interface SkeletonTableProps {
-  /** Number of rows */
-  rows?: number;
-  /** Number of columns */
-  columns?: number;
-  /** Show avatar in second column */
-  showAvatar?: boolean;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Skeleton table for leaderboard and data tables
- */
 export function SkeletonTable({
   rows = 10,
   columns = 5,
@@ -573,16 +519,6 @@ export function SkeletonTable({
 // Skeleton Activity Feed
 // ============================================================================
 
-export interface SkeletonActivityFeedProps {
-  /** Number of activity items */
-  count?: number;
-  /** Additional classes */
-  className?: string;
-}
-
-/**
- * Skeleton for activity feed loading state
- */
 export function SkeletonActivityFeed({
   count = 5,
   className = '',

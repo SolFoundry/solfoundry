@@ -82,15 +82,14 @@ describe('ContributorDashboard', () => {
   describe('Rendering', () => {
     it('renders the dashboard header after loading', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Should show loading skeleton
+
       expect(screen.getByRole('status', { name: /loading dashboard/i })).toBeInTheDocument();
-      
+
       // Wait for data to load
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
       });
-      
+
       expect(screen.getByText(/track your progress/i)).toBeInTheDocument();
     });
 
@@ -173,18 +172,19 @@ describe('ContributorDashboard', () => {
   describe('Loading State', () => {
     it('shows loading skeleton initially', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      expect(screen.getByRole('status', { name: /loading dashboard/i })).toBeInTheDocument();
+
+      const skeleton = screen.getByRole('status', { name: /loading dashboard/i });
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton).toHaveAttribute('aria-label', 'Loading dashboard');
     });
 
     it('hides loading skeleton after data loads', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
+
       await waitFor(() => {
         expect(screen.queryByRole('status', { name: /loading dashboard/i })).not.toBeInTheDocument();
       });
-      
-      // Should show main content instead
+
       expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
     });
   });
@@ -533,9 +533,10 @@ describe('ContributorDashboard', () => {
 
     it('loading state has correct aria attributes', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
+
       const loadingContainer = screen.getByRole('status', { name: /loading dashboard/i });
       expect(loadingContainer).toHaveAttribute('aria-live', 'polite');
+      expect(loadingContainer).toHaveAttribute('aria-label', 'Loading dashboard');
     });
   });
 
