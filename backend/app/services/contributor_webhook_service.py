@@ -149,7 +149,16 @@ class ContributorWebhookService:
 
         If *user_id* is given, only that user's webhooks are notified.
         Delivery runs in the background and failures do not propagate.
+
+        Raises ValueError if *event* is not a supported webhook event type.
         """
+        from app.models.contributor_webhook import WEBHOOK_EVENTS
+
+        if event not in WEBHOOK_EVENTS:
+            raise ValueError(
+                f"Unsupported webhook event: {event!r}. "
+                f"Must be one of: {', '.join(WEBHOOK_EVENTS)}"
+            )
         query = select(ContributorWebhookDB).where(
             ContributorWebhookDB.active.is_(True)
         )

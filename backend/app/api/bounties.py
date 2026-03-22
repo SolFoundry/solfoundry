@@ -47,6 +47,7 @@ from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
+from app.services.contributor_webhook_service import ContributorWebhookService
 
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
@@ -377,6 +378,7 @@ async def submit_solution(
     bounty_id: str,
     data: SubmissionCreate,
     user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Attach a PR submission to an open bounty for review."""
     data.submitted_by = user.wallet_address or str(user.id)
@@ -396,6 +398,18 @@ async def submit_solution(
         actor_type="user",
         details={"pr_url": data.pr_url, "contributor_wallet": data.contributor_wallet},
     )
+
+    # Notify contributor webhooks: review started
+    try:
+        wh_service = ContributorWebhookService(db)
+        await wh_service.dispatch_event(
+            "review.started",
+            bounty_id,
+            {"pr_url": data.pr_url, "submission_id": result.id},
+            user_id=data.submitted_by,
+        )
+    except Exception:
+        pass  # webhook dispatch must never break the primary flow
 
     return result
 
@@ -438,6 +452,7 @@ async def record_review_score(
     bounty_id: str,
     submission_id: str,
     data: ReviewScoreCreate,
+    db: AsyncSession = Depends(get_db),
 ) -> ReviewScoreResponse:
     sub = bounty_service.get_submission(bounty_id, submission_id)
     if sub is None:
@@ -467,6 +482,25 @@ async def record_review_score(
         review_complete=aggregated.review_complete,
         meets_threshold=aggregated.meets_threshold,
     )
+
+    # Notify contributor webhooks when review is complete
+    if aggregated.review_complete:
+        event = "review.passed" if aggregated.meets_threshold else "review.failed"
+        try:
+            wh_service = ContributorWebhookService(db)
+            contributor_id = sub.submitted_by if hasattr(sub, "submitted_by") else None
+            await wh_service.dispatch_event(
+                event,
+                bounty_id,
+                {
+                    "submission_id": submission_id,
+                    "overall_score": aggregated.overall_score,
+                    "meets_threshold": aggregated.meets_threshold,
+                },
+                user_id=contributor_id,
+            )
+        except Exception:
+            pass  # webhook dispatch must never break the primary flow
 
     return score_resp
 
@@ -742,14 +776,29 @@ async def claim_bounty(
     bounty_id: str,
     body: Optional[ClaimRequest] = None,
     user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> BountyResponse:
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
-        return _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        result = _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
+
+    # Notify contributor webhooks: bounty claimed
+    try:
+        wh_service = ContributorWebhookService(db)
+        await wh_service.dispatch_event(
+            "bounty.claimed",
+            bounty_id,
+            {"claimer_id": claimer_id, "claim_duration_hours": duration},
+            user_id=claimer_id,
+        )
+    except Exception:
+        pass  # webhook dispatch must never break the primary flow
+
+    return result
 
 
 @router.post(
