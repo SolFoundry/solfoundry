@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
+import { TimeAgo } from './common/TimeAgo';
 import { useBountySubmission } from '../hooks/useBountySubmission';
 import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
@@ -286,7 +287,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                         {' '}
                         {activity.type.replace('_', ' ')}
                       </span>
-                      <span className="text-gray-500 ml-auto">{activity.timestamp}</span>
+                      <span className="text-gray-500 ml-auto"><TimeAgo date={activity.timestamp} /></span>
                     </div>
                   ))}
                 </div>

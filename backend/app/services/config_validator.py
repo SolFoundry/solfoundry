@@ -63,7 +63,7 @@ OPTIONAL_SECRETS: dict[str, dict] = {
     },
     "TREASURY_WALLET": {
         "description": "Solana treasury wallet public key",
-        "example": "57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp",
+        "example": "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1",
     },
     "REDIS_URL": {
         "description": "Redis connection URL for caching and rate limiting",

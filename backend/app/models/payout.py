@@ -429,7 +429,7 @@ class TreasuryStats(BaseModel):
     treasury_wallet: str = Field(
         ...,
         description="Public address of the treasury wallet",
-        examples=["57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp"],
+        examples=["AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"],
     )
     total_paid_out_fndry: float = Field(
         0.0, description="Cumulative FNDRY paid to contributors"
