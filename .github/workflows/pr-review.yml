@@ -62,76 +62,7 @@ jobs:
             exit 0
           fi
 
-          # Rate limit: max 5 open PRs per author + max 10 PRs opened in 24h
-          # High-rep contributors (3+ merged bounty PRs) get higher limits
-          RATE_CHECK=$(python3 -c "
-          import json, urllib.request, os, sys
-          from datetime import datetime, timedelta, timezone
-
-          token = os.environ['GH_TOKEN']
-          repo = '${{ github.repository }}'
-          author = '$PR_AUTHOR'
-
-          def gh_get(url):
-              req = urllib.request.Request(url)
-              req.add_header('Authorization', f'token {token}')
-              req.add_header('Accept', 'application/vnd.github.v3+json')
-              return json.loads(urllib.request.urlopen(req).read().decode())
-
-          # Check merged PR count for reputation
-          merged = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+state:closed+author:{author}+is:merged').get('total_count', 0)
-          high_rep = merged >= 3
-
-          MAX_OPEN = 10 if high_rep else 5
-          MAX_DAILY = 20 if high_rep else 10
-
-          open_count = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+state:open+author:{author}').get('total_count', 0)
-          since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime('%Y-%m-%d')
-          daily_count = gh_get(f'https://api.github.com/search/issues?q=repo:{repo}+type:pr+author:{author}+created:>{since}').get('total_count', 0)
-
-          if open_count > MAX_OPEN:
-              print(f'OPEN_LIMIT|{open_count}|{MAX_OPEN}')
-          elif daily_count > MAX_DAILY:
-              print(f'DAILY_LIMIT|{daily_count}|{MAX_DAILY}')
-          else:
-              print('OK')
-          " 2>/dev/null)
-
-          if echo "$RATE_CHECK" | grep -q "OPEN_LIMIT"; then
-            OPEN_N=$(echo "$RATE_CHECK" | cut -d'|' -f2)
-            MAX_N=$(echo "$RATE_CHECK" | cut -d'|' -f3)
-            echo "RATE LIMITED: $PR_AUTHOR has $OPEN_N open PRs (max $MAX_N)"
-            curl -sf -X POST \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
-              -d "{\"body\":\"⏳ **Rate Limit — Too Many Open PRs**\n\n@$PR_AUTHOR, you currently have **$OPEN_N open PRs** (max $MAX_N). Please wait for your existing PRs to be reviewed and merged before opening new ones.\n\nThis helps us maintain review quality and prevents our pipeline from being overwhelmed.\n\n---\n*SolFoundry Review Bot*\"}"
-            curl -sf -X PATCH \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
-              -d '{"state":"closed"}'
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          if echo "$RATE_CHECK" | grep -q "DAILY_LIMIT"; then
-            DAILY_N=$(echo "$RATE_CHECK" | cut -d'|' -f2)
-            MAX_N=$(echo "$RATE_CHECK" | cut -d'|' -f3)
-            echo "RATE LIMITED: $PR_AUTHOR opened $DAILY_N PRs today (max $MAX_N)"
-            curl -sf -X POST \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
-              -d "{\"body\":\"⏳ **Rate Limit — Daily Submission Cap**\n\n@$PR_AUTHOR, you've opened **$DAILY_N PRs in the last 24 hours** (max $MAX_N/day). Please slow down — quality over quantity.\n\nTake the time to ensure your submissions are complete and tested before opening a PR.\n\n---\n*SolFoundry Review Bot*\"}"
-            curl -sf -X PATCH \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
-              -d '{"state":"closed"}'
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Rate limiting disabled during maintenance
 
           # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
           ALL_ISSUES=$(python3 -c "
