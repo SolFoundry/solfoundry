@@ -40,9 +40,6 @@ env/
 
 # Node
 node_modules/
-
-# Vendored dependencies (never commit)
-vendor/
 npm-debug.log*
 yarn-debug.log*
 .next/
