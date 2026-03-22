@@ -8,9 +8,8 @@ bounties, and the refund eligibility logic.
 Requirement: Issue #196 item 3.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.e2e.conftest import create_bounty_via_api

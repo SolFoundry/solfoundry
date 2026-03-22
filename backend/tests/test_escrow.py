@@ -693,7 +693,7 @@ class TestAutoRefund:
 
             from app.services.escrow_service import refund_expired_escrows
 
-            count = await refund_expired_escrows()
+            await refund_expired_escrows()
             # This specific escrow should NOT be refunded
             status = await client.get(
                 "/api/escrow/00000000-0000-0000-0000-000000000041"

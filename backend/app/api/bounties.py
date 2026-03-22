@@ -39,8 +39,16 @@ from app.models.review import (
 )
 from app.models.user import UserResponse
 from app.services import bounty_service, lifecycle_service, review_service
+from app.services.bounty_lifecycle_service import (
+    LifecycleError,
+    publish_bounty as _publish_bounty,
+    claim_bounty as _claim_bounty,
+    unclaim_bounty as _unclaim_bounty,
+    transition_status as _transition_status,
+)
 from app.services.bounty_search_service import BountySearchService
 from app.services.webhook_dispatcher import dispatch_event as _dispatch_webhook
+from pydantic import BaseModel, Field as PydanticField
 
 logger = logging.getLogger(__name__)
 
@@ -516,9 +524,6 @@ async def get_review_scores(
 # ---------------------------------------------------------------------------
 
 
-from pydantic import BaseModel, Field as PydanticField
-
-
 class ApprovalRequest(BaseModel):
     """Request body for approving a submission."""
 
@@ -717,14 +722,6 @@ async def cancel_bounty(
 # ---------------------------------------------------------------------------
 # Lifecycle engine endpoints
 # ---------------------------------------------------------------------------
-
-from app.services.bounty_lifecycle_service import (
-    LifecycleError,
-    publish_bounty as _publish_bounty,
-    claim_bounty as _claim_bounty,
-    unclaim_bounty as _unclaim_bounty,
-    transition_status as _transition_status,
-)
 
 
 class ClaimRequest(BaseModel):

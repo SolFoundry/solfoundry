@@ -6,6 +6,8 @@ implemented in the database layer.
 """
 
 from typing import Optional
+
+from fastapi import BackgroundTasks
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -191,13 +193,6 @@ class NotificationService:
         Returns:
             The created notification.
         """
-        from fastapi import BackgroundTasks
-        from app.services import contributor_service
-        from app.services.email_service import (
-            can_send_email,
-            increment_email_count,
-            send_notification_email,
-        )
 
         ntype = data.notification_type
         if isinstance(ntype, NotificationType):

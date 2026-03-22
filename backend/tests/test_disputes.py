@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.main import app
-from app.database import Base, get_db
+from app.database import get_db
 from app.models.dispute import DisputeDB, DisputeHistoryDB
 from app.models.bounty_table import BountyTable
 from app.models.submission import SubmissionDB

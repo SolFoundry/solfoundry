@@ -7,7 +7,6 @@ from GitHub Actions and computes aggregated scores for submissions.
 from __future__ import annotations
 
 import threading
-from typing import Optional
 from datetime import datetime, timezone
 
 from app.core.audit import audit_event

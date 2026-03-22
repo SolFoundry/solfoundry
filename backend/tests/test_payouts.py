@@ -834,7 +834,7 @@ class TestPayoutExecution:
         created_time = create_response["updated_at"]
 
         payout_id = create_response["id"]
-        approve_response = client.post(
+        client.post(
             f"/api/payouts/{payout_id}/approve",
             json={"approved": True, "admin_id": "admin-1"},
         ).json()

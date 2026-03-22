@@ -12,17 +12,13 @@ Requirement: Issue #196 item 8.
 
 import uuid
 
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.e2e.conftest import advance_bounty_status, create_bounty_via_api
 from tests.e2e.factories import (
-    DEFAULT_WALLET,
-    VALID_TX_HASH,
     build_bounty_create_payload,
     build_payout_create_payload,
     build_submission_payload,
-    past_deadline,
 )
 
 

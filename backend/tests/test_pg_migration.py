@@ -16,8 +16,8 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 
 from app.database import Base, get_db_session, init_db
-from app.models.bounty import BountyCreate, BountyDB, SubmissionRecord, SubmissionStatus
-from app.models.payout import BuybackCreate, PayoutCreate, PayoutRecord, PayoutStatus
+from app.models.bounty import BountyDB, SubmissionRecord
+from app.models.payout import PayoutRecord, PayoutStatus
 from app.services import bounty_service, payout_service, contributor_service
 
 

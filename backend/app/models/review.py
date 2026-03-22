@@ -10,7 +10,7 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Float, Integer, Text, Index
+from sqlalchemy import Column, String, DateTime, Float, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base

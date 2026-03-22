@@ -28,12 +28,11 @@ import os
 import threading
 import time
 from collections import defaultdict
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse, JSONResponse
+from starlette.responses import JSONResponse
 
 from app.core.redis import get_redis
 

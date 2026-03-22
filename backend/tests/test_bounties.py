@@ -7,6 +7,7 @@ All bounty service mutations are now async. The TestClient's synchronous
 interface triggers them via the ASGI loop automatically.
 """
 
+import asyncio
 import os
 from collections import deque
 
@@ -21,10 +22,7 @@ from app.api.auth import get_current_user
 from app.models.user import UserResponse
 from app.api.bounties import router as bounties_router
 from app.models.bounty import (
-    BountyCreate,
     BountyStatus,
-    BountyUpdate,
-    SubmissionCreate,
     VALID_STATUS_TRANSITIONS,
 )
 from app.services import bounty_service
@@ -71,8 +69,6 @@ client = TestClient(_test_app)
 # ---------------------------------------------------------------------------
 # Fixtures & helpers
 # ---------------------------------------------------------------------------
-
-import asyncio
 
 
 @pytest.fixture(scope="module")

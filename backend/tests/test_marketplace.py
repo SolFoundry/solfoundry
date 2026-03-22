@@ -336,7 +336,7 @@ class TestMarketplaceBrowse:
     def test_sort_by_fewest_submissions(self):
         """Sort by submissions orders by count desc."""
         b1 = _create(title="Many subs")
-        b2 = _create(title="No subs")
+        _create(title="No subs")
         for i in range(3):
             client.post(
                 f"/api/bounties/{b1['id']}/submissions",
