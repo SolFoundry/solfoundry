@@ -196,7 +196,7 @@ jobs:
                       if pr["user"]["login"] != username or not pr.get("merged_at"):
                           continue
                       pr_body = pr.get("body", "") or ""
-                      linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
+                      linked = re.findall(r"(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)", pr_body, re.IGNORECASE)
                       for linked_num in linked:
                           tier = get_issue_tier(linked_num)
                           if tier == "tier-1":
