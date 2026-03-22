@@ -45,7 +45,6 @@ from app.services.payout_service import reset_stores as reset_payout_stores
 from app.services.websocket_manager import (
     InMemoryPubSubAdapter,
     WebSocketManager,
-    manager as global_ws_manager,
 )
 from tests.e2e.factories import DEFAULT_WALLET, reset_counters
 
@@ -251,6 +250,7 @@ def authenticated_user_id() -> str:
         A UUID string suitable for use in ``X-User-ID`` or Bearer headers.
     """
     from tests.e2e.factories import build_user_id
+
     return build_user_id()
 
 

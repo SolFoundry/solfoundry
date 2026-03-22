@@ -15,7 +15,7 @@ import time
 import pytest
 from httpx import AsyncClient
 
-from tests.e2e.factories import build_bounty_create_payload, build_submission_payload
+from tests.e2e.factories import build_bounty_create_payload
 
 
 class TestConcurrentBountyCreation:
@@ -49,10 +49,8 @@ class TestConcurrentBountyCreation:
             return {"status": response.status_code, "body": response.json()}
 
         start_time = time.monotonic()
-        results = await asyncio.gather(
-            *(create_bounty(i) for i in range(target_count))
-        )
-        elapsed = time.monotonic() - start_time
+        results = await asyncio.gather(*(create_bounty(i) for i in range(target_count)))
+        time.monotonic() - start_time
 
         # All should succeed
         successes = [r for r in results if r["status"] == 201]
@@ -163,7 +161,7 @@ class TestConcurrentSubmissions:
         results = await asyncio.gather(
             *(submit_solution(i) for i in range(target_count))
         )
-        elapsed = time.monotonic() - start_time
+        time.monotonic() - start_time
 
         successes = sum(1 for r in results if r == 201)
         assert successes == target_count, (
@@ -171,9 +169,7 @@ class TestConcurrentSubmissions:
         )
 
         # Verify via submissions endpoint
-        subs_response = await async_client.get(
-            f"/api/bounties/{bounty_id}/submissions"
-        )
+        subs_response = await async_client.get(f"/api/bounties/{bounty_id}/submissions")
         assert subs_response.status_code == 200
         assert len(subs_response.json()) == target_count
 
@@ -182,14 +178,13 @@ class TestConcurrentMixedOperations:
     """Load test: mixed concurrent reads and writes."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_reads_and_writes(
-        self, async_client: AsyncClient
-    ) -> None:
+    async def test_concurrent_reads_and_writes(self, async_client: AsyncClient) -> None:
         """Verify the system handles concurrent reads and writes correctly.
 
         Interleaves bounty creation with list queries to ensure reads
         are consistent and writes don't cause errors under load.
         """
+
         async def create_and_read(index: int) -> dict:
             """Create a bounty, then immediately read it back.
 
@@ -212,9 +207,7 @@ class TestConcurrentMixedOperations:
                 "read_status": read_resp.status_code,
             }
 
-        results = await asyncio.gather(
-            *(create_and_read(i) for i in range(30))
-        )
+        results = await asyncio.gather(*(create_and_read(i) for i in range(30)))
 
         create_successes = sum(1 for r in results if r["create_status"] == 201)
         read_successes = sum(1 for r in results if r["read_status"] == 200)
@@ -232,13 +225,15 @@ class TestConcurrentMixedOperations:
         list queries.
         """
         # Pre-populate concurrently for faster setup
-        await asyncio.gather(*(
-            async_client.post(
-                "/api/bounties",
-                json=build_bounty_create_payload(title=f"Pre-pop #{i}"),
+        await asyncio.gather(
+            *(
+                async_client.post(
+                    "/api/bounties",
+                    json=build_bounty_create_payload(title=f"Pre-pop #{i}"),
+                )
+                for i in range(20)
             )
-            for i in range(20)
-        ))
+        )
 
         async def query_list(index: int) -> int:
             """Query the bounties list endpoint.
@@ -260,9 +255,7 @@ class TestPayoutConcurrency:
     """Load test: concurrent payout recording."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_payout_creation(
-        self, async_client: AsyncClient
-    ) -> None:
+    async def test_concurrent_payout_creation(self, async_client: AsyncClient) -> None:
         """Verify multiple payouts can be recorded concurrently.
 
         Each payout has no tx_hash to avoid duplicate detection.
@@ -287,9 +280,7 @@ class TestPayoutConcurrency:
             response = await async_client.post("/api/payouts", json=payload)
             return response.status_code
 
-        results = await asyncio.gather(
-            *(create_payout(i) for i in range(target_count))
-        )
+        results = await asyncio.gather(*(create_payout(i) for i in range(target_count)))
         successes = sum(1 for r in results if r == 201)
         assert successes == target_count
 

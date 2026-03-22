@@ -16,8 +16,8 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 
 from app.database import Base, get_db_session, init_db
-from app.models.bounty import BountyCreate, BountyDB, SubmissionRecord, SubmissionStatus
-from app.models.payout import BuybackCreate, PayoutCreate, PayoutRecord, PayoutStatus
+from app.models.bounty import BountyDB, SubmissionRecord
+from app.models.payout import PayoutRecord, PayoutStatus
 from app.services import bounty_service, payout_service, contributor_service
 
 
@@ -91,9 +91,7 @@ def test_all_tables_exist():
 def test_alembic_migration_exists():
     """Verify Alembic migration files exist and alembic.ini is safe."""
     backend_dir = Path(__file__).parent.parent
-    versions = list(
-        (backend_dir / "migrations" / "alembic" / "versions").glob("*.py")
-    )
+    versions = list((backend_dir / "migrations" / "alembic" / "versions").glob("*.py"))
     assert len(versions) >= 1, "No Alembic migration files found"
     ini_content = (backend_dir / "alembic.ini").read_text()
     assert "postgres:postgres@" not in ini_content, (
@@ -105,14 +103,24 @@ def test_alembic_migration_covers_all_tables():
     """Verify the migration file includes all required table definitions."""
     backend_dir = Path(__file__).parent.parent
     migration_file = (
-        backend_dir / "migrations" / "alembic" / "versions" / "002_full_pg_persistence.py"
+        backend_dir
+        / "migrations"
+        / "alembic"
+        / "versions"
+        / "002_full_pg_persistence.py"
     )
     content = migration_file.read_text()
-    for table in ("users", "bounties", "contributors", "submissions",
-                  "payouts", "buybacks", "reputation_history", "bounty_submissions"):
-        assert f'"{table}"' in content, (
-            f"Alembic migration missing table '{table}'"
-        )
+    for table in (
+        "users",
+        "bounties",
+        "contributors",
+        "submissions",
+        "payouts",
+        "buybacks",
+        "reputation_history",
+        "bounty_submissions",
+    ):
+        assert f'"{table}"' in content, f"Alembic migration missing table '{table}'"
 
 
 # ---------------------------------------------------------------------------
@@ -132,12 +140,14 @@ async def test_bounty_write_read_delete():
 
     async with get_db_session() as session:
         row = (
-            await session.execute(
-                select(BountyTable).where(
-                    BountyTable.id == _uid(bounty.id)
+            (
+                await session.execute(
+                    select(BountyTable).where(BountyTable.id == _uid(bounty.id))
                 )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert row is not None, "Bounty not found in DB after persist"
         assert row.title == "Roundtrip Test"
 
@@ -145,12 +155,14 @@ async def test_bounty_write_read_delete():
 
     async with get_db_session() as session:
         row = (
-            await session.execute(
-                select(BountyTable).where(
-                    BountyTable.id == _uid(bounty.id)
+            (
+                await session.execute(
+                    select(BountyTable).where(BountyTable.id == _uid(bounty.id))
                 )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert row is None, "Bounty still exists after delete"
 
 
@@ -264,12 +276,14 @@ async def test_payout_write_read():
 
     async with get_db_session() as session:
         row = (
-            await session.execute(
-                select(PayoutTable).where(
-                    PayoutTable.id == _uid(record.id)
+            (
+                await session.execute(
+                    select(PayoutTable).where(PayoutTable.id == _uid(record.id))
                 )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert row is not None, "Payout not found in DB after persist"
         assert row.recipient == "test_user"
         assert float(row.amount) == 42.5
@@ -301,12 +315,14 @@ async def test_contributor_write_read():
 
     async with get_db_session() as session:
         row = (
-            await session.execute(
-                select(ContributorDB).where(
-                    ContributorDB.id == contributor.id
+            (
+                await session.execute(
+                    select(ContributorDB).where(ContributorDB.id == contributor.id)
                 )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert row is not None, "Contributor not found in DB after persist"
         assert row.username == "pgtest_user"
 
@@ -482,6 +498,8 @@ async def test_persist_bounty_upsert_is_idempotent():
     await persist_bounty(bounty)
 
     rows = await load_bounties()
-    matching = [r for r in rows if str(r.id) == bounty.id or r.title == "Upsert Test Updated"]
+    matching = [
+        r for r in rows if str(r.id) == bounty.id or r.title == "Upsert Test Updated"
+    ]
     assert len(matching) == 1, "Upsert should not create duplicates"
     assert matching[0].title == "Upsert Test Updated"

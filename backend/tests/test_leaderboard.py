@@ -178,9 +178,7 @@ def test_filter_by_period_all():
 def test_pagination_limit():
     """Limit parameter restricts the number of returned entries."""
     for i in range(5):
-        _seed_contributor(
-            f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i))
-        )
+        _seed_contributor(f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i)))
     result = run_async(get_leaderboard(limit=2, offset=0))
     assert result.total == 5
     assert len(result.entries) == 2
@@ -190,9 +188,7 @@ def test_pagination_limit():
 def test_pagination_offset():
     """Offset parameter skips the first N entries."""
     for i in range(5):
-        _seed_contributor(
-            f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i))
-        )
+        _seed_contributor(f"user{i}", f"User {i}", total_earnings=float(100 * (5 - i)))
     result = run_async(get_leaderboard(limit=2, offset=2))
     assert len(result.entries) == 2
     assert result.entries[0].rank == 3
@@ -257,9 +253,7 @@ def test_leaderboard_queries_database():
 def test_leaderboard_under_100ms_with_cache():
     """Cached leaderboard response returns within 100ms target."""
     for i in range(10):
-        _seed_contributor(
-            f"perf{i}", f"Perf {i}", total_earnings=float(100 * i)
-        )
+        _seed_contributor(f"perf{i}", f"Perf {i}", total_earnings=float(100 * i))
     run_async(get_leaderboard())  # warm the cache
     start = time.time()
     run_async(get_leaderboard())

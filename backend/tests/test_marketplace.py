@@ -77,6 +77,7 @@ def event_loop():
 @pytest.fixture(scope="module", autouse=True)
 def _init_db(event_loop):
     from app.database import init_db
+
     event_loop.run_until_complete(init_db())
 
 
@@ -86,6 +87,7 @@ def clear_store(event_loop):
 
     async def _clear_db():
         from sqlalchemy import text
+
         try:
             async with get_db_session() as session:
                 await session.execute(text("DELETE FROM bounty_submissions"))
@@ -176,7 +178,9 @@ class TestCreateBountyMarketplace:
 
     def test_reward_amount_validated(self):
         """Reject reward exceeding maximum."""
-        resp = client.post("/api/bounties", json={**VALID_BOUNTY, "reward_amount": 1_000_001})
+        resp = client.post(
+            "/api/bounties", json={**VALID_BOUNTY, "reward_amount": 1_000_001}
+        )
         assert resp.status_code == 422
 
     def test_create_all_tiers(self):
@@ -190,7 +194,10 @@ class TestCreateBountyMarketplace:
         b = _create(
             github_issue_url="https://github.com/solfoundry/solfoundry/issues/99",
         )
-        assert b["github_issue_url"] == "https://github.com/solfoundry/solfoundry/issues/99"
+        assert (
+            b["github_issue_url"]
+            == "https://github.com/solfoundry/solfoundry/issues/99"
+        )
         assert b["deadline"] is not None
         assert len(b["required_skills"]) == 2
 
@@ -275,13 +282,20 @@ class TestMarketplaceBrowse:
         _create(reward_amount=500000, title="Large")
         assert client.get("/api/bounties?reward_min=1000").json()["total"] == 2
         assert client.get("/api/bounties?reward_max=1000").json()["total"] == 1
-        assert client.get("/api/bounties?reward_min=1000&reward_max=10000").json()["total"] == 1
+        assert (
+            client.get("/api/bounties?reward_min=1000&reward_max=10000").json()["total"]
+            == 1
+        )
 
     def test_combined_filters(self):
         """Multiple filters can be combined."""
         _create(tier=1, required_skills=["rust"], reward_amount=100, title="Match")
-        _create(tier=2, required_skills=["rust"], reward_amount=5000, title="Wrong tier")
-        _create(tier=1, required_skills=["python"], reward_amount=100, title="Wrong skill")
+        _create(
+            tier=2, required_skills=["rust"], reward_amount=5000, title="Wrong tier"
+        )
+        _create(
+            tier=1, required_skills=["python"], reward_amount=100, title="Wrong skill"
+        )
         body = client.get("/api/bounties?tier=1&skills=rust").json()
         assert body["total"] == 1
         assert body["items"][0]["title"] == "Match"
@@ -322,11 +336,14 @@ class TestMarketplaceBrowse:
     def test_sort_by_fewest_submissions(self):
         """Sort by submissions orders by count desc."""
         b1 = _create(title="Many subs")
-        b2 = _create(title="No subs")
+        _create(title="No subs")
         for i in range(3):
             client.post(
                 f"/api/bounties/{b1['id']}/submissions",
-                json={"pr_url": f"https://github.com/org/repo/pull/{i}", "submitted_by": f"u{i}"},
+                json={
+                    "pr_url": f"https://github.com/org/repo/pull/{i}",
+                    "submitted_by": f"u{i}",
+                },
             )
         items = client.get("/api/bounties?sort=submissions").json()["items"]
         assert items[0]["title"] == "Many subs"
@@ -465,7 +482,9 @@ class TestMarketplaceFlow:
     def test_mixed_marketplace(self):
         """Marketplace shows both platform and community bounties together."""
         _create(user="platform", title="Official bounty", tier=1, reward_amount=100000)
-        _create(user="community", title="Community bounty", tier=2, reward_amount=600000)
+        _create(
+            user="community", title="Community bounty", tier=2, reward_amount=600000
+        )
         _create(user="community", title="Another community", tier=3, reward_amount=1000)
 
         body = client.get("/api/bounties").json()

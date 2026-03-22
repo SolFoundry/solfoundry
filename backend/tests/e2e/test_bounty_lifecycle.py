@@ -277,17 +277,13 @@ class TestEscrowLifecycle:
             f"{fund_response.status_code} -- {fund_response.text}"
         )
 
-    def test_escrow_status_for_nonexistent_bounty(
-        self, client: TestClient
-    ) -> None:
+    def test_escrow_status_for_nonexistent_bounty(self, client: TestClient) -> None:
         """Verify the escrow status endpoint returns 404 for unknown bounties."""
         fake_id = "00000000-0000-0000-0000-999999999999"
         response = client.get(f"/api/escrow/{fake_id}")
         assert response.status_code == 404
 
-    def test_escrow_refund_for_nonexistent_bounty(
-        self, client: TestClient
-    ) -> None:
+    def test_escrow_refund_for_nonexistent_bounty(self, client: TestClient) -> None:
         """Verify the escrow refund endpoint returns 404 for unknown bounties."""
         fake_id = "00000000-0000-0000-0000-999999999998"
         response = client.post(
@@ -363,9 +359,7 @@ class TestApprovalWorkflow:
             headers=auth_headers,
         )
         # Should not return success
-        assert response.status_code == 404, (
-            f"Expected 404, got {response.status_code}"
-        )
+        assert response.status_code == 404, f"Expected 404, got {response.status_code}"
 
 
 class TestBountyCreationValidation:

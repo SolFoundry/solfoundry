@@ -32,7 +32,9 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
     },
 )
 async def list_notifications(
-    unread_only: bool = Query(False, description="Filter for unread notifications only"),
+    unread_only: bool = Query(
+        False, description="Filter for unread notifications only"
+    ),
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Maximum results per page"),
     user_id: str = Depends(get_current_user_id),
@@ -89,7 +91,10 @@ async def get_unread_count(
     description="Mark a specific notification as 'read'.",
     responses={
         401: {"model": ErrorResponse, "description": "Authentication required"},
-        404: {"model": ErrorResponse, "description": "Notification not found or access denied"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Notification not found or access denied",
+        },
     },
 )
 async def mark_notification_read(

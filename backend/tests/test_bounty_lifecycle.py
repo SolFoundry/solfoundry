@@ -15,7 +15,6 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 
 from app.models.bounty import (
     BountyCreate,
-    BountyDB,
     BountyStatus,
     BountyTier,
     VALID_STATUS_TRANSITIONS,
@@ -140,9 +139,7 @@ class TestStateMachine:
         transition_status(bid, BountyStatus.IN_PROGRESS)
         log = lifecycle_service.get_lifecycle_log(bid)
         assert log.total >= 1
-        assert any(
-            e.event_type == "bounty_status_changed" for e in log.items
-        )
+        assert any(e.event_type == "bounty_status_changed" for e in log.items)
 
     def test_all_valid_transitions_succeed(self):
         """Exhaustively test every valid transition in the state machine."""
@@ -175,9 +172,7 @@ class TestPublish:
         bid = _create_bounty(status=BountyStatus.DRAFT)
         publish_bounty(bid)
         log = lifecycle_service.get_lifecycle_log(bid)
-        assert any(
-            e.event_type == "bounty_published" for e in log.items
-        )
+        assert any(e.event_type == "bounty_published" for e in log.items)
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +212,7 @@ class TestClaimFlow:
 
     def test_claim_custom_duration(self):
         bid = _create_bounty(tier=BountyTier.T2)
-        resp = claim_bounty(bid, "claimer_1", claim_duration_hours=24)
+        claim_bounty(bid, "claimer_1", claim_duration_hours=24)
         bounty = bounty_service._bounty_store[bid]
         expected = bounty.claimed_at + timedelta(hours=24)
         assert abs((bounty.claim_deadline - expected).total_seconds()) < 2
@@ -239,9 +234,7 @@ class TestClaimFlow:
         bid = _create_bounty(tier=BountyTier.T2)
         claim_bounty(bid, "claimer_1")
         log = lifecycle_service.get_lifecycle_log(bid)
-        assert any(
-            e.event_type == "bounty_claimed" for e in log.items
-        )
+        assert any(e.event_type == "bounty_claimed" for e in log.items)
 
 
 # ---------------------------------------------------------------------------
@@ -276,9 +269,7 @@ class TestT1AutoWin:
         bid, sid = _create_t1_with_submission()
         handle_t1_auto_win(bid, sid)
         log = lifecycle_service.get_lifecycle_log(bid)
-        assert any(
-            e.event_type == "bounty_t1_auto_won" for e in log.items
-        )
+        assert any(e.event_type == "bounty_t1_auto_won" for e in log.items)
 
 
 # ---------------------------------------------------------------------------
@@ -346,9 +337,7 @@ class TestDeadlineEnforcement:
         check_deadlines()
 
         log = lifecycle_service.get_lifecycle_log(bid)
-        assert any(
-            e.event_type == "bounty_claim_auto_released" for e in log.items
-        )
+        assert any(e.event_type == "bounty_claim_auto_released" for e in log.items)
 
     def test_warning_logs_event(self):
         bid = _create_bounty(tier=BountyTier.T2)
@@ -360,9 +349,7 @@ class TestDeadlineEnforcement:
         check_deadlines()
 
         log = lifecycle_service.get_lifecycle_log(bid)
-        assert any(
-            e.event_type == "bounty_claim_deadline_warning" for e in log.items
-        )
+        assert any(e.event_type == "bounty_claim_deadline_warning" for e in log.items)
 
     def test_multiple_bounties_mixed(self):
         """One expired, one at 85%, one at 50% — verify counts."""

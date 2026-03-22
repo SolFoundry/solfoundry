@@ -33,18 +33,19 @@ def test_keypair():
     return Keypair()
 
 
-import asyncio
-from app.database import async_session_factory
+import asyncio  # noqa: E402
+from app.database import async_session_factory  # noqa: E402
+
 
 @pytest.fixture
 def auth_headers(client):
     """Create auth headers by doing GitHub OAuth login (simulated)."""
     import uuid
     from app.models.user import User
-    
+
     user_uuid = uuid.uuid4()
     user_id = str(user_uuid)
-    
+
     async def _create_user():
         """Create user."""
         async with async_session_factory() as session:
@@ -57,7 +58,7 @@ def auth_headers(client):
             )
             session.add(user)
             await session.commit()
-            
+
     asyncio.run(_create_user())
 
     # Generate token

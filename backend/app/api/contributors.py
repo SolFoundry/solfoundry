@@ -33,12 +33,8 @@ async def list_contributors(
     search: Optional[str] = Query(
         None, description="Search by username or display name"
     ),
-    skills: Optional[str] = Query(
-        None, description="Comma-separated skill filter"
-    ),
-    badges: Optional[str] = Query(
-        None, description="Comma-separated badge filter"
-    ),
+    skills: Optional[str] = Query(None, description="Comma-separated skill filter"),
+    badges: Optional[str] = Query(None, description="Comma-separated badge filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> ContributorListResponse:
@@ -167,17 +163,19 @@ async def delete_contributor(contributor_id: str) -> None:
 @router.get("/unsubscribe", status_code=200)
 async def unsubscribe_contributor(
     token: str = Query(..., description="Unique unsubscribe token"),
-    notification_type: Optional[str] = Query(None, description="Specific type to unsubscribe from"),
+    notification_type: Optional[str] = Query(
+        None, description="Specific type to unsubscribe from"
+    ),
 ) -> dict:
     """Handle one-click unsubscribe via token.
-    
+
     If notification_type is provided, disables only that type.
     Otherwise, disables all email notifications globally.
     """
     contributor = await contributor_service.get_contributor_by_token(token)
     if not contributor:
         raise HTTPException(status_code=404, detail="Invalid unsubscribe token")
-    
+
     update_data = {}
     if notification_type:
         prefs = contributor.notification_preferences.copy()
@@ -185,14 +183,14 @@ async def unsubscribe_contributor(
         update_data["notification_preferences"] = prefs
     else:
         update_data["email_notifications_enabled"] = False
-        
+
     await contributor_service.update_contributor(
         contributor.id, ContributorUpdate(**update_data)
     )
-    
+
     return {
-        "success": True, 
-        "message": f"Successfully unsubscribed from {notification_type or 'all emails'}."
+        "success": True,
+        "message": f"Successfully unsubscribed from {notification_type or 'all emails'}.",
     }
 
 
