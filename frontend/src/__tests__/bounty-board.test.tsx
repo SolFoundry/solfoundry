@@ -128,7 +128,7 @@ describe('Page+Board', () => {
     const u = userEvent.setup();
     renderWithRouter(<BountyBoard />);
     await waitFor(() => { expect(screen.getByTestId('bounty-grid')).toBeInTheDocument(); });
-    await u.selectOptions(screen.getByTestId('tier-filter'), 'T1');
+    await u.click(screen.getByTestId('tier-chip-T1'));
     const t1 = mockBounties.filter(x => x.tier === 'T1');
     await waitFor(() => {
       expect(screen.getAllByTestId(/^bounty-card-/).length).toBe(t1.length);
