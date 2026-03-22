@@ -72,27 +72,27 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                             <span className="text-2xl font-bold text-white">SF</span>
                         </div>
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Welcome to SolFoundry</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome to SolFoundry</h2>
                             <p className="text-gray-400 leading-relaxed">
                                 The autonomous AI software factory on Solana. ship code, earn $FNDRY, and let our agents handle the overhead.
                             </p>
                         </div>
                         <div className="grid grid-cols-1 gap-4 mt-8">
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-start gap-3">
+                            <div className="bg-black/5 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10 flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
                                     <span className="text-blue-400">🚀</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">Pick a Bounty</h4>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">Pick a Bounty</h4>
                                     <p className="text-xs text-gray-500">Choose tasks from Tier 1 (Open Race) to Tier 3 (Claim-Based).</p>
                                 </div>
                             </div>
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-start gap-3">
+                            <div className="bg-black/5 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10 flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
                                     <span className="text-green-400">🤖</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">AI Review</h4>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">AI Review</h4>
                                     <p className="text-xs text-gray-500">Our agents automatically score your PRs for quality and speed.</p>
                                 </div>
                             </div>
@@ -103,7 +103,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                 return (
                     <div className="space-y-6 py-4">
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Connect Your Wallet</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Connect Your Wallet</h2>
                             <p className="text-gray-400">
                                 You'll need a Solana wallet to receive payouts and participate in gated bounties.
                             </p>
@@ -157,7 +157,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                 return (
                     <div className="space-y-6 py-4">
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Pick Your Skills</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Pick Your Skills</h2>
                             <p className="text-gray-400">
                                 We'll personalize your bounty recommendations based on what you do best.
                             </p>
@@ -172,7 +172,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                         onClick={() => toggleSkill(skill)}
                                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 ${isSelected
                                                 ? 'bg-[#14F195]/10 border-[#14F195] text-[#14F195]'
-                                                : 'bg-white/5 border-white/5 text-gray-400 hover:border-white/20'
+                                                : 'bg-black/5 dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-400 hover:border-gray-300 dark:hover:border-white/20'
                                             }`}
                                     >
                                         {skill}
@@ -192,7 +192,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                 return (
                     <div className="space-y-6 py-4">
                         <div className="text-center space-y-3">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Your First Bounty</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Your First Bounty</h2>
                             <p className="text-gray-400">
                                 Here are a few T1 bounties that match your skills.
                             </p>
@@ -208,12 +208,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                 </div>
                             ) : recommendedBounties.length > 0 ? (
                                 recommendedBounties.map((b) => (
-                                    <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-[#14F195]/30 transition-colors">
+                                    <div key={b.id} className="bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-[#14F195]/30 transition-colors">
                                         <div className="space-y-1">
-                                            <h4 className="text-sm font-bold text-white group-hover:text-[#14F195] transition-colors">{b.title}</h4>
+                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#14F195] transition-colors">{b.title}</h4>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xs font-bold text-[#14F195]">{b.reward_amount?.toLocaleString() || b.rewardAmount?.toLocaleString()} $FNDRY</span>
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 uppercase">Tier 1</span>
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 uppercase">Tier 1</span>
                                             </div>
                                         </div>
                                         <button className="px-3 py-1.5 rounded-lg bg-[#14F195] text-black text-xs font-bold hover:bg-[#14F195]/90 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
@@ -222,7 +222,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                     </div>
                                 ))
                             ) : (
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center">
+                                <div className="bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-8 text-center">
                                     <p className="text-sm text-gray-500">No specific matches found. Check the full bounty board!</p>
                                 </div>
                             )}
@@ -242,7 +242,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                     {[1, 2, 3, 4].map((s) => (
                         <div
                             key={s}
-                            className={`h-1.5 rounded-full flex-1 transition-all duration-500 ${s <= step ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195]' : 'bg-white/10'
+                            className={`h-1.5 rounded-full flex-1 transition-all duration-500 ${s <= step ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195]' : 'bg-gray-100 dark:bg-white/10'
                                 }`}
                         />
                     ))}
@@ -257,7 +257,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                 <div className="flex items-center justify-between mt-10">
                     <button
                         onClick={handleSkip}
-                        className="text-sm font-bold text-gray-500 hover:text-white transition-colors"
+                        className="text-sm font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
                     >
                         Skip for now
                     </button>
@@ -266,7 +266,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                         {step > 1 && (
                             <button
                                 onClick={prevStep}
-                                className="px-6 py-2 rounded-xl text-sm font-bold text-white hover:bg-white/5 transition-all"
+                                className="px-6 py-2 rounded-xl text-sm font-bold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
                             >
                                 Back
                             </button>

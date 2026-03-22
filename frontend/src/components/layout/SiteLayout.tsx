@@ -120,7 +120,7 @@ export function SiteLayout({
   };
 
   return (
-    <div className="site-layout min-h-screen bg-[#0a0a0a] font-mono text-white">
+    <div className="site-layout min-h-screen bg-white dark:bg-surface font-mono text-gray-900 dark:text-white">
       {/* Header */}
       <Header
         currentPath={currentPath}
@@ -142,7 +142,7 @@ export function SiteLayout({
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 dark:bg-black/60 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -159,7 +159,7 @@ export function SiteLayout({
       {/* Main Content */}
       <main className="min-h-screen pt-16">
         {/* Breadcrumbs — below top nav, above page content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200 dark:border-white/5">
           <Breadcrumbs />
         </div>
         {children}
@@ -221,7 +221,7 @@ function Header({
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-16 transition-colors duration-200
-                  ${scrolled ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10' : 'bg-transparent'}`}
+                  ${scrolled ? 'bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10' : 'bg-transparent'}`}
       role="banner"
     >
       <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -232,7 +232,7 @@ function Header({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#9945FF] to-[#14F195] flex items-center justify-center">
               <span className="text-white font-bold text-sm">SF</span>
             </div>
-            <span className="text-lg font-bold text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
+            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight hidden sm:block group-hover:text-[#9945FF] transition-colors">
               SolFoundry
             </span>
           </a>
@@ -249,7 +249,7 @@ function Header({
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
                   ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
                     ? 'text-[#14F195] bg-[#14F195]/10'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/5'
                   }`}
                 aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
               >
@@ -295,26 +295,26 @@ function Header({
 
               {/* User Dropdown Menu */}
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl">
-                  <div className="px-4 py-2 border-b border-white/10">
-                    <p className="text-sm font-medium text-white">{userName || 'User'}</p>
-                    <p className="text-xs text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
+                <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg bg-white dark:bg-surface-100 border border-gray-200 dark:border-white/10 shadow-xl">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-white/10">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{userName || 'User'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{truncateAddress(walletAddress)}</p>
                   </div>
-                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-white/5 hover:text-[#14F195]">
+                  <a href="/creator" className="block px-4 py-2 text-sm text-[#14F195] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-[#14F195]">
                     Creator Dashboard
                   </a>
-                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/dashboard" className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Contributor Dashboard
                   </a>
-                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Profile
                   </a>
-                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white">
+                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                     Settings
                   </a>
                   <button
                     onClick={onDisconnectWallet}
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 hover:text-red-300"
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-red-600 dark:hover:text-red-300"
                   >
                     Disconnect
                   </button>
@@ -338,7 +338,7 @@ function Header({
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg
-                     text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                     text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
           >
@@ -372,7 +372,7 @@ interface SidebarProps {
 function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
   return (
     <aside
-      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-[#0a0a0a] border-r border-white/10
+      className={`fixed top-16 left-0 bottom-0 w-64 z-50 bg-white dark:bg-surface border-r border-gray-200 dark:border-white/10
                 transform transition-transform duration-300 ease-in-out lg:hidden
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       role="navigation"
@@ -390,7 +390,7 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
               ${!link.external && (currentPath === link.href || currentPath.startsWith(link.href + '/'))
                 ? 'text-[#14F195] bg-[#14F195]/10'
-                : 'text-gray-300 hover:text-white hover:bg-white/5'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/5'
               }`}
             aria-current={!link.external && currentPath === link.href ? 'page' : undefined}
           >
@@ -400,7 +400,7 @@ function Sidebar({ isOpen, currentPath, onNavClick, onClose }: SidebarProps) {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-white/10">
         <p className="text-xs text-gray-500 text-center font-mono">
           SolFoundry v0.1.0
         </p>

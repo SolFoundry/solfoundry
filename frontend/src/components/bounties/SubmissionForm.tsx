@@ -45,7 +45,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
 
   if (submitted) {
     return (
-      <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
+      <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 sm:p-6">
         <div className="flex items-center gap-3 text-green-400">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -62,8 +62,8 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
   }
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-gray-300 mb-4">Submit Your Solution</h2>
+    <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 sm:p-6">
+      <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Submit Your Solution</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -73,7 +73,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             value={prUrl}
             onChange={(e) => setPrUrl(e.target.value)}
             placeholder="https://github.com/SolFoundry/solfoundry/pull/42"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors"
             required
             disabled={disabled || loading}
           />
@@ -86,7 +86,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             value={wallet}
             onChange={(e) => setWallet(e.target.value)}
             placeholder="Your Solana wallet address for payout"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors font-mono text-sm"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors font-mono text-sm"
             required
             disabled={disabled || loading}
           />
@@ -108,7 +108,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Brief description of your implementation..."
             rows={3}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors resize-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-[#9945FF] focus:ring-1 focus:ring-[#9945FF] transition-colors resize-none"
             disabled={disabled || loading}
           />
         </div>

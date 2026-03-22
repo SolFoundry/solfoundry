@@ -30,7 +30,7 @@ const components: Components = {
     if (isInline) {
       return (
         <code
-          className="px-1.5 py-0.5 rounded bg-white/10 text-[#14F195] font-mono text-sm"
+          className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-[#14F195] font-mono text-sm"
           {...props}
         >
           {children}
@@ -67,26 +67,26 @@ const components: Components = {
 
   // Headings
   h1: ({ children }) => (
-    <h1 className="text-2xl font-bold text-white mt-6 mb-3">{children}</h1>
+    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-3">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-xl font-semibold text-white mt-5 mb-2">{children}</h2>
+    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-5 mb-2">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-lg font-semibold text-white mt-4 mb-2">{children}</h3>
+    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-4 mb-2">{children}</h3>
   ),
 
   // Paragraph
   p: ({ children }) => (
-    <p className="text-gray-300 leading-relaxed mb-3">{children}</p>
+    <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-3">{children}</p>
   ),
 
   // Lists
   ul: ({ children }) => (
-    <ul className="list-disc list-inside text-gray-300 space-y-1 mb-3 ml-2">{children}</ul>
+    <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 space-y-1 mb-3 ml-2">{children}</ul>
   ),
   ol: ({ children }) => (
-    <ol className="list-decimal list-inside text-gray-300 space-y-1 mb-3 ml-2">{children}</ol>
+    <ol className="list-decimal list-inside text-gray-600 dark:text-gray-300 space-y-1 mb-3 ml-2">{children}</ol>
   ),
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
 
@@ -103,20 +103,20 @@ const components: Components = {
       <table className="w-full border-collapse text-sm text-gray-300">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="border-b border-white/10">{children}</thead>,
+  thead: ({ children }) => <thead className="border-b border-gray-200 dark:border-white/10">{children}</thead>,
   th: ({ children }) => (
-    <th className="px-3 py-2 text-left font-semibold text-white">{children}</th>
+    <th className="px-3 py-2 text-left font-semibold text-gray-900 dark:text-white">{children}</th>
   ),
   td: ({ children }) => (
-    <td className="px-3 py-2 border-b border-white/5">{children}</td>
+    <td className="px-3 py-2 border-b border-gray-100 dark:border-white/5">{children}</td>
   ),
 
   // Horizontal rule
-  hr: () => <hr className="border-white/10 my-4" />,
+  hr: () => <hr className="border-gray-200 dark:border-white/10 my-4" />,
 
   // Bold / italic
-  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-  em: ({ children }) => <em className="italic text-gray-300">{children}</em>,
+  strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>,
+  em: ({ children }) => <em className="italic text-gray-600 dark:text-gray-300">{children}</em>,
 };
 
 // ── Main component ────────────────────────────────────────────────────────────

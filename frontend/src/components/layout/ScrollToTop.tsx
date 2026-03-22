@@ -74,7 +74,7 @@ export function ScrollToTop({ threshold = 300, className = '' }: ScrollToTopProp
         active:scale-95
         transition-all duration-200 ease-out
         flex items-center justify-center
-        focus:outline-none focus:ring-2 focus:ring-[#14F195] focus:ring-offset-2 focus:ring-offset-[#0a0a0a]
+        focus:outline-none focus:ring-2 focus:ring-[#14F195] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#0a0a0a]
         ${className}
       `}
       aria-label="Scroll to top"

@@ -14,7 +14,7 @@ export function BountySortBar({ sortBy, onSortChange }: { sortBy: BountySortBy; 
             'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ' +
             (sortBy === o.value
               ? 'bg-solana-green/15 text-solana-green'
-              : 'text-gray-400 hover:text-white hover:bg-surface-200')
+              : 'text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-200')
           }
           aria-pressed={sortBy === o.value}
           data-testid={'sort-' + o.value}

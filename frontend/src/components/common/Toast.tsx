@@ -118,7 +118,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
 
       {/* Auto-dismiss progress bar */}
       {toast.duration > 0 && (
-        <div className="h-0.5 w-full bg-white/5">
+        <div className="h-0.5 w-full bg-black/5 dark:bg-white/5">
           <div
             className={`h-full ${config.progressBar} opacity-60`}
             style={{

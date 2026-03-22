@@ -63,7 +63,7 @@ const URGENCY_BG = {
   normal: 'bg-[#14F195]/10',
   warning: 'bg-amber-400/10',
   critical: 'bg-red-400/10',
-  expired: 'bg-white/5',
+  expired: 'bg-gray-100 dark:bg-white/5',
 };
 
 /**

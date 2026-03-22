@@ -46,16 +46,16 @@ const STATUS_COLORS: Record<string, string> = {
 function DisputePageSkeleton() {
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-pulse">
-      <div className="h-8 bg-gray-800 rounded w-64 mb-6" />
+      <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded w-64 mb-6" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-gray-900 rounded-lg p-6 h-48" />
-          <div className="bg-gray-900 rounded-lg p-6 h-64" />
-          <div className="bg-gray-900 rounded-lg p-6 h-96" />
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 h-48" />
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 h-64" />
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 h-96" />
         </div>
         <div className="space-y-4">
-          <div className="bg-gray-900 rounded-lg p-6 h-48" />
-          <div className="bg-gray-900 rounded-lg p-6 h-64" />
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 h-48" />
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 h-64" />
         </div>
       </div>
     </div>
@@ -174,11 +174,11 @@ export default function DisputePage() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-gray-400">
-        <Link to="/disputes" className="hover:text-white transition-colors">
+        <Link to="/disputes" className="hover:text-gray-900 dark:hover:text-white transition-colors">
           Disputes
         </Link>
         <span>/</span>
-        <span className="text-white font-mono">{dispute.id.slice(0, 8)}...</span>
+        <span className="text-gray-900 dark:text-white font-mono">{dispute.id.slice(0, 8)}...</span>
       </nav>
 
       {/* Error Banner */}
@@ -192,7 +192,7 @@ export default function DisputePage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Header Card */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 sm:p-6">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span
                 className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColor}`}
@@ -200,13 +200,13 @@ export default function DisputePage() {
                 {statusLabel}
               </span>
               {dispute.outcome && (
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                   {DISPUTE_OUTCOME_LABELS[dispute.outcome as DisputeOutcome] || dispute.outcome}
                 </span>
               )}
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">
               Dispute: {reasonLabel}
             </h1>
 
@@ -236,8 +236,8 @@ export default function DisputePage() {
           </div>
 
           {/* Evidence Section */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-300 mb-4">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-4">
               Evidence ({(dispute.evidence_links || []).length} items)
             </h3>
             {dispute.evidence_links && dispute.evidence_links.length > 0 ? (
@@ -245,13 +245,13 @@ export default function DisputePage() {
                 {dispute.evidence_links.map((item: EvidenceItem, index: number) => (
                   <div
                     key={index}
-                    className="bg-gray-800/50 rounded-lg p-3 flex items-start gap-3"
+                    className="bg-gray-100/80 dark:bg-gray-800/50 rounded-lg p-3 flex items-start gap-3"
                   >
-                    <span className="px-2 py-0.5 bg-gray-700 rounded text-xs text-gray-300 flex-shrink-0">
+                    <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300 flex-shrink-0">
                       {item.evidence_type}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm text-gray-300">{item.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{item.description}</p>
                       {item.url && (
                         <a
                           href={item.url}
@@ -287,27 +287,27 @@ export default function DisputePage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Status Card */}
-          <div className="bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-300">Dispute Info</h3>
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Dispute Info</h3>
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Status</span>
-                <span className="text-white font-medium">{statusLabel}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{statusLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Reason</span>
-                <span className="text-white">{reasonLabel}</span>
+                <span className="text-gray-900 dark:text-white">{reasonLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Contributor</span>
-                <span className="text-white font-mono text-xs">
+                <span className="text-gray-900 dark:text-white font-mono text-xs">
                   {dispute.contributor_id.slice(0, 8)}...
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Creator</span>
-                <span className="text-white font-mono text-xs">
+                <span className="text-gray-900 dark:text-white font-mono text-xs">
                   {dispute.creator_id.slice(0, 8)}...
                 </span>
               </div>
@@ -331,7 +331,7 @@ export default function DisputePage() {
 
             {/* Reputation Impacts */}
             {dispute.status === 'resolved' && (
-              <div className="pt-3 border-t border-gray-800 space-y-2">
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-800 space-y-2">
                 <h4 className="text-xs font-medium text-gray-500 uppercase">Reputation Impact</h4>
                 {dispute.reputation_impact_creator !== null && dispute.reputation_impact_creator !== undefined && dispute.reputation_impact_creator !== 0 && (
                   <div className="flex justify-between text-sm">

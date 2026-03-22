@@ -33,10 +33,10 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   const earnedCount = badges.filter((b) => b.earned).length;
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 sm:p-6 text-white space-y-6">
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 sm:p-6 text-gray-900 dark:text-white space-y-6">
       {/* Profile Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-purple-500 flex items-center justify-center shrink-0 mx-auto sm:mx-0">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-purple-500 text-white flex items-center justify-center shrink-0 mx-auto sm:mx-0">
           {avatarUrl ? (
             <img src={avatarUrl} alt={username} className="w-full h-full rounded-full" />
           ) : (
@@ -65,15 +65,15 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-gray-400 text-xs sm:text-sm">Total Earned</p>
           <p className="text-lg sm:text-xl font-bold text-green-400">{totalEarned.toLocaleString()} FNDRY</p>
         </div>
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-gray-400 text-xs sm:text-sm">Bounties</p>
           <p className="text-lg sm:text-xl font-bold text-purple-400">{bountiesCompleted}</p>
         </div>
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
           <p className="text-gray-400 text-xs sm:text-sm">Reputation</p>
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>

@@ -84,7 +84,7 @@ function Milestone({ label, isActive, isComplete, tooltip }: MilestoneProps) {
             ? 'bg-[#14F195] border-[#14F195] text-[#0a0a0a]'
             : isActive
               ? 'bg-[#9945FF] border-[#9945FF] text-white ring-4 ring-[#9945FF]/30 shadow-lg shadow-[#9945FF]/30'
-              : 'bg-[#1a1a1a] border-white/20 text-gray-500'
+              : 'bg-gray-100 dark:bg-surface-100 border-gray-300 dark:border-white/20 text-gray-500'
           }`}
         aria-label={`${label}${isActive ? ' (current)' : isComplete ? ' (unlocked)' : ' (locked)'}`}
         tabIndex={0}
@@ -108,8 +108,8 @@ function Milestone({ label, isActive, isComplete, tooltip }: MilestoneProps) {
       {showTip && (
         <div
           className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20
-                     bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2
-                     text-xs text-gray-300 whitespace-nowrap shadow-xl pointer-events-none"
+                     bg-white dark:bg-surface-100 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2
+                     text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap shadow-xl pointer-events-none"
           role="tooltip"
         >
           {tooltip}
@@ -149,15 +149,15 @@ export function TierProgressBar({ completedT1, completedT2, completedT3, classNa
     <div className={`w-full font-mono ${className}`} aria-label={`Tier progress: currently ${currentTier}`} role="progressbar" aria-valuenow={fillPercent} aria-valuemin={0} aria-valuemax={100}>
       {/* Stats row */}
       <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
-        <span>T1 merges: <strong className="text-gray-300">{completedT1}</strong></span>
-        <span>T2 merges: <strong className="text-gray-300">{completedT2}</strong></span>
-        <span>T3 merges: <strong className="text-gray-300">{completedT3}</strong></span>
+        <span>T1 merges: <strong className="text-gray-700 dark:text-gray-300">{completedT1}</strong></span>
+        <span>T2 merges: <strong className="text-gray-700 dark:text-gray-300">{completedT2}</strong></span>
+        <span>T3 merges: <strong className="text-gray-700 dark:text-gray-300">{completedT3}</strong></span>
       </div>
 
       {/* Progress track + milestones */}
       <div className="relative flex items-center justify-between">
         {/* Background track */}
-        <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1.5 bg-white/10 rounded-full z-0" />
+        <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1.5 bg-gray-200 dark:bg-white/10 rounded-full z-0" />
 
         {/* Filled track */}
         <div

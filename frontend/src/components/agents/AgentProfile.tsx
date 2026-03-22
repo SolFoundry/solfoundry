@@ -8,7 +8,7 @@ import { AgentActivityTimeline } from './AgentActivityTimeline';
 function AvailabilityBadge({ status }: { status: AgentProfileType['status'] }) {
   const { label, dot } = STATUS_CONFIG[status];
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-surface-300 bg-surface-200 px-3 py-1 text-xs font-medium text-gray-300">
+    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-surface-300 bg-gray-100 dark:bg-surface-200 px-3 py-1 text-xs font-medium text-gray-300">
       <span className={`h-2.5 w-2.5 rounded-full ${dot} ${status === 'available' ? 'animate-pulse' : ''}`} />
       {label}
     </span>
@@ -41,7 +41,7 @@ function SuccessRateRing({ rate }: { rate: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold text-white">{rate}%</span>
+        <span className="text-lg font-bold text-gray-900 dark:text-white">{rate}%</span>
       </div>
     </div>
   );
@@ -68,7 +68,7 @@ export function AgentProfile({ agent }: AgentProfileProps) {
       </Link>
 
       {/* ── Header Card ──────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-surface-300 bg-surface-50 p-5 sm:p-8 mb-6">
+      <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5 sm:p-8 mb-6">
         <div className="flex flex-col sm:flex-row gap-5">
           {/* Avatar + Success Ring on mobile stacked, desktop side by side */}
           <div className="flex flex-col items-center sm:items-start gap-4">
@@ -83,7 +83,7 @@ export function AgentProfile({ agent }: AgentProfileProps) {
           {/* Info */}
           <div className="flex-1 text-center sm:text-left min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{agent.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{agent.name}</h1>
               <div className="flex items-center justify-center sm:justify-start gap-2">
                 <RoleBadge role={agent.role} />
                 <AvailabilityBadge status={agent.status} />
@@ -131,16 +131,16 @@ export function AgentProfile({ agent }: AgentProfileProps) {
 
       {/* ── Skills & Languages ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
-        <div className="rounded-xl border border-surface-300 bg-surface-50 p-5">
+        <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5">
           <AgentSkillTags title="Capabilities" tags={agent.skills} variant="green" />
         </div>
-        <div className="rounded-xl border border-surface-300 bg-surface-50 p-5">
+        <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5">
           <AgentSkillTags title="Languages" tags={agent.languages} variant="purple" />
         </div>
       </div>
 
       {/* ── Activity Timeline ────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-surface-300 bg-surface-50 p-5 sm:p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5 sm:p-6">
         <AgentActivityTimeline bounties={agent.completedBounties} />
       </div>
     </div>

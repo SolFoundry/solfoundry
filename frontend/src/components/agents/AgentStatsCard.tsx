@@ -7,9 +7,9 @@ interface AgentStatsCardProps {
 
 export function AgentStatsCard({ label, value, icon, accent = 'text-solana-green' }: AgentStatsCardProps) {
   return (
-    <div className="rounded-xl border border-surface-300 bg-surface-50 p-4 sm:p-5">
+    <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-4 sm:p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-200 text-lg">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-surface-200 text-lg">
           {icon}
         </div>
         <div className="min-w-0">

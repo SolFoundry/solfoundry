@@ -89,7 +89,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             defaultValue={f.searchQuery}
             onChange={e => handleSearch(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            className="w-full rounded-lg border border-surface-300 bg-surface-50 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors"
+            className="w-full rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50 transition-colors"
             aria-label="Search bounties"
             data-testid="bounty-search"
           />
@@ -97,21 +97,21 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
         {/* Autocomplete dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-surface-300 bg-surface-100 shadow-xl overflow-hidden">
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-100 shadow-xl overflow-hidden">
             {suggestions.map((item, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => selectSuggestion(item)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-surface-200 transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-surface-200 transition-colors"
               >
                 <span className={
                   'rounded px-1.5 py-0.5 text-[10px] font-medium ' +
-                  (item.type === 'skill' ? 'bg-solana-purple/15 text-solana-purple' : 'bg-surface-300 text-gray-400')
+                  (item.type === 'skill' ? 'bg-solana-purple/15 text-solana-purple' : 'bg-gray-200 dark:bg-surface-300 text-gray-400')
                 }>
                   {item.type}
                 </span>
-                <span className="text-white truncate">{item.text}</span>
+                <span className="text-gray-900 dark:text-white truncate">{item.text}</span>
               </button>
             ))}
           </div>
@@ -123,7 +123,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         <select
           value={f.tier}
           onChange={e => onFilterChange('tier', e.target.value as BountyTier | 'all')}
-          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          className="rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-solana-green/50"
           aria-label="Filter by tier"
           data-testid="tier-filter"
         >
@@ -133,7 +133,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         <select
           value={f.status}
           onChange={e => onFilterChange('status', e.target.value as BountyStatus | 'all')}
-          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          className="rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-solana-green/50"
           aria-label="Filter by status"
           data-testid="status-filter"
         >
@@ -143,7 +143,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         <select
           value={f.creatorType}
           onChange={e => onFilterChange('creatorType', e.target.value as 'all' | 'platform' | 'community')}
-          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          className="rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-solana-green/50"
           aria-label="Filter by creator type"
           data-testid="creator-type-filter"
         >
@@ -153,7 +153,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         <select
           value={f.category}
           onChange={e => onFilterChange('category', e.target.value as BountyCategory | 'all')}
-          className="rounded-lg border border-surface-300 bg-surface-50 px-3 py-1.5 text-sm text-white focus:outline-none focus:border-solana-green/50"
+          className="rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-solana-green/50"
           aria-label="Filter by category"
           data-testid="category-filter"
         >
@@ -164,7 +164,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
           className={'rounded-lg border px-3 py-1.5 text-sm transition-colors ' +
-            (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-surface-300 text-gray-400 hover:text-white')}
+            (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-gray-200 dark:border-surface-300 text-gray-400 hover:text-gray-900 dark:hover:text-white')}
           data-testid="toggle-advanced"
         >
           {showAdvanced ? 'Less' : 'More'} Filters
@@ -174,7 +174,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           <button
             type="button"
             onClick={() => { onReset(); if (searchRef.current) searchRef.current.value = ''; setSuggestions([]); }}
-            className="text-sm text-gray-400 hover:text-white"
+            className="text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white"
             data-testid="reset-filters"
           >
             Clear all
@@ -188,14 +188,14 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
 
       {/* Advanced filters (reward range + deadline) */}
       {showAdvanced && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-surface-300 bg-surface-50" data-testid="advanced-filters">
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-surface-300 bg-gray-50 dark:bg-surface-50" data-testid="advanced-filters">
           <span className="text-xs text-gray-500">Reward:</span>
           <input
             type="number"
             placeholder="Min"
             value={f.rewardMin}
             onChange={e => onFilterChange('rewardMin', e.target.value)}
-            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            className="w-24 rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-100 px-2 py-1 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
             aria-label="Minimum reward"
             data-testid="reward-min"
           />
@@ -205,7 +205,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             placeholder="Max"
             value={f.rewardMax}
             onChange={e => onFilterChange('rewardMax', e.target.value)}
-            className="w-24 rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
+            className="w-24 rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-100 px-2 py-1 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-solana-green/50"
             aria-label="Maximum reward"
             data-testid="reward-max"
           />
@@ -216,7 +216,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             type="date"
             value={f.deadlineBefore}
             onChange={e => onFilterChange('deadlineBefore', e.target.value)}
-            className="rounded-lg border border-surface-300 bg-surface-100 px-2 py-1 text-sm text-white focus:outline-none focus:border-solana-green/50 scheme-dark"
+            className="rounded-lg border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-100 px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-solana-green/50 dark:scheme-dark"
             aria-label="Deadline before date"
             data-testid="deadline-filter"
           />
@@ -234,7 +234,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
               onClick={() => toggleSkill(s)}
               className={
                 'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ' +
-                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-surface-200 text-gray-400 hover:text-white')
+                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-gray-100 dark:bg-surface-200 text-gray-400 hover:text-gray-900 dark:hover:text-white')
               }
               aria-pressed={active}
               data-testid={'skill-filter-' + s}

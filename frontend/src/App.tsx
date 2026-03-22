@@ -41,8 +41,8 @@ class ErrorBoundary extends React.Component<
         className="flex flex-col items-center justify-center min-h-[40vh] gap-4 p-8"
         role="alert"
       >
-        <p className="text-lg font-semibold text-white">Something went wrong</p>
-        <p className="text-sm text-gray-400 text-center max-w-md">
+        <p className="text-lg font-semibold text-gray-900 dark:text-white">Something went wrong</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
           {error.message}
         </p>
         <div className="flex gap-3">
@@ -54,7 +54,7 @@ class ErrorBoundary extends React.Component<
           </button>
           <a
             href="/bounties"
-            className="px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
+            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 text-sm"
           >
             Go home
           </a>
@@ -86,7 +86,7 @@ function LoadingSpinner() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-8 h-8 border-2 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-400 font-mono">Loading...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">Loading...</p>
       </div>
     </div>
   );

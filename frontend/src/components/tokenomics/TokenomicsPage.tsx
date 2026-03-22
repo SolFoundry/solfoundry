@@ -10,9 +10,9 @@ const pct = (n: number, total: number) => total > 0 ? ((n / total) * 100).toFixe
 /** Single metric card used throughout the tokenomics dashboard. */
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-gray-700 bg-surface-100 p-4">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-surface-100 p-4">
       <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-xl font-bold text-white mt-1">{value}</p>
+      <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
       {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
     </div>
   );
@@ -23,9 +23,9 @@ function DistributionBar({ data, total }: { data: Record<string, number>; total:
   const items = Object.entries(data).filter(([, v]) => v > 0);
   const colors = ['bg-[#00FF88]', 'bg-[#9945FF]', 'bg-blue-500', 'bg-orange-500'];
   return (
-    <div className="rounded-xl border border-gray-700 bg-surface-100 p-4" role="figure" aria-label="Token distribution">
-      <h3 className="text-sm font-semibold text-white mb-3">Distribution</h3>
-      <div className="flex h-4 rounded-full overflow-hidden bg-surface-200">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-surface-100 p-4" role="figure" aria-label="Token distribution">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Distribution</h3>
+      <div className="flex h-4 rounded-full overflow-hidden bg-gray-100 dark:bg-surface-200">
         {items.map(([k, v], i) => (
           <div key={k} className={`${colors[i % colors.length]} h-full`} style={{ width: `${pct(v, total)}%` }} title={`${k}: ${fmt(v)}`} />
         ))}
@@ -74,7 +74,7 @@ export function TokenomicsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">{t.tokenName} Tokenomics</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t.tokenName} Tokenomics</h1>
         <p className="text-sm text-gray-400 mt-1">Contract: <code className="text-xs">{t.tokenCA}</code></p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

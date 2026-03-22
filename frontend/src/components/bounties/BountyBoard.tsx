@@ -29,10 +29,10 @@ export function BountyBoard() {
   const handleBountyClick = (id: string) => { window.location.href = '/bounties/' + id; };
 
   return (
-    <div className="min-h-screen bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
+    <div className="min-h-screen bg-gray-50 dark:bg-surface p-4 sm:p-6 lg:p-8" data-testid="bounty-board">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Bounty Marketplace</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Bounty Marketplace</h1>
           <p className="text-sm text-gray-500">Browse open bounties and find your next contribution.</p>
         </div>
         <a

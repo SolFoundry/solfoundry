@@ -98,7 +98,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             <li>
               {crumb.isCurrent ? (
                 <span
-                  className="text-gray-300 font-medium"
+                  className="text-gray-700 dark:text-gray-300 font-medium"
                   aria-current="page"
                 >
                   {crumb.label}
@@ -106,7 +106,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
               ) : (
                 <Link
                   to={crumb.href}
-                  className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                  className="text-gray-400 dark:text-gray-500 hover:text-[#9945FF] transition-colors"
                 >
                   {crumb.label}
                 </Link>
@@ -128,13 +128,13 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             ) : (
               <li>
                 {item.isCurrent ? (
-                  <span className="text-gray-300 font-medium" aria-current="page">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium" aria-current="page">
                     {item.label}
                   </span>
                 ) : (
                   <Link
                     to={item.href}
-                    className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                    className="text-gray-400 dark:text-gray-500 hover:text-[#9945FF] transition-colors"
                   >
                     {item.label}
                   </Link>

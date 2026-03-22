@@ -2,7 +2,7 @@
  * ThemeContext - Dark/Light/System theme management with localStorage persistence
  * @module contexts/ThemeContext
  */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 
 // ============================================================================
 // Types
@@ -109,21 +109,37 @@ export function ThemeProvider({
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
-  // Apply theme to document
+  const hasInitialized = useRef(false);
+
+  // Apply theme to document with optional smooth transition
   const applyTheme = useCallback((resolved: ResolvedTheme) => {
     const root = document.documentElement;
-    
+
+    // Enable transition animation for user-initiated changes (skip first render)
+    if (hasInitialized.current) {
+      root.classList.add('theme-transitioning');
+    }
+
     if (resolved === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
+
     // Update meta theme-color for mobile browsers
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute('content', resolved === 'dark' ? '#0a0a0a' : '#ffffff');
     }
+
+    if (hasInitialized.current) {
+      const tid = window.setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+      }, 300);
+      return () => window.clearTimeout(tid);
+    }
+
+    hasInitialized.current = true;
   }, []);
 
   // Set theme and persist

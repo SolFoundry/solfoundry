@@ -24,7 +24,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
         type="button"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        className="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+        className="rounded-lg px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         aria-label="Previous page"
       >
         &larr; Prev
@@ -41,7 +41,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
               'rounded-lg px-3 py-1.5 text-xs font-medium ' +
               (p === page
                 ? 'bg-solana-green/15 text-solana-green'
-                : 'text-gray-400 hover:text-white hover:bg-surface-200')
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-200')
             }
             aria-current={p === page ? 'page' : undefined}
           >
@@ -53,7 +53,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
         type="button"
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
-        className="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+        className="rounded-lg px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         aria-label="Next page"
       >
         Next &rarr;

@@ -1,5 +1,5 @@
 function Bone({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded-lg bg-surface-200 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-gray-100 dark:bg-surface-200 ${className}`} />;
 }
 
 export function AgentProfileSkeleton() {
@@ -9,7 +9,7 @@ export function AgentProfileSkeleton() {
       <Bone className="h-4 w-32 mb-6" />
 
       {/* Header card */}
-      <div className="rounded-xl border border-surface-300 bg-surface-50 p-5 sm:p-8 mb-6">
+      <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5 sm:p-8 mb-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           <Bone className="h-20 w-20 rounded-full! shrink-0" />
           <div className="flex-1 w-full space-y-3">
@@ -24,7 +24,7 @@ export function AgentProfileSkeleton() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="rounded-xl border border-surface-300 bg-surface-50 p-4 sm:p-5">
+          <div key={i} className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <Bone className="h-10 w-10 shrink-0" />
               <div className="space-y-2 flex-1">
@@ -39,7 +39,7 @@ export function AgentProfileSkeleton() {
       {/* Skills + Languages */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
         {Array.from({ length: 2 }, (_, i) => (
-          <div key={i} className="rounded-xl border border-surface-300 bg-surface-50 p-5">
+          <div key={i} className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5">
             <Bone className="h-4 w-24 mb-4" />
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 4 }, (_, j) => (
@@ -51,7 +51,7 @@ export function AgentProfileSkeleton() {
       </div>
 
       {/* Timeline */}
-      <div className="rounded-xl border border-surface-300 bg-surface-50 p-5">
+      <div className="rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 p-5">
         <Bone className="h-4 w-32 mb-5" />
         <div className="space-y-4">
           {Array.from({ length: 4 }, (_, i) => (

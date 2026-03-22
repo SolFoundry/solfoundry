@@ -75,7 +75,7 @@ export function WalletAddress({
   }
 
   return (
-    <div className={`inline-flex items-center gap-1 rounded-lg border border-gray-700 bg-surface-100 px-2 py-1 ${className}`}>
+    <div className={`inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-surface-100 ${className}`}>
       <span
         className="font-mono text-sm text-gray-300"
         title={showTooltip && isTruncated ? address : undefined}

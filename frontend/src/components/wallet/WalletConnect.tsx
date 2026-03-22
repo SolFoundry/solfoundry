@@ -23,17 +23,17 @@ function WalletModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
       role="dialog" aria-modal="true" aria-label="Connect wallet"
       onClick={e => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); }}>
-      <div ref={ref} className="w-full max-w-sm rounded-2xl border border-gray-700 bg-surface-50 p-6">
+      <div ref={ref} className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-surface-50">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white"><span className="text-[#00FF88]">SolFoundry</span> Wallet</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white"><span className="text-[#00FF88]">SolFoundry</span> Wallet</h2>
           <button type="button" onClick={onClose} aria-label="Close wallet selector"
-            className="h-8 w-8 rounded-lg text-gray-400 hover:text-white inline-flex items-center justify-center">X</button>
+            className="h-8 w-8 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white inline-flex items-center justify-center">X</button>
         </div>
         <ul className="space-y-2" role="list" aria-label="Available wallets">
           {wallets.map(w => (
             <li key={w.adapter.name}>
               <button type="button" aria-label={`Connect with ${w.adapter.name}`}
-                className="flex w-full items-center gap-3 rounded-xl border border-gray-700 bg-surface-100 px-4 py-3 text-sm text-gray-200 hover:text-white"
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 hover:text-gray-900 dark:border-gray-700 dark:bg-surface-100 dark:text-gray-200 dark:hover:text-white"
                 onClick={() => { select(w.adapter.name as WalletName); onClose(); }}>
                 <img src={w.adapter.icon} alt={`${w.adapter.name} icon`} className="h-8 w-8 rounded-lg" width={32} height={32} />
                 {w.adapter.name}
@@ -74,7 +74,7 @@ export function WalletConnect() {
   return (
     <div className="flex items-center gap-2">
       <NetworkSelector />
-      <div className="inline-flex items-center gap-1 rounded-lg border border-gray-700 bg-surface-100 pl-3 pr-1 py-1">
+      <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 pl-3 pr-1 py-1 dark:border-gray-700 dark:bg-surface-100">
         {displayInfo && (
           <>
             <img src={displayInfo.walletIcon} alt={displayInfo.walletName} className="h-4 w-4" width={16} height={16} />

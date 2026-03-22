@@ -143,13 +143,13 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 function AccordionItem({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
   return (
-    <div className="border border-white/10 rounded-xl overflow-hidden transition-colors hover:border-white/20">
+    <div className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-colors hover:border-gray-300 dark:hover:border-white/20">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left cursor-pointer bg-surface-50 hover:bg-surface-100 transition-colors"
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left cursor-pointer bg-white dark:bg-surface-50 hover:bg-gray-50 dark:hover:bg-surface-100 transition-colors"
         aria-expanded={isOpen}
       >
-        <span className="text-sm sm:text-base font-medium text-white">{item.question}</span>
+        <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">{item.question}</span>
         <ChevronIcon open={isOpen} />
       </button>
       <div
@@ -173,7 +173,7 @@ function StepCard({ step, isLast }: { step: Step; isLast: boolean }) {
     <div className="relative flex flex-col items-center text-center group">
       {/* Connector line (hidden on last item and mobile) */}
       {!isLast && (
-        <div className="hidden lg:block absolute top-10 left-[calc(50%+40px)] w-[calc(100%-80px)] h-px bg-gradient-to-r from-white/20 to-white/5 z-0" />
+        <div className="hidden lg:block absolute top-10 left-[calc(50%+40px)] w-[calc(100%-80px)] h-px bg-gradient-to-r from-gray-200 dark:from-white/20 to-gray-100 dark:to-white/5 z-0" />
       )}
 
       {/* Icon circle */}
@@ -196,7 +196,7 @@ function StepCard({ step, isLast }: { step: Step; isLast: boolean }) {
       </div>
 
       {/* Text */}
-      <h3 className="text-base sm:text-lg font-bold text-white mb-2">{step.title}</h3>
+      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2">{step.title}</h3>
       <p className="text-sm text-gray-400 leading-relaxed max-w-[240px]">{step.description}</p>
     </div>
   );
@@ -229,7 +229,7 @@ export function HowItWorksPage() {
             New to SolFoundry?
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
             Code.{' '}
             <span className="bg-gradient-to-r from-[#9945FF] to-[#14F195] bg-clip-text text-transparent">
               Contribute.
@@ -246,7 +246,7 @@ export function HowItWorksPage() {
       {/* ── Steps Section ─────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
         <div className="text-center mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">How It Works</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">How It Works</h2>
           <p className="text-sm text-gray-500">Five steps from discovery to payout</p>
         </div>
 
@@ -273,7 +273,7 @@ export function HowItWorksPage() {
                   <div style={{ color: step.accent }}>{step.icon}</div>
                 </div>
                 {step.number < STEPS.length && (
-                  <div className="w-px flex-1 mt-2 bg-gradient-to-b from-white/15 to-transparent min-h-[24px]" />
+                  <div className="w-px flex-1 mt-2 bg-gradient-to-b from-gray-200 dark:from-white/15 to-transparent min-h-[24px]" />
                 )}
               </div>
 
@@ -286,7 +286,7 @@ export function HowItWorksPage() {
                   >
                     {step.number}
                   </span>
-                  <h3 className="text-base font-bold text-white">{step.title}</h3>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">{step.title}</h3>
                 </div>
                 <p className="text-sm text-gray-400 leading-relaxed">{step.description}</p>
               </div>
@@ -298,7 +298,7 @@ export function HowItWorksPage() {
       {/* ── FAQ Section ───────────────────────────────────────────────────── */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
         <div className="text-center mb-10">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Frequently Asked Questions</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">Frequently Asked Questions</h2>
           <p className="text-sm text-gray-500">Everything you need to know about contributing</p>
         </div>
 
@@ -316,14 +316,14 @@ export function HowItWorksPage() {
 
       {/* ── CTA Section ───────────────────────────────────────────────────── */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-28">
-        <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-surface-50 p-8 sm:p-12 text-center">
+        <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-50 p-8 sm:p-12 text-center">
           {/* Subtle glow */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-[#14F195]/5 rounded-full blur-[80px]" />
           </div>
 
           <div className="relative">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-3">Ready to start earning?</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Ready to start earning?</h2>
             <p className="text-sm sm:text-base text-gray-400 mb-8 max-w-md mx-auto">
               Browse open bounties and find your first task. No applications, no interviews — just great code.
             </p>

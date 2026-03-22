@@ -116,11 +116,11 @@ export function ActivityFeed({
   if (events.length === 0) {
     return (
       <div
-        className={'rounded-xl border border-surface-300 bg-surface-50 ' + className}
+        className={'rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 ' + className}
         data-testid="activity-feed-empty"
       >
-        <div className="p-5 border-b border-surface-300">
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+        <div className="p-5 border-b border-gray-200 dark:border-surface-300">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
         </div>
         <NoActivityYet />
       </div>
@@ -130,23 +130,23 @@ export function ActivityFeed({
   // ── Feed ────────────────────────────────────────────────────────────────
   return (
     <div
-      className={'rounded-xl border border-surface-300 bg-surface-50 flex flex-col ' + className}
+      className={'rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 flex flex-col ' + className}
       data-testid="activity-feed"
       role="feed"
       aria-label="Platform activity feed"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-surface-300">
+      <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-surface-300">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-solana-green animate-pulse" />
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
         </div>
         <span className="text-xs text-gray-500">{displayed.length} events</span>
       </div>
 
       {/* Event list */}
       <div
-        className={'overflow-y-auto divide-y divide-surface-300 ' + (isFullWidth ? 'max-h-[600px]' : 'max-h-[480px]')}
+        className={'overflow-y-auto divide-y divide-gray-200 dark:divide-surface-300 ' + (isFullWidth ? 'max-h-[600px]' : 'max-h-[480px]')}
         role="list"
       >
         {displayed.map(event => {
@@ -157,7 +157,7 @@ export function ActivityFeed({
             <div
               key={event.id}
               className={
-                'flex items-start gap-3 p-4 transition-colors hover:bg-surface-100 ' +
+                'flex items-start gap-3 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-surface-100 ' +
                 (visible ? 'animate-feed-in' : 'opacity-0 -translate-y-2')
               }
               role="listitem"
@@ -177,7 +177,7 @@ export function ActivityFeed({
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <p className={'text-xs leading-relaxed ' + (isFullWidth ? 'sm:text-sm' : '')}>
-                  <span className="text-gray-300">{buildDescription(event)}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{buildDescription(event)}</span>
                 </p>
                 <time
                   className="text-[11px] text-gray-600 mt-0.5 block"
@@ -193,7 +193,7 @@ export function ActivityFeed({
 
       {/* Footer */}
       {events.length > maxEvents && (
-        <div className="border-t border-surface-300 p-3 text-center">
+        <div className="border-t border-gray-200 dark:border-surface-300 p-3 text-center">
           <a
             href={viewAllHref}
             className="text-xs text-solana-purple hover:text-solana-green transition-colors"

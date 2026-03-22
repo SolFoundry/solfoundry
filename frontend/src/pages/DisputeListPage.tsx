@@ -32,7 +32,7 @@ function DisputeListSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
       {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="bg-gray-900 rounded-lg p-5 h-28" />
+        <div key={index} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-5 h-28" />
       ))}
     </div>
   );
@@ -74,7 +74,7 @@ export default function DisputeListPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Disputes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Disputes</h1>
           <p className="text-sm text-gray-400 mt-1">
             Track and manage your dispute resolutions
           </p>
@@ -84,7 +84,7 @@ export default function DisputeListPage() {
         <select
           value={statusFilter}
           onChange={(event) => handleStatusFilterChange(event.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-[#9945FF] focus:outline-none min-w-[160px]"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-[#9945FF] focus:outline-none min-w-[160px]"
           data-testid="status-filter"
         >
           {STATUS_FILTER_OPTIONS.map((option) => (
@@ -128,11 +128,11 @@ export default function DisputeListPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
           <button
             onClick={() => setCurrentPage((page) => Math.max(0, page - 1))}
             disabled={currentPage === 0}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
@@ -142,7 +142,7 @@ export default function DisputeListPage() {
           <button
             onClick={() => setCurrentPage((page) => Math.min(totalPages - 1, page + 1))}
             disabled={currentPage >= totalPages - 1}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

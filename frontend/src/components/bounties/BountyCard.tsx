@@ -52,11 +52,11 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
           </div>
           <StatusIndicator status={b.status} />
         </div>
-        <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-solana-green">{b.title}</h3>
         <p className="text-xs text-gray-500 mb-3">{b.projectName}</p>
         <div className="flex items-baseline gap-1 mb-3"><span className="text-lg font-bold text-solana-green">{formatReward(b.rewardAmount)}</span><span className="text-xs text-gray-500">{b.currency}</span></div>
         <SkillTags skills={b.skills} maxVisible={3} />
-        <div className="flex justify-between pt-3 mt-3 border-t border-surface-300">
+        <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 dark:border-surface-300">
           <span className={'text-xs ' + (urg ? 'text-[#FF6B6B]' : 'text-gray-500')} data-testid="time-remaining">{tr}</span>
           <span className="text-xs text-gray-500">{b.submissionCount} submission{b.submissionCount !== 1 ? 's' : ''}</span>
         </div>
@@ -71,7 +71,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
         href={b.githubIssueUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all block' + (exp ? ' opacity-60' : '')}
+        className={'group relative w-full text-left rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all block' + (exp ? ' opacity-60' : '')}
         data-testid={'bounty-card-' + b.id}
         aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
       >
@@ -85,7 +85,7 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
     <button
       type="button"
       onClick={() => onClick(b.id)}
-      className={'group relative w-full text-left rounded-xl border border-surface-300 bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all focus-visible:ring-2 focus-visible:ring-solana-green' + (exp ? ' opacity-60' : '')}
+      className={'group relative w-full text-left rounded-xl border border-gray-200 dark:border-surface-300 bg-white dark:bg-surface-50 hover:shadow-lg hover:border-solana-green/40 transition-all focus-visible:ring-2 focus-visible:ring-solana-green' + (exp ? ' opacity-60' : '')}
       data-testid={'bounty-card-' + b.id}
       aria-label={'Bounty: ' + b.title + ', ' + b.rewardAmount + ' ' + b.currency}
     >

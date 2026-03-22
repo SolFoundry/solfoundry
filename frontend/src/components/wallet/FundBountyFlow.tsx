@@ -46,35 +46,35 @@ function ApprovalModal({
         if (ref.current && !ref.current.contains(e.target as Node)) onClose();
       }}
     >
-      <div ref={ref} className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 mx-4">
+      <div ref={ref} className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 mx-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-white">Confirm Staking</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Staking</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 rounded-lg text-gray-400 hover:text-white inline-flex items-center justify-center"
+            className="h-8 w-8 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white inline-flex items-center justify-center"
           >
             ✕
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 mb-6 text-center">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-6 mb-6 text-center">
           <p className="text-gray-400 text-sm mb-2">You are staking</p>
           <p className="text-3xl font-bold text-green-400">{amount.toLocaleString()}</p>
           <p className="text-gray-400 text-sm mt-1">$FNDRY</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-4 mb-6 space-y-2">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-6 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Your balance</span>
-            <span className={insufficient ? 'text-red-400' : 'text-white'}>
+            <span className={insufficient ? 'text-red-400' : 'text-gray-900 dark:text-white'}>
               {balance !== null ? `${balance.toLocaleString()} $FNDRY` : 'Loading…'}
             </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">After staking</span>
-            <span className="text-white">
+            <span className="text-gray-900 dark:text-white">
               {balance !== null ? `${Math.max(0, balance - amount).toLocaleString()} $FNDRY` : '—'}
             </span>
           </div>
@@ -91,7 +91,7 @@ function ApprovalModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+            className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             Cancel
           </button>
@@ -140,8 +140,8 @@ function TransactionStatusTracker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 mx-4">
-        <h2 className="text-lg font-semibold text-white mb-6">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 mx-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
           {status === 'error'
             ? 'Transaction Failed'
             : status === 'confirmed'
@@ -157,7 +157,7 @@ function TransactionStatusTracker({
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+                className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
@@ -205,7 +205,7 @@ function TransactionStatusTracker({
                     <div>
                       <p
                         className={`text-sm font-medium ${
-                          isComplete ? 'text-green-400' : isActive ? 'text-white' : 'text-gray-500'
+                          isComplete ? 'text-green-400' : isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500'
                         }`}
                       >
                         {step.label}

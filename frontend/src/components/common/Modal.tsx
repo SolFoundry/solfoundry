@@ -60,22 +60,22 @@ const Modal: React.FC<ModalProps> = ({
         >
             <div
                 ref={modalRef}
-                className={`w-full ${maxWidthClasses[maxWidth]} bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200`}
+                className={`w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-surface-50 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200`}
                 role="dialog"
                 aria-modal="true"
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/5">
                         {title ? (
-                            <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">{title}</h3>
                         ) : (
                             <div />
                         )}
                         {showCloseButton && (
                             <button
                                 onClick={onClose}
-                                className="p-2 -mr-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                                className="p-2 -mr-2 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                                 aria-label="Close modal"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

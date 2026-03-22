@@ -63,17 +63,17 @@ function renderMarkdown(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     // Headers
-    .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-white mt-4 mb-2">$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-white mt-4 mb-2">$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold text-white mt-4 mb-2">$1</h1>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-gray-900 dark:text-white mt-4 mb-2">$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-gray-900 dark:text-white mt-4 mb-2">$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-4 mb-2">$1</h1>')
     // Bold
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
     // Italic
     .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
     // Code blocks
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 p-3 rounded-lg overflow-x-auto my-2"><code class="text-green-400">$2</code></pre>')
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-900 p-3 rounded-lg overflow-x-auto my-2"><code class="text-green-600 dark:text-green-400">$2</code></pre>')
     // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-900 px-1.5 py-0.5 rounded text-purple-400 text-sm">$1</code>')
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-900 px-1.5 py-0.5 rounded text-purple-600 dark:text-purple-400 text-sm">$1</code>')
     // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-purple-400 hover:text-purple-300 underline" target="_blank" rel="noopener noreferrer">$1</a>')
     // Lists
@@ -82,7 +82,7 @@ function renderMarkdown(text: string): string {
     .replace(/\n\n/g, '</p><p class="my-2">')
     .replace(/\n/g, '<br/>');
   
-  return `<div class="prose prose-invert prose-sm max-w-none"><p class="my-2">${html}</p></div>`;
+  return `<div class="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"><p class="my-2">${html}</p></div>`;
 }
 
 // Auth context types — GitHub auth is placeholder; wallet state comes from hooks.
@@ -163,7 +163,7 @@ const TIER_INFO = {
 const TierSelection: React.FC<StepProps> = ({ formData, updateFormData, errors }) => {
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Select Bounty Tier</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Select Bounty Tier</h2>
       <p className="text-gray-400">Choose the tier that matches your bounty complexity.</p>
       
       <div className="grid gap-4">
@@ -177,8 +177,8 @@ const TierSelection: React.FC<StepProps> = ({ formData, updateFormData, errors }
               onClick={() => updateFormData({ tier })}
               className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                 isSelected
-                  ? `${info.borderColor} bg-gray-800`
-                  : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+                  ? `${info.borderColor} bg-gray-100 dark:bg-gray-800`
+                  : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -214,12 +214,12 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Title & Description</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Title & Description</h2>
       <p className="text-gray-400">Provide a clear title and detailed description.</p>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
             Bounty Title *
           </label>
           <input
@@ -227,14 +227,14 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
             value={formData.title}
             onChange={(e) => updateFormData({ title: e.target.value })}
             placeholder="e.g., Implement User Authentication System"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
           />
           {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
         </div>
         
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-300">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">
               Description (Markdown) *
             </label>
             <button
@@ -248,7 +248,7 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
           
           {showPreview ? (
             <div 
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 min-h-[200px] text-gray-300 prose prose-invert prose-sm max-w-none"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 min-h-[200px] text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ 
                 __html: formData.description 
                   ? renderMarkdown(formData.description) 
@@ -261,7 +261,7 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
               onChange={(e) => updateFormData({ description: e.target.value })}
               placeholder="Describe the bounty in detail. Include requirements, expected deliverables, and any relevant technical specifications..."
               rows={8}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none font-mono text-sm"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none font-mono text-sm"
             />
           )}
           {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
@@ -297,7 +297,7 @@ const RequirementsBuilder: React.FC<StepProps> = ({ formData, updateFormData, er
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Requirements Checklist</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Requirements Checklist</h2>
       <p className="text-gray-400">Add the deliverables contributors must complete.</p>
       
       <div className="space-y-3">
@@ -309,14 +309,14 @@ const RequirementsBuilder: React.FC<StepProps> = ({ formData, updateFormData, er
               value={req}
               onChange={(e) => updateRequirement(index, e.target.value)}
               placeholder="Enter requirement..."
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-gray-900 dark:text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
             />
             <div className="flex gap-1">
               <button
                 type="button"
                 onClick={() => moveRequirement(index, index - 1)}
                 disabled={index === 0}
-                className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Move up"
               >
                 ↑
@@ -325,7 +325,7 @@ const RequirementsBuilder: React.FC<StepProps> = ({ formData, updateFormData, er
                 type="button"
                 onClick={() => moveRequirement(index, index + 1)}
                 disabled={index === formData.requirements.length - 1}
-                className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Move down"
               >
                 ↓
@@ -368,16 +368,16 @@ const CategorySkills: React.FC<StepProps> = ({ formData, updateFormData, errors 
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Category & Skills</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Category & Skills</h2>
       <p className="text-gray-400">Categorize your bounty and tag required skills.</p>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Category *</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Category *</label>
           <select
             value={formData.category}
             onChange={(e) => updateFormData({ category: e.target.value })}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none"
           >
             <option value="">Select a category...</option>
             {CATEGORIES.map((cat) => (
@@ -388,7 +388,7 @@ const CategorySkills: React.FC<StepProps> = ({ formData, updateFormData, errors 
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Required Skills</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Required Skills</label>
           <div className="flex flex-wrap gap-2">
             {SKILLS_OPTIONS.map((skill) => {
               const isSelected = formData.skills.includes(skill);
@@ -400,7 +400,7 @@ const CategorySkills: React.FC<StepProps> = ({ formData, updateFormData, errors 
                   className={`px-3 py-1.5 rounded-full text-sm transition-all ${
                     isSelected
                       ? 'bg-purple-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
                   {skill}
@@ -421,12 +421,12 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Reward & Deadline</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Reward & Deadline</h2>
       <p className="text-gray-400">Set the $FNDRY reward amount and deadline.</p>
       
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
             Reward Amount ($FNDRY) *
           </label>
           <div className="flex gap-2 mb-3">
@@ -438,7 +438,7 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
                 className={`px-3 py-2 rounded-lg text-sm transition-all ${
                   formData.rewardAmount === amount
                     ? 'bg-purple-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 {(amount / 1000).toFixed(0)}K
@@ -452,7 +452,7 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
               onChange={(e) => updateFormData({ rewardAmount: parseInt(e.target.value) || 0 })}
               min={1000}
               step={1000}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none pr-20"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none pr-20"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">$FNDRY</span>
           </div>
@@ -460,7 +460,7 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
             Deadline *
           </label>
           <input
@@ -468,7 +468,7 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
             value={formData.deadline}
             onChange={(e) => updateFormData({ deadline: e.target.value })}
             min={new Date().toISOString().split('T')[0]}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none"
           />
           {errors.deadline && <p className="text-red-400 text-sm mt-1">{errors.deadline}</p>}
         </div>
@@ -483,21 +483,21 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
   
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Preview Bounty</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Preview Bounty</h2>
       <p className="text-gray-400">Review your bounty before publishing.</p>
       
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 space-y-6">
+      <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 space-y-6">
         {/* Header */}
-        <div className="border-b border-gray-700 pb-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-2 py-1 rounded text-xs font-bold ${tierInfo?.color} bg-gray-800`}>
+            <span className={`px-2 py-1 rounded text-xs font-bold ${tierInfo?.color} bg-gray-100 dark:bg-gray-800`}>
               {formData.tier}
             </span>
             <span className="px-2 py-1 rounded text-xs bg-purple-600 text-white">
               {formData.category}
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-white">{formData.title || 'Untitled Bounty'}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.title || 'Untitled Bounty'}</h3>
           <div className="flex items-center gap-4 mt-3 text-sm">
             <span className="text-green-400 font-bold">
               {formData.rewardAmount.toLocaleString()} $FNDRY
@@ -512,7 +512,7 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
         <div>
           <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Description</h4>
           <div 
-            className="text-gray-300 prose prose-invert prose-sm max-w-none"
+            className="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
             dangerouslySetInnerHTML={{ 
               __html: formData.description 
                 ? renderMarkdown(formData.description) 
@@ -526,7 +526,7 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
           <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Requirements</h4>
           <ul className="space-y-2">
             {formData.requirements.filter(Boolean).map((req, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-gray-300">
+              <li key={idx} className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                 <input type="checkbox" disabled className="mt-1 accent-purple-500" />
                 <span>{req}</span>
               </li>
@@ -540,7 +540,7 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
             <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Required Skills</h4>
             <div className="flex flex-wrap gap-2">
               {formData.skills.map((skill) => (
-                <span key={skill} className="px-2 py-1 bg-gray-800 text-gray-300 rounded text-sm">
+                <span key={skill} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded text-sm">
                   {skill}
                 </span>
               ))}
@@ -595,7 +595,7 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
     return (
       <div className="space-y-6 text-center">
         <div className="text-green-400 text-6xl mb-4">✓</div>
-        <h2 className="text-2xl font-bold text-white">Bounty Published & Funded!</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bounty Published & Funded!</h2>
         <p className="text-gray-400">
           Your bounty has been created and {formData.rewardAmount.toLocaleString()} $FNDRY is held in escrow.
         </p>
@@ -615,11 +615,11 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Fund & Publish</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Fund & Publish</h2>
       <p className="text-gray-400">Stake $FNDRY to fund the bounty escrow, then publish.</p>
 
       {/* Wallet & Funding Status */}
-      <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Wallet</span>
           <span className={isWalletConnected ? 'text-green-400' : 'text-red-400'}>
@@ -647,14 +647,14 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
       </div>
 
       {/* Summary */}
-      <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Bounty Tier</span>
-          <span className="text-white font-medium">{formData.tier}</span>
+          <span className="text-gray-900 dark:text-white font-medium">{formData.tier}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Title</span>
-          <span className="text-white font-medium truncate ml-4">{formData.title}</span>
+          <span className="text-gray-900 dark:text-white font-medium truncate ml-4">{formData.title}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Staking Amount</span>
@@ -662,11 +662,11 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Deadline</span>
-          <span className="text-white font-medium">{formData.deadline}</span>
+          <span className="text-gray-900 dark:text-white font-medium">{formData.deadline}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Requirements</span>
-          <span className="text-white font-medium">{formData.requirements.filter(Boolean).length} items</span>
+          <span className="text-gray-900 dark:text-white font-medium">{formData.requirements.filter(Boolean).length} items</span>
         </div>
       </div>
 
@@ -684,7 +684,7 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
           onChange={(e) => setAgreed(e.target.checked)}
           className="mt-1 accent-purple-500"
         />
-        <span className="text-gray-300 text-sm">
+        <span className="text-gray-600 dark:text-gray-300 text-sm">
           I confirm this bounty is accurate and authorize the staking of{' '}
           {formData.rewardAmount.toLocaleString()} $FNDRY into escrow.
         </span>
@@ -902,15 +902,15 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
   };
   
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-gray-950 min-h-screen">
+    <div className="max-w-2xl mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen">
       {/* Progress Bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-white">Create Bounty</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Bounty</h1>
           <span className="text-gray-400 text-sm">Step {currentStep} of {totalSteps}</span>
         </div>
         <div 
-          className="h-2 bg-gray-800 rounded-full overflow-hidden"
+          className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden"
           role="progressbar"
           aria-valuenow={progressPercent}
           aria-valuemin={0}
@@ -941,7 +941,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       </div>
       
       {/* Step Content */}
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
         {renderStep()}
       </div>
       
@@ -951,7 +951,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
           <button
             onClick={prevStep}
             disabled={currentStep === 1}
-            className="px-6 py-2 rounded-lg text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="px-6 py-2 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             ← Back
           </button>

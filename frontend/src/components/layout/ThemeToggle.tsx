@@ -2,7 +2,7 @@
  * ThemeToggle - Toggle between light, dark, and system theme modes
  * @module components/layout/ThemeToggle
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, ThemeMode } from '../../contexts/ThemeContext';
 
 // ============================================================================
@@ -102,10 +102,19 @@ export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false);
+    setFocusedIndex(-1);
+    triggerRef.current?.focus();
   }, []);
 
   // Close dropdown when clicking outside
@@ -113,6 +122,7 @@ export function ThemeToggle() {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setFocusedIndex(-1);
       }
     }
 
@@ -122,34 +132,87 @@ export function ThemeToggle() {
     }
   }, [isOpen]);
 
-  // Handle keyboard navigation
+  // Focus first option when dropdown opens
   useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
+      const activeIndex = THEME_OPTIONS.findIndex((o) => o.value === theme);
+      const idx = activeIndex >= 0 ? activeIndex : 0;
+      setFocusedIndex(idx);
+      requestAnimationFrame(() => optionRefs.current[idx]?.focus());
     }
-  }, [isOpen]);
+  }, [isOpen, theme]);
 
-  // Get current icon based on resolved theme
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (!isOpen) {
+        if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setIsOpen(true);
+        }
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowDown': {
+          event.preventDefault();
+          const next = (focusedIndex + 1) % THEME_OPTIONS.length;
+          setFocusedIndex(next);
+          optionRefs.current[next]?.focus();
+          break;
+        }
+        case 'ArrowUp': {
+          event.preventDefault();
+          const prev = (focusedIndex - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length;
+          setFocusedIndex(prev);
+          optionRefs.current[prev]?.focus();
+          break;
+        }
+        case 'Home': {
+          event.preventDefault();
+          setFocusedIndex(0);
+          optionRefs.current[0]?.focus();
+          break;
+        }
+        case 'End': {
+          event.preventDefault();
+          const last = THEME_OPTIONS.length - 1;
+          setFocusedIndex(last);
+          optionRefs.current[last]?.focus();
+          break;
+        }
+        case 'Escape':
+        case 'Tab': {
+          closeDropdown();
+          break;
+        }
+        case 'Enter':
+        case ' ': {
+          event.preventDefault();
+          if (focusedIndex >= 0) {
+            setTheme(THEME_OPTIONS[focusedIndex].value);
+            closeDropdown();
+          }
+          break;
+        }
+      }
+    },
+    [isOpen, focusedIndex, setTheme, closeDropdown]
+  );
+
   const getCurrentIcon = () => {
-    if (resolvedTheme === 'dark') {
-      return <MoonIcon className="w-5 h-5" />;
-    }
+    if (theme === 'system') return <ComputerIcon className="w-5 h-5" />;
+    if (resolvedTheme === 'dark') return <MoonIcon className="w-5 h-5" />;
     return <SunIcon className="w-5 h-5" />;
   };
 
-  // Don't render until mounted (prevents hydration mismatch)
+  const currentLabel =
+    theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light';
+
   if (!mounted) {
     return (
       <button
         type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 dark:text-gray-400"
         aria-label="Toggle theme"
       >
         <span className="sr-only">Toggle theme</span>
@@ -158,13 +221,13 @@ export function ThemeToggle() {
   }
 
   return (
-    <div ref={dropdownRef} className="relative">
-      {/* Toggle Button */}
+    <div ref={dropdownRef} className="relative" onKeyDown={handleKeyDown}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
-        aria-label="Toggle theme"
+        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
+        aria-label={`Theme: ${currentLabel}. Click to change`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
@@ -172,28 +235,32 @@ export function ThemeToggle() {
         <ChevronDownIcon className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-40 py-1 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-50"
+          className="absolute right-0 mt-2 w-44 py-1 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-50"
           role="listbox"
           aria-label="Theme options"
+          aria-activedescendant={focusedIndex >= 0 ? `theme-option-${THEME_OPTIONS[focusedIndex].value}` : undefined}
         >
-          {THEME_OPTIONS.map((option) => (
+          {THEME_OPTIONS.map((option, idx) => (
             <button
               key={option.value}
+              id={`theme-option-${option.value}`}
+              ref={(el) => { optionRefs.current[idx] = el; }}
               type="button"
               onClick={() => {
                 setTheme(option.value);
-                setIsOpen(false);
+                closeDropdown();
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors outline-none
                 ${theme === option.value
                   ? 'text-[#14F195] bg-[#14F195]/10'
                   : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
+                }
+                ${focusedIndex === idx ? 'ring-2 ring-inset ring-[#9945FF]/60' : ''}`}
               role="option"
               aria-selected={theme === option.value}
+              tabIndex={focusedIndex === idx ? 0 : -1}
             >
               {option.icon}
               <span className="flex-1 text-left">{option.label}</span>
@@ -203,10 +270,9 @@ export function ThemeToggle() {
             </button>
           ))}
           
-          {/* System hint */}
           {theme === 'system' && (
             <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 mt-1">
-              Using {resolvedTheme} mode
+              Currently using {resolvedTheme} mode
             </div>
           )}
         </div>
