@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreatorBountyCard } from './bounties/CreatorBountyCard';
 import { Skeleton, SkeletonStatCard, SkeletonCard } from './common/Skeleton';
+import Tooltip from './common/Tooltip';
 
 interface CreatorDashboardProps {
     userId?: string;
@@ -157,15 +158,21 @@ export function CreatorDashboard({
                 {/* Escrow Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-green shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Escrowed (Active)</p>
+                        <Tooltip content="$FNDRY currently locked in escrow for your active bounties." position="top">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm cursor-help">Total Escrowed (Active)</p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.staked)} <span className="text-solana-green text-lg">$FNDRY</span></p>
                     </div>
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-purple shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Paid Out</p>
+                        <Tooltip content="Total $FNDRY released from escrow and paid to contributors." position="top">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm cursor-help">Total Paid Out</p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.paid)} <span className="text-solana-purple text-lg">$FNDRY</span></p>
                     </div>
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-gray-500 shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Refunded</p>
+                        <Tooltip content="$FNDRY returned to your wallet from expired or cancelled bounties." position="top">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm cursor-help">Total Refunded</p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.refunded)} <span className="text-gray-600 dark:text-gray-400 text-lg">$FNDRY</span></p>
                     </div>
                 </div>

@@ -40,3 +40,4 @@ export { TierProgressBar } from './TierProgressBar';
 export type { TierProgressBarProps } from './TierProgressBar';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export type { MarkdownRendererProps } from './MarkdownRenderer';
+export { default as Tooltip } from './Tooltip';
