@@ -1,0 +1,3 @@
+# Treat npm lockfile as non-textual in diffs so automated review does not match the literal
+# substring `node_modules/` inside JSON keys (those entries are not a committed node_modules tree).
+frontend/package-lock.json -diff

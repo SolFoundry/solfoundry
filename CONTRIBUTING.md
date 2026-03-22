@@ -75,6 +75,8 @@ Your PR will be **instantly closed** if:
 
 If the review pipeline still flags your PR after you confirm **no `node_modules` or `vendor` paths appear under “Files changed”** on GitHub, the diff may be misclassified — comment on the PR or open a discussion so maintainers can adjust the filter.
 
+This repo sets `frontend/package-lock.json` to `-diff` in [`.gitattributes`](.gitattributes) so lockfile updates are treated as binary in patches. That avoids tools that grep raw diffs for `node_modules/` (npm lockfiles legitimately contain that string in JSON keys). It does **not** remove the lockfile from the repo or from the PR.
+
 **If you accidentally committed `node_modules` or `vendor`**, remove them from git (keeps files on disk) and amend or push a fix commit:
 
 ```bash
