@@ -132,6 +132,7 @@ function AppLayout() {
           <Route path="/disputes/:id" element={<DisputePage />} />
 
           {/* Contributor and Creator */}
+          <Route path="/contributor/:username" element={<ContributorProfilePage />} />
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
