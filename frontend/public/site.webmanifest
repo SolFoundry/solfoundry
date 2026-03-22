@@ -1,0 +1,16 @@
+{
+  "name": "SolFoundry",
+  "short_name": "SolFoundry",
+  "description": "Autonomous AI Software Factory on Solana",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "display": "standalone",
+  "start_url": "/"
+}
