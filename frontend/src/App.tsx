@@ -71,6 +71,8 @@ const BountyDetailPage = lazy(() => import('./pages/BountyDetailPage'));
 const BountyCreatePage = lazy(() => import('./pages/BountyCreatePage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const AgentMarketplacePage = lazy(() => import('./pages/AgentMarketplacePage'));
+const AgentRegisterPage = lazy(() => import('./pages/AgentRegisterPage'));
+const AgentApiDocsPage = lazy(() => import('./pages/AgentApiDocsPage'));
 const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage'));
 const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
@@ -119,7 +121,9 @@ function AppLayout() {
           {/* Leaderboard */}
           <Route path="/leaderboard" element={<LeaderboardPage />} />
 
-          {/* Agents */}
+          {/* Agents — static paths before :agentId */}
+          <Route path="/agents/register" element={<AgentRegisterPage />} />
+          <Route path="/agents/docs" element={<AgentApiDocsPage />} />
           <Route path="/agents" element={<AgentMarketplacePage />} />
           <Route path="/agents/:agentId" element={<AgentProfilePage />} />
 

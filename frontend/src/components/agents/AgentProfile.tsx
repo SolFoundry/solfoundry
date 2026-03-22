@@ -4,11 +4,13 @@ import { ROLE_LABELS, STATUS_CONFIG } from '../../types/agent';
 import { AgentStatsCard } from './AgentStatsCard';
 import { AgentSkillTags } from './AgentSkillTags';
 import { AgentActivityTimeline } from './AgentActivityTimeline';
+import { AgentRobotIcon } from './AgentRobotIcon';
+import { AgentVerifiedBadge } from './AgentVerifiedBadge';
 
 function AvailabilityBadge({ status }: { status: AgentProfileType['status'] }) {
   const { label, dot } = STATUS_CONFIG[status];
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800 dark:border-surface-300 dark:bg-surface-200 dark:text-gray-300">
+    <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-900 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200">
       <span className={`h-2.5 w-2.5 rounded-full ${dot} ${status === 'available' ? 'animate-pulse' : ''}`} />
       {label}
     </span>
@@ -17,7 +19,7 @@ function AvailabilityBadge({ status }: { status: AgentProfileType['status'] }) {
 
 function RoleBadge({ role }: { role: AgentProfileType['role'] }) {
   return (
-    <span className="inline-flex items-center rounded-md bg-solana-purple/15 px-2.5 py-0.5 text-xs font-medium text-solana-purple border border-solana-purple/25">
+    <span className="inline-flex items-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-medium text-cyan-800 dark:text-cyan-200">
       {ROLE_LABELS[role]}
     </span>
   );
@@ -27,16 +29,22 @@ function SuccessRateRing({ rate }: { rate: number }) {
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (rate / 100) * circumference;
-  const color = rate >= 90 ? '#14F195' : rate >= 80 ? '#FFD700' : '#FF6B6B';
+  const color = rate >= 90 ? '#22d3ee' : rate >= 80 ? '#fbbf24' : '#f87171';
 
   return (
     <div className="relative h-24 w-24 shrink-0">
       <svg className="h-24 w-24 -rotate-90" viewBox="0 0 80 80">
         <circle cx="40" cy="40" r={radius} fill="none" className="stroke-gray-200 dark:stroke-surface-300" strokeWidth="6" />
         <circle
-          cx="40" cy="40" r={radius} fill="none"
-          stroke={color} strokeWidth="6" strokeLinecap="round"
-          strokeDasharray={circumference} strokeDashoffset={offset}
+          cx="40"
+          cy="40"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
           className="transition-[stroke-dashoffset] duration-1000 ease-out"
         />
       </svg>
@@ -57,91 +65,120 @@ export function AgentProfile({ agent }: AgentProfileProps) {
     year: 'numeric',
   });
 
+  const walletShort =
+    agent.operatorWallet.length > 12
+      ? `${agent.operatorWallet.slice(0, 4)}…${agent.operatorWallet.slice(-4)}`
+      : agent.operatorWallet;
+
   return (
-    <div className="min-h-screen p-4 sm:p-6 max-w-5xl mx-auto">
-      {/* Back link */}
-      <Link
-        to="/agents"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-solana-green transition-colors mb-6"
-      >
-        &larr; Back to Marketplace
-      </Link>
+    <div className="min-h-screen bg-gradient-to-b from-cyan-950/[0.06] via-white to-white p-4 sm:p-6 dark:from-cyan-950/30 dark:via-surface dark:to-surface">
+      <div className="mx-auto max-w-5xl">
+        <Link
+          to="/agents"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-cyan-700 transition-colors hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300"
+        >
+          &larr; Back to Agent Marketplace
+        </Link>
 
-      {/* ── Header Card ──────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-8 mb-6 shadow-sm dark:border-surface-300 dark:bg-surface-50 dark:shadow-none">
-        <div className="flex flex-col sm:flex-row gap-5">
-          {/* Avatar + Success Ring on mobile stacked, desktop side by side */}
-          <div className="flex flex-col items-center sm:items-start gap-4">
-            <div className="h-20 w-20 rounded-full gradient-solana flex items-center justify-center text-2xl font-bold text-white shrink-0">
-              {agent.avatar}
+        <div className="mb-6 rounded-xl border border-cyan-500/20 bg-white p-5 shadow-sm dark:border-cyan-500/25 dark:bg-surface-50 dark:shadow-none sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row">
+            <div className="flex flex-col items-center gap-4 sm:items-start">
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-cyan-500/40 bg-gradient-to-br from-cyan-500/20 to-solana-purple/20 text-xl font-bold text-gray-900 dark:text-white">
+                <AgentRobotIcon className="absolute -right-1 -top-1 h-7 w-7" />
+                {agent.avatar}
+              </div>
+              <div className="sm:hidden">
+                <SuccessRateRing rate={agent.successRate} />
+              </div>
             </div>
-            <div className="sm:hidden">
-              <SuccessRateRing rate={agent.successRate} />
-            </div>
-          </div>
 
-          {/* Info */}
-          <div className="flex-1 text-center sm:text-left min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{agent.name}</h1>
-              <div className="flex items-center justify-center sm:justify-start gap-2">
+            <div className="min-w-0 flex-1 text-center sm:text-left">
+              <div className="mb-2 flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-start">
+                <div className="flex items-center gap-2">
+                  <AgentRobotIcon className="hidden h-7 w-7 sm:block" />
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{agent.name}</h1>
+                </div>
+                {agent.verified && <AgentVerifiedBadge />}
                 <RoleBadge role={agent.role} />
                 <AvailabilityBadge status={agent.status} />
               </div>
+              <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">Operator wallet · {walletShort}</p>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">Registered {memberSince}</p>
+              {agent.apiEndpoint && (
+                <p className="mb-3 font-mono text-xs text-cyan-800 dark:text-cyan-300">
+                  API endpoint:{' '}
+                  <a
+                    href={agent.apiEndpoint}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all underline decoration-cyan-500/40 hover:text-cyan-600"
+                  >
+                    {agent.apiEndpoint}
+                  </a>
+                </p>
+              )}
+              <p className="max-w-2xl text-sm leading-relaxed text-gray-700 dark:text-gray-300">{agent.bio}</p>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Member since {memberSince}</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed max-w-2xl">{agent.bio}</p>
-          </div>
 
-          {/* Desktop success ring */}
-          <div className="hidden sm:flex flex-col items-center gap-1 shrink-0">
-            <SuccessRateRing rate={agent.successRate} />
-            <span className="text-xs text-gray-600 dark:text-gray-500">Success Rate</span>
+            <div className="hidden shrink-0 flex-col items-center gap-1 sm:flex">
+              <SuccessRateRing rate={agent.successRate} />
+              <span className="text-xs text-gray-600 dark:text-gray-500">Completion rate</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Stats Cards ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <AgentStatsCard
-          label="Bounties"
-          value={agent.bountiesCompleted.toString()}
-          icon={<span className="text-solana-green">&#9889;</span>}
-          accent="text-solana-green"
-        />
-        <AgentStatsCard
-          label="Success Rate"
-          value={`${agent.successRate}%`}
-          icon={<span className="text-solana-green">&#10003;</span>}
-          accent="text-solana-green"
-        />
-        <AgentStatsCard
-          label="Avg Score"
-          value={`${agent.avgReviewScore}/5`}
-          icon={<span className="text-accent-gold">&#9733;</span>}
-          accent="text-accent-gold"
-        />
-        <AgentStatsCard
-          label="Total Earned"
-          value={`${(agent.totalEarned / 1000).toFixed(0)}k $FNDRY`}
-          icon={<span className="text-solana-purple">&#9670;</span>}
-          accent="text-solana-purple"
-        />
-      </div>
-
-      {/* ── Skills & Languages ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-surface-300 dark:bg-surface-50 dark:shadow-none">
-          <AgentSkillTags title="Capabilities" tags={agent.skills} variant="green" />
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <AgentStatsCard
+            label="Reputation"
+            value={Math.round(agent.reputationScore).toLocaleString()}
+            icon={<span className="text-cyan-500">&#9672;</span>}
+            accent="text-cyan-500"
+          />
+          <AgentStatsCard
+            label="Bounties"
+            value={agent.bountiesCompleted.toString()}
+            icon={<span className="text-solana-green">&#9889;</span>}
+            accent="text-solana-green"
+          />
+          <AgentStatsCard
+            label="Success rate"
+            value={`${agent.successRate}%`}
+            icon={<span className="text-solana-green">&#10003;</span>}
+            accent="text-solana-green"
+          />
+          <AgentStatsCard
+            label="Avg score"
+            value={`${agent.avgReviewScore}/5`}
+            icon={<span className="text-accent-gold">&#9733;</span>}
+            accent="text-accent-gold"
+          />
+          <AgentStatsCard
+            label="Total earned"
+            value={`${(agent.totalEarned / 1000).toFixed(0)}k $FNDRY`}
+            icon={<span className="text-solana-purple">&#9670;</span>}
+            accent="text-solana-purple"
+          />
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-surface-300 dark:bg-surface-50 dark:shadow-none">
-          <AgentSkillTags title="Languages" tags={agent.languages} variant="purple" />
-        </div>
-      </div>
 
-      {/* ── Activity Timeline ────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm dark:border-surface-300 dark:bg-surface-50 dark:shadow-none">
-        <AgentActivityTimeline bounties={agent.completedBounties} />
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+          <div className="rounded-xl border border-cyan-500/15 bg-white p-5 shadow-sm dark:border-cyan-500/20 dark:bg-surface-50 dark:shadow-none">
+            <AgentSkillTags title="Capabilities" tags={agent.skills} variant="green" />
+          </div>
+          <div className="rounded-xl border border-cyan-500/15 bg-white p-5 shadow-sm dark:border-cyan-500/20 dark:bg-surface-50 dark:shadow-none">
+            <AgentSkillTags title="Languages" tags={agent.languages} variant="purple" />
+          </div>
+          <div className="rounded-xl border border-cyan-500/15 bg-white p-5 shadow-sm dark:border-cyan-500/20 dark:bg-surface-50 dark:shadow-none">
+            <AgentSkillTags title="APIs & protocols" tags={agent.apis} variant="purple" />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-cyan-500/15 bg-white p-5 shadow-sm dark:border-cyan-500/20 dark:bg-surface-50 dark:shadow-none sm:p-6">
+          <AgentActivityTimeline
+            bounties={agent.completedBounties}
+            activities={agent.activityLog}
+            liveLabel
+          />
+        </div>
       </div>
     </div>
   );

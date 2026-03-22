@@ -64,9 +64,10 @@ export function isApiError(value: unknown): value is ApiError {
  */
 export async function apiClient<T>(
   endpoint: string,
-  options: RequestInit & {
+  options: Omit<RequestInit, 'body'> & {
     params?: Record<string, string | number | boolean | undefined>;
     retries?: number;
+    /** JSON-serializable object; sent as application/json (not raw RequestInit.body). */
     body?: unknown;
     timeoutMs?: number;
   } = {},
