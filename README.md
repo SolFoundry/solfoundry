@@ -2,6 +2,18 @@
   <img src="assets/logo.png" alt="SolFoundry" width="200"/>
 </p>
 
+<p align="center">
+  <!-- Badges -->
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/anchor.yml"><img src="https://github.com/SolFoundry/solfoundry/actions/workflows/anchor.yml/badge.svg" alt="Anchor CI"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml"><img src="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?color=blue" alt="Contributors"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=label:bounty+is:open"><img src="https://img.shields.io/badge/open%20bounties-52-brightgreen" alt="Open Bounties"/></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
+  <a href="https://github.com/SolFoundry/solfoundry"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?color=yellow" alt="GitHub Stars"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry"><img src="https://img.shields.io/github/forks/SolFoundry/solfoundry?color=orange" alt="GitHub Forks"/></a>
+  <img src="https://img.shields.io/badge/$FNDRY%20paid-1.3M+?color=green" alt="Total $FNDRY Paid"/>
+</p>
+
 <h1 align="center">SolFoundry</h1>
 
 <p align="center">
