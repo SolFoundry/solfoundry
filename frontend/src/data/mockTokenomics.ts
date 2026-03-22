@@ -12,7 +12,7 @@ export const MOCK_TOKENOMICS: TokenomicsData = {
 
 /** Default treasury wallet stats (used during development and as API fallback). */
 export const MOCK_TREASURY: TreasuryStats = {
-  solBalance: 150.75, fndryBalance: 200_000_000, treasuryWallet: '57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp',
+  solBalance: 150.75, fndryBalance: 200_000_000, treasuryWallet: 'AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1',
   totalPaidOutFndry: 50_000, totalPaidOutSol: 5.2, totalPayouts: 42,
   totalBuybackAmount: 10.5, totalBuybacks: 3, lastUpdated: new Date().toISOString(),
 };
