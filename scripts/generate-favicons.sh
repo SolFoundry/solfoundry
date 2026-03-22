@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate favicons from logo-icon.svg in all required sizes and formats.
-# Dependencies: rsvg-convert (librsvg), ImageMagick (convert)
+# Dependencies: rsvg-convert (librsvg), ImageMagick 7 (magick) or 6 (convert)
 #
 # Usage:
 #   ./scripts/generate-favicons.sh
@@ -26,27 +26,34 @@ command -v rsvg-convert >/dev/null 2>&1 || {
   exit 1
 }
 
-command -v convert >/dev/null 2>&1 || {
-  echo "Error: ImageMagick convert not found. Install ImageMagick:" >&2
+# ImageMagick 7 uses 'magick', IM6 uses 'convert'
+if command -v magick >/dev/null 2>&1; then
+  IM_CONVERT="magick"
+elif command -v convert >/dev/null 2>&1; then
+  IM_CONVERT="convert"
+else
+  echo "Error: ImageMagick not found (neither 'magick' nor 'convert')." >&2
   echo "  macOS: brew install imagemagick" >&2
   echo "  Ubuntu/Debian: apt install imagemagick" >&2
   exit 1
-}
+fi
 
 mkdir -p "$OUT_DIR"
 
+SIZES=(16 32 180 192 512)
+
 echo "Generating PNGs from $SRC_SVG..."
 
-for size in 16 32 180 192 512; do
+for size in "${SIZES[@]}"; do
   rsvg-convert -w "$size" -h "$size" "$SRC_SVG" > "$OUT_DIR/favicon-${size}x${size}.png"
   echo "  ✓ favicon-${size}x${size}.png"
 done
 
 echo "Generating favicon.ico (16x16 + 32x32)..."
-convert "$OUT_DIR/favicon-16x16.png" "$OUT_DIR/favicon-32x32.png" "$OUT_DIR/favicon.ico"
+$IM_CONVERT "$OUT_DIR/favicon-16x16.png" "$OUT_DIR/favicon-32x32.png" "$OUT_DIR/favicon.ico"
 echo "  ✓ favicon.ico"
 
 echo ""
 echo "Done. Favicons written to $OUT_DIR/"
 echo "Files:"
-ls -lh "$OUT_DIR/"
+ls -lh "$OUT_DIR/"*.png "$OUT_DIR/"*.ico 2>/dev/null

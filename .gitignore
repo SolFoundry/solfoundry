@@ -73,6 +73,4 @@ data/
 *.db
 *.sqlite3
 
-# Generated favicons (run scripts/generate-favicons.sh to create)
-assets/favicons/*.png
-assets/favicons/*.ico
+# To regenerate favicons from SVG source: ./scripts/generate-favicons.sh
