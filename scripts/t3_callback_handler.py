@@ -102,7 +102,7 @@ def handle_approve(issue_num, username):
         f"Your claim on this T3 bounty has been approved by the project owner.\n\n"
         f"**Rules:**\n"
         f"- ⏰ **14-day deadline** starting now ({now})\n"
-        f"- 🎯 AI review score ≥ **7.5/10** required (7.0 with veteran discount)\n"
+        f"- 🎯 AI review score ≥ **7.0/10** required (6.5 with veteran discount)\n"
         f"- 📋 Follow all acceptance criteria in the issue description\n"
         f"- 🔒 One T3 claim at a time — complete or release before claiming another\n\n"
         f"Good luck! 🏭\n\n"

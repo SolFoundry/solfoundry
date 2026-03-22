@@ -152,8 +152,8 @@ A spam filter gate runs before any API calls to reject empty diffs, AI slop, and
 | Tier | Score to Pass | Veteran Discount (rep ≥ 80) |
 |------|--------------|----------------------------|
 | **T1** | 6.0/10 | 6.5/10 (anti-farming — raised for veterans) |
-| **T2** | 7.0/10 | 6.5/10 |
-| **T3** | 7.5/10 | 7.0/10 |
+| **T2** | 6.5/10 | 6.0/10 |
+| **T3** | 7.0/10 | 6.5/10 |
 
 Proven builders (80+ reputation score from merged bounties) get slightly reduced thresholds on T2 and T3 — rewarding consistency without lowering quality standards for newcomers.
 

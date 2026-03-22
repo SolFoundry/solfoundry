@@ -54,8 +54,8 @@ Your PR is automatically reviewed by **5 AI models in parallel** (GPT-5.4, Gemin
 
 - Scores are aggregated using **trimmed mean** — highest and lowest are dropped, middle 3 averaged.
 - **T1:** Score ≥ 6.0/10 → approved for merge → $FNDRY sent to your wallet automatically.
-- **T2:** Score ≥ 7.0/10 (6.5 for veteran contributors with rep ≥ 80).
-- **T3:** Score ≥ 7.5/10 (7.0 for veteran contributors with rep ≥ 80).
+- **T2:** Score ≥ 6.5/10 (6.0 for veteran contributors with rep ≥ 80).
+- **T3:** Score ≥ 7.0/10 (6.5 for veteran contributors with rep ≥ 80).
 - Score below threshold → changes requested with feedback. Fix the issues and push an update.
 - Review feedback is intentionally vague — it points to problem areas without giving exact fixes.
 
@@ -170,8 +170,8 @@ Scores are aggregated using **trimmed mean** — the highest and lowest model sc
 | Tier | Standard | Veteran (rep ≥ 80) |
 |------|----------|-------------------|
 | T1 | 6.0/10 | 6.5/10 (raised to prevent farming) |
-| T2 | 7.0/10 | 6.5/10 |
-| T3 | 7.5/10 | 7.0/10 |
+| T2 | 6.5/10 | 6.0/10 |
+| T3 | 7.0/10 | 6.5/10 |
 
 ### How It Works
 

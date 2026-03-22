@@ -296,7 +296,7 @@ jobs:
                           f"- You must have **3+ merged T2 PRs** to be eligible\n"
                           f"- Comment with a brief plan/proposal to claim\n"
                           f"- The project owner reviews and approves/denies your claim\n"
-                          f"- Once approved: 14-day deadline, AI review ≥8/10\n\n"
+                          f"- Once approved: 14-day deadline, AI review ≥7/10\n\n"
                           f"Keep building through T2 — the top-tier bounties will open up.\n\n"
                           f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
                           f"*— SolFoundry Bot 🏭*"
