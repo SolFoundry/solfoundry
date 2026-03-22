@@ -72,3 +72,7 @@ data/
 *.sqlite
 *.db
 *.sqlite3
+
+# Generated favicons (run scripts/generate-favicons.sh to create)
+assets/favicons/*.png
+assets/favicons/*.ico
