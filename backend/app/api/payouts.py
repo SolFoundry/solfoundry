@@ -23,7 +23,10 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
 
 from app.exceptions import (
     DoublePayError,
@@ -65,6 +68,7 @@ from app.services.treasury_service import (
     get_treasury_stats,
     invalidate_cache,
 )
+from app.services.contributor_webhook_service import ContributorWebhookService
 
 router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
 
@@ -327,7 +331,9 @@ async def admin_approve_payout(
         409: {"model": ErrorResponse, "description": "Payout not in APPROVED state"},
     },
 )
-async def execute_payout(payout_id: str) -> PayoutResponse:
+async def execute_payout(
+    payout_id: str, db: AsyncSession = Depends(get_db)
+) -> PayoutResponse:
     """Execute the on-chain SPL token transfer for an approved payout.
 
     Uses the transfer service with 3 retries and exponential backoff.
@@ -341,6 +347,27 @@ async def execute_payout(payout_id: str) -> PayoutResponse:
     except InvalidPayoutTransitionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     invalidate_cache()
+
+    # Notify contributor webhooks: bounty paid
+    try:
+        wh_service = ContributorWebhookService(db)
+        bounty_id = result.bounty_id if hasattr(result, "bounty_id") else payout_id
+        contributor_id = (
+            result.contributor_id if hasattr(result, "contributor_id") else None
+        )
+        await wh_service.dispatch_event(
+            "bounty.paid",
+            str(bounty_id),
+            {
+                "payout_id": payout_id,
+                "amount": str(result.amount) if hasattr(result, "amount") else None,
+                "tx_hash": result.tx_hash if hasattr(result, "tx_hash") else None,
+            },
+            user_id=str(contributor_id) if contributor_id else None,
+        )
+    except Exception:
+        pass  # webhook dispatch must never break the primary flow
+
     return result
 
 
