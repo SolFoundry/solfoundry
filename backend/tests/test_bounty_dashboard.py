@@ -1,4 +1,5 @@
 """Module test_bounty_dashboard."""
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -39,9 +40,11 @@ BOB = UserResponse(
 
 current_mock_user = ALICE
 
+
 async def override_get_current_user():
     """Override get current user."""
     return current_mock_user
+
 
 _test_app = FastAPI()
 _test_app.include_router(bounties_router)
@@ -53,6 +56,7 @@ client = TestClient(_test_app)
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def clear_store():
     """Clear store."""
@@ -60,28 +64,47 @@ def clear_store():
     yield
     bounty_service._bounty_store.clear()
 
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestBountyDashboard:
     """TestBountyDashboard."""
+
     def test_creator_stats(self):
         # Create bounties with various statuses for Alice
         # OPEN (staked)
         """Test creator stats."""
-        bounty_service.create_bounty(BountyCreate(title="Bounty 1", reward_amount=100.0, created_by="alice-wallet"))
+        bounty_service.create_bounty(
+            BountyCreate(
+                title="Bounty 1", reward_amount=100.0, created_by="alice-wallet"
+            )
+        )
         # PAID (paid)
-        b2 = bounty_service.create_bounty(BountyCreate(title="Bounty 2", reward_amount=200.0, created_by="alice-wallet"))
-        bounty_service.update_bounty(b2.id, BountyUpdate(status=BountyStatus.IN_PROGRESS))
+        b2 = bounty_service.create_bounty(
+            BountyCreate(
+                title="Bounty 2", reward_amount=200.0, created_by="alice-wallet"
+            )
+        )
+        bounty_service.update_bounty(
+            b2.id, BountyUpdate(status=BountyStatus.IN_PROGRESS)
+        )
         bounty_service.update_bounty(b2.id, BountyUpdate(status=BountyStatus.COMPLETED))
         bounty_service.update_bounty(b2.id, BountyUpdate(status=BountyStatus.PAID))
         # CANCELLED (refunded)
-        b3 = bounty_service.create_bounty(BountyCreate(title="Bounty 3", reward_amount=300.0, created_by="alice-wallet"))
+        b3 = bounty_service.create_bounty(
+            BountyCreate(
+                title="Bounty 3", reward_amount=300.0, created_by="alice-wallet"
+            )
+        )
         bounty_service.update_bounty(b3.id, BountyUpdate(status=BountyStatus.CANCELLED))
-        
+
         # Another bounty for Bob (should not be included)
-        bounty_service.create_bounty(BountyCreate(title="Bob B1", reward_amount=500.0, created_by="bob-wallet"))
+        bounty_service.create_bounty(
+            BountyCreate(title="Bob B1", reward_amount=500.0, created_by="bob-wallet")
+        )
 
         resp = client.get("/api/bounties/creator/alice-wallet/stats")
         assert resp.status_code == 200
@@ -95,7 +118,9 @@ class TestBountyDashboard:
         global current_mock_user
         # Alice creates a bounty
         current_mock_user = ALICE
-        resp = client.post("/api/bounties", json={"title": "Alice Bounty", "reward_amount": 100.0})
+        resp = client.post(
+            "/api/bounties", json={"title": "Alice Bounty", "reward_amount": 100.0}
+        )
         bid = resp.json()["id"]
 
         # Bob tries to update it -> 403
@@ -123,33 +148,46 @@ class TestBountyDashboard:
         global current_mock_user
         # Alice creates a bounty
         current_mock_user = ALICE
-        resp = client.post("/api/bounties", json={"title": "Bounty", "reward_amount": 100.0})
+        resp = client.post(
+            "/api/bounties", json={"title": "Bounty", "reward_amount": 100.0}
+        )
         bid = resp.json()["id"]
 
         # Bob submits a solution
         current_mock_user = BOB
-        resp = client.post(f"/api/bounties/{bid}/submit", json={"pr_url": "https://github.com/org/repo/pull/1"})
+        resp = client.post(
+            f"/api/bounties/{bid}/submit",
+            json={"pr_url": "https://github.com/org/repo/pull/1"},
+        )
         assert resp.status_code == 201
         sid = resp.json()["id"]
         assert resp.json()["status"] == "pending"
 
         # Bob tries to approve his own submission -> 403 (because Alice owns the bounty)
-        resp = client.patch(f"/api/bounties/{bid}/submissions/{sid}", json={"status": "approved"})
+        resp = client.patch(
+            f"/api/bounties/{bid}/submissions/{sid}", json={"status": "approved"}
+        )
         assert resp.status_code == 403
 
         # Alice approves it
         current_mock_user = ALICE
-        resp = client.patch(f"/api/bounties/{bid}/submissions/{sid}", json={"status": "approved"})
+        resp = client.patch(
+            f"/api/bounties/{bid}/submissions/{sid}", json={"status": "approved"}
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "approved"
 
         # Invalid transition: approved -> pending
-        resp = client.patch(f"/api/bounties/{bid}/submissions/{sid}", json={"status": "pending"})
+        resp = client.patch(
+            f"/api/bounties/{bid}/submissions/{sid}", json={"status": "pending"}
+        )
         assert resp.status_code == 400
         assert "Invalid status transition" in resp.json()["detail"]
 
         # Valid transition: approved -> paid
-        resp = client.patch(f"/api/bounties/{bid}/submissions/{sid}", json={"status": "paid"})
+        resp = client.patch(
+            f"/api/bounties/{bid}/submissions/{sid}", json={"status": "paid"}
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "paid"
 
@@ -157,24 +195,28 @@ class TestBountyDashboard:
         """Test deterministic ai score."""
         global current_mock_user
         current_mock_user = ALICE
-        resp = client.post("/api/bounties", json={"title": "Bounty for Score", "reward_amount": 10.0})
+        resp = client.post(
+            "/api/bounties", json={"title": "Bounty for Score", "reward_amount": 10.0}
+        )
         bid = resp.json()["id"]
-        
+
         current_mock_user = BOB
         url = "https://github.com/org/repo/pull/123"
         resp1 = client.post(f"/api/bounties/{bid}/submit", json={"pr_url": url})
         assert resp1.status_code == 201
         score1 = resp1.json()["ai_score"]
-        
+
         # Another submission with same URL (on different bounty to avoid duplicate check)
         current_mock_user = ALICE
-        resp2 = client.post("/api/bounties", json={"title": "Bounty 2 for Score", "reward_amount": 10.0})
+        resp2 = client.post(
+            "/api/bounties", json={"title": "Bounty 2 for Score", "reward_amount": 10.0}
+        )
         bid2 = resp2.json()["id"]
-        
+
         current_mock_user = BOB
         resp3 = client.post(f"/api/bounties/{bid2}/submit", json={"pr_url": url})
         assert resp3.status_code == 201
         score2 = resp3.json()["ai_score"]
-        
+
         assert score1 == score2
         assert 0 <= score1 <= 100

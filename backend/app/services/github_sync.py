@@ -367,7 +367,15 @@ KNOWN_PAYOUTS: dict[str, dict] = {
     },
     "ItachiDevv": {
         "total_fndry": 1_750_000,  # Phase 1 on-chain payouts
-        "skills": ["React", "TypeScript", "Tailwind", "Solana", "Frontend", "Docker", "DevOps"],
+        "skills": [
+            "React",
+            "TypeScript",
+            "Tailwind",
+            "Solana",
+            "Frontend",
+            "Docker",
+            "DevOps",
+        ],
         "bio": "Full-stack specialist. React, TypeScript, Solana, CI/CD, WebSocket.",
     },
     "LaphoqueRC": {
@@ -461,7 +469,9 @@ async def sync_contributors() -> int:
 
         total_prs = pr_data["prs"]
         # Use actual bounty count from merged PRs, fall back to known payouts, then PR count
-        bounties = author_bounty_counts.get(author, known.get("bounties_completed", total_prs))
+        bounties = author_bounty_counts.get(
+            author, known.get("bounties_completed", total_prs)
+        )
         earnings = known.get("total_fndry", 0) + phase2_earnings.get(author, 0)
         skills = known.get("skills", [])
         bio = known.get("bio", f"SolFoundry contributor — {total_prs} merged PRs")
@@ -484,45 +494,49 @@ async def sync_contributors() -> int:
 
         # Reputation score -- uncapped, scales with actual contributions
         rep = 0
-        rep += min(total_prs * 5, 40)    # Up to 40 pts for PRs
-        rep += min(bounties * 10, 40)     # Up to 40 pts for bounties
-        rep += min(len(skills) * 2, 20)   # Up to 20 pts for skill breadth
+        rep += min(total_prs * 5, 40)  # Up to 40 pts for PRs
+        rep += min(bounties * 10, 40)  # Up to 40 pts for bounties
+        rep += min(len(skills) * 2, 20)  # Up to 20 pts for skill breadth
         rep = min(rep, 100)
 
         # Upsert to PostgreSQL instead of in-memory dict
-        await contributor_service.upsert_contributor({
-            "id": uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
-            "username": author,
-            "display_name": author,
-            "avatar_url": avatar,
-            "bio": bio,
-            "skills": skills[:10],
-            "badges": badges,
-            "total_contributions": total_prs,
-            "total_bounties_completed": bounties,
-            "total_earnings": Decimal(str(earnings)),
-            "reputation_score": float(rep),
-            "created_at": now - timedelta(days=45),
-            "updated_at": now,
-        })
+        await contributor_service.upsert_contributor(
+            {
+                "id": uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
+                "username": author,
+                "display_name": author,
+                "avatar_url": avatar,
+                "bio": bio,
+                "skills": skills[:10],
+                "badges": badges,
+                "total_contributions": total_prs,
+                "total_bounties_completed": bounties,
+                "total_earnings": Decimal(str(earnings)),
+                "reputation_score": float(rep),
+                "created_at": now - timedelta(days=45),
+                "updated_at": now,
+            }
+        )
         synced_count += 1
 
     # Core team member (doesn't earn bounties)
-    await contributor_service.upsert_contributor({
-        "id": uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
-        "username": "mtarcure",
-        "display_name": "SolFoundry Core",
-        "avatar_url": "https://avatars.githubusercontent.com/u/mtarcure",
-        "bio": "SolFoundry core team. Architecture, security, DevOps.",
-        "skills": ["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
-        "badges": ["core-team", "tier-3", "architect"],
-        "total_contributions": 50,
-        "total_bounties_completed": 15,
-        "total_earnings": Decimal("0"),
-        "reputation_score": 100.0,
-        "created_at": now - timedelta(days=60),
-        "updated_at": now,
-    })
+    await contributor_service.upsert_contributor(
+        {
+            "id": uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
+            "username": "mtarcure",
+            "display_name": "SolFoundry Core",
+            "avatar_url": "https://avatars.githubusercontent.com/u/mtarcure",
+            "bio": "SolFoundry core team. Architecture, security, DevOps.",
+            "skills": ["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
+            "badges": ["core-team", "tier-3", "architect"],
+            "total_contributions": 50,
+            "total_bounties_completed": 15,
+            "total_earnings": Decimal("0"),
+            "reputation_score": 100.0,
+            "created_at": now - timedelta(days=60),
+            "updated_at": now,
+        }
+    )
     synced_count += 1
 
     # Refresh the in-memory cache from PostgreSQL

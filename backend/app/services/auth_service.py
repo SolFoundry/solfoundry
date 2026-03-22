@@ -45,36 +45,43 @@ _auth_challenges: Dict[str, Dict] = {}
 
 class AuthError(Exception):
     """Base exception for authentication errors."""
+
     pass
 
 
 class GitHubOAuthError(AuthError):
     """Raised when GitHub OAuth flow fails."""
+
     pass
 
 
 class WalletVerificationError(AuthError):
     """Raised when wallet signature verification fails."""
+
     pass
 
 
 class TokenExpiredError(AuthError):
     """Raised when a JWT token has expired."""
+
     pass
 
 
 class InvalidTokenError(AuthError):
     """Raised when a JWT token is malformed or invalid."""
+
     pass
 
 
 class InvalidStateError(AuthError):
     """Raised when an OAuth state parameter is invalid."""
+
     pass
 
 
 class InvalidNonceError(AuthError):
     """Raised when a wallet auth nonce is invalid."""
+
     pass
 
 
@@ -395,13 +402,11 @@ async def link_wallet_to_user(
 
     await db.commit()
     await db.refresh(user)
-    
+
     audit_event(
-        "auth_wallet_linked",
-        user_id=str(user.id),
-        wallet_address=user.wallet_address
+        "auth_wallet_linked", user_id=str(user.id), wallet_address=user.wallet_address
     )
-    
+
     return {
         "success": True,
         "message": "Wallet linked",

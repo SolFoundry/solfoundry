@@ -54,8 +54,10 @@ MOCK_CONTRIBUTOR = UserResponse(
 
 _current_user = MOCK_CREATOR
 
+
 async def override_get_current_user():
     return _current_user
+
 
 # ---------------------------------------------------------------------------
 # Test app
@@ -70,6 +72,7 @@ client = TestClient(_test_app)
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def reset_stores():
@@ -87,31 +90,41 @@ def _create_bounty(reward: float = 500_000) -> dict:
     """Helper: create a bounty as the mock creator."""
     global _current_user
     _current_user = MOCK_CREATOR
-    resp = client.post("/api/bounties", json={
-        "title": "Phase 2 Bounty — Submission to Payout",
-        "description": "Build the end-to-end flow from submission to payout.",
-        "tier": 2,
-        "reward_amount": reward,
-        "required_skills": ["python", "fastapi", "solana"],
-    })
+    resp = client.post(
+        "/api/bounties",
+        json={
+            "title": "Phase 2 Bounty — Submission to Payout",
+            "description": "Build the end-to-end flow from submission to payout.",
+            "tier": 2,
+            "reward_amount": reward,
+            "required_skills": ["python", "fastapi", "solana"],
+        },
+    )
     assert resp.status_code == 201
     return resp.json()
 
 
-def _submit_pr(bounty_id: str, pr_url: str = "https://github.com/SolFoundry/solfoundry/pull/42") -> dict:
+def _submit_pr(
+    bounty_id: str, pr_url: str = "https://github.com/SolFoundry/solfoundry/pull/42"
+) -> dict:
     """Helper: submit a PR as the contributor."""
     global _current_user
     _current_user = MOCK_CONTRIBUTOR
-    resp = client.post(f"/api/bounties/{bounty_id}/submissions", json={
-        "pr_url": pr_url,
-        "contributor_wallet": MOCK_CONTRIBUTOR.wallet_address,
-        "notes": "Implementation of Phase 2 submission flow",
-    })
+    resp = client.post(
+        f"/api/bounties/{bounty_id}/submissions",
+        json={
+            "pr_url": pr_url,
+            "contributor_wallet": MOCK_CONTRIBUTOR.wallet_address,
+            "notes": "Implementation of Phase 2 submission flow",
+        },
+    )
     assert resp.status_code == 201
     return resp.json()
 
 
-def _record_review(bounty_id: str, submission_id: str, model: str, score: float) -> dict:
+def _record_review(
+    bounty_id: str, submission_id: str, model: str, score: float
+) -> dict:
     """Helper: record an AI review score."""
     resp = client.post(
         f"/api/bounties/{bounty_id}/submissions/{submission_id}/reviews",
@@ -164,10 +177,13 @@ class TestSubmissionFlow:
 
         global _current_user
         _current_user = MOCK_CONTRIBUTOR
-        resp = client.post(f"/api/bounties/{bounty['id']}/submissions", json={
-            "pr_url": "https://github.com/SolFoundry/solfoundry/pull/42",
-            "contributor_wallet": MOCK_CONTRIBUTOR.wallet_address,
-        })
+        resp = client.post(
+            f"/api/bounties/{bounty['id']}/submissions",
+            json={
+                "pr_url": "https://github.com/SolFoundry/solfoundry/pull/42",
+                "contributor_wallet": MOCK_CONTRIBUTOR.wallet_address,
+            },
+        )
         assert resp.status_code == 400
         assert "already been submitted" in resp.json()["detail"]
 
@@ -306,7 +322,9 @@ class TestCreatorDispute:
 
         # Force auto-approve time to have passed
         internal_sub = bounty_service.get_submission(bounty["id"], sub["id"])
-        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(hours=1)
+        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(
+            hours=1
+        )
 
         approved = check_auto_approve_candidates()
         assert len(approved) == 0
@@ -325,7 +343,9 @@ class TestAutoApprove:
 
         # Simulate 48h passing
         internal_sub = bounty_service.get_submission(bounty["id"], sub["id"])
-        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(hours=1)
+        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(
+            hours=1
+        )
         internal_sub.auto_approve_eligible = True
 
         approved = check_auto_approve_candidates()
@@ -347,7 +367,9 @@ class TestAutoApprove:
         _record_review(bounty["id"], sub["id"], "grok", 2.0)
 
         internal_sub = bounty_service.get_submission(bounty["id"], sub["id"])
-        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(hours=1)
+        internal_sub.auto_approve_after = datetime.now(timezone.utc) - timedelta(
+            hours=1
+        )
 
         approved = check_auto_approve_candidates()
         assert len(approved) == 0
@@ -449,7 +471,9 @@ class TestFullEndToEnd:
         _record_review(bounty["id"], sub["id"], "grok", 9.2)
 
         # 4. Verify scores are aggregated
-        resp = client.get(f"/api/bounties/{bounty['id']}/submissions/{sub['id']}/reviews")
+        resp = client.get(
+            f"/api/bounties/{bounty['id']}/submissions/{sub['id']}/reviews"
+        )
         agg = resp.json()
         assert agg["review_complete"] is True
         assert agg["meets_threshold"] is True

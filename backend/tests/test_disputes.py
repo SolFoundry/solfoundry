@@ -58,6 +58,7 @@ async def db():
 @pytest_asyncio.fixture
 async def client(db):
     """Create an HTTP test client with overridden DB dependency."""
+
     async def override_get_db():
         """Provide the test database session."""
         yield db
@@ -297,9 +298,7 @@ async def test_72_hour_window_expired(
 
 
 @pytest.mark.asyncio
-async def test_duplicate_dispute_rejected(
-    client, contributor_id, bounty, submission
-):
+async def test_duplicate_dispute_rejected(client, contributor_id, bounty, submission):
     """Only one dispute per submission is allowed."""
     await client.post(
         "/api/disputes",
@@ -427,9 +426,7 @@ async def test_admin_resolve_all_outcomes(
     client, admin_id, contributor_id, bounty, submission, db
 ):
     """Admin can resolve disputes with all three outcomes."""
-    dispute_id = await advance_to_mediation(
-        client, contributor_id, bounty, submission
-    )
+    dispute_id = await advance_to_mediation(client, contributor_id, bounty, submission)
 
     response = await client.post(
         f"/api/disputes/{dispute_id}/resolve",
@@ -447,9 +444,7 @@ async def test_admin_resolve_all_outcomes(
 @pytest.mark.asyncio
 async def test_non_admin_forbidden(client, contributor_id, bounty, submission):
     """Non-admin users cannot resolve disputes when admin IDs are configured."""
-    dispute_id = await advance_to_mediation(
-        client, contributor_id, bounty, submission
-    )
+    dispute_id = await advance_to_mediation(client, contributor_id, bounty, submission)
 
     with patch(
         "app.services.dispute_service.ADMIN_USER_IDS",
@@ -467,9 +462,7 @@ async def test_non_admin_forbidden(client, contributor_id, bounty, submission):
 
 
 @pytest.mark.asyncio
-async def test_cannot_skip_states(
-    client, admin_id, contributor_id, bounty, submission
-):
+async def test_cannot_skip_states(client, admin_id, contributor_id, bounty, submission):
     """Cannot resolve a dispute that has not reached mediation state."""
     response = await client.post(
         "/api/disputes",
@@ -604,9 +597,7 @@ async def test_full_lifecycle_with_audit_trail(
 
 
 @pytest.mark.asyncio
-async def test_list_disputes_returns_items(
-    client, contributor_id, bounty, submission
-):
+async def test_list_disputes_returns_items(client, contributor_id, bounty, submission):
     """List endpoint returns disputes with correct count."""
     await client.post(
         "/api/disputes",

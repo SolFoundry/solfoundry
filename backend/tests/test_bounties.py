@@ -9,6 +9,7 @@ interface triggers them via the ASGI loop automatically.
 
 import asyncio
 import os
+import asyncio
 from collections import deque
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
@@ -82,6 +83,7 @@ def event_loop():
 def _init_db(event_loop):
     """Initialize the database schema once per module."""
     from app.database import init_db
+
     event_loop.run_until_complete(init_db())
 
 
@@ -105,6 +107,7 @@ def clear_store(event_loop):
 
     async def _clear_db():
         from sqlalchemy import text
+
         try:
             async with get_db_session() as session:
                 await session.execute(text("DELETE FROM bounty_submissions"))
@@ -258,7 +261,10 @@ class TestCreateBounty:
         """Verify skills are lowercased and trimmed."""
         resp = client.post(
             "/api/bounties",
-            json={**VALID_BOUNTY, "required_skills": ["Rust", " SOLIDITY ", "  wasm  "]},
+            json={
+                **VALID_BOUNTY,
+                "required_skills": ["Rust", " SOLIDITY ", "  wasm  "],
+            },
         )
         assert resp.status_code == 201
         skills = resp.json()["required_skills"]
@@ -302,7 +308,10 @@ class TestCreateBounty:
         """Reject non-GitHub URL in github_issue_url."""
         resp = client.post(
             "/api/bounties",
-            json={**VALID_BOUNTY, "github_issue_url": "https://gitlab.com/repo/issues/1"},
+            json={
+                **VALID_BOUNTY,
+                "github_issue_url": "https://gitlab.com/repo/issues/1",
+            },
         )
         assert resp.status_code == 422
 
@@ -346,10 +355,20 @@ class TestListBounties:
         _create_bounty()
         item = client.get("/api/bounties").json()["items"][0]
         expected_keys = {
-            "id", "title", "tier", "reward_amount", "status",
-            "required_skills", "github_issue_url", "deadline",
-            "created_by", "submissions", "submission_count",
-            "category", "creator_type", "created_at",
+            "id",
+            "title",
+            "tier",
+            "reward_amount",
+            "status",
+            "required_skills",
+            "github_issue_url",
+            "deadline",
+            "created_by",
+            "submissions",
+            "submission_count",
+            "category",
+            "creator_type",
+            "created_at",
         }
         assert set(item.keys()) == expected_keys
 
@@ -471,7 +490,10 @@ class TestGetBounty:
         bid = b["id"]
         client.post(
             f"/api/bounties/{bid}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/1", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/1",
+                "submitted_by": "alice",
+            },
         )
         body = client.get(f"/api/bounties/{bid}").json()
         assert body["submission_count"] == 1
@@ -484,13 +506,31 @@ class TestGetBounty:
         bid = b["id"]
         body = client.get(f"/api/bounties/{bid}").json()
         required_keys = {
-            "id", "title", "description", "tier", "reward_amount",
-            "status", "creator_type", "github_issue_url", "required_skills",
-            "deadline", "created_by", "submissions", "submission_count",
-            "category", "github_issue_number", "github_repo",
-            "created_at", "updated_at",
-            "winner_submission_id", "winner_wallet", "payout_tx_hash",
-            "payout_at", "claimed_by", "claimed_at", "claim_deadline",
+            "id",
+            "title",
+            "description",
+            "tier",
+            "reward_amount",
+            "status",
+            "creator_type",
+            "github_issue_url",
+            "required_skills",
+            "deadline",
+            "created_by",
+            "submissions",
+            "submission_count",
+            "category",
+            "github_issue_number",
+            "github_repo",
+            "created_at",
+            "updated_at",
+            "winner_submission_id",
+            "winner_wallet",
+            "payout_tx_hash",
+            "payout_at",
+            "claimed_by",
+            "claimed_at",
+            "claim_deadline",
         }
         assert set(body.keys()) == required_keys
 
@@ -529,7 +569,11 @@ class TestUpdateBounty:
         b = _create_bounty()
         resp = client.patch(
             f"/api/bounties/{b['id']}",
-            json={"title": "Updated title", "description": "New desc", "reward_amount": 123.0},
+            json={
+                "title": "Updated title",
+                "description": "New desc",
+                "reward_amount": 123.0,
+            },
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -565,7 +609,9 @@ class TestUpdateBounty:
     def test_update_skills_normalised(self):
         """Verify skills are normalised on update."""
         b = _create_bounty()
-        resp = client.patch(f"/api/bounties/{b['id']}", json={"required_skills": ["python", "go"]})
+        resp = client.patch(
+            f"/api/bounties/{b['id']}", json={"required_skills": ["python", "go"]}
+        )
         assert resp.status_code == 200
         assert set(resp.json()["required_skills"]) == {"python", "go"}
 
@@ -599,7 +645,9 @@ class TestUpdateBounty:
         b = _create_bounty()
         resp = client.patch(f"/api/bounties/{b['id']}", json={"status": "completed"})
         assert resp.status_code == 400
-        assert "Invalid status transition" in resp.json().get("message", resp.json().get("detail", ""))
+        assert "Invalid status transition" in resp.json().get(
+            "message", resp.json().get("detail", "")
+        )
 
     def test_invalid_open_to_paid(self):
         """Reject direct transition from open to paid."""
@@ -652,7 +700,8 @@ class TestStatusTransitions:
     def test_transition_map_integrity(self):
         """Verify transition map covers all statuses."""
         assert VALID_STATUS_TRANSITIONS[BountyStatus.OPEN] == {
-            BountyStatus.IN_PROGRESS, BountyStatus.CANCELLED
+            BountyStatus.IN_PROGRESS,
+            BountyStatus.CANCELLED,
         }
         assert VALID_STATUS_TRANSITIONS[BountyStatus.PAID] == set()
         for s in BountyStatus:
@@ -741,7 +790,10 @@ class TestSubmitSolution:
         b = _create_bounty()
         resp = client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/42", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/42",
+                "submitted_by": "alice",
+            },
         )
         assert resp.status_code == 201
         body = resp.json()
@@ -768,7 +820,10 @@ class TestSubmitSolution:
         """Return 404 when submitting to non-existent bounty."""
         resp = client.post(
             "/api/bounties/nonexistent/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/1", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/1",
+                "submitted_by": "alice",
+            },
         )
         assert resp.status_code == 404
 
@@ -803,10 +858,18 @@ class TestSubmitSolution:
         """Reject duplicate PR URL on the same bounty."""
         b = _create_bounty()
         url = "https://github.com/org/repo/pull/42"
-        client.post(f"/api/bounties/{b['id']}/submit", json={"pr_url": url, "submitted_by": "alice"})
-        resp = client.post(f"/api/bounties/{b['id']}/submit", json={"pr_url": url, "submitted_by": "bob"})
+        client.post(
+            f"/api/bounties/{b['id']}/submit",
+            json={"pr_url": url, "submitted_by": "alice"},
+        )
+        resp = client.post(
+            f"/api/bounties/{b['id']}/submit",
+            json={"pr_url": url, "submitted_by": "bob"},
+        )
         assert resp.status_code == 400
-        assert "already been submitted" in resp.json().get("message", resp.json().get("detail", ""))
+        assert "already been submitted" in resp.json().get(
+            "message", resp.json().get("detail", "")
+        )
 
     def test_submit_on_completed_bounty_rejected(self):
         """Reject submission on a completed bounty."""
@@ -815,10 +878,15 @@ class TestSubmitSolution:
         client.patch(f"/api/bounties/{b['id']}", json={"status": "completed"})
         resp = client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/99", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/99",
+                "submitted_by": "alice",
+            },
         )
         assert resp.status_code == 400
-        assert "not accepting" in resp.json().get("message", resp.json().get("detail", ""))
+        assert "not accepting" in resp.json().get(
+            "message", resp.json().get("detail", "")
+        )
 
     def test_submit_on_paid_bounty_rejected(self):
         """Reject submission on a paid bounty."""
@@ -828,7 +896,10 @@ class TestSubmitSolution:
         client.patch(f"/api/bounties/{b['id']}", json={"status": "paid"})
         resp = client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/99", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/99",
+                "submitted_by": "alice",
+            },
         )
         assert resp.status_code == 400
 
@@ -838,7 +909,10 @@ class TestSubmitSolution:
         client.patch(f"/api/bounties/{b['id']}", json={"status": "in_progress"})
         resp = client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/5", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/5",
+                "submitted_by": "alice",
+            },
         )
         assert resp.status_code == 201
 
@@ -848,7 +922,10 @@ class TestSubmitSolution:
         for i in range(3):
             resp = client.post(
                 f"/api/bounties/{b['id']}/submit",
-                json={"pr_url": f"https://github.com/org/repo/pull/{i}", "submitted_by": f"user{i}"},
+                json={
+                    "pr_url": f"https://github.com/org/repo/pull/{i}",
+                    "submitted_by": f"user{i}",
+                },
             )
             assert resp.status_code == 201
         body = client.get(f"/api/bounties/{b['id']}").json()
@@ -860,8 +937,14 @@ class TestSubmitSolution:
         b1 = _create_bounty(title="First bounty")
         b2 = _create_bounty(title="Second bounty")
         url = "https://github.com/org/repo/pull/42"
-        r1 = client.post(f"/api/bounties/{b1['id']}/submit", json={"pr_url": url, "submitted_by": "alice"})
-        r2 = client.post(f"/api/bounties/{b2['id']}/submit", json={"pr_url": url, "submitted_by": "alice"})
+        r1 = client.post(
+            f"/api/bounties/{b1['id']}/submit",
+            json={"pr_url": url, "submitted_by": "alice"},
+        )
+        r2 = client.post(
+            f"/api/bounties/{b2['id']}/submit",
+            json={"pr_url": url, "submitted_by": "alice"},
+        )
         assert r1.status_code == 201
         assert r2.status_code == 201
 
@@ -886,11 +969,17 @@ class TestGetSubmissions:
         b = _create_bounty()
         client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/1", "submitted_by": "alice"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/1",
+                "submitted_by": "alice",
+            },
         )
         client.post(
             f"/api/bounties/{b['id']}/submit",
-            json={"pr_url": "https://github.com/org/repo/pull/2", "submitted_by": "bob"},
+            json={
+                "pr_url": "https://github.com/org/repo/pull/2",
+                "submitted_by": "bob",
+            },
         )
         resp = client.get(f"/api/bounties/{b['id']}/submissions")
         assert resp.status_code == 200
@@ -914,8 +1003,14 @@ class TestGetSubmissions:
         )
         sub = client.get(f"/api/bounties/{b['id']}/submissions").json()[0]
         core_keys = {
-            "id", "bounty_id", "pr_url", "submitted_by",
-            "notes", "status", "ai_score", "submitted_at",
+            "id",
+            "bounty_id",
+            "pr_url",
+            "submitted_by",
+            "notes",
+            "status",
+            "ai_score",
+            "submitted_at",
         }
         assert core_keys.issubset(set(sub.keys()))
 

@@ -80,6 +80,7 @@ class RateLimitEntry(NamedTuple):
     Attributes:
         timestamp: The Unix timestamp when the request was recorded.
     """
+
     timestamp: float
 
 
@@ -160,14 +161,17 @@ class SlidingWindowCounter:
             cutoff: Timestamp before which entries are considered expired.
         """
         stale_keys = [
-            key for key, entries in self._entries.items()
+            key
+            for key, entries in self._entries.items()
             if not entries or entries[-1] <= cutoff
         ]
         for key in stale_keys:
             del self._entries[key]
 
         if stale_keys:
-            logger.debug("Rate limiter cleanup: removed %d stale client entries", len(stale_keys))
+            logger.debug(
+                "Rate limiter cleanup: removed %d stale client entries", len(stale_keys)
+            )
 
     def get_client_count(self) -> int:
         """Return the number of currently tracked client keys.
@@ -342,8 +346,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             endpoint_limit = ENDPOINT_RATE_LIMITS.get(endpoint_key)
 
             if endpoint_limit is not None:
-                ep_limited, ep_remaining, ep_retry = self.endpoint_counter.is_rate_limited(
-                    f"endpoint:{client_ip}:{endpoint_key}", endpoint_limit
+                ep_limited, ep_remaining, ep_retry = (
+                    self.endpoint_counter.is_rate_limited(
+                        f"endpoint:{client_ip}:{endpoint_key}", endpoint_limit
+                    )
                 )
                 if ep_limited:
                     logger.warning(
@@ -378,7 +384,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         finally:
             # Decrement connection counter
             with _connection_lock:
-                _connection_tracker[client_ip] = max(0, _connection_tracker[client_ip] - 1)
+                _connection_tracker[client_ip] = max(
+                    0, _connection_tracker[client_ip] - 1
+                )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -454,7 +462,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
         # Determine identifiers (IP and User)
         ip = request.client.host
-        user_id = request.headers.get("X-User-ID") or getattr(request.state, "user_id", None)
+        user_id = request.headers.get("X-User-ID") or getattr(
+            request.state, "user_id", None
+        )
 
         # Check IP Limit
         ip_key = f"rl:ip:{ip}:{group_name}"
@@ -467,7 +477,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         user_rem, user_reset = ip_rem, ip_reset
         if user_id:
             user_key = f"rl:usr:{user_id}:{group_name}"
-            user_allowed, user_rem, user_reset = await self._check_limit(user_key, capacity, rate)
+            user_allowed, user_rem, user_reset = await self._check_limit(
+                user_key, capacity, rate
+            )
             if not user_allowed:
                 return self._rate_limit_response(user_rem, user_reset)
 
@@ -481,7 +493,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _check_limit(self, key: str, capacity: int, rate: float) -> Tuple[bool, int, int]:
+    async def _check_limit(
+        self, key: str, capacity: int, rate: float
+    ) -> Tuple[bool, int, int]:
         """Execute token bucket script in Redis."""
         try:
             redis = await get_redis()
