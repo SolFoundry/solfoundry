@@ -1,10 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const FNDRY_TOKEN_CA = 'Amu1YJjcKWKL6xuMTo2dx511kfzXAxgpetJrZp7N71o7';
+import { FNDRY_TOKEN_CA } from '../../config/constants';
 
 const FOOTER_LINKS = [
   { label: 'GitHub', href: 'https://github.com/SolFoundry/solfoundry' },
@@ -53,10 +48,15 @@ export function Footer() {
         el.value = FNDRY_TOKEN_CA;
         document.body.appendChild(el);
         el.select();
-        document.execCommand('copy');
+        const success = document.execCommand('copy');
         document.body.removeChild(el);
-        setCopied(true);
-        timerRef.current = setTimeout(() => setCopied(false), 2000);
+        if (success) {
+          setCopied(true);
+          timerRef.current = setTimeout(() => setCopied(false), 2000);
+        } else {
+          setCopyFailed(true);
+          timerRef.current = setTimeout(() => setCopyFailed(false), 3000);
+        }
       } catch {
         setCopyFailed(true);
         timerRef.current = setTimeout(() => setCopyFailed(false), 3000);
