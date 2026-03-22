@@ -59,6 +59,7 @@ class TestStatsEndpoint:
         from app.models.bounty import BountyDB
         from app.models.contributor import ContributorDB
         import uuid
+
         # Create a contributor
         contributor_id = str(uuid.uuid4())
         contributor = ContributorDB(

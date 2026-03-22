@@ -49,9 +49,7 @@ class TestConcurrentBountyCreation:
             return {"status": response.status_code, "body": response.json()}
 
         start_time = time.monotonic()
-        results = await asyncio.gather(
-            *(create_bounty(i) for i in range(target_count))
-        )
+        results = await asyncio.gather(*(create_bounty(i) for i in range(target_count)))
         _ = time.monotonic() - start_time
 
         # All should succeed

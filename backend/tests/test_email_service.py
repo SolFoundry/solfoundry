@@ -7,6 +7,7 @@ from app.services.email_service import (
     send_notification_email,
 )
 
+
 @pytest.mark.asyncio
 async def test_can_send_email_limit():
     with patch(

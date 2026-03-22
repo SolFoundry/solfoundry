@@ -70,6 +70,7 @@ client = TestClient(_test_app)
 # Fixtures & helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def event_loop():
     """Create a dedicated event loop for module-scoped async tests."""
