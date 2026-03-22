@@ -64,6 +64,13 @@ async def _check_solana() -> str:
                 json={"jsonrpc": "2.0", "id": 1, "method": "getHealth"},
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as resp:
+                if not (200 <= resp.status < 300):
+                    logger.warning(
+                        "Health check Solana failure: HTTP %s %s",
+                        resp.status,
+                        resp.reason,
+                    )
+                    return "unreachable"
                 data = await resp.json(content_type=None)
                 if data.get("result") == "ok":
                     return "healthy"
@@ -82,7 +89,7 @@ async def _check_solana() -> str:
 async def _check_github() -> dict[str, Any]:
     """Check GitHub API availability and remaining rate-limit budget."""
     token = os.getenv("GITHUB_TOKEN", "")
-    headers: dict[str, str] = {}
+    headers: dict[str, str] = {"User-Agent": "SolFoundry/1.0"}
     if token:
         headers["Authorization"] = f"token {token}"
 
@@ -93,6 +100,13 @@ async def _check_github() -> dict[str, Any]:
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as resp:
+                if resp.status != 200:
+                    logger.warning(
+                        "Health check GitHub failure: HTTP %s %s",
+                        resp.status,
+                        resp.reason,
+                    )
+                    return {"status": "unreachable", "remaining": 0}
                 data = await resp.json(content_type=None)
                 remaining: int = data.get("rate", {}).get("remaining", 0)
                 status = "ok" if remaining > 10 else "limited"
