@@ -360,6 +360,55 @@ jobs:
           if [ "$APPROVED" -gt "0" ]; then
             echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
             echo "skip=true" >> $GITHUB_OUTPUT
+
+            # Check if PR is now mergeable (conflict resolved after rebase)
+            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null)
+            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null)
+            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null)
+            PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
+
+            if [ "$MERGEABLE" = "true" ]; then
+              # Extract bounty info for payout context
+              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null)
+              BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+              print(m.group(1) if m else '')
+              " 2>/dev/null)
+
+              WALLET=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:wallet|address)[:\s]*\`?([1-9A-HJ-NP-Za-km-z]{32,44})\`?', text, re.IGNORECASE)
+              if not m:
+                  m = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', text)
+              print(m.group(1) if m else 'not found')
+              " 2>/dev/null)
+
+              BOUNTY_INFO=""
+              if [ -n "$BOUNTY_NUM" ]; then
+                REWARD=$(gh api "repos/${{ github.repository }}/issues/${BOUNTY_NUM}" --jq '.body' 2>/dev/null | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(\d[\d,]*)\s*(?:\\\$FNDRY|FNDRY|\\\$)', text)
+              print(m.group(1) if m else 'unknown')
+              " 2>/dev/null)
+                BOUNTY_INFO="Bounty: #${BOUNTY_NUM} (${REWARD} \$FNDRY)"
+              fi
+
+              # Send Telegram notification
+              TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+              TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+              if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
+                curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                  -d "chat_id=${TELEGRAM_CHAT}" \
+                  -d "text=${MSG}" \
+                  -d "parse_mode=HTML" \
+                  -d "disable_web_page_preview=true" > /dev/null 2>&1
+              fi
+            fi
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
