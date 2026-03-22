@@ -72,3 +72,4 @@ data/
 *.sqlite
 *.db
 *.sqlite3
+vendor/
