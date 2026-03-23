@@ -58,7 +58,7 @@ def _row_to_response(row: ContributorTable) -> ContributorResponse:
         skills=row.skills or [],
         badges=row.badges or [],
         social_links=row.social_links or {},
-        unsubscribe_token=row.unsubscribe_token,
+        unsubscribe_token=row.unsubscribe_token or str(uuid.uuid4()),
         email_notifications_enabled=row.email_notifications_enabled,
         notification_preferences=row.notification_preferences or {},
         stats=ContributorStats(

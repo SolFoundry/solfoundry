@@ -321,7 +321,7 @@ class BountyUpdate(BaseModel):
         return _validate_skills(v)
 
 
-class BountyDB(BaseModel):
+class BountyInternal(BaseModel):
     """Internal in-memory storage model. Not exposed directly via API."""
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

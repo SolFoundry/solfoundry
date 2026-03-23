@@ -61,7 +61,8 @@ from app.services.auth_service import AuthError
 
 # Initialize logging
 setup_logging()
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager

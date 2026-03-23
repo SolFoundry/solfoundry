@@ -13,8 +13,8 @@ async def test_ip_blocklist():
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # We need to patch the redis instance within IPBlocklistMiddleware
-        with patch("app.middleware.security.redis.from_url") as mock_redis_func:
+        # We need to patch the redis getter within IPBlocklistMiddleware
+        with patch("app.middleware.ip_blocklist.get_redis") as mock_redis_func:
             mock_redis = AsyncMock()
             mock_redis_func.return_value = mock_redis
 
