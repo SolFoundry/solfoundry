@@ -1,0 +1,52 @@
+{
+  "name": "@solfoundry/program-testing",
+  "version": "1.0.0",
+  "description": "SolFoundry Program Testing Framework - Complete testing solution for Solana programs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "ts-node src/runner.ts",
+    "test:unit": "ts-node tests/unit/*.test.ts",
+    "test:integration": "ts-node tests/integration/*.test.ts",
+    "test:fuzz": "ts-node tests/fuzz/*.test.ts",
+    "test:coverage": "nyc ts-node src/runner.ts",
+    "lint": "eslint src/ tests/",
+    "clean": "rm -rf dist/ coverage/"
+  },
+  "keywords": [
+    "solana",
+    "testing",
+    "blockchain",
+    "solfoundry",
+    "anchor",
+    "fuzzing",
+    "coverage"
+  ],
+  "author": "SolFoundry",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.55.0",
+    "nyc": "^15.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": "^1.87.0",
+    "@coral-xyz/anchor": "^0.30.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolFoundry/solfoundry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SolFoundry/solfoundry/issues"
+  },
+  "homepage": "https://github.com/SolFoundry/solfoundry#readme"
+}

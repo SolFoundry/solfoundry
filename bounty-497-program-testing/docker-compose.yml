@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # 测试运行环境
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+      - SOLANA_CLUSTER_URL=http://solana:8899
+      - COVERAGE_ENABLED=true
+    depends_on:
+      - solana
+    command: pnpm test
+
+  # Solana 本地验证器
+  solana:
+    image: ghcr.io/solana-programs/validator:v1.17.15
+    ports:
+      - "8899:8899"
+      - "8900:8900"
+    environment:
+      - SOLANA_LEDGER=/ledger
+    volumes:
+      - solana-ledger:/ledger
+    command: [
+      "solana-validator",
+      "--ledger", "/ledger",
+      "--rpc-port", "8899",
+      "--rpc-bind-address", "0.0.0.0",
+      "--enable-rpc-transaction-history",
+      "--enable-cpi-and-log-storage",
+      "--accounts", "/ledger/accounts",
+      "--limit-ledger-size"
+    ]
+    healthcheck:
+      test: ["CMD", "solana", "cluster-version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 覆盖率报告服务
+  coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./coverage:/app/coverage
+    environment:
+      - NODE_ENV=test
+      - COVERAGE_ENABLED=true
+    command: pnpm test:coverage
+    depends_on:
+      - solana
+
+  # 文档生成
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./docs:/app/docs
+    command: pnpm docs:generate
+
+volumes:
+  solana-ledger:
+
+networks:
+  default:
+    name: solfoundry-testing
