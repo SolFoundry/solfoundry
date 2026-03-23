@@ -200,6 +200,7 @@ else
 fi
 
 # Load .env safely: parse KEY=VALUE lines without executing arbitrary shell code.
+# Handles CRLF line endings (Windows editors) by stripping trailing \r.
 if [ -f .env ]; then
   while IFS= read -r line || [ -n "$line" ]; do
     # Skip blank lines and comments
@@ -211,6 +212,8 @@ if [ -f .env ]; then
       # Strip optional surrounding single or double quotes
       val="${val#\"}" ; val="${val%\"}"
       val="${val#\'}" ; val="${val%\'}"
+      # Strip trailing carriage return (CRLF line endings)
+      val="${val%$'\r'}"
       export "$key"="$val"
     fi
   done < .env
@@ -274,14 +277,24 @@ SERVICES_HEALTHY=false
 if $USE_DOCKER; then
   header "🐳 Starting services with Docker Compose..."
 
-  COMPOSE_OUTPUT=$($COMPOSE_CMD up -d --build 2>&1) || {
-    warn "Docker Compose startup failed — falling back to manual setup"
-    warn "$COMPOSE_OUTPUT"
+  # Preflight: verify Docker daemon is accessible before attempting startup
+  if ! docker info &>/dev/null 2>&1; then
+    warn "Docker daemon is not accessible — falling back to manual setup"
     USE_DOCKER=false
-  }
+  fi
+fi
 
-  if $USE_DOCKER; then
-    echo "$COMPOSE_OUTPUT" | tail -5
+if $USE_DOCKER; then
+  # Capture compose output and check exit code; fall back to manual on failure
+  COMPOSE_OUT=$(mktemp)
+  if ! $COMPOSE_CMD up -d --build >"$COMPOSE_OUT" 2>&1; then
+    warn "Docker Compose startup failed — falling back to manual setup"
+    tail -5 "$COMPOSE_OUT" | while IFS= read -r l; do warn "$l"; done
+    rm -f "$COMPOSE_OUT"
+    USE_DOCKER=false
+  else
+    tail -5 "$COMPOSE_OUT"
+    rm -f "$COMPOSE_OUT"
     success "Docker services started"
 
     # Wait for services to be ready
@@ -316,7 +329,6 @@ if $USE_DOCKER; then
     if [ $RETRIES -eq $MAX_RETRIES ]; then
       warn "Health check timed out — services may still be starting"
       info "Check logs: $COMPOSE_CMD logs -f"
-      exit 1
     fi
   fi
 fi
@@ -333,7 +345,6 @@ if ! $USE_DOCKER; then
   echo "  # Terminal 2 — Frontend"
   echo "  cd frontend && npm run dev"
   echo ""
-  exit 0
 fi
 
 # ---------------------------------------------------------------------------
@@ -353,5 +364,19 @@ if $SERVICES_HEALTHY; then
     echo -e "  ${BOLD}Stop:${NC}      $COMPOSE_CMD down"
     echo ""
   fi
-  info "Read CONTRIBUTING.md to start building → earn \$FNDRY!"
+elif $USE_DOCKER; then
+  header "⚠️  Services started — health check timed out (may still be initializing)"
+  echo ""
+  echo -e "  ${BOLD}Frontend:${NC}  http://localhost:${FRONTEND_PORT:-3000}"
+  echo -e "  ${BOLD}Backend:${NC}   http://localhost:${BACKEND_PORT:-8000}"
+  echo -e "  ${BOLD}Logs:${NC}      $COMPOSE_CMD logs -f"
+  echo -e "  ${BOLD}Stop:${NC}      $COMPOSE_CMD down"
+  echo ""
+else
+  header "✅ Dependencies installed — start services manually (see above)"
+  echo ""
+  echo -e "  ${BOLD}Frontend:${NC}  http://localhost:${FRONTEND_PORT:-3000}"
+  echo -e "  ${BOLD}Backend:${NC}   http://localhost:${BACKEND_PORT:-8000}"
+  echo ""
 fi
+info "Read CONTRIBUTING.md to start building → earn \$FNDRY!"
