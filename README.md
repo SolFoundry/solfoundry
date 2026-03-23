@@ -289,6 +289,61 @@ cd frontend && npm install && npm run dev
 cd contracts && anchor build && anchor test
 ```
 
+### Smart Contract Development
+
+The Anchor workspace lives in [`contracts/`](contracts/). It contains four programs — escrow, reputation, treasury, and staking — that form SolFoundry's on-chain infrastructure.
+
+**Install Solana CLI**
+
+```bash
+sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+```
+
+**Install Anchor CLI**
+
+```bash
+cargo install --git https://github.com/coral-xyz/anchor anchor-cli --locked
+```
+
+**Build all programs**
+
+```bash
+cd contracts
+anchor build
+```
+
+**Sync program IDs** (required once after first build — updates `declare_id!` macros from generated keypairs)
+
+```bash
+anchor keys sync
+anchor build
+```
+
+**Run tests** (spins up a local validator automatically)
+
+```bash
+anchor test
+```
+
+**Deploy to Devnet**
+
+```bash
+# Using the default Solana CLI wallet
+./scripts/deploy-devnet.sh
+
+# Using a specific deploy keypair (for CI or automation)
+SOLANA_DEPLOY_KEYPAIR='[1,2,3,...]' ./scripts/deploy-devnet.sh
+```
+
+**Programs**
+
+| Program | Description |
+|---------|-------------|
+| `escrow` | Locks $FNDRY when a bounty is posted; releases on merge |
+| `reputation` | On-chain contributor score updated on each approved bounty |
+| `treasury` | Protocol fee collection and $FNDRY buyback tracking |
+| `staking` | Stake $FNDRY to boost reputation multiplier |
+
 ---
 
 ## Roadmap

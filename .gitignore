@@ -63,6 +63,11 @@ htmlcov/
 # Rust/Anchor
 target/
 *.so
+.anchor/
+
+# Anchor deploy keypairs — never commit private keys
+*-keypair.json
+deploy-keypair.json
 
 # Logs
 *.log
