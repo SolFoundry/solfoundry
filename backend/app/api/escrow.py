@@ -10,6 +10,8 @@ Provides REST endpoints for the escrow lifecycle:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.exceptions import (
@@ -34,6 +36,9 @@ from app.services.escrow_service import (
     refund_escrow,
     release_escrow,
 )
+from app.services.onchain_cache import cache_get, cache_invalidate, cache_set
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/escrow", tags=["escrow"])
 
@@ -67,6 +72,7 @@ async def fund_escrow(body: EscrowFundRequest) -> EscrowResponse:
         )
         # Auto-activate after successful funding
         escrow = await activate_escrow(body.bounty_id)
+        await cache_invalidate("escrow", body.bounty_id)
         return escrow
     except EscrowAlreadyExistsError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -96,10 +102,12 @@ async def release_escrow_endpoint(body: EscrowReleaseRequest) -> EscrowResponse:
     moves the escrow to COMPLETED state.
     """
     try:
-        return await release_escrow(
+        result = await release_escrow(
             bounty_id=body.bounty_id,
             winner_wallet=body.winner_wallet,
         )
+        await cache_invalidate("escrow", body.bounty_id)
+        return result
     except EscrowNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InvalidEscrowTransitionError as exc:
@@ -123,7 +131,9 @@ async def release_escrow_endpoint(body: EscrowReleaseRequest) -> EscrowResponse:
 async def refund_escrow_endpoint(body: EscrowRefundRequest) -> EscrowResponse:
     """Return escrowed $FNDRY to the bounty creator on timeout or cancellation."""
     try:
-        return await refund_escrow(bounty_id=body.bounty_id)
+        result = await refund_escrow(bounty_id=body.bounty_id)
+        await cache_invalidate("escrow", body.bounty_id)
+        return result
     except EscrowNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InvalidEscrowTransitionError as exc:
@@ -141,8 +151,18 @@ async def refund_escrow_endpoint(body: EscrowRefundRequest) -> EscrowResponse:
     },
 )
 async def get_escrow(bounty_id: str) -> EscrowStatusResponse:
-    """Return the current escrow state, locked balance, and full audit trail."""
+    """Return the current escrow state, locked balance, and full audit trail.
+
+    Results are cached in Redis for 30 seconds to reduce database load.
+    """
+    cached = await cache_get("escrow", bounty_id)
+    if cached is not None:
+        return EscrowStatusResponse.model_validate(cached)
+
     try:
-        return await get_escrow_status(bounty_id=bounty_id)
+        result = await get_escrow_status(bounty_id=bounty_id)
     except EscrowNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    await cache_set("escrow", bounty_id, result.model_dump(mode="json"))
+    return result
