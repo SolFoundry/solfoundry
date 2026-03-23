@@ -55,8 +55,38 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 
 
 # ---------------------------------------------------------------------------
+# Wallet address validation
+# ---------------------------------------------------------------------------
+
+_BASE58_ALPHABET = set("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+
+
+def _validate_wallet_address(address: str) -> None:
+    """Validate a Solana wallet address (base58, 32-44 characters).
+
+    Raises:
+        SiwsValidationError: If the address is invalid.
+    """
+    if not address or len(address) < 32 or len(address) > 44:
+        raise SiwsValidationError(
+            f"Invalid wallet address length: {len(address) if address else 0}"
+        )
+    if not all(c in _BASE58_ALPHABET for c in address):
+        raise SiwsValidationError("Wallet address contains invalid base58 characters")
+    # Attempt to parse as a Solana public key
+    try:
+        Pubkey.from_string(address)
+    except (ValueError, Exception):
+        raise SiwsValidationError("Cannot parse wallet address as Solana public key")
+
+
+# ---------------------------------------------------------------------------
 # Custom exceptions
 # ---------------------------------------------------------------------------
+
+class SiwsValidationError(Exception):
+    """Raised when wallet address or input validation fails."""
+
 
 class SiwsNonceError(Exception):
     """Raised when nonce validation fails."""
@@ -132,13 +162,14 @@ def _build_siws_message(
 async def _check_rate_limit(db: AsyncSession, wallet_address: str) -> None:
     """Raise SiwsRateLimitError if wallet exceeds RATE_LIMIT_MAX per window.
 
-    Counts non-expired nonces issued to the wallet in the past
-    RATE_LIMIT_WINDOW_SECONDS as a proxy for sign-in attempts.
+    Counts consumed (used=True) nonces in the past RATE_LIMIT_WINDOW_SECONDS
+    as actual sign-in attempts, not just challenges issued.
     """
     window_start = _now_utc() - timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS)
     result = await db.execute(
         select(func.count(SiwsNonce.nonce)).where(
             SiwsNonce.wallet_address == wallet_address.lower(),
+            SiwsNonce.used == True,  # noqa: E712 — count actual attempts
             SiwsNonce.issued_at >= window_start,
         )
     )
@@ -174,6 +205,9 @@ async def create_siws_challenge(
     """
     wallet_address = wallet_address.strip()
     domain = domain or SIWS_DOMAIN
+
+    # Validate wallet address format (base58, 32-44 chars)
+    _validate_wallet_address(wallet_address)
 
     # Enforce rate limit before issuing new challenge
     await _check_rate_limit(db, wallet_address)
@@ -220,13 +254,15 @@ async def create_siws_challenge(
 # Nonce verification
 # ---------------------------------------------------------------------------
 
-async def _consume_nonce(
+async def _validate_nonce(
     db: AsyncSession,
     nonce: str,
     wallet_address: str,
     message: str,
 ) -> SiwsNonce:
-    """Validate and mark a nonce as used (atomic-style check).
+    """Validate a nonce without consuming it.
+
+    Returns the nonce record for subsequent atomic consumption.
 
     Raises:
         SiwsNonceError: For any validation failure.
@@ -251,11 +287,24 @@ async def _consume_nonce(
     if record.message_body != message:
         raise SiwsNonceError("Message body does not match issued challenge")
 
-    # Mark as used — prevents replay
-    record.used = True
-    await db.commit()
-
     return record
+
+
+async def _mark_nonce_used(db: AsyncSession, record: SiwsNonce) -> None:
+    """Atomically mark a nonce as used (called AFTER signature verification).
+
+    Uses a conditional update to prevent race conditions.
+    """
+    from sqlalchemy import update
+
+    result = await db.execute(
+        update(SiwsNonce)
+        .where(SiwsNonce.nonce == record.nonce, SiwsNonce.used == False)  # noqa: E712
+        .values(used=True)
+    )
+    await db.commit()
+    if result.rowcount == 0:
+        raise SiwsNonceError("Nonce was consumed concurrently (replay detected)")
 
 
 # ---------------------------------------------------------------------------
@@ -391,6 +440,9 @@ async def revoke_wallet_session(
 ) -> bool:
     """Revoke the session associated with an access token (sign-out).
 
+    Invalidates both the access token and the refresh token so that
+    neither can be used after logout.
+
     Returns True if a session was found and revoked, False otherwise.
     """
     token_hash = _sha256(access_token)
@@ -400,6 +452,9 @@ async def revoke_wallet_session(
     session: Optional[WalletSession] = result.scalar_one_or_none()
     if session and not session.revoked:
         session.revoked = True
+        # Invalidate refresh token by clearing its hash so it can't be
+        # looked up by refresh_wallet_session
+        session.refresh_token_hash = None
         await db.commit()
         return True
     return False
@@ -438,13 +493,18 @@ async def siws_authenticate(
         SiwsNonceError: Nonce validation failed.
         WalletVerificationError: Signature invalid.
     """
-    # 1. Validate nonce (also checks message integrity)
-    await _consume_nonce(db, nonce, wallet_address, message)
+    # 1. Validate nonce (checks expiry, wallet match, message integrity)
+    #    but do NOT consume yet — verify signature first to prevent
+    #    attackers from burning valid challenges with invalid signatures.
+    nonce_record = await _validate_nonce(db, nonce, wallet_address, message)
 
-    # 2. Verify signature
+    # 2. Verify signature BEFORE consuming the nonce
     _verify_ed25519_signature(wallet_address, message, signature)
 
-    # 3. Persist session
+    # 3. Consume nonce atomically (mark as used only after sig verified)
+    await _mark_nonce_used(db, nonce_record)
+
+    # 4. Persist session
     access_token, refresh_token = await _create_wallet_session(
         db, wallet_address, nonce=nonce
     )

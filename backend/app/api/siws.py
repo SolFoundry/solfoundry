@@ -31,6 +31,7 @@ from app.services.siws_service import (
     SiwsNonceError,
     SiwsRateLimitError,
     SiwsSessionError,
+    SiwsValidationError,
 )
 from app.services.auth_service import WalletVerificationError
 from app.models.user import RefreshTokenRequest
@@ -89,6 +90,11 @@ async def get_siws_message(
     """
     try:
         data = await create_siws_challenge(db, wallet_address, domain=domain)
+    except SiwsValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
     except SiwsRateLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
