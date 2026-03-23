@@ -93,10 +93,11 @@ check_cmd() {
     local min_major min_minor
     min_major=$(echo "${min_version:-0.0}" | cut -d. -f1)
     min_minor=$(echo "${min_version:-0.0}" | cut -d. -f2)
-    success "$cmd found (v${version:-unknown})"
     if [ "${major:-0}" -lt "${min_major:-0}" ] || \
        { [ "${major:-0}" -eq "${min_major:-0}" ] && [ "${minor:-0}" -lt "${min_minor:-0}" ]; }; then
       warn "$cmd v${min_version}+ recommended (found v${version:-unknown})"
+    else
+      success "$cmd found (v${version:-unknown})"
     fi
     return 0
   else
@@ -280,10 +281,13 @@ if $USE_DOCKER; then
       STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
       if [ "$STATUS" = "healthy" ]; then
         success "Health check passed: $STATUS"
+        break
       else
-        warn "Health check returned: $STATUS"
+        warn "Health check returned: $STATUS — retrying..."
+        RETRIES=$((RETRIES + 1))
+        sleep 2
+        continue
       fi
-      break
     }
     RETRIES=$((RETRIES + 1))
     sleep 2
