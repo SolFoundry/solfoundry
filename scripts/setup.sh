@@ -1,0 +1,265 @@
+#!/bin/bash
+
+# SolFoundry Environment Setup Script
+# This script sets up the local development environment from scratch.
+# It checks for dependencies, installs packages, sets up .env, and starts services.
+
+set -euo pipefail # Strict error handling
+
+# Text formatting
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+echo -e "${BLUE}${BOLD}🚀 Starting SolFoundry Environment Setup...${NC}\n"
+
+# Helper functions
+print_step() {
+    echo -e "${YELLOW}➤ $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+    exit 1
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️ $1${NC}"
+}
+
+# Cross-platform version comparison
+version_gt() {
+    # If python is available, use it for reliable semver comparison
+    if command -v python3 &> /dev/null; then
+        python3 -c "import sys; from packaging.version import parse; sys.exit(0 if parse('$1') > parse('$2') else 1)" 2>/dev/null && return 0 || return 1
+    fi
+    # Fallback to pure awk
+    awk -v v1="$1" -v v2="$2" '
+    BEGIN {
+        split(v1, a, "."); split(v2, b, ".");
+        for (i = 1; i <= 3; i++) {
+            if (a[i] + 0 > b[i] + 0) exit 0;
+            if (a[i] + 0 < b[i] + 0) exit 1;
+        }
+        exit 1; # they are equal
+    }'
+}
+
+# Skip actual execution during tests (dry run mode)
+DRY_RUN=${DRY_RUN:-0}
+SKIP_DEP_CHECKS=${SKIP_DEP_CHECKS:-0}
+
+run_cmd() {
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "[DRY RUN] Would execute: $*"
+        return 0
+    else
+        "$@"
+    fi
+}
+
+# 1. Dependency Checks
+print_step "Checking required tools..."
+
+if [ "$SKIP_DEP_CHECKS" -ne 1 ]; then
+    if ! command -v node &> /dev/null; then
+        print_error "Node.js is not installed. Please install Node.js v18+."
+    fi
+    NODE_VERSION=$(node -v | sed 's/v//')
+    if ! version_gt "$NODE_VERSION" "17.9.9"; then
+        print_error "Node.js version must be 18+. Found $NODE_VERSION."
+    fi
+    print_success "Node.js is installed (v$NODE_VERSION)."
+
+    if ! command -v npm &> /dev/null; then
+        print_error "npm is not installed. Please install npm."
+    fi
+    print_success "npm is installed."
+
+    if ! command -v python3 &> /dev/null; then
+        print_error "Python 3 is not installed. Please install Python v3.10+."
+    fi
+    PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
+    if ! version_gt "$PYTHON_VERSION" "3.9.9"; then
+        print_error "Python version must be 3.10+. Found $PYTHON_VERSION."
+    fi
+    print_success "Python is installed (v$PYTHON_VERSION)."
+
+    if ! python3 -c 'import venv' &> /dev/null; then
+        print_error "python3-venv is not installed. Please install it (e.g. sudo apt install python3-venv)."
+    fi
+    print_success "python3-venv is available."
+
+    if ! command -v pip3 &> /dev/null; then
+        print_error "pip3 is not installed. Please install pip for Python 3."
+    fi
+    print_success "pip3 is installed."
+
+    if ! command -v rustc &> /dev/null; then
+        print_error "Rust is not installed. Please install Rust 1.76+ (https://rustup.rs/)."
+    fi
+    RUST_VERSION=$(rustc --version | awk '{print $2}')
+    if ! version_gt "$RUST_VERSION" "1.75.9"; then
+        print_error "Rust version must be 1.76+. Found $RUST_VERSION."
+    fi
+    print_success "Rust is installed ($RUST_VERSION)."
+
+    if ! command -v anchor &> /dev/null; then
+        print_warning "Anchor is not installed. Smart contract development might fail."
+    else
+        ANCHOR_VERSION=$(anchor --version | awk '{print $2}')
+        if ! version_gt "$ANCHOR_VERSION" "0.29.9"; then
+            print_warning "Anchor version should be 0.30+. Found $ANCHOR_VERSION."
+        else
+            print_success "Anchor is installed ($ANCHOR_VERSION)."
+        fi
+    fi
+
+    if ! command -v docker &> /dev/null; then
+        print_warning "Docker is not installed. You will need it to run Postgres/Redis via compose."
+    else
+        print_success "Docker is installed."
+    fi
+else
+    print_warning "Skipping dependency checks (SKIP_DEP_CHECKS=1)"
+fi
+
+# 2. Setup .env Files
+print_step "Setting up environment variables..."
+
+if [ ! -f .env ]; then
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        print_success "Created Root .env from .env.example."
+    else
+        print_warning "Root .env.example not found. Skipping..."
+    fi
+else
+    print_success "Root .env already exists."
+fi
+
+if [ -d "backend" ] && [ ! -f backend/.env ]; then
+    if [ -f backend/.env.example ]; then
+        cp backend/.env.example backend/.env
+        print_success "Created backend/.env from backend/.env.example."
+    else
+         print_warning "backend/.env.example not found. Skipping..."
+    fi
+elif [ -f backend/.env ]; then
+    print_success "backend/.env already exists."
+fi
+
+# Track global setup status
+SETUP_FAILED=0
+
+# 3. Install Backend Dependencies
+if [ -d "backend" ]; then
+    print_step "Installing backend dependencies (Python)..."
+    cd backend
+    if [ ! -d "venv" ]; then
+        run_cmd python3 -m venv venv
+    fi
+    
+    if [ -f "requirements.txt" ]; then
+        if run_cmd venv/bin/pip install -r requirements.txt; then
+            print_success "Backend dependencies installed."
+        else
+            print_error "Backend dependencies failed to install."
+        fi
+    else
+        print_warning "backend/requirements.txt not found."
+    fi
+    cd ..
+else
+    print_warning "backend/ directory not found. Skipping backend setup."
+fi
+
+# 4. Install Frontend Dependencies
+if [ -d "frontend" ]; then
+    print_step "Installing frontend dependencies (Node.js)..."
+    cd frontend
+    if [ -f "package.json" ]; then
+        if run_cmd npm install; then
+            print_success "Frontend dependencies installed."
+        else
+            print_error "Frontend dependencies failed to install."
+        fi
+    else
+        print_warning "frontend/package.json not found."
+    fi
+    cd ..
+else
+    print_warning "frontend/ directory not found. Skipping frontend setup."
+fi
+
+# 5. Install SDK Dependencies (if applicable)
+if [ -d "sdk" ]; then
+    print_step "Installing SDK dependencies..."
+    cd sdk
+    if [ -f "package.json" ]; then
+        if run_cmd npm install; then
+            print_success "SDK dependencies installed successfully."
+        else
+            print_warning "npm install in sdk failed. Continuing anyway."
+            SETUP_FAILED=1
+        fi
+    else
+        print_warning "sdk/package.json not found."
+    fi
+    cd ..
+fi
+
+# 6. Start Local Services
+print_step "Starting local services..."
+
+DOCKER_SUCCESS=0
+if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ]; then
+    if command -v docker-compose &> /dev/null; then
+        if run_cmd docker-compose up -d db redis; then
+            print_success "Database and Redis started via docker-compose."
+            DOCKER_SUCCESS=1
+        else
+            print_warning "Failed to start services via docker-compose. Is Docker daemon running?"
+            SETUP_FAILED=1
+        fi
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        if run_cmd docker compose up -d db redis; then
+            print_success "Database and Redis started via docker compose."
+            DOCKER_SUCCESS=1
+        else
+            print_warning "Failed to start services via docker compose. Is Docker daemon running?"
+            SETUP_FAILED=1
+        fi
+    else
+        print_warning "Docker Compose not found. Please ensure Postgres and Redis are running locally."
+        SETUP_FAILED=1
+    fi
+else
+    print_warning "docker-compose.yml not found. Skipping local service startup."
+    SETUP_FAILED=1
+fi
+
+# Final Output
+if [ "$SETUP_FAILED" -eq 0 ]; then
+    echo -e "\n${GREEN}${BOLD}🎉 Setup Complete! All components successfully installed.${NC}\n"
+else
+    echo -e "\n${YELLOW}${BOLD}⚠️ Setup Completed with Warnings. Some components may need manual attention.${NC}\n"
+fi
+
+echo -e "To start the development servers, open separate terminals and run:"
+echo -e "  ${BOLD}Backend:${NC}  cd backend && source venv/bin/activate && uvicorn app.main:app --reload"
+echo -e "  ${BOLD}Frontend:${NC} cd frontend && npm run dev\n"
+
+if [ "$DOCKER_SUCCESS" -eq 1 ]; then
+    echo -e "${BLUE}${BOLD}Local Services URLs:${NC}"
+    echo -e "  - Frontend: http://localhost:5173 (or port shown by Vite)"
+    echo -e "  - Backend API: http://localhost:8000"
+    echo -e "  - Backend Docs: http://localhost:8000/docs"
+fi
