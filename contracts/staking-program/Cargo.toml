@@ -1,0 +1,12 @@
+[workspace]
+members  = ["programs/fndry-staking"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+lto             = "fat"
+codegen-units   = 1
+opt-level       = "z"
+
+[profile.test]
+opt-level = 1

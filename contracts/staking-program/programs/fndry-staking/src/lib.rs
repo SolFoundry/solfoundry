@@ -37,6 +37,9 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 
+#[cfg(test)]
+mod tests;
+
 use instructions::*;
 
 declare_id!("Stak1111111111111111111111111111111111111111");
