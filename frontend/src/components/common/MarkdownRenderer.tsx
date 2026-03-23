@@ -1,15 +1,21 @@
 /**
  * MarkdownRenderer — Reusable component for rendering Markdown content safely.
  *
- * Uses react-markdown for parsing and react-syntax-highlighter for code blocks.
- * CommonMark only — GFM pipe tables are not parsed as HTML tables (no extra remark plugins).
- * All links open in a new tab with rel="noopener noreferrer" for security.
- * HTML output is XSS-safe: react-markdown does not use dangerouslySetInnerHTML.
+ * Uses react-markdown + remark-gfm for parsing and react-syntax-highlighter
+ * for code blocks with syntax highlighting.
+ *
+ * Features:
+ * - GitHub-Flavored Markdown (GFM): tables, task lists, strikethrough, autolinks
+ * - Syntax highlighting for Python, TypeScript, Rust, Solidity, JavaScript, etc.
+ * - Dark / light theme via SolFoundry ThemeContext
+ * - XSS-safe: react-markdown does not use dangerouslySetInnerHTML
+ * - All links open in new tab with rel="noopener noreferrer"
  *
  * @module components/common/MarkdownRenderer
  */
 import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Components } from 'react-markdown';
@@ -90,9 +96,12 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
       </blockquote>
     ),
 
+    // ── GFM: tables ───────────────────────────────────────────────────────────
     table: ({ children }) => (
       <div className="my-4 overflow-x-auto overscroll-x-contain rounded-lg border border-gray-200 touch-pan-x dark:border-white/10">
-        <table className="w-full min-w-[20rem] border-collapse text-base text-gray-700 dark:text-gray-300">{children}</table>
+        <table className="w-full min-w-[20rem] border-collapse text-base text-gray-700 dark:text-gray-300">
+          {children}
+        </table>
       </div>
     ),
     thead: ({ children }) => (
@@ -107,6 +116,27 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
       <td className="px-3 py-2 border-b border-gray-100 dark:border-white/5">{children}</td>
     ),
 
+    // ── GFM: task lists (checkboxes) ──────────────────────────────────────────
+    input({ type, checked, ...props }) {
+      if (type === 'checkbox') {
+        return (
+          <input
+            type="checkbox"
+            checked={checked}
+            readOnly
+            className="mr-2 accent-solana-purple align-middle"
+            {...props}
+          />
+        );
+      }
+      return <input type={type} {...props} />;
+    },
+
+    // ── GFM: strikethrough ────────────────────────────────────────────────────
+    del: ({ children }) => (
+      <del className="line-through text-gray-500 dark:text-gray-500">{children}</del>
+    ),
+
     hr: () => <hr className="border-gray-200 dark:border-white/10 my-4" />,
 
     strong: ({ children }) => (
@@ -117,8 +147,13 @@ function makeMarkdownComponents(resolved: ResolvedTheme): Components {
 }
 
 /**
- * Renders Markdown with light/dark prose and syntax-highlighted code blocks.
- * Safe against XSS: relies on react-markdown which does not use dangerouslySetInnerHTML.
+ * Renders GitHub-Flavored Markdown with light/dark prose and syntax-highlighted
+ * code blocks. Safe against XSS: relies on react-markdown which does not use
+ * dangerouslySetInnerHTML.
+ *
+ * Supports: headers, bold, italic, strikethrough, lists, task lists, code blocks
+ * (Python, TypeScript, Rust, Solidity + more), inline code, links, images,
+ * tables, blockquotes, and horizontal rules.
  */
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   const resolved = useResolvedThemeSafe();
@@ -135,7 +170,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
         `[&_ol]:text-gray-700 [&_ol]:dark:text-gray-300 ${className ?? ''}`
       }
     >
-      <ReactMarkdown components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {content}
       </ReactMarkdown>
     </div>
