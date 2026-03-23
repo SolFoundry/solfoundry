@@ -1,21 +1,13 @@
 /**
  * Treasury admin panel — CSV helper and mocked data states.
  */
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { TreasuryDashboardResponse } from '../../types/admin';
 import { TreasuryPanel, treasuryDashboardToCsv } from './TreasuryPanel';
-
-beforeAll(() => {
-  global.ResizeObserver = class {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  };
-});
 
 vi.mock('@solana/wallet-adapter-react', () => ({
   useWallet: () => ({ publicKey: null, connected: false }),

@@ -34,6 +34,7 @@ from app.services.anti_gaming_heuristics import (
     evaluate_t1_completion_cooldown,
     evaluate_wallet_cluster_concentration,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -323,9 +324,7 @@ async def get_last_t1_completion_time(
 async def record_t1_completion(
     session: AsyncSession, *, actor_key: str, bounty_id: str
 ) -> None:
-    session.add(
-        T1CompletionLogTable(actor_key=actor_key, bounty_id=bounty_id)
-    )
+    session.add(T1CompletionLogTable(actor_key=actor_key, bounty_id=bounty_id))
 
 
 async def assert_claim_allowed(
@@ -337,9 +336,7 @@ async def assert_claim_allowed(
     if not settings.enabled:
         return
     n = count_active_claims_for_user(claimer_id)
-    result = evaluate_active_claim_limit(
-        active_claim_count=n, settings=settings
-    )
+    result = evaluate_active_claim_limit(active_claim_count=n, settings=settings)
     await persist_audit_entry(
         session,
         decision="deny" if not result.passed else "allow",
@@ -423,13 +420,13 @@ async def on_wallet_linked_clustering(
     if row:
         row.cluster_key = cluster
     else:
-        session.add(
-            WalletClusterMembershipTable(user_id=user_id, cluster_key=cluster)
-        )
+        session.add(WalletClusterMembershipTable(user_id=user_id, cluster_key=cluster))
     await session.flush()
 
-    q = select(func.count()).select_from(WalletClusterMembershipTable).where(
-        WalletClusterMembershipTable.cluster_key == cluster
+    q = (
+        select(func.count())
+        .select_from(WalletClusterMembershipTable)
+        .where(WalletClusterMembershipTable.cluster_key == cluster)
     )
     cnt = int((await session.execute(q)).scalar_one() or 0)
     conc = evaluate_wallet_cluster_concentration(

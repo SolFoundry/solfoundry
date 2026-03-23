@@ -25,9 +25,7 @@ def _account_keys(message: dict[str, Any]) -> list[str]:
     return keys
 
 
-def _pick_funder_for_sol_increase(
-    wallet: str, tx: dict[str, Any]
-) -> Optional[str]:
+def _pick_funder_for_sol_increase(wallet: str, tx: dict[str, Any]) -> Optional[str]:
     """Return a pubkey that plausibly sent SOL to ``wallet`` in this transaction."""
     message = (tx.get("transaction") or {}).get("message") or {}
     keys = _account_keys(message)

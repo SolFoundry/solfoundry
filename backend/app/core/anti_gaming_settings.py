@@ -58,18 +58,26 @@ def get_anti_gaming_settings() -> AntiGamingSettings:
     """Load settings from environment (cached; call ``reset_anti_gaming_settings_cache`` in tests)."""
     return AntiGamingSettings(
         enabled=_env_bool("ANTIGAMING_ENABLED", True),
-        github_min_account_age_days=_env_int("ANTIGAMING_GITHUB_MIN_ACCOUNT_AGE_DAYS", 30),
+        github_min_account_age_days=_env_int(
+            "ANTIGAMING_GITHUB_MIN_ACCOUNT_AGE_DAYS", 30
+        ),
         github_min_public_repos=_env_int("ANTIGAMING_GITHUB_MIN_PUBLIC_REPOS", 1),
         github_min_commit_total=_env_int("ANTIGAMING_GITHUB_MIN_COMMIT_TOTAL", 5),
         github_min_followers=_env_int("ANTIGAMING_GITHUB_MIN_FOLLOWERS", 0),
-        github_reject_empty_profile=_env_bool("ANTIGAMING_GITHUB_REJECT_EMPTY_PROFILE", True),
+        github_reject_empty_profile=_env_bool(
+            "ANTIGAMING_GITHUB_REJECT_EMPTY_PROFILE", True
+        ),
         max_active_claims_per_user=_env_int("ANTIGAMING_MAX_ACTIVE_CLAIMS", 3),
-        t1_completion_cooldown_hours=_env_float("ANTIGAMING_T1_COMPLETION_COOLDOWN_HOURS", 24.0),
+        t1_completion_cooldown_hours=_env_float(
+            "ANTIGAMING_T1_COMPLETION_COOLDOWN_HOURS", 24.0
+        ),
         ip_flag_account_threshold=_env_int("ANTIGAMING_IP_FLAG_ACCOUNT_THRESHOLD", 3),
         wallet_cluster_flag_user_threshold=_env_int(
             "ANTIGAMING_WALLET_CLUSTER_FLAG_USER_THRESHOLD", 2
         ),
-        wallet_clustering_enabled=_env_bool("ANTIGAMING_WALLET_CLUSTERING_ENABLED", True),
+        wallet_clustering_enabled=_env_bool(
+            "ANTIGAMING_WALLET_CLUSTERING_ENABLED", True
+        ),
         wallet_funder_probe_max_signatures=_env_int(
             "ANTIGAMING_WALLET_FUNDER_PROBE_MAX_SIGNATURES", 25
         ),

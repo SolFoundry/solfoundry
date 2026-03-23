@@ -22,9 +22,13 @@ def upgrade() -> None:
     op.add_column("users", sa.Column("last_seen_ip", sa.String(45), nullable=True))
     op.add_column(
         "users",
-        sa.Column("github_account_created_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "github_account_created_at", sa.DateTime(timezone=True), nullable=True
+        ),
     )
-    op.add_column("users", sa.Column("github_public_repos", sa.Integer(), nullable=True))
+    op.add_column(
+        "users", sa.Column("github_public_repos", sa.Integer(), nullable=True)
+    )
     op.add_column(
         "users", sa.Column("github_commit_count_snapshot", sa.Integer(), nullable=True)
     )
@@ -86,9 +90,7 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
-        sa.Column(
-            "status", sa.String(20), nullable=False, server_default="pending"
-        ),
+        sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
         sa.Column("related_audit_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("admin_note", sa.Text(), nullable=True),
         sa.Column(
@@ -102,9 +104,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_anti_gaming_appeals_user_id", "anti_gaming_appeals", ["user_id"]
     )
-    op.create_index(
-        "ix_anti_gaming_appeals_status", "anti_gaming_appeals", ["status"]
-    )
+    op.create_index("ix_anti_gaming_appeals_status", "anti_gaming_appeals", ["status"])
 
     op.create_table(
         "t1_completion_log",
@@ -118,7 +118,9 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
     )
-    op.create_index("ix_t1_completion_log_actor_key", "t1_completion_log", ["actor_key"])
+    op.create_index(
+        "ix_t1_completion_log_actor_key", "t1_completion_log", ["actor_key"]
+    )
     op.create_index(
         "ix_t1_completion_log_completed_at", "t1_completion_log", ["completed_at"]
     )

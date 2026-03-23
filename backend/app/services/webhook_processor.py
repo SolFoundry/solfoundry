@@ -173,8 +173,10 @@ class WebhookProcessor:
                                     )
                                     if sub:
                                         ag_settings = get_anti_gaming_settings()
-                                        actor_key = anti_gaming_service.submission_actor_key(
-                                            sub
+                                        actor_key = (
+                                            anti_gaming_service.submission_actor_key(
+                                                sub
+                                            )
                                         )
                                         if ag_settings.enabled:
                                             await anti_gaming_service.assert_t1_cooldown_ok(

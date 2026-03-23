@@ -106,9 +106,7 @@ async def build_treasury_dashboard() -> dict[str, Any]:
     for p in payouts:
         if p.status != PayoutStatus.CONFIRMED or p.token != "FNDRY":
             continue
-        url = p.solscan_url or (
-            f"{SOLSCAN_TX_BASE}/{p.tx_hash}" if p.tx_hash else None
-        )
+        url = p.solscan_url or (f"{SOLSCAN_TX_BASE}/{p.tx_hash}" if p.tx_hash else None)
         tx_rows.append(
             {
                 "id": p.id,

@@ -4,7 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.core.anti_gaming_settings import AntiGamingSettings, reset_anti_gaming_settings_cache
+from app.core.anti_gaming_settings import (
+    AntiGamingSettings,
+    reset_anti_gaming_settings_cache,
+)
 from app.services.anti_gaming_heuristics import (
     evaluate_active_claim_limit,
     evaluate_github_account_age,
