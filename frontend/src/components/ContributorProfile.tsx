@@ -5,6 +5,7 @@ import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
 import { TimeAgo } from './common/TimeAgo';
+import { GitIdentityCard } from './profile/GitIdentityCard';
 
 interface RecentBounty {
   title: string;
@@ -225,6 +226,16 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
           <p className="text-lg sm:text-xl font-bold text-yellow-400">{reputationScore}</p>
         </div>
       </div>
+
+      {/* Git Identity */}
+      <GitIdentityCard
+        username={username}
+        avatarUrl={avatarUrl}
+        joinDate={joinDate}
+        mergedPrs={bountiesCompleted}
+        totalCommits={bountiesCompleted * 3}
+        verified={!!walletAddress}
+      />
 
       {/* T1/T2/T3 Breakdown */}
       {(t1Completed > 0 || t2Completed > 0 || t3Completed > 0) && (
