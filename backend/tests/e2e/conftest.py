@@ -39,9 +39,9 @@ os.environ["GITHUB_CLIENT_ID"] = ""
 os.environ["GITHUB_CLIENT_SECRET"] = ""
 
 # Late imports must follow environment setup (architectural requirement)
-from app.api.auth import get_current_user  # noqa: E402
+from app.api.auth import get_current_user  # noqa: E402, F401
 from app.models.user import UserResponse  # noqa: E402
-from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter  # noqa: E402
+from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter  # noqa: E402, F401
 from tests.e2e.factories import DEFAULT_WALLET  # noqa: E402
 
 
@@ -126,7 +126,8 @@ def _create_test_app() -> FastAPI:
     
     _get_test_loop().run_until_complete(_async_init())
 
-    from app.api.auth import get_current_user, router as auth_router
+    # get_current_user is already imported at module level
+    from app.api.auth import router as auth_router
     from app.api.bounties import router as bounties_router
     from app.api.contributors import router as contributors_router
     from app.api.escrow import router as escrow_router

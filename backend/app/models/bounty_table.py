@@ -15,8 +15,6 @@ from sqlalchemy import (
     Integer,
     DateTime,
     Text,
-    Index,
-    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -70,5 +68,4 @@ class BountyTable(Base):
         Index("ix_bounties_reward", reward_amount),
         Index("ix_bounties_deadline", deadline),
         Index("ix_bounties_popularity", popularity),
-        Index("ix_bounties_skills", skills),
     )
