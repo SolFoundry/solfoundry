@@ -8,6 +8,7 @@ import {
   SkeletonStatCard,
   SkeletonActivityFeed,
 } from './common/Skeleton';
+import { ReputationDisplay } from './profile/ReputationDisplay';
 
 // ============================================================================
 // Types
@@ -835,6 +836,13 @@ export function ContributorDashboard({
                 }
               />
             </div>
+
+            {/* Reputation Display */}
+            <ReputationDisplay
+              score={stats.reputationRank > 0 ? Math.min(Math.round((1 - (stats.reputationRank - 1) / Math.max(stats.totalContributors, 1)) * 100), 100) : 0}
+              rank={stats.reputationRank || undefined}
+              totalContributors={stats.totalContributors || undefined}
+            />
 
             {/* Quick Actions */}
             <QuickActions
