@@ -14,7 +14,7 @@ from typing import Optional
 from app.core.audit import audit_event
 from app.models.bounty import (
     BountyCreate,
-    BountyDB,
+    BountyInternal as BountyDB,
     BountyListItem,
     BountyListResponse,
     BountyResponse,

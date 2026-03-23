@@ -13,8 +13,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.audit import audit_event
+from app.models.bounty_table import BountyDB
 from app.models.bounty import (
-    BountyDB,
     BountyResponse,
     BountyStatus,
     BountyTier,

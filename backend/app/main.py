@@ -5,10 +5,10 @@ unified persistence for payouts and treasury operations.
 """
 
 import asyncio
-import logging
 import os
 import time
 import uuid
+import structlog
 from contextlib import asynccontextmanager
 from typing import Callable
 
@@ -61,7 +61,6 @@ from app.services.auth_service import AuthError
 
 # Initialize logging
 setup_logging()
-import structlog
 logger = structlog.get_logger(__name__)
 
 
