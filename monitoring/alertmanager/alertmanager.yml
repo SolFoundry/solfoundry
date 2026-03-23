@@ -1,0 +1,46 @@
+global:
+  resolve_timeout: 5m
+  # PagerDuty: set pagerduty_url if using EU stack
+  # slack_api_url: 'https://hooks.slack.com/services/XXX/YYY/ZZZ'
+
+route:
+  receiver: default
+  group_by: ["alertname", "cluster", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: critical
+      continue: true
+
+receivers:
+  - name: default
+    # Replace with Slack / Telegram / PagerDuty (see docs/deployment-and-monitoring.md).
+    # Placeholder URL validates config; deliveries fail until you configure a real receiver.
+    webhook_configs:
+      - url: "https://example.invalid/solfoundry-alertmanager-placeholder"
+        send_resolved: true
+
+  - name: critical
+    webhook_configs:
+      - url: "https://example.invalid/solfoundry-alertmanager-placeholder"
+        send_resolved: true
+
+  # Example (uncomment and configure):
+  # - name: slack
+  #   slack_configs:
+  #     - channel: '#solfoundry-alerts'
+  #       api_url: '<INCOMING_WEBHOOK_URL>'
+  #       title: '{{ .GroupLabels.alertname }}'
+  #       text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+  #
+  # - name: telegram
+  #   telegram_configs:
+  #     - bot_token: '<TOKEN>'
+  #       chat_id: <CHAT_ID>
+  #
+  # - name: pagerduty
+  #   pagerduty_configs:
+  #     - service_key: '<INTEGRATION_KEY>'

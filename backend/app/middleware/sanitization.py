@@ -72,6 +72,7 @@ SQL_INJECTION_PATTERNS: list[re.Pattern] = [
 BYPASS_PATHS: tuple[str, ...] = (
     "/api/webhooks/",
     "/health",
+    "/metrics",
 )
 
 

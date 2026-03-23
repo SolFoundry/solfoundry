@@ -1,0 +1,42 @@
+groups:
+  - name: solfoundry
+    rules:
+      - alert: BackendTargetDown
+        expr: up{job="backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus cannot scrape the API /metrics target"
+
+      - alert: PublicEndpointProbeFailed
+        expr: probe_success{job=~"blackbox.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Blackbox probe failed for {{ $labels.instance }}"
+
+      - alert: SolanaRpcUnhealthy
+        expr: solfoundry_solana_rpc_up == 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Solana JSON-RPC getHealth failing from the API"
+
+      - alert: DatabasePoolPressure
+        expr: solfoundry_db_pool_overflow > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SQLAlchemy pool using overflow connections"
+
+      - alert: RedisQueueBacklog
+        expr: solfoundry_redis_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis queue {{ $labels.queue }} depth high"

@@ -45,9 +45,9 @@ SIWS_STATEMENT = "Sign in to SolFoundry"
 SIWS_VERSION = "1"
 SIWS_CHAIN_ID = "mainnet"
 
-NONCE_TTL_MINUTES = 5          # Challenge expires after 5 minutes
-ACCESS_TOKEN_TTL_HOURS = 24    # 24-hour access tokens
-REFRESH_TOKEN_TTL_DAYS = 7     # 7-day refresh tokens
+NONCE_TTL_MINUTES = 5  # Challenge expires after 5 minutes
+ACCESS_TOKEN_TTL_HOURS = 24  # 24-hour access tokens
+REFRESH_TOKEN_TTL_DAYS = 7  # 7-day refresh tokens
 
 # Rate limit: 5 attempts per wallet per 60 seconds
 RATE_LIMIT_MAX = 5
@@ -84,28 +84,33 @@ def _validate_wallet_address(address: str) -> None:
 # Custom exceptions
 # ---------------------------------------------------------------------------
 
+
 class SiwsValidationError(Exception):
     """Raised when wallet address or input validation fails."""
 
 
 class SiwsNonceError(Exception):
     """Raised when nonce validation fails."""
+
     pass
 
 
 class SiwsRateLimitError(Exception):
     """Raised when a wallet exceeds sign-in rate limit."""
+
     pass
 
 
 class SiwsSessionError(Exception):
     """Raised for session-related errors."""
+
     pass
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sha256(value: str) -> str:
     """Return the hex SHA-256 digest of a UTF-8 string."""
@@ -159,6 +164,7 @@ def _build_siws_message(
 # Rate limiting (DB-backed)
 # ---------------------------------------------------------------------------
 
+
 async def _check_rate_limit(db: AsyncSession, wallet_address: str) -> None:
     """Raise SiwsRateLimitError if wallet exceeds RATE_LIMIT_MAX per window.
 
@@ -183,6 +189,7 @@ async def _check_rate_limit(db: AsyncSession, wallet_address: str) -> None:
 # ---------------------------------------------------------------------------
 # Challenge generation
 # ---------------------------------------------------------------------------
+
 
 async def create_siws_challenge(
     db: AsyncSession,
@@ -256,6 +263,7 @@ async def create_siws_challenge(
 # Nonce verification
 # ---------------------------------------------------------------------------
 
+
 async def _validate_nonce(
     db: AsyncSession,
     nonce: str,
@@ -269,9 +277,7 @@ async def _validate_nonce(
     Raises:
         SiwsNonceError: For any validation failure.
     """
-    result = await db.execute(
-        select(SiwsNonce).where(SiwsNonce.nonce == nonce)
-    )
+    result = await db.execute(select(SiwsNonce).where(SiwsNonce.nonce == nonce))
     record: Optional[SiwsNonce] = result.scalar_one_or_none()
 
     if record is None:
@@ -313,6 +319,7 @@ async def _mark_nonce_used(db: AsyncSession, record: SiwsNonce) -> None:
 # Signature verification
 # ---------------------------------------------------------------------------
 
+
 def _verify_ed25519_signature(
     wallet_address: str,
     message: str,
@@ -351,6 +358,7 @@ def _verify_ed25519_signature(
 # ---------------------------------------------------------------------------
 # Session management
 # ---------------------------------------------------------------------------
+
 
 async def _create_wallet_session(
     db: AsyncSession,
@@ -468,6 +476,7 @@ async def revoke_wallet_session(
 # Main sign-in flow
 # ---------------------------------------------------------------------------
 
+
 async def siws_authenticate(
     db: AsyncSession,
     wallet_address: str,
@@ -529,6 +538,7 @@ async def siws_authenticate(
 # Middleware dependency
 # ---------------------------------------------------------------------------
 
+
 async def require_wallet_auth(
     db: AsyncSession,
     access_token: str,
@@ -545,9 +555,7 @@ async def require_wallet_auth(
         SiwsSessionError: If the session is invalid or revoked.
     """
     try:
-        payload = jwt.decode(
-            access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
-        )
+        payload = jwt.decode(access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         token_type = payload.get("type")
         if token_type != "access":
             raise SiwsSessionError("Not an access token")
@@ -582,6 +590,7 @@ async def require_wallet_auth(
 # Cleanup utility (for cron / background tasks)
 # ---------------------------------------------------------------------------
 
+
 async def purge_expired_nonces(db: AsyncSession) -> int:
     """Delete expired or used nonces from the DB.
 
@@ -589,8 +598,7 @@ async def purge_expired_nonces(db: AsyncSession) -> int:
     """
     result = await db.execute(
         delete(SiwsNonce).where(
-            (SiwsNonce.expiration_time < _now_utc())
-            | (SiwsNonce.used == True)  # noqa: E712
+            (SiwsNonce.expiration_time < _now_utc()) | (SiwsNonce.used == True)  # noqa: E712
         )
     )
     await db.commit()
@@ -603,9 +611,7 @@ async def purge_expired_sessions(db: AsyncSession) -> int:
     Returns the number of rows deleted.
     """
     result = await db.execute(
-        delete(WalletSession).where(
-            WalletSession.refresh_expires_at < _now_utc()
-        )
+        delete(WalletSession).where(WalletSession.refresh_expires_at < _now_utc())
     )
     await db.commit()
     return result.rowcount

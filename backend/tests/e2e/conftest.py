@@ -29,6 +29,7 @@ from httpx import ASGITransport, AsyncClient
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "e2e-test-secret-key")
 os.environ.setdefault("AUTH_ENABLED", "true")
+os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
 
 from app.api.auth import get_current_user, router as auth_router
 from app.api.bounties import router as bounties_router
