@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from sqlalchemy import Column, String, DateTime, Boolean, Index
 from app.database import Base, GUID
+from pydantic import BaseModel, Field
 
 
 class WalletSession(Base):

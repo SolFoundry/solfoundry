@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
+from sqlalchemy import Column, String, Text, JSON, Boolean, DateTime, Integer, Float
 from pydantic import BaseModel, Field, field_validator
 from app.database import Base, GUID
 

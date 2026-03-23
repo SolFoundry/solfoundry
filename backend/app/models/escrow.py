@@ -22,6 +22,7 @@ from typing import Optional
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, String, Text
 from app.database import Base, GUID
+from pydantic import BaseModel, Field, field_validator
 
 _BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 _TX_HASH_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
