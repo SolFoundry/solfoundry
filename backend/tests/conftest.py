@@ -43,10 +43,10 @@ async def db_cleanup():
         # Disable foreign key checks for SQLite to allow unconditional deletion
         if "sqlite" in str(engine.url):
             await conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
-        
+
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(table.delete())
-            
+
         if "sqlite" in str(engine.url):
             await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
     yield
