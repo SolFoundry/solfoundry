@@ -182,6 +182,7 @@ async def init_db() -> None:
                 T1CompletionLogTable,
                 WalletClusterMembershipTable,
             )
+            from app.models.boost import BountyBoostTable  # noqa: F401
 
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.
