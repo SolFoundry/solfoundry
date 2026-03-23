@@ -98,9 +98,7 @@ async def ingest_chain_event(
     """
     _verify_indexer_key(x_chain_indexer_key)
 
-    ts = body.block_time or datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
+    ts = body.block_time or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     data: dict[str, Any] = {"accounts": body.accounts, **body.extra}
     event_dict = {
         "event": body.event,

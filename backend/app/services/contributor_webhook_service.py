@@ -239,9 +239,7 @@ class ContributorWebhookService:
             ContributorWebhookDB.active.is_(True)
         )
         if notify_user_id:
-            query = query.where(
-                ContributorWebhookDB.user_id == UUID(notify_user_id)
-            )
+            query = query.where(ContributorWebhookDB.user_id == UUID(notify_user_id))
 
         result = await self._db.execute(query)
         webhooks = result.scalars().all()
@@ -554,9 +552,7 @@ class ContributorWebhookService:
         successful_attempts = int(ok_result.scalar_one() or 0)
 
         failure_rate = (
-            1.0 - (successful_attempts / total_attempts)
-            if total_attempts
-            else 0.0
+            1.0 - (successful_attempts / total_attempts) if total_attempts else 0.0
         )
 
         recent_result = await self._db.execute(

@@ -29,7 +29,9 @@ def upgrade() -> None:
         ),
         sa.Column("batch_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("delivery_mode", sa.String(16), nullable=False),
-        sa.Column("event_types", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column(
+            "event_types", postgresql.JSONB(astext_type=sa.Text()), nullable=False
+        ),
         sa.Column("attempt_number", sa.Integer(), nullable=False),
         sa.Column("success", sa.Boolean(), nullable=False),
         sa.Column("http_status", sa.Integer(), nullable=True),
