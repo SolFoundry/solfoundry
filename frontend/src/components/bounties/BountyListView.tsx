@@ -42,7 +42,8 @@ function BountyRow({ bounty: b, onClick }: { bounty: Bounty; onClick: (id: strin
       onClick={activate}
       onKeyDown={onRowKeyDown}
       tabIndex={0}
-      role="group"
+      role="button"
+      aria-label={`Bounty: ${b.title}`}
       className="block w-full text-left rounded-lg focus-visible:ring-2 focus-visible:ring-solana-green focus-visible:outline-none cursor-pointer"
     >
       <div

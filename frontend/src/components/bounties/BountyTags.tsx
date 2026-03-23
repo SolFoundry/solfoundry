@@ -68,7 +68,7 @@ function BountyTagsInner({
   navigate,
   searchParams,
 }: InnerProps) {
-  const category = normalizeBountyCategory(categoryRaw ?? undefined);
+  const category = normalizeBountyCategory(categoryRaw);
 
   const applySearch = useCallback(
     (query: string) => {

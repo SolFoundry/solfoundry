@@ -76,7 +76,7 @@ function mapApiBounty(raw: Record<string, unknown>): Bounty {
     title: String(raw.title ?? ''),
     description: String(raw.description ?? ''),
     tier: TIER_MAP[Number(raw.tier)] || (typeof raw.tier === 'string' ? raw.tier as Bounty['tier'] : 'T2'),
-    skills: (Array.isArray(raw.required_skills) ? raw.required_skills : Array.isArray(raw.skills) ? raw.skills : []) as string[],
+    skills: (Array.isArray(raw.required_skills) && raw.required_skills.length > 0 ? raw.required_skills : Array.isArray(raw.skills) ? raw.skills : []) as string[],
     rewardAmount: Number(raw.reward_amount ?? raw.rewardAmount ?? 0),
     currency: '$FNDRY',
     deadline: String(raw.deadline || new Date(Date.now() + 7 * 86400000).toISOString()),
@@ -194,19 +194,29 @@ export function useBountyBoard() {
   // Sync filters / sort / page → URL (replace history so back button works naturally)
   useEffect(() => {
     if (isSyncingFromUrl.current) return;
-    const params: Record<string, string> = {};
-    if (filters.searchQuery.trim()) params.q = filters.searchQuery.trim();
-    if (filters.tier !== 'all') params.tier = filters.tier;
-    if (filters.status !== 'all') params.status = filters.status;
-    if (filters.category !== 'all') params.category = filters.category;
-    if (filters.creatorType !== 'all') params.creator_type = filters.creatorType;
-    if (filters.skills.length) params.skills = filters.skills.join(',');
-    if (filters.rewardMin) params.reward_min = filters.rewardMin;
-    if (filters.rewardMax) params.reward_max = filters.rewardMax;
-    if (filters.deadlineBefore) params.deadline_before = filters.deadlineBefore;
-    if (sortBy !== 'newest') params.sort = sortBy;
-    if (page > 1) params.page = String(page);
-    setSearchParams(params, { replace: true });
+    const next = new URLSearchParams();
+    if (filters.searchQuery.trim()) next.set('q', filters.searchQuery.trim());
+    if (filters.tier !== 'all') next.set('tier', filters.tier);
+    else next.delete('tier');
+    if (filters.status !== 'all') next.set('status', filters.status);
+    else next.delete('status');
+    if (filters.category !== 'all') next.set('category', filters.category);
+    else next.delete('category');
+    if (filters.creatorType !== 'all') next.set('creator_type', filters.creatorType);
+    else next.delete('creator_type');
+    if (filters.skills.length) next.set('skills', filters.skills.join(','));
+    else next.delete('skills');
+    if (filters.rewardMin) next.set('reward_min', filters.rewardMin);
+    else next.delete('reward_min');
+    if (filters.rewardMax) next.set('reward_max', filters.rewardMax);
+    else next.delete('reward_max');
+    if (filters.deadlineBefore) next.set('deadline_before', filters.deadlineBefore);
+    else next.delete('deadline_before');
+    if (sortBy !== 'newest') next.set('sort', sortBy);
+    else next.delete('sort');
+    if (page > 1) next.set('page', String(page));
+    else next.delete('page');
+    setSearchParams(next, { replace: true });
   }, [filters, sortBy, page, setSearchParams]);
 
   // Sync URL → state for back/forward navigation and programmatic URL changes

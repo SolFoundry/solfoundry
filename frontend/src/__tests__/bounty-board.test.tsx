@@ -13,6 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 import BountiesPage from '../pages/BountiesPage';
 import { BountyBoard } from '../components/bounties/BountyBoard';
 import { BountyCard, formatTimeRemaining, formatReward } from '../components/bounties/BountyCard';
+import { BountyListView } from '../components/bounties/BountyListView';
 import { EmptyState } from '../components/bounties/EmptyState';
 import { Pagination } from '../components/bounties/Pagination';
 import { useBountyBoard, PER_PAGE } from '../hooks/useBountyBoard';
@@ -189,6 +190,11 @@ describe('Page+Board', () => {
     await u.click(screen.getByTestId('view-grid'));
     expect(screen.getByTestId('bounty-grid')).toBeInTheDocument();
   });
+
+  it('exposes each list row as an accessible button with the bounty title', () => {
+    renderWithRouter(<BountyListView bounties={[testBounty]} onBountyClick={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Bounty: Test' })).toBeInTheDocument();
+  });
 });
 
 describe('BountyCard', () => {
@@ -276,6 +282,45 @@ describe('useBountyBoard with React Query', () => {
       expect(result.current.loading).toBe(false);
     });
     expect(result.current.bounties.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to skills when required_skills is present but empty', async () => {
+    mockFetch.mockImplementation((urlArg: unknown) => {
+      const url = String(urlArg ?? '');
+      if (url.includes('/search')) {
+        return Promise.resolve(okJson({
+          items: [{
+            id: 'fallback-skills',
+            title: 'Fallback Skills',
+            description: 'Uses legacy skills',
+            tier: 2,
+            required_skills: [],
+            skills: ['React', 'TypeScript'],
+            reward_amount: 1200,
+            deadline: new Date(Date.now() + 864e5).toISOString(),
+            status: 'open',
+            submission_count: 0,
+            created_at: new Date().toISOString(),
+            created_by: 'SolFoundry',
+            creator_type: 'platform',
+          }],
+          total: 1,
+          page: 1,
+          per_page: PER_PAGE,
+          query: '',
+        }));
+      }
+      if (url.includes('/hot')) return Promise.resolve(okJson([]));
+      if (url.includes('/recommended')) return Promise.resolve(okJson([]));
+      return Promise.resolve(okJson([]));
+    });
+
+    const { result } = renderHook(() => useBountyBoard(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.bounties[0]?.skills).toEqual(['React', 'TypeScript']);
   });
 
   it('handles API failure gracefully with empty results', async () => {
