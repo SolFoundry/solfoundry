@@ -69,5 +69,5 @@ class BountyTable(Base):
         Index("ix_bounties_reward", reward_amount),
         Index("ix_bounties_deadline", deadline),
         Index("ix_bounties_popularity", popularity),
-        Index("ix_bounties_skills", skills),
+        # ix_bounties_skills removed: JSON column cannot use btree index (PostgreSQL limitation)
     )
