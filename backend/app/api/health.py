@@ -87,6 +87,8 @@ async def _check_solana_rpc() -> dict:
             resp.raise_for_status()
             try:
                 data = resp.json()
+                if not isinstance(data, dict):
+                    raise ValueError(f"unexpected response type: {type(data)}")
                 slot = data.get("result")
             except Exception as exc:
                 logger.warning("Solana RPC malformed response: %s", exc)
@@ -140,6 +142,10 @@ async def _check_github_api() -> dict:
             resp.raise_for_status()
             try:
                 data = resp.json()
+                if not isinstance(data, dict):
+                    raise ValueError(f"unexpected response type: {type(data)}")
+                # Validate expected shape; raises KeyError if missing
+                _ = data.get("resources", {}).get("core", {})
             except Exception as exc:
                 logger.warning("GitHub API malformed response: %s", exc)
                 latency_ms = round((time.monotonic() - start) * 1000)

@@ -10,8 +10,8 @@ Covers all service check scenarios:
 - Overall status logic (healthy / degraded / unavailable)
 """
 
-import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
+
 from sqlalchemy.exc import SQLAlchemyError
 from redis.asyncio import RedisError
 from httpx import ASGITransport, AsyncClient, TimeoutException, Response
@@ -24,6 +24,8 @@ from app.api.health import (
     _check_github_api,
     _overall_status,
 )
+
+from tests.conftest import run_async
 
 app = FastAPI()
 app.include_router(health_router)
@@ -113,34 +115,33 @@ def _mock_github_success(remaining=4500, limit=5000, reset=1700000000):
     return mock_client
 
 
-def _mock_all_external_healthy():
-    """Patch _check_solana_rpc and _check_github_api directly to return healthy.
+def _patch_all_external_healthy():
+    """Return context manager patches for Solana RPC and GitHub API returning healthy.
 
-    This decouples endpoint tests from AsyncClient construction order so that
-    internal scheduling changes don't produce false failures.
+    Patches the helper functions directly so tests are not sensitive to
+    internal AsyncClient construction order.
     """
-    return (
-        patch(
-            "app.api.health._check_solana_rpc",
-            new=AsyncMock(
-                return_value={"status": "healthy", "latency_ms": 10, "slot": 350000000}
-            ),
-        ),
-        patch(
-            "app.api.health._check_github_api",
-            new=AsyncMock(
-                return_value={
-                    "status": "healthy",
-                    "latency_ms": 15,
-                    "rate_limit": {"remaining": 4500, "limit": 5000, "reset_at": None},
-                }
-            ),
+    solana_patch = patch(
+        "app.api.health._check_solana_rpc",
+        new=AsyncMock(
+            return_value={"status": "healthy", "latency_ms": 10, "slot": 350000000}
         ),
     )
+    github_patch = patch(
+        "app.api.health._check_github_api",
+        new=AsyncMock(
+            return_value={
+                "status": "healthy",
+                "latency_ms": 15,
+                "rate_limit": {"remaining": 4500, "limit": 5000, "reset_at": None},
+            }
+        ),
+    )
+    return solana_patch, github_patch
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for _overall_status
+# Unit tests for _overall_status (synchronous — no event loop needed)
 # ---------------------------------------------------------------------------
 
 
@@ -201,27 +202,24 @@ class TestOverallStatus:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for individual service checks
+# Unit tests for individual service checks (run via run_async helper)
 # ---------------------------------------------------------------------------
 
 
 class TestCheckDatabase:
-    @pytest.mark.asyncio
-    async def test_healthy(self):
+    def test_healthy(self):
         with patch("app.api.health.engine.connect", return_value=MockConn()):
-            result = await _check_database()
+            result = run_async(_check_database())
         assert result["status"] == "healthy"
         assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_sqlalchemy_error(self):
+    def test_sqlalchemy_error(self):
         with patch("app.api.health.engine.connect", return_value=FailingConn()):
-            result = await _check_database()
+            result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
 
-    @pytest.mark.asyncio
-    async def test_unexpected_error(self):
+    def test_unexpected_error(self):
         class UnexpectedConn:
             async def __aenter__(self):
                 raise RuntimeError("unexpected")
@@ -230,28 +228,25 @@ class TestCheckDatabase:
                 pass
 
         with patch("app.api.health.engine.connect", return_value=UnexpectedConn()):
-            result = await _check_database()
+            result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "unexpected_error"
 
 
 class TestCheckRedis:
-    @pytest.mark.asyncio
-    async def test_healthy(self):
+    def test_healthy(self):
         with patch("app.api.health.from_url", return_value=MockRedis()):
-            result = await _check_redis()
+            result = run_async(_check_redis())
         assert result["status"] == "healthy"
         assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_redis_error(self):
+    def test_redis_error(self):
         with patch("app.api.health.from_url", return_value=FailingRedis()):
-            result = await _check_redis()
+            result = run_async(_check_redis())
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
 
-    @pytest.mark.asyncio
-    async def test_unexpected_error(self):
+    def test_unexpected_error(self):
         """Non-Redis exceptions should also return unavailable with unexpected_error."""
 
         class UnexpectedRedis:
@@ -265,36 +260,34 @@ class TestCheckRedis:
                 raise RuntimeError("unexpected failure")
 
         with patch("app.api.health.from_url", return_value=UnexpectedRedis()):
-            result = await _check_redis()
+            result = run_async(_check_redis())
         assert result["status"] == "unavailable"
         assert result["error"] == "unexpected_error"
 
 
 class TestCheckSolanaRpc:
-    @pytest.mark.asyncio
-    async def test_healthy(self):
+    def test_healthy(self):
         with patch(
             "app.api.health.httpx.AsyncClient", return_value=_mock_solana_success()
         ):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "healthy"
         assert result["slot"] == 350000000
         assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_timeout(self):
+    def test_timeout(self):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.post = AsyncMock(side_effect=TimeoutException("timeout"))
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "degraded"
         assert result["error"] == "timeout"
+        assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_no_slot(self):
+    def test_no_slot(self):
         mock_resp = MagicMock(spec=Response)
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
@@ -306,23 +299,21 @@ class TestCheckSolanaRpc:
         mock_client.post = AsyncMock(return_value=mock_resp)
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "degraded"
         assert result["error"] == "no_slot_in_response"
 
-    @pytest.mark.asyncio
-    async def test_connection_error(self):
+    def test_connection_error(self):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "unavailable"
 
-    @pytest.mark.asyncio
-    async def test_malformed_response(self):
+    def test_malformed_response(self):
         """Malformed JSON response should return degraded, not unavailable."""
         mock_resp = MagicMock(spec=Response)
         mock_resp.status_code = 200
@@ -335,12 +326,11 @@ class TestCheckSolanaRpc:
         mock_client.post = AsyncMock(return_value=mock_resp)
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "degraded"
         assert result["error"] == "malformed_response"
 
-    @pytest.mark.asyncio
-    async def test_http_status_error(self):
+    def test_http_status_error(self):
         """Non-2xx HTTP responses (e.g. 503) should return degraded with http_<code> error."""
         from httpx import HTTPStatusError, Request as HttpxRequest
 
@@ -362,79 +352,73 @@ class TestCheckSolanaRpc:
         mock_client.post = AsyncMock(return_value=mock_resp)
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_solana_rpc()
+            result = run_async(_check_solana_rpc())
         assert result["status"] == "degraded"
         assert result["error"] == "http_503"
         assert "latency_ms" in result
 
 
 class TestCheckGitHubApi:
-    @pytest.mark.asyncio
-    async def test_healthy(self):
+    def test_healthy(self):
         with patch(
             "app.api.health.httpx.AsyncClient", return_value=_mock_github_success()
         ):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "healthy"
         assert result["rate_limit"]["remaining"] == 4500
         assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_degraded_low_rate_limit(self):
+    def test_degraded_low_rate_limit(self):
         with patch(
             "app.api.health.httpx.AsyncClient",
             return_value=_mock_github_success(remaining=50, limit=5000),
         ):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "degraded"
         assert result["rate_limit"]["remaining"] == 50
 
-    @pytest.mark.asyncio
-    async def test_healthy_unauthenticated_low_limit(self):
+    def test_healthy_unauthenticated_low_limit(self):
         """With unauthenticated limit=60, threshold is 10% = 6; remaining=10 → healthy."""
         with patch(
             "app.api.health.httpx.AsyncClient",
             return_value=_mock_github_success(remaining=10, limit=60),
         ):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "healthy"
         assert result["rate_limit"]["remaining"] == 10
 
-    @pytest.mark.asyncio
-    async def test_degraded_unauthenticated_exhausted(self):
+    def test_degraded_unauthenticated_exhausted(self):
         """With unauthenticated limit=60, remaining=5 (< 10%) → degraded."""
         with patch(
             "app.api.health.httpx.AsyncClient",
             return_value=_mock_github_success(remaining=5, limit=60),
         ):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "degraded"
 
-    @pytest.mark.asyncio
-    async def test_timeout(self):
+    def test_timeout(self):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=TimeoutException("timeout"))
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "degraded"
         assert result["error"] == "timeout"
+        assert "latency_ms" in result
 
-    @pytest.mark.asyncio
-    async def test_connection_error(self):
+    def test_connection_error(self):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=Exception("connection refused"))
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "unavailable"
 
-    @pytest.mark.asyncio
-    async def test_malformed_response(self):
+    def test_malformed_response(self):
         """Malformed JSON response should return degraded, not unavailable."""
         mock_resp = MagicMock(spec=Response)
         mock_resp.status_code = 200
@@ -447,12 +431,11 @@ class TestCheckGitHubApi:
         mock_client.get = AsyncMock(return_value=mock_resp)
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "degraded"
         assert result["error"] == "malformed_response"
 
-    @pytest.mark.asyncio
-    async def test_http_status_error(self):
+    def test_http_status_error(self):
         """Non-2xx GitHub responses (e.g. 403, 500) return degraded with http_<code> error."""
         from httpx import HTTPStatusError, Request as HttpxRequest
 
@@ -474,31 +457,33 @@ class TestCheckGitHubApi:
         mock_client.get = AsyncMock(return_value=mock_resp)
 
         with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
-            result = await _check_github_api()
+            result = run_async(_check_github_api())
         assert result["status"] == "degraded"
         assert result["error"] == "http_403"
         assert "latency_ms" in result
 
 
 # ---------------------------------------------------------------------------
-# Integration-style endpoint tests
+# Integration-style endpoint tests (use run_async for async client)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_health_all_services_up():
+def test_health_all_services_up():
     """Returns 'healthy' when all services are reachable."""
-    solana_patch, github_patch = _mock_all_external_healthy()
+    solana_patch, github_patch = _patch_all_external_healthy()
     with (
         patch("app.api.health.engine.connect", return_value=MockConn()),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
+        async def _run():
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/health")
+
+        response = run_async(_run())
 
     assert response.status_code == 200
     data = response.json()
@@ -511,20 +496,22 @@ async def test_health_all_services_up():
     assert "timestamp" in data
 
 
-@pytest.mark.asyncio
-async def test_health_check_db_down():
+def test_health_check_db_down():
     """Returns 'unavailable' when database throws connection exception."""
-    solana_patch, github_patch = _mock_all_external_healthy()
+    solana_patch, github_patch = _patch_all_external_healthy()
     with (
         patch("app.api.health.engine.connect", return_value=FailingConn()),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
+        async def _run():
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/health")
+
+        response = run_async(_run())
 
     assert response.status_code == 200
     data = response.json()
@@ -532,20 +519,22 @@ async def test_health_check_db_down():
     assert data["services"]["database"]["status"] == "unavailable"
 
 
-@pytest.mark.asyncio
-async def test_health_check_redis_down():
+def test_health_check_redis_down():
     """Returns 'unavailable' when Redis throws connection exception."""
-    solana_patch, github_patch = _mock_all_external_healthy()
+    solana_patch, github_patch = _patch_all_external_healthy()
     with (
         patch("app.api.health.engine.connect", return_value=MockConn()),
         patch("app.api.health.from_url", return_value=FailingRedis()),
         solana_patch,
         github_patch,
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
+        async def _run():
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/health")
+
+        response = run_async(_run())
 
     assert response.status_code == 200
     data = response.json()
@@ -553,20 +542,22 @@ async def test_health_check_redis_down():
     assert data["services"]["redis"]["status"] == "unavailable"
 
 
-@pytest.mark.asyncio
-async def test_health_check_both_core_down():
+def test_health_check_both_core_down():
     """Returns 'unavailable' when both DB and Redis are disconnected."""
-    solana_patch, github_patch = _mock_all_external_healthy()
+    solana_patch, github_patch = _patch_all_external_healthy()
     with (
         patch("app.api.health.engine.connect", return_value=FailingConn()),
         patch("app.api.health.from_url", return_value=FailingRedis()),
         solana_patch,
         github_patch,
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
+        async def _run():
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/health")
+
+        response = run_async(_run())
 
     assert response.status_code == 200
     data = response.json()
@@ -575,20 +566,22 @@ async def test_health_check_both_core_down():
     assert data["services"]["redis"]["status"] == "unavailable"
 
 
-@pytest.mark.asyncio
-async def test_health_response_structure():
+def test_health_response_structure():
     """Verify the full response schema."""
-    solana_patch, github_patch = _mock_all_external_healthy()
+    solana_patch, github_patch = _patch_all_external_healthy()
     with (
         patch("app.api.health.engine.connect", return_value=MockConn()),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get("/health")
+        async def _run():
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/health")
+
+        response = run_async(_run())
 
     data = response.json()
     assert "status" in data
