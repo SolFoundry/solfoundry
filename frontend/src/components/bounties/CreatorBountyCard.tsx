@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../../hooks/useToast';
+import { BountyTags } from './BountyTags';
 
 interface Submission {
     id: string;
@@ -138,6 +139,16 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                 </span>
                             )}
                         </div>
+
+                        <BountyTags
+                            tier={bounty.tier ?? 'T1'}
+                            skills={bounty.required_skills ?? bounty.skills ?? []}
+                            category={bounty.category}
+                            showTier
+                            maxSkills={4}
+                            className="mb-2"
+                            data-testid="creator-bounty"
+                        />
 
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-400">
                             <span className={`font-semibold ${getStatusColor(bounty.status)} uppercase tracking-wider text-xs`}>

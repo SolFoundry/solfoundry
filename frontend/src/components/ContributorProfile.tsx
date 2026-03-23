@@ -5,6 +5,8 @@ import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
 import { TimeAgo } from './common/TimeAgo';
+import { BountyTags } from './bounties/BountyTags';
+import type { BountyTier } from '../types/bounty';
 
 interface RecentBounty {
   title: string;
@@ -276,13 +278,18 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{bounty.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {tierLabel(bounty.tier)} · {bounty.earned.toLocaleString()} FNDRY · {new Date(bounty.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <BountyTags
+                        tier={`T${bounty.tier}` as BountyTier}
+                        skills={[]}
+                        showTier
+                        className="inline-flex"
+                      />
+                      <span className="text-xs text-gray-500">
+                        {bounty.earned.toLocaleString()} FNDRY · {new Date(bounty.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`text-xs font-medium ${TIER_COLORS[bounty.tier].text}`}>
-                    {tierLabel(bounty.tier)}
-                  </span>
                 </div>
               </a>
             ))}
