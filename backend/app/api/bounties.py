@@ -155,6 +155,7 @@ async def search_bounties(
     sort: str = Query("newest"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    skills_logic: str = Query("any", description="Logic for multiple skills: any (OR) or all (AND)"),
     svc: BountySearchService = Depends(_get_search_service),
 ) -> BountySearchResponse:
     """Execute a full-text search with filters and return ranked results."""
