@@ -38,12 +38,11 @@ os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
 os.environ["GITHUB_CLIENT_ID"] = ""
 os.environ["GITHUB_CLIENT_SECRET"] = ""
 
-# ---------------------------------------------------------------------------
-# Test user for dependency override
-# ---------------------------------------------------------------------------
-
-from app.models.user import UserResponse  # Model-only imports are safe
-from tests.e2e.factories import DEFAULT_WALLET
+# Late imports must follow environment setup (architectural requirement)
+from app.api.auth import get_current_user  # noqa: E402
+from app.models.user import UserResponse  # noqa: E402
+from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter  # noqa: E402
+from tests.e2e.factories import DEFAULT_WALLET  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +135,6 @@ def _create_test_app() -> FastAPI:
     from app.api.payouts import router as payouts_router
     from app.api.stats import router as stats_router
     from app.api.websocket import router as websocket_router
-    from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter
     
     test_app = FastAPI(
         title="SolFoundry E2E Test",

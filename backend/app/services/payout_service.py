@@ -134,7 +134,7 @@ async def list_payouts(
 
 async def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
     """Retrieve payout by UUID from DB or cache."""
-    with _lock:
+    with _store_lock:
         if payout_id in _payout_store:
             return _payout_to_response(_payout_store[payout_id])
     
@@ -154,7 +154,7 @@ async def get_payout_by_tx_hash(tx_hash: str) -> Optional[PayoutResponse]:
 
 async def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse:
     """Admin approval gate."""
-    with _lock:
+    with _store_lock:
         record = _payout_store.get(payout_id)
     
     if not record:

@@ -3,7 +3,6 @@
 import uuid as _uuid
 import logging
 from typing import Any, Optional, Dict, List
-from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import select, delete as sa_del, func

@@ -1,7 +1,6 @@
 import asyncio
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-import json
 
 async def verify():
     print("--- 🛡️ Production Security Audit: Bounty #169 ---")
