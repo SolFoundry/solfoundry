@@ -127,7 +127,7 @@ jobs:
 
       - name: Install Node dependencies
         working-directory: ${{ env.ANCHOR_WORKSPACE }}
-        run: yarn install --frozen-lockfile
+        run: npm install
 
       - name: Build and test (local validator)
         working-directory: ${{ env.ANCHOR_WORKSPACE }}
