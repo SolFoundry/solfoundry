@@ -13,7 +13,6 @@ All fixtures follow the principle of test independence: each test starts
 with a clean application state.
 """
 
-import asyncio
 import json
 import os
 import tempfile
