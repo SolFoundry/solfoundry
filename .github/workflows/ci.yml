@@ -84,15 +84,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov
+          pip install pytest pytest-asyncio pytest-cov pytest-env
 
-      - name: Run Unit Tests
+      - name: Run Backend Unit Tests
         working-directory: backend
-        run: pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term-missing
+        run: pytest tests/ -v --tb=short --ignore=tests/e2e/ --cov=app --cov-report=xml --cov-report=term-missing
         env:
           PYTHONPATH: .
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
-          TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          DATABASE_URL: sqlite+aiosqlite:///./test_unit.db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci
+
+      - name: Run Backend E2E Tests
+        working-directory: backend
+        run: pytest tests/e2e/ -v --tb=short
+        env:
+          PYTHONPATH: .
+          DATABASE_URL: sqlite+aiosqlite:///./test_e2e.db
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 

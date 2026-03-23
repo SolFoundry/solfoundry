@@ -80,56 +80,8 @@ async def _mock_get_current_user() -> UserResponse:
 # ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
-# Shared event loop for test session
-# ---------------------------------------------------------------------------
-
-_test_loop = None
-
-
-def _get_test_loop() -> asyncio.AbstractEventLoop:
-    """Return a shared event loop for synchronous async execution."""
-    global _test_loop
-    if _test_loop is None or _test_loop.is_closed():
-        _test_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_test_loop)
-    return _test_loop
-
-
-# ---------------------------------------------------------------------------
-# Application assembly
-# ---------------------------------------------------------------------------
-
-
 def _create_test_app() -> FastAPI:
     """Create a minimal FastAPI app with all routers for E2E testing."""
-    from app.database import engine, Base
-
-    # Models... (keeping the imports I added)
-    from app.models.notification import NotificationDB  # noqa: F401
-    from app.models.user import User  # noqa: F401
-    from app.models.bounty_table import BountyTable  # noqa: F401
-    from app.models.agent import Agent  # noqa: F401
-    from app.models.dispute import DisputeDB, DisputeHistoryDB  # noqa: F401
-    from app.models.contributor import ContributorTable  # noqa: F401
-    from app.models.submission import SubmissionDB  # noqa: F401
-    from app.models.tables import (  # noqa: F401
-        PayoutTable,
-        BuybackTable,
-        ReputationHistoryTable,
-        BountySubmissionTable,
-    )
-    from app.models.review import AIReviewScoreDB  # noqa: F401
-    from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
-    from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
-    from app.models.boost import BountyBoostTable  # noqa: F401
-
-    async def _async_init():
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    _get_test_loop().run_until_complete(_async_init())
-
     # get_current_user is already imported at module level
     from app.api.auth import router as auth_router
     from app.api.bounties import router as bounties_router
@@ -181,25 +133,52 @@ def _create_test_app() -> FastAPI:
 app = _create_test_app()
 
 
-@pytest.fixture(autouse=True)
-def clear_stores():
-    """Reset all in-memory stores, database tables, and factory counters between tests."""
-    from sqlalchemy import delete, text
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def init_db():
+    """Initialise the test database once per session on the shared event loop."""
+    from app.database import engine, Base
+    import app.models.notification  # noqa: F401
+    import app.models.user  # noqa: F401
+    import app.models.bounty_table  # noqa: F401
+    import app.models.agent  # noqa: F401
+    import app.models.dispute  # noqa: F401
+    import app.models.contributor  # noqa: F401
+    import app.models.submission  # noqa: F401
+    import app.models.tables  # noqa: F401
+    import app.models.review  # noqa: F401
+    import app.models.lifecycle  # noqa: F401
+    import app.models.escrow  # noqa: F401
+    import app.models.boost  # noqa: F401
+
+    if os.path.exists(TEST_DB_PATH):
+        os.remove(TEST_DB_PATH)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    if os.path.exists(TEST_DB_PATH):
+        try:
+            os.remove(TEST_DB_PATH)
+        except PermissionError:
+            pass
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def truncate_db_tables():
+    """Truncate all tables between tests to ensure strict isolation."""
+    from sqlalchemy import text
     from app.database import engine, Base
     from app.services import bounty_service, contributor_service
     from app.services.payout_service import reset_stores as reset_payout_stores
     from tests.e2e.factories import reset_counters
 
-    async def _db_cleanup():
-        async with engine.begin() as conn:
-            await conn.execute(text("PRAGMA foreign_keys = OFF"))
-            for table in reversed(Base.metadata.sorted_tables):
-                await conn.execute(delete(table))
-            await conn.execute(text("PRAGMA foreign_keys = ON"))
+    async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys = OFF"))
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(text(f"DELETE FROM {table.name}"))
+        await conn.execute(text("PRAGMA foreign_keys = ON"))
 
-    _get_test_loop().run_until_complete(_db_cleanup())
-
-    # Reset internal service caches if any
+    # Reset internal service caches
     if hasattr(bounty_service, "_bounty_store"):
         bounty_service._bounty_store.clear()
     if hasattr(contributor_service, "_store"):
@@ -207,7 +186,6 @@ def clear_stores():
 
     reset_payout_stores()
     reset_counters()
-    yield
 
 
 # ---------------------------------------------------------------------------
