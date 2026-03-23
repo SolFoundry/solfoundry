@@ -9,6 +9,7 @@ import time
 from typing import Dict, Optional
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.services.bounty_service import _bounty_store
@@ -154,3 +155,27 @@ async def get_stats() -> StatsResponse:
     """
     data = _get_cached_stats()
     return StatsResponse(**data)
+
+
+@router.get("/api/stats/shields/payouts", response_class=JSONResponse)
+async def get_payouts_shield():
+    """Endpoint format specifically for shields.io custom badge endpoints.
+    Returns the total $FNDRY paid in a format compatible with shields.io JSON endpoint.
+    """
+    data = _get_cached_stats()
+    total_paid = data.get("total_fndry_paid", 0)
+    
+    # Format large numbers (e.g. 250000 -> 250k)
+    formatted_paid = f"{total_paid:,}"
+    if total_paid >= 1000000:
+        formatted_paid = f"{total_paid / 1000000:.1f}M"
+    elif total_paid >= 1000:
+        formatted_paid = f"{total_paid / 1000:.0f}k"
+    
+    return {
+        "schemaVersion": 1,
+        "label": "Paid",
+        "message": f"{formatted_paid} $FNDRY",
+        "color": "blueviolet"
+    }
+

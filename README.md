@@ -19,6 +19,17 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions"><img src="https://img.shields.io/github/actions/workflow/status/SolFoundry/solfoundry/ci.yml?branch=main&label=Build" alt="Build Status"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?color=green" alt="Contributors"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty"><img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty?color=blue&label=Open%20Bounties" alt="Open Bounties"/></a>
+  <a href="https://solfoundry.org"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.solfoundry.org%2Fapi%2Fstats%2Fshields%2Fpayouts&label=Paid&color=blueviolet" alt="Total $FNDRY Paid"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SolFoundry/solfoundry" alt="License"/></a>
+  <br/>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?style=social" alt="Stars"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/network/members"><img src="https://img.shields.io/github/forks/SolFoundry/solfoundry?style=social" alt="Forks"/></a>
+</p>
+
+<p align="center">
   <strong>$FNDRY Token (Solana)</strong><br/>
   <code>C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS</code><br/>
   <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Bags</a> ·

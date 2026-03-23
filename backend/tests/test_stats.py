@@ -4,6 +4,7 @@ This module tests:
 - Normal stats response
 - Empty state (no bounties, no contributors)
 - Cache behavior (returns cached data within TTL)
+- Shields.io custom badge endpoints
 """
 
 import pytest
@@ -179,3 +180,27 @@ class TestStatsEndpoint:
         assert data["bounties_by_tier"]["tier-2"]["completed"] == 0
         assert data["bounties_by_tier"]["tier-3"]["open"] == 0
         assert data["bounties_by_tier"]["tier-3"]["completed"] == 1
+
+    def test_shields_payouts_endpoint(self, client, clear_stores):
+        """Test shields.io custom badge endpoint for payouts."""
+        from app.services.bounty_service import _bounty_store
+        from app.models.bounty import BountyDB
+
+        bounty1 = BountyDB(
+            id="bounty-1",
+            title="Test",
+            tier="tier-1",
+            reward_amount=250000,
+            status="completed",
+            submissions=[],
+        )
+        _bounty_store["bounty-1"] = bounty1
+
+        response = client.get("/api/stats/shields/payouts")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["schemaVersion"] == 1
+        assert data["label"] == "Paid"
+        assert data["message"] == "250k $FNDRY"
+        assert data["color"] == "blueviolet"
