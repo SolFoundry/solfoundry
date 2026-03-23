@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from threading import Lock
 
 log = logging.getLogger(__name__)

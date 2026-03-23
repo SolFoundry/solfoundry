@@ -1,0 +1,2 @@
+{"message": "RateLimiter Redis Error: Error Multiple exceptions: [Errno 61] Connect call failed ('::1', 6379, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379. - Failsafe: ALLOW", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "RateLimiter/Blocklist Redis Error: Error 1 connecting to localhost:6379. Operation not permitted. - Failsafe: ALLOW", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}

@@ -1,7 +1,6 @@
 """Buyback API endpoints for $FNDRY tokenomics."""
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter
 from app.models.payout import BuybackCreate, BuybackResponse, BuybackListResponse
 from app.services import payout_service
 

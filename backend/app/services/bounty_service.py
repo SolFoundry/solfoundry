@@ -251,10 +251,10 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
     Returns:
         A BountyListItem for paginated list endpoints.
     """
-    subs = [_to_submission_response(s) for s in bounty.submissions]
     return BountyListItem(
         id=bounty.id,
         title=bounty.title,
+        project_name=bounty.project_name,
         tier=bounty.tier,
         reward_amount=bounty.reward_amount,
         status=bounty.status,
@@ -264,7 +264,7 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
         github_issue_url=bounty.github_issue_url,
         deadline=bounty.deadline,
         created_by=bounty.created_by,
-        submissions=subs,
+        submissions=[_to_submission_response(s) for s in bounty.submissions],
         submission_count=len(bounty.submissions),
         created_at=bounty.created_at,
     )
@@ -576,19 +576,7 @@ async def get_submissions(bounty_id: str) -> Optional[list[SubmissionResponse]]:
 async def update_submission(
     bounty_id: str, submission_id: str, status: str
 ) -> tuple[Optional[SubmissionResponse], Optional[str]]:
-    """Update a submission's lifecycle status and persist the change.
-
-    Validates the status transition against the allowed transition map.
-
-    Args:
-        bounty_id: The ID of the bounty containing the submission.
-        submission_id: The ID of the submission to update.
-        status: The new status value.
-
-    Returns:
-        A tuple of (SubmissionResponse, None) on success, or
-        (None, error_message) on failure.
-    """
+    """Update a submission's lifecycle status and persist the change."""
     bounty = await _load_bounty_from_db(bounty_id)
     if bounty is None:
         bounty = _bounty_store.get(bounty_id)
@@ -611,6 +599,11 @@ async def update_submission(
             sub.status = new_status
             bounty.updated_at = datetime.now(timezone.utc)
 
+            if new_status == SubmissionStatus.APPROVED:
+                bounty.status = BountyStatus.COMPLETED
+                bounty.winner_submission_id = submission_id
+                bounty.winner_wallet = sub.contributor_wallet
+
             audit_event(
                 "submission_status_updated",
                 bounty_id=bounty_id,
@@ -622,4 +615,56 @@ async def update_submission(
             _bounty_store[bounty_id] = bounty
             return _to_submission_response(sub), None
 
+    return None, "Submission not found"
+
+
+def get_submission(bounty_id: str, submission_id: str) -> Optional[SubmissionRecord]:
+    """Retrieve a raw submission record by ID."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            return sub
+    return None
+
+
+def approve_submission(
+    bounty_id: str, submission_id: str, approved_by: str
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Sync wrapper for approving a submission (DEPRECATED: use update_submission)."""
+    # This is a sync wrapper for backward compatibility with the current API router
+    # In a real async flow, we would call update_submission
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+    
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            sub.status = SubmissionStatus.APPROVED
+            bounty.status = BountyStatus.COMPLETED
+            bounty.winner_submission_id = submission_id
+            bounty.winner_wallet = sub.contributor_wallet
+            bounty.updated_at = datetime.now(timezone.utc)
+            _bounty_store[bounty_id] = bounty
+            return _to_submission_response(sub), None
+            
+    return None, "Submission not found"
+
+
+def dispute_submission(
+    bounty_id: str, submission_id: str, disputed_by: str, reason: str
+) -> tuple[Optional[SubmissionResponse], Optional[str]]:
+    """Sync wrapper for disputing a submission."""
+    bounty = _bounty_store.get(bounty_id)
+    if not bounty:
+        return None, "Bounty not found"
+    
+    for sub in bounty.submissions:
+        if sub.id == submission_id:
+            sub.status = SubmissionStatus.DISPUTED
+            bounty.updated_at = datetime.now(timezone.utc)
+            _bounty_store[bounty_id] = bounty
+            return _to_submission_response(sub), None
+            
     return None, "Submission not found"

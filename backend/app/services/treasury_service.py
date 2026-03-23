@@ -13,12 +13,11 @@ from datetime import datetime, timezone
 
 from app.models.payout import TokenomicsResponse, TreasuryStats
 from app.services.payout_service import (
-    PayoutStatus,
-    _buyback_store,
-    _lock as _store_lock,
-    _payout_store,
+    _store_lock,
     get_total_buybacks,
     get_total_paid_out,
+    _count_confirmed_payouts,
+    _count_buybacks,
 )
 from app.services.solana_client import (
     FNDRY_TOKEN_CA,
@@ -76,9 +75,9 @@ async def get_treasury_stats() -> TreasuryStats:
         treasury_wallet=TREASURY_WALLET,
         total_paid_out_fndry=total_fndry_paid,
         total_paid_out_sol=total_sol_paid,
-        total_payouts=_count_confirmed_payouts(),
+        total_payouts=await _count_confirmed_payouts(),
         total_buyback_amount=total_buyback_sol,
-        total_buybacks=_count_buybacks(),
+        total_buybacks=await _count_buybacks(),
         last_updated=datetime.now(timezone.utc),
     )
 

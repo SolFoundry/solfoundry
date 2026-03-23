@@ -26,28 +26,21 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 # Environment must be set before any app imports
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+TEST_DB_PATH = "/Users/composter/AEA/github_bounty_hunter/workspaces/solfoundry/backend/test_e2e.db"
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 os.environ.setdefault("SECRET_KEY", "e2e-test-secret-key")
 os.environ.setdefault("AUTH_ENABLED", "true")
 os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
+# Ensure we don't leak real GitHub config into tests
+os.environ["GITHUB_CLIENT_ID"] = ""
+os.environ["GITHUB_CLIENT_SECRET"] = ""
 
-from app.api.auth import get_current_user, router as auth_router
-from app.api.bounties import router as bounties_router
-from app.api.contributors import router as contributors_router
-from app.api.escrow import router as escrow_router
-from app.api.leaderboard import router as leaderboard_router
-from app.api.notifications import router as notifications_router
-from app.api.payouts import router as payouts_router
-from app.api.stats import router as stats_router
-from app.api.websocket import router as websocket_router
-from app.models.user import UserResponse
-from app.services import bounty_service, contributor_service
-from app.services.payout_service import reset_stores as reset_payout_stores
-from app.services.websocket_manager import (
-    InMemoryPubSubAdapter,
-    WebSocketManager,
-)
-from tests.e2e.factories import DEFAULT_WALLET, reset_counters
+# ---------------------------------------------------------------------------
+# Test user for dependency override
+# ---------------------------------------------------------------------------
+
+from app.models.user import UserResponse  # Model-only imports are safe
+from tests.e2e.factories import DEFAULT_WALLET
 
 
 # ---------------------------------------------------------------------------
@@ -85,27 +78,67 @@ async def _mock_get_current_user() -> UserResponse:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Shared event loop for test session
+# ---------------------------------------------------------------------------
+
+_test_loop = None
+
+def _get_test_loop() -> asyncio.AbstractEventLoop:
+    """Return a shared event loop for synchronous async execution."""
+    global _test_loop
+    if _test_loop is None or _test_loop.is_closed():
+        _test_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_test_loop)
+    return _test_loop
+
+# ---------------------------------------------------------------------------
+# Application assembly
+# ---------------------------------------------------------------------------
+
 def _create_test_app() -> FastAPI:
-    """Create a minimal FastAPI app with all routers for E2E testing.
+    """Create a minimal FastAPI app with all routers for E2E testing."""
+    from app.database import engine, Base
+    # Models... (keeping the imports I added)
+    from app.models.notification import NotificationDB  # noqa: F401
+    from app.models.user import User  # noqa: F401
+    from app.models.bounty_table import BountyTable  # noqa: F401
+    from app.models.agent import Agent  # noqa: F401
+    from app.models.dispute import DisputeDB, DisputeHistoryDB  # noqa: F401
+    from app.models.contributor import ContributorTable  # noqa: F401
+    from app.models.submission import SubmissionDB  # noqa: F401
+    from app.models.tables import (  # noqa: F401
+        PayoutTable,
+        BuybackTable,
+        ReputationHistoryTable,
+        BountySubmissionTable,
+    )
+    from app.models.review import AIReviewScoreDB  # noqa: F401
+    from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
+    from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
+    from app.models.boost import BountyBoostTable  # noqa: F401
+    
+    async def _async_init():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    
+    _get_test_loop().run_until_complete(_async_init())
 
-    Mirrors the production ``app.main`` router registration but omits
-    the lifespan (GitHub sync, periodic tasks) so tests run without
-    external dependencies.
-
-    Authentication is overridden with a mock user so tests do not
-    require real JWT tokens.
-
-    All routers are mounted at ``/api`` to match production URL structure.
-
-    Returns:
-        A fully-configured FastAPI application instance.
-    """
+    from app.api.auth import get_current_user, router as auth_router
+    from app.api.bounties import router as bounties_router
+    from app.api.contributors import router as contributors_router
+    from app.api.escrow import router as escrow_router
+    from app.api.leaderboard import router as leaderboard_router
+    from app.api.notifications import router as notifications_router
+    from app.api.payouts import router as payouts_router
+    from app.api.stats import router as stats_router
+    from app.api.websocket import router as websocket_router
+    
     test_app = FastAPI(
         title="SolFoundry E2E Test",
         description="E2E test application instance",
         version="0.0.1-test",
     )
-    # Mirror production routing: all routers under /api
     test_app.include_router(auth_router, prefix="/api")
     test_app.include_router(contributors_router, prefix="/api")
     test_app.include_router(bounties_router, prefix="/api")
@@ -115,100 +148,33 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(escrow_router, prefix="/api")
     test_app.include_router(stats_router, prefix="/api")
     test_app.include_router(websocket_router)
-
-    # Override the auth dependency so endpoints accept requests without JWT
     test_app.dependency_overrides[get_current_user] = _mock_get_current_user
 
     @test_app.get("/health")
     async def health_check():
-        """Minimal health endpoint for connectivity tests."""
         return {"status": "ok"}
 
-    # Add global exception handler to match production app behaviour.
-    # Without this, unhandled exceptions (e.g. AttributeError from missing
-    # service methods) would crash the test client instead of returning 500.
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
     @test_app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        """Catch-all handler that mirrors production error handling."""
         return JSONResponse(
             status_code=500,
-            content={
-                "message": "Internal Server Error",
-                "detail": str(exc),
-                "code": "INTERNAL_ERROR",
-            },
-        )
-
-    @test_app.exception_handler(ValueError)
-    async def value_error_handler(request: Request, exc: ValueError):
-        """Handle ValueErrors (validation) with structured JSON."""
-        return JSONResponse(
-            status_code=400,
-            content={
-                "message": str(exc),
-                "code": "VALIDATION_ERROR",
-            },
+            content={"message": "Internal Server Error", "detail": str(exc), "code": "INTERNAL_ERROR"},
         )
 
     return test_app
 
-
 app = _create_test_app()
-
-
-# ---------------------------------------------------------------------------
-# Database initialisation (session-scoped, runs once)
-# ---------------------------------------------------------------------------
-
-_test_loop = None
-
-
-def _get_test_loop() -> asyncio.AbstractEventLoop:
-    """Return a shared event loop for synchronous async execution.
-
-    Returns:
-        The shared asyncio event loop used across the test session.
-    """
-    global _test_loop
-    if _test_loop is None or _test_loop.is_closed():
-        _test_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_test_loop)
-    return _test_loop
-
-
-@pytest.fixture(scope="session", autouse=True)
-def initialise_test_database():
-    """Create database tables once for the entire test session.
-
-    Uses an in-memory SQLite database so tests are fully isolated from
-    any external PostgreSQL instance.
-    """
-    from app.database import init_db
-
-    loop = _get_test_loop()
-    loop.run_until_complete(init_db())
-    yield
-    global _test_loop
-    if _test_loop and not _test_loop.is_closed():
-        _test_loop.close()
-        _test_loop = None
-
-
-# ---------------------------------------------------------------------------
-# Store cleanup (runs before every test)
-# ---------------------------------------------------------------------------
-
 
 @pytest.fixture(autouse=True)
 def clear_stores():
-    """Reset all in-memory stores and factory counters between tests.
+    """Reset all in-memory stores and factory counters between tests."""
+    from app.services import bounty_service, contributor_service
+    from app.services.payout_service import reset_stores as reset_payout_stores
+    from tests.e2e.factories import reset_counters
 
-    Guarantees that each test function starts with a completely clean
-    application state, preventing data leakage between tests.
-    """
     bounty_service._bounty_store.clear()
     contributor_service._store.clear()
     reset_payout_stores()

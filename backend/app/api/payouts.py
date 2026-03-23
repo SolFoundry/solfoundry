@@ -30,7 +30,6 @@ from app.exceptions import (
     PayoutLockError,
     PayoutNotFoundError,
 )
-from app.models.errors import ErrorResponse
 from app.models.payout import (
     AdminApprovalRequest,
     AdminApprovalResponse,

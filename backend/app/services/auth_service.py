@@ -74,7 +74,7 @@ class InvalidTokenError(AuthError):
     pass
 
 
-class InvalidStateError(AuthError):
+class InvalidStateError(GitHubOAuthError):
     """Raised when an OAuth state parameter is invalid."""
 
     pass

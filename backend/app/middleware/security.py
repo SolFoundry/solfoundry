@@ -110,3 +110,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             del response.headers["Server"]
 
         return response
+
+# Alias for backward compatibility with existing tests
+SecurityMiddleware = SecurityHeadersMiddleware

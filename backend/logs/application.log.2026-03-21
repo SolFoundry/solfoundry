@@ -1,0 +1,15 @@
+{"message": "", "method": "GET", "path": "/health", "query": "", "client_ip": "127.0.0.1", "event": "request_started", "request_id": "2f36c82e-c8e1-4ad2-9755-2855079ee4d7", "level": "info", "timestamp": "2026-03-21T18:15:22.182397Z", "taskName": "Task-1"}
+{"message": "RateLimiter Redis Error: Error Multiple exceptions: [Errno 61] Connect call failed ('::1', 6379, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379. - Failsafe: ALLOW", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "Health check DB failure: unexpected error", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "Health check Redis failure: connection error", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "", "method": "GET", "path": "/health", "status_code": 200, "duration": "0.068s", "event": "request_finished", "request_id": "2f36c82e-c8e1-4ad2-9755-2855079ee4d7", "level": "info", "timestamp": "2026-03-21T18:15:22.250539Z", "taskName": "Task-1"}
+{"message": "HTTP Request: GET http://test/health \"HTTP/1.1 200 OK\"", "taskName": "Task-1"}
+{"message": "", "method": "GET", "path": "/health", "query": "", "client_ip": "127.0.0.1", "event": "request_started", "request_id": "16281cb4-a3bf-4735-8a79-06622ca589b7", "level": "info", "timestamp": "2026-03-21T18:26:50.953118Z", "taskName": "Task-1"}
+{"message": "RateLimiter/Blocklist Redis Error: Error 1 connecting to localhost:6379. Operation not permitted. - Failsafe: ALLOW", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "Health check DB failure: unexpected error", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "Health check Redis failure: connection error", "taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}
+{"message": "", "method": "GET", "path": "/health", "status_code": 200, "duration": "0.051s", "event": "request_finished", "request_id": "16281cb4-a3bf-4735-8a79-06622ca589b7", "level": "info", "timestamp": "2026-03-21T18:26:51.002621Z", "taskName": "Task-1"}
+{"message": "HTTP Request: GET http://test/health \"HTTP/1.1 200 OK\"", "taskName": "Task-1"}
+{"message": "", "method": "POST", "path": "/api/sync", "query": "", "client_ip": "127.0.0.1", "event": "request_started", "request_id": "ce04d0f7-837d-49d2-b864-502bf5db5dab", "level": "info", "timestamp": "2026-03-21T18:26:51.010359Z", "taskName": "Task-1"}
+{"message": "", "method": "POST", "path": "/api/sync", "status_code": 413, "duration": "0.001s", "event": "request_finished", "request_id": "ce04d0f7-837d-49d2-b864-502bf5db5dab", "level": "info", "timestamp": "2026-03-21T18:26:51.011331Z", "taskName": "Task-1"}
+{"message": "HTTP Request: POST http://test/api/sync \"HTTP/1.1 413 Request Entity Too Large\"", "taskName": "Task-1"}

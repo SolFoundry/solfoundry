@@ -66,6 +66,24 @@ async_session_factory = async_sessionmaker(
     autoflush=False,
 )
 
+def reinit_engine(url: str, **kwargs):
+    """Re-initialize the global engine and session factory. Used for tests."""
+    global engine, async_session_factory, DATABASE_URL
+    DATABASE_URL = url
+    # Force StaticPool for SQLite tests
+    if url.startswith("sqlite"):
+        kwargs.setdefault("poolclass", StaticPool)
+        kwargs.setdefault("connect_args", {"check_same_thread": False})
+    
+    engine = create_async_engine(url, **kwargs)
+    async_session_factory = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+
 
 class GUID(TypeDecorator):
     """Cross-database UUID type.
@@ -180,6 +198,14 @@ async def init_db() -> None:
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.
             await conn.run_sync(Base.metadata.create_all)
+            
+            # Log created tables for troubleshooting
+            def get_tables(connection):
+                from sqlalchemy import inspect
+                return inspect(connection).get_table_names()
+            
+            tables = await conn.run_sync(get_tables)
+            logger.info("Initialized tables: %s", tables)
 
             logger.info("Database schema initialized successfully")
     except Exception as e:

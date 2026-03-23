@@ -12,7 +12,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Callable
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -29,7 +29,6 @@ from app.middleware.sanitization import InputSanitizationMiddleware
 from app.api.health import router as health_router
 from app.api.metrics import router as metrics_router
 from app.api.auth import router as auth_router
-from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
 from app.api.leaderboard import router as leaderboard_router
@@ -108,7 +107,8 @@ async def lifespan(app: FastAPI):
     auto_approve_task.cancel()
     deadline_task.cancel()
     escrow_refund_task.cancel()
-    if obs_task: obs_task.cancel()
+    if obs_task:
+        obs_task.cancel()
     
     await ws_manager.shutdown()
     await close_redis()

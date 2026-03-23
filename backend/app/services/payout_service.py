@@ -20,7 +20,7 @@ from app.services import pg_store
 log = logging.getLogger(__name__)
 
 # In-memory backup stores and synchronization lock
-_lock = threading.Lock()
+_store_lock = threading.Lock()
 _payout_store: Dict[str, PayoutRecord] = {}
 _buyback_store: Dict[str, BuybackRecord] = {}
 
@@ -230,7 +230,7 @@ async def process_payout(payout_id: str) -> PayoutResponse:
     await pg_store.persist_payout(record)
     
     # Update cache
-    with _lock:
+    with _store_lock:
         _payout_store[record.id] = record
         
     return _payout_to_response(record)
@@ -254,7 +254,7 @@ async def create_buyback(data: BuybackCreate) -> BuybackResponse:
         solscan_url=_solscan_url(data.tx_hash)
     )
     await pg_store.persist_buyback(record)
-    with _lock:
+    with _store_lock:
         _buyback_store[record.id] = record
     return _buyback_to_response(record)
 
@@ -269,27 +269,31 @@ async def list_buybacks(skip: int = 0, limit: int = 20) -> BuybackListResponse:
         limit=limit
     )
 
-async def hydrate_from_database() -> None:
-    """Startup hydration from PostgreSQL into memory caches."""
-    try:
-        payouts = await pg_store.load_payouts(limit=5000)
-        buybacks = await pg_store.load_buybacks(limit=1000)
-        with _lock:
-            _payout_store.update(payouts)
-            _buyback_store.update(buybacks)
-        log.info("Hydrated %d payouts and %d buybacks from PostgreSQL", len(payouts), len(buybacks))
-    except Exception as e:
-        log.error("Hydration failed: %s", e)
+async def get_total_buybacks() -> Tuple[float, float]:
+    """Calculate aggregate buyback totals."""
+    all_b = await pg_store.load_buybacks(limit=10000)
+    total_sol = sum(b.amount_sol for b in all_b.values())
+    total_fndry = sum(b.amount_fndry for b in all_b.values())
+    return total_sol, total_fndry
 
-# ---------------------------------------------------------------------------
-# Utility
-# ---------------------------------------------------------------------------
-
-async def get_total_paid_out() -> float:
+async def get_total_paid_out() -> tuple[float, float]:
+    """Calculate total confirmed payouts for both FNDRY and SOL."""
     payouts = await pg_store.load_payouts(limit=10000)
-    return sum(p.amount for p in payouts.values() if p.status == PayoutStatus.CONFIRMED)
+    fndry = sum(p.amount for p in payouts.values() if p.status == PayoutStatus.CONFIRMED and p.token == "FNDRY")
+    sol = sum(p.amount for p in payouts.values() if p.status == PayoutStatus.CONFIRMED and p.token == "SOL")
+    return fndry, sol
+
+async def _count_confirmed_payouts() -> int:
+    """Count payouts with CONFIRMED status."""
+    payouts = await pg_store.load_payouts(limit=10000)
+    return sum(1 for p in payouts.values() if p.status == PayoutStatus.CONFIRMED)
+
+async def _count_buybacks() -> int:
+    """Return the total number of recorded buyback events."""
+    buybacks = await pg_store.load_buybacks(limit=10000)
+    return len(buybacks)
 
 def reset_stores() -> None:
-    with _lock:
+    with _store_lock:
         _payout_store.clear()
         _buyback_store.clear()

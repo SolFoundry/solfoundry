@@ -7,7 +7,7 @@ DoS and abuse, with structured logging and standard headers.
 import time
 import logging
 import os
-from typing import Optional, Tuple
+from typing import Tuple
 import redis.asyncio as redis
 
 from fastapi import Request, Response
