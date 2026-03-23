@@ -13,9 +13,12 @@ from app.database import get_db_session
 log = logging.getLogger(__name__)
 
 def _to_uuid(val: Any) -> Any:
-    if isinstance(val, _uuid.UUID): return val
-    try: return _uuid.UUID(str(val))
-    except (ValueError, AttributeError): return val
+    if isinstance(val, _uuid.UUID):
+        return val
+    try:
+        return _uuid.UUID(str(val))
+    except (ValueError, AttributeError):
+        return val
 
 async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
     """Insert or update a row using merge (session-level upsert)."""
