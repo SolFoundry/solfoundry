@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# SolFoundry Environment Setup Script
+# This script sets up the local development environment from scratch.
+# It checks for dependencies, installs packages, sets up .env, and starts services.
+
+set -e # Exit immediately if a command exits with a non-zero status
+
+# Text formatting
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+echo -e "${BLUE}${BOLD}🚀 Starting SolFoundry Environment Setup...${NC}\n"
+
+# Helper functions
+print_step() {
+    echo -e "${YELLOW}➤ $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+    exit 1
+}
+
+# 1. Dependency Checks
+print_step "Checking required tools..."
+
+if ! command -v node &> /dev/null; then
+    print_error "Node.js is not installed. Please install Node.js (v18+ recommended)."
+fi
+NODE_VERSION=$(node -v)
+print_success "Node.js is installed ($NODE_VERSION)."
+
+if ! command -v npm &> /dev/null; then
+    print_error "npm is not installed. Please install npm."
+fi
+print_success "npm is installed."
+
+if ! command -v python3 &> /dev/null; then
+    print_error "Python 3 is not installed. Please install Python (v3.10+ recommended)."
+fi
+PYTHON_VERSION=$(python3 --version)
+print_success "$PYTHON_VERSION is installed."
+
+if ! command -v pip3 &> /dev/null; then
+    print_error "pip3 is not installed. Please install pip for Python 3."
+fi
+print_success "pip3 is installed."
+
+if ! command -v rustc &> /dev/null; then
+    print_error "Rust is not installed. Please install Rust (https://rustup.rs/)."
+fi
+RUST_VERSION=$(rustc --version)
+print_success "Rust is installed ($RUST_VERSION)."
+
+if ! command -v anchor &> /dev/null; then
+    echo -e "${YELLOW}⚠️ Anchor is not installed. Smart contract development might fail.${NC}"
+    echo -e "Install later with: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force"
+else
+    ANCHOR_VERSION=$(anchor --version)
+    print_success "Anchor is installed ($ANCHOR_VERSION)."
+fi
+
+if ! command -v docker &> /dev/null; then
+    echo -e "${YELLOW}⚠️ Docker is not installed. You will need it to run Postgres/Redis via compose.${NC}"
+else
+    print_success "Docker is installed."
+fi
+
+# 2. Setup .env Files
+print_step "Setting up environment variables..."
+
+if [ ! -f .env ]; then
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        print_success "Created Root .env from .env.example."
+    else
+        echo -e "${YELLOW}⚠️ Root .env.example not found. Skipping...${NC}"
+    fi
+else
+    print_success "Root .env already exists."
+fi
+
+if [ ! -f backend/.env ]; then
+    if [ -f backend/.env.example ]; then
+        cp backend/.env.example backend/.env
+        print_success "Created backend/.env from backend/.env.example."
+    else
+         echo -e "${YELLOW}⚠️ backend/.env.example not found. Skipping...${NC}"
+    fi
+else
+    print_success "backend/.env already exists."
+fi
+
+# 3. Install Backend Dependencies
+print_step "Installing backend dependencies (Python)..."
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+print_success "Backend dependencies installed."
+
+# 4. Install Frontend Dependencies
+print_step "Installing frontend dependencies (Node.js)..."
+cd frontend
+npm install
+cd ..
+print_success "Frontend dependencies installed."
+
+# 5. Install SDK Dependencies (if applicable)
+if [ -d "sdk" ]; then
+    print_step "Installing SDK dependencies..."
+    cd sdk
+    npm install || echo -e "${YELLOW}⚠️ npm install in sdk failed. Skipping...${NC}"
+    cd ..
+    print_success "SDK checked."
+fi
+
+# 6. Start Local Services
+print_step "Starting local services..."
+
+if command -v docker-compose &> /dev/null; then
+    docker-compose up -d db redis
+    print_success "Database and Redis started via docker-compose."
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    docker compose up -d db redis
+    print_success "Database and Redis started via docker compose."
+else
+    echo -e "${YELLOW}⚠️ docker-compose not found. Please ensure Postgres and Redis are running locally.${NC}"
+fi
+
+# Final Output
+echo -e "\n${GREEN}${BOLD}🎉 Setup Complete! You are ready to build.${NC}\n"
+
+echo -e "To start the development servers, open separate terminals and run:"
+echo -e "  ${BOLD}Backend:${NC}  cd backend && source venv/bin/activate && uvicorn app.main:app --reload"
+echo -e "  ${BOLD}Frontend:${NC} cd frontend && npm run dev\n"
+
+echo -e "${BLUE}${BOLD}Local Services URLs:${NC}"
+echo -e "  - Frontend: http://localhost:5173 (or port shown by Vite)"
+echo -e "  - Backend API: http://localhost:8000"
+echo -e "  - Backend Docs: http://localhost:8000/docs"
+
