@@ -16,6 +16,8 @@ from app.models.webhook_log import WebhookEventLogDB
 from app.models.bounty import BountyDB, BountyStatus, BountyTier
 from app.services import bounty_service
 from app.services import bounty_lifecycle_service
+from app.core.anti_gaming_settings import get_anti_gaming_settings
+from app.services import anti_gaming_service
 
 logger = logging.getLogger(__name__)
 
@@ -161,21 +163,35 @@ class WebhookProcessor:
 
                             try:
                                 if bounty.tier == BountyTier.T1 and pr_url:
-                                    # Find submission for this PR
-                                    sub_id = next(
+                                    sub = next(
                                         (
-                                            s.id
+                                            s
                                             for s in bounty.submissions
                                             if s.pr_url == pr_url
                                         ),
                                         None,
                                     )
-                                    if sub_id:
-                                        bounty_lifecycle_service.handle_t1_auto_win(
-                                            b_id, sub_id
+                                    if sub:
+                                        ag_settings = get_anti_gaming_settings()
+                                        actor_key = anti_gaming_service.submission_actor_key(
+                                            sub
                                         )
+                                        if ag_settings.enabled:
+                                            await anti_gaming_service.assert_t1_cooldown_ok(
+                                                self.db,
+                                                actor_key=actor_key,
+                                                settings=ag_settings,
+                                            )
+                                        bounty_lifecycle_service.handle_t1_auto_win(
+                                            b_id, sub.id
+                                        )
+                                        await anti_gaming_service.record_t1_completion(
+                                            self.db,
+                                            actor_key=actor_key,
+                                            bounty_id=b_id,
+                                        )
+                                        await self.db.commit()
                                     else:
-                                        # No submission yet (maybe webhook came before job), fallback to just completing
                                         bounty_lifecycle_service.transition_status(
                                             b_id,
                                             BountyStatus.COMPLETED,
@@ -191,6 +207,7 @@ class WebhookProcessor:
                                     )
                                 updated = True
                             except bounty_lifecycle_service.LifecycleError as e:
+                                await self.db.rollback()
                                 logger.warning(
                                     "Could not transition bounty %s: %s", b_id, e
                                 )

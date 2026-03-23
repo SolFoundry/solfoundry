@@ -23,13 +23,18 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.core.audit import audit_event
 from app.database import get_db_session
 from app.models.tables import AdminAuditLogTable
+from app.models.anti_gaming_tables import (
+    AntiGamingAppealTable,
+    AntiGamingAuditTable,
+    SybilAlertTable,
+)
 from app.services.bounty_service import _bounty_store
 from app.services.contributor_service import _store as _contributor_store
 from app.models.bounty import BountyStatus, BountyCreate, VALID_STATUS_TRANSITIONS
@@ -403,6 +408,122 @@ class AuditLogEntry(BaseModel):
 class AuditLogResponse(BaseModel):
     entries: List[AuditLogEntry]
     total: int
+
+
+class SybilAlertItem(BaseModel):
+    id: str
+    alert_type: str
+    severity: str
+    summary: str
+    details: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+    acknowledged_at: Optional[str] = None
+    acknowledged_by: Optional[str] = None
+
+
+class SybilAlertListResponse(BaseModel):
+    items: List[SybilAlertItem]
+
+
+class AntiGamingAuditItem(BaseModel):
+    id: str
+    decision: str
+    rule_name: str
+    outcome: str
+    subject_user_id: Optional[str] = None
+    subject_key: Optional[str] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
+class AntiGamingAuditListResponse(BaseModel):
+    items: List[AntiGamingAuditItem]
+
+
+class AntiGamingAppealItem(BaseModel):
+    id: str
+    user_id: str
+    message: str
+    status: str
+    related_audit_id: Optional[str] = None
+    admin_note: Optional[str] = None
+    created_at: str
+    resolved_at: Optional[str] = None
+
+
+class AntiGamingAppealListResponse(BaseModel):
+    items: List[AntiGamingAppealItem]
+
+
+class AppealResolveBody(BaseModel):
+    status: Literal["approved", "rejected"]
+    admin_note: Optional[str] = Field(None, max_length=4000)
+
+
+# ---------------------------------------------------------------------------
+# Treasury dashboard (read-only)
+# ---------------------------------------------------------------------------
+
+
+class TreasuryFlowBucket(BaseModel):
+    period: str
+    inflow_fndry: float
+    outflow_fndry: float
+
+
+class TreasurySeriesBundle(BaseModel):
+    daily: List[TreasuryFlowBucket]
+    weekly: List[TreasuryFlowBucket]
+    monthly: List[TreasuryFlowBucket]
+
+
+class TreasuryTransactionRow(BaseModel):
+    id: str
+    kind: Literal["payout", "buyback"]
+    label: str
+    amount_fndry: float
+    amount_sol: Optional[float] = None
+    occurred_at: str
+    explorer_url: Optional[str] = None
+    tx_hash: Optional[str] = None
+
+
+class TreasuryRunway(BaseModel):
+    avg_daily_outflow_fndry: float
+    estimated_runway_days: Optional[float] = None
+    window_days: int
+    total_outflow_window_fndry: float
+
+
+class TreasuryDashboardResponse(BaseModel):
+    treasury_wallet: str
+    fndry_balance: float
+    series: TreasurySeriesBundle
+    recent_transactions: List[TreasuryTransactionRow]
+    runway: TreasuryRunway
+    tier_spending_fndry: Dict[str, float]
+    generated_at: str
+
+
+def _treasury_owner_wallets() -> set[str]:
+    raw = os.getenv("TREASURY_OWNER_WALLETS", "")
+    return {a.strip() for a in raw.split(",") if a.strip()}
+
+
+def _enforce_treasury_owner_header(request: Request) -> None:
+    """When TREASURY_OWNER_WALLETS is set, require a matching X-SF-Treasury-Wallet."""
+    owners = _treasury_owner_wallets()
+    if not owners:
+        return
+    wallet = (request.headers.get("X-SF-Treasury-Wallet") or "").strip()
+    if wallet not in owners:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Treasury dashboard requires header X-SF-Treasury-Wallet "
+                "from an allowed owner wallet"
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -869,6 +990,27 @@ async def get_payout_history(
     )
 
 
+@router.get(
+    "/treasury/dashboard",
+    response_model=TreasuryDashboardResponse,
+    summary="Treasury health dashboard (read-only)",
+)
+async def get_treasury_dashboard(
+    request: Request,
+    _actor: str = Depends(require_admin),
+) -> TreasuryDashboardResponse:
+    """$FNDRY balance, inflow/outflow series, runway, tier spend, recent txs.
+
+    Admin role only. When ``TREASURY_OWNER_WALLETS`` is non-empty, the client
+    must send ``X-SF-Treasury-Wallet`` with an allowed Solana address.
+    """
+    _enforce_treasury_owner_header(request)
+    from app.services.treasury_dashboard_service import build_treasury_dashboard
+
+    raw = await build_treasury_dashboard()
+    return TreasuryDashboardResponse(**raw)
+
+
 # ---------------------------------------------------------------------------
 # System health (enhanced)
 # ---------------------------------------------------------------------------
@@ -1019,3 +1161,227 @@ async def get_audit_log(
         ],
         total=total,
     )
+
+
+# ---------------------------------------------------------------------------
+# Anti-gaming / sybil alerts
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/sybil-alerts",
+    response_model=SybilAlertListResponse,
+    summary="List sybil / anti-gaming alerts",
+)
+async def list_sybil_alerts(
+    unacknowledged_only: bool = Query(True),
+    limit: int = Query(50, ge=1, le=200),
+    _auth: tuple = Depends(require_any),
+) -> SybilAlertListResponse:
+    from sqlalchemy import desc as sa_desc, select as sa_select
+
+    try:
+        async with get_db_session() as session:
+            q = sa_select(SybilAlertTable).order_by(sa_desc(SybilAlertTable.created_at))
+            if unacknowledged_only:
+                q = q.where(SybilAlertTable.acknowledged_at.is_(None))
+            q = q.limit(limit)
+            result = await session.execute(q)
+            rows = result.scalars().all()
+    except Exception:
+        return SybilAlertListResponse(items=[])
+
+    def _iso(dt: Any) -> str:
+        if dt is None:
+            return ""
+        return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+    return SybilAlertListResponse(
+        items=[
+            SybilAlertItem(
+                id=str(r.id),
+                alert_type=r.alert_type,
+                severity=r.severity or "warning",
+                summary=r.summary,
+                details=r.details or {},
+                created_at=_iso(r.created_at),
+                acknowledged_at=_iso(r.acknowledged_at) or None,
+                acknowledged_by=r.acknowledged_by,
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.post(
+    "/sybil-alerts/{alert_id}/ack",
+    summary="Acknowledge a sybil alert",
+)
+async def acknowledge_sybil_alert(
+    alert_id: str,
+    actor: str = Depends(require_admin),
+) -> dict:
+    from sqlalchemy import select as sa_select, update as sa_update
+
+    try:
+        aid = uuid.UUID(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert id")
+
+    async with get_db_session() as session:
+        res = await session.execute(
+            sa_select(SybilAlertTable).where(SybilAlertTable.id == aid)
+        )
+        row = res.scalar_one_or_none()
+        if not row:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        await session.execute(
+            sa_update(SybilAlertTable)
+            .where(SybilAlertTable.id == aid)
+            .values(
+                acknowledged_at=datetime.now(timezone.utc),
+                acknowledged_by=actor,
+            )
+        )
+        await session.commit()
+    await _log("sybil_alert_ack", actor, details={"alert_id": alert_id})
+    return {"ok": True}
+
+
+@router.get(
+    "/anti-gaming/audit",
+    response_model=AntiGamingAuditListResponse,
+    summary="Anti-gaming decision audit log",
+)
+async def list_anti_gaming_audit(
+    limit: int = Query(100, ge=1, le=500),
+    _auth: tuple = Depends(require_any),
+) -> AntiGamingAuditListResponse:
+    from sqlalchemy import desc as sa_desc, select as sa_select
+
+    try:
+        async with get_db_session() as session:
+            q = (
+                sa_select(AntiGamingAuditTable)
+                .order_by(sa_desc(AntiGamingAuditTable.created_at))
+                .limit(limit)
+            )
+            result = await session.execute(q)
+            rows = result.scalars().all()
+    except Exception:
+        return AntiGamingAuditListResponse(items=[])
+
+    def _iso(dt: Any) -> str:
+        return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+    return AntiGamingAuditListResponse(
+        items=[
+            AntiGamingAuditItem(
+                id=str(r.id),
+                decision=r.decision,
+                rule_name=r.rule_name,
+                outcome=r.outcome,
+                subject_user_id=r.subject_user_id,
+                subject_key=r.subject_key,
+                details=r.details or {},
+                created_at=_iso(r.created_at),
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.get(
+    "/anti-gaming/appeals",
+    response_model=AntiGamingAppealListResponse,
+    summary="List anti-gaming appeals",
+)
+async def list_anti_gaming_appeals(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    limit: int = Query(50, ge=1, le=200),
+    _auth: tuple = Depends(require_any),
+) -> AntiGamingAppealListResponse:
+    from sqlalchemy import desc as sa_desc, select as sa_select
+
+    try:
+        async with get_db_session() as session:
+            q = sa_select(AntiGamingAppealTable).order_by(
+                sa_desc(AntiGamingAppealTable.created_at)
+            )
+            if status_filter:
+                q = q.where(AntiGamingAppealTable.status == status_filter)
+            q = q.limit(limit)
+            result = await session.execute(q)
+            rows = result.scalars().all()
+    except Exception:
+        return AntiGamingAppealListResponse(items=[])
+
+    def _iso(dt: Any) -> str:
+        if dt is None:
+            return ""
+        return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+    return AntiGamingAppealListResponse(
+        items=[
+            AntiGamingAppealItem(
+                id=str(r.id),
+                user_id=r.user_id,
+                message=r.message,
+                status=r.status,
+                related_audit_id=str(r.related_audit_id)
+                if r.related_audit_id
+                else None,
+                admin_note=r.admin_note,
+                created_at=_iso(r.created_at),
+                resolved_at=_iso(r.resolved_at) or None,
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.post(
+    "/anti-gaming/appeals/{appeal_id}/resolve",
+    summary="Resolve an anti-gaming appeal",
+)
+async def resolve_anti_gaming_appeal(
+    appeal_id: str,
+    body: AppealResolveBody,
+    actor: str = Depends(require_admin),
+) -> dict:
+    from sqlalchemy import select as sa_select, update as sa_update
+
+    try:
+        apid = uuid.UUID(appeal_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid appeal id")
+
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Invalid status")
+
+    async with get_db_session() as session:
+        res = await session.execute(
+            sa_select(AntiGamingAppealTable).where(AntiGamingAppealTable.id == apid)
+        )
+        row = res.scalar_one_or_none()
+        if not row:
+            raise HTTPException(status_code=404, detail="Appeal not found")
+        if row.status != "pending":
+            raise HTTPException(status_code=400, detail="Appeal already resolved")
+        await session.execute(
+            sa_update(AntiGamingAppealTable)
+            .where(AntiGamingAppealTable.id == apid)
+            .values(
+                status=body.status,
+                admin_note=body.admin_note,
+                resolved_at=datetime.now(timezone.utc),
+            )
+        )
+        await session.commit()
+    await _log(
+        "anti_gaming_appeal_resolved",
+        actor,
+        appeal_id=appeal_id,
+        status=body.status,
+    )
+    return {"ok": True, "status": body.status}

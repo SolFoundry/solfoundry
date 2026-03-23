@@ -14,10 +14,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from unittest.mock import AsyncMock, patch
+
 import app.api.admin as admin_module
 from app.api.admin import router as admin_router
 from app.models.bounty import BountyDB, BountyStatus, BountyTier
-from app.services import bounty_service, contributor_service
+from app.models.payout import BuybackRecord, PayoutRecord, PayoutStatus
+from app.services import bounty_service, contributor_service, payout_service
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -52,12 +55,22 @@ def clear_stores():
     """Reset in-memory stores between tests."""
     bounty_service._bounty_store.clear()
     contributor_service._store.clear()
+    payout_service._payout_store.clear()
+    payout_service._buyback_store.clear()
     yield
     bounty_service._bounty_store.clear()
     contributor_service._store.clear()
+    payout_service._payout_store.clear()
+    payout_service._buyback_store.clear()
 
 
-def _make_bounty(bid="b1", title="Fix bug", status=BountyStatus.OPEN, reward=500.0):
+def _make_bounty(
+    bid="b1",
+    title="Fix bug",
+    status=BountyStatus.OPEN,
+    reward=500.0,
+    tier=BountyTier.T1,
+):
     """Insert a minimal BountyDB into the in-memory store."""
     from datetime import datetime, timezone, timedelta
 
@@ -65,7 +78,7 @@ def _make_bounty(bid="b1", title="Fix bug", status=BountyStatus.OPEN, reward=500
         id=bid,
         title=title,
         description="A test bounty",
-        tier=BountyTier.T1,
+        tier=tier,
         required_skills=[],
         reward_amount=reward,
         created_by="creator-1",
@@ -376,7 +389,12 @@ class TestFinancial:
 
 class TestAuditLog:
     def test_empty_audit_log(self, client):
-        data = client.get("/api/admin/audit-log", headers=AUTH_HEADER).json()
+        # Use an event filter that cannot match real rows so the result is empty
+        # even when other tests in this module have written to the shared DB.
+        data = client.get(
+            "/api/admin/audit-log?event=__no_audit_rows_match_this__",
+            headers=AUTH_HEADER,
+        ).json()
         assert data["entries"] == []
         assert data["total"] == 0
 
@@ -411,3 +429,99 @@ class TestAuditLog:
 
         data = client.get("/api/admin/audit-log?limit=5", headers=AUTH_HEADER).json()
         assert len(data["entries"]) <= 5
+
+
+# ---------------------------------------------------------------------------
+# Treasury dashboard
+# ---------------------------------------------------------------------------
+
+
+class TestTreasuryDashboard:
+    def test_requires_owner_header_when_configured(self, client, monkeypatch):
+        monkeypatch.setenv("TREASURY_OWNER_WALLETS", "OwnerWalletTest111")
+        with patch(
+            "app.services.treasury_dashboard_service.get_token_balance",
+            new_callable=AsyncMock,
+            return_value=0.0,
+        ):
+            r = client.get("/api/admin/treasury/dashboard", headers=AUTH_HEADER)
+            assert r.status_code == 403
+
+            r2 = client.get(
+                "/api/admin/treasury/dashboard",
+                headers={
+                    **AUTH_HEADER,
+                    "X-SF-Treasury-Wallet": "OwnerWalletTest111",
+                },
+            )
+            assert r2.status_code == 200
+            assert r2.json()["fndry_balance"] == 0.0
+
+    @patch(
+        "app.services.treasury_dashboard_service.get_token_balance",
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "app.services.treasury_dashboard_service._load_buybacks_from_db",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    @patch(
+        "app.services.treasury_dashboard_service._load_payouts_from_db",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+    def test_tier_spending_and_flows(
+        self, _mock_payouts_db, _mock_buybacks_db, mock_balance, client, monkeypatch
+    ):
+        monkeypatch.delenv("TREASURY_OWNER_WALLETS", raising=False)
+        mock_balance.return_value = 1_000_000.0
+
+        from datetime import datetime, timezone
+
+        _make_bounty(
+            "b1",
+            status=BountyStatus.PAID,
+            reward=100.0,
+            tier=BountyTier.T1,
+        )
+        _make_bounty(
+            "b2",
+            status=BountyStatus.PAID,
+            reward=400.0,
+            tier=BountyTier.T2,
+        )
+
+        now = datetime.now(timezone.utc)
+        with payout_service._lock:
+            payout_service._payout_store["p1"] = PayoutRecord(
+                id="p1",
+                recipient="u1",
+                amount=50.0,
+                token="FNDRY",
+                status=PayoutStatus.CONFIRMED,
+                bounty_title="Payout bounty",
+                created_at=now,
+            )
+            payout_service._buyback_store["bb1"] = BuybackRecord(
+                id="bb1",
+                amount_sol=2.0,
+                amount_fndry=25.0,
+                price_per_fndry=0.08,
+                created_at=now,
+            )
+
+        data = client.get("/api/admin/treasury/dashboard", headers=AUTH_HEADER).json()
+        assert data["fndry_balance"] == 1_000_000.0
+        assert data["tier_spending_fndry"]["1"] == 100.0
+        assert data["tier_spending_fndry"]["2"] == 400.0
+
+        daily = data["series"]["daily"]
+        assert len(daily) >= 1
+        last = daily[-1]
+        assert last["inflow_fndry"] == 25.0
+        assert last["outflow_fndry"] == 50.0
+
+        assert len(data["recent_transactions"]) == 2
+        kinds = {t["kind"] for t in data["recent_transactions"]}
+        assert kinds == {"payout", "buyback"}

@@ -13,7 +13,7 @@ from uuid import UUID
 import base64
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 import httpx
 from jose import jwt, JWTError
@@ -183,8 +183,10 @@ def verify_oauth_state(state: str) -> bool:
     return True
 
 
-async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
-    """Exchange a GitHub OAuth code for user profile."""
+async def exchange_github_code(
+    code: str, state: Optional[str] = None
+) -> Tuple[Dict, str]:
+    """Exchange a GitHub OAuth code for user profile and access token."""
     if state:
         verify_oauth_state(state)
     if not GITHUB_CLIENT_SECRET:
@@ -235,19 +237,40 @@ async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
                     (e["email"] for e in emails if e.get("primary")),
                     emails[0]["email"] if emails else None,
                 )
-        return user_data
+        return user_data, token
 
 
 async def github_oauth_login(
-    db: AsyncSession, code: str, state: Optional[str] = None
+    db: AsyncSession,
+    code: str,
+    state: Optional[str] = None,
+    client_ip: Optional[str] = None,
 ) -> Dict:
     """Complete GitHub OAuth login and create/update user."""
-    github_user = await exchange_github_code(code, state)
+    from app.core.anti_gaming_settings import get_anti_gaming_settings
+    from app.services import anti_gaming_service
+    from app.services.anti_gaming_service import AntiGamingSignupRejected
+
+    github_user, access_token = await exchange_github_code(code, state)
     github_id = str(github_user["id"])
 
     result = await db.execute(select(User).where(User.github_id == github_id))
     user = result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
+    settings = get_anti_gaming_settings()
+    is_new = user is None
+
+    if is_new and settings.enabled:
+        if not anti_gaming_service.is_wallet_synthetic_github_user(github_id):
+            try:
+                await anti_gaming_service.validate_new_github_signup(
+                    db,
+                    github_user=github_user,
+                    access_token=access_token,
+                    settings=settings,
+                )
+            except AntiGamingSignupRejected as exc:
+                raise GitHubOAuthError(exc.message) from exc
 
     if user:
         user.username = github_user.get("login", "")
@@ -264,6 +287,15 @@ async def github_oauth_login(
             last_login_at=now,
         )
         db.add(user)
+
+    await db.flush()
+    ct = github_user.get("_sf_commit_total")
+    await anti_gaming_service.apply_github_profile_to_user(
+        user, github_user, commit_total=ct if isinstance(ct, int) else None
+    )
+    await anti_gaming_service.record_login_ip_and_maybe_alert(
+        db, user=user, client_ip=client_ip, settings=settings
+    )
 
     await db.commit()
     await db.refresh(user)
@@ -400,6 +432,16 @@ async def link_wallet_to_user(
     user.wallet_address = wallet.lower()
     user.wallet_verified = True
     user.updated_at = datetime.now(timezone.utc)
+
+    from app.core.anti_gaming_settings import get_anti_gaming_settings
+    from app.services import anti_gaming_service
+
+    await anti_gaming_service.on_wallet_linked_clustering(
+        db,
+        user_id=str(user.id),
+        wallet=wallet.lower(),
+        settings=get_anti_gaming_settings(),
+    )
 
     await db.commit()
     await db.refresh(user)

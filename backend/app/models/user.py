@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import Column, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,11 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     last_login_at = Column(DateTime, nullable=True)
+    registration_ip = Column(String(45), nullable=True, index=True)
+    last_seen_ip = Column(String(45), nullable=True)
+    github_account_created_at = Column(DateTime(timezone=True), nullable=True)
+    github_public_repos = Column(Integer, nullable=True)
+    github_commit_count_snapshot = Column(Integer, nullable=True)
 
 
 class UserDB(BaseModel):

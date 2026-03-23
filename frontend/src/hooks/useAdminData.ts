@@ -4,6 +4,7 @@
  * @module hooks/useAdminData
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import type {
   AdminOverview,
   BountyListAdminResponse,
@@ -16,6 +17,7 @@ import type {
   PayoutHistoryResponse,
   SystemHealthResponse,
   AuditLogResponse,
+  TreasuryDashboardResponse,
 } from '../types/admin';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,25 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(body.detail ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+/** Solana addresses allowed to view the treasury dashboard (align with API `TREASURY_OWNER_WALLETS`). */
+export function parseTreasuryOwnerWallets(): Set<string> {
+  const raw = import.meta.env.VITE_TREASURY_OWNER_WALLETS ?? '';
+  return new Set(
+    raw.split(',').map((s: string) => s.trim()).filter(Boolean),
+  );
+}
+
+async function adminFetchTreasuryDashboard(
+  connectedWallet: string | undefined,
+): Promise<TreasuryDashboardResponse> {
+  const owners = parseTreasuryOwnerWallets();
+  const headers: HeadersInit = {};
+  if (owners.size > 0 && connectedWallet) {
+    headers['X-SF-Treasury-Wallet'] = connectedWallet;
+  }
+  return adminFetch<TreasuryDashboardResponse>('/api/admin/treasury/dashboard', { headers });
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +267,25 @@ export function useContributorHistory(contributorId: string, limit = 50) {
     staleTime: 30_000,
     retry: false,
     enabled: Boolean(contributorId),
+  });
+}
+
+/** Treasury health — refetches every 30s; owner wallet header when `VITE_TREASURY_OWNER_WALLETS` is set. */
+export function useTreasuryDashboard(connectedWallet: string | null | undefined) {
+  const ownerSet = useMemo(() => parseTreasuryOwnerWallets(), []);
+  const needsOwnerWallet = ownerSet.size > 0;
+  const wallet = connectedWallet ?? undefined;
+  const ownerOk =
+    !needsOwnerWallet ||
+    (Boolean(wallet) && ownerSet.has(wallet as string));
+
+  return useQuery<TreasuryDashboardResponse>({
+    queryKey: ['admin', 'treasury', 'dashboard', wallet ?? 'none'],
+    queryFn: () => adminFetchTreasuryDashboard(wallet),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    retry: false,
+    enabled: Boolean(getAdminToken()) && ownerOk && (!needsOwnerWallet || Boolean(wallet)),
   });
 }
 

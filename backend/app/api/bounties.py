@@ -48,6 +48,8 @@ from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
 from app.services.contributor_webhook_service import ContributorWebhookService
+from app.core.anti_gaming_settings import get_anti_gaming_settings
+from app.services import anti_gaming_service
 
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
@@ -781,8 +783,16 @@ async def claim_bounty(
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
+        settings = get_anti_gaming_settings()
+        if settings.enabled:
+            await anti_gaming_service.assert_claim_allowed(
+                db, claimer_id=claimer_id, settings=settings
+            )
         result = _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        if settings.enabled:
+            await db.commit()
     except LifecycleError as exc:
+        await db.rollback()
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
 

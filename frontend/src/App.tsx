@@ -16,10 +16,6 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { SolFoundryLogoMark } from './components/common/SolFoundryLogoMark';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// ErrorBoundary is imported from ./components/ErrorBoundary
-
-}
-
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
 const BountyDetailPage = lazy(() => import('./pages/BountyDetailPage'));
@@ -131,7 +127,7 @@ export default function App() {
             <WalletProvider defaultNetwork="mainnet-beta">
               <Routes>
                 {/* Admin section — own layout, no wallet/site shell needed */}
-                <Route path="/admin*" element={<AdminRoutes />} />
+                <Route path="/admin/*" element={<AdminRoutes />} />
                 {/* Everything else */}
                 <Route path="/*" element={<AppLayout />} />
               </Routes>

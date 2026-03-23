@@ -10,7 +10,7 @@ This module provides REST API endpoints for:
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from app.models.errors import ErrorResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,8 +119,19 @@ async def get_github_authorize(state: Optional[str] = None):
         500: {"model": ErrorResponse, "description": "GitHub API error"},
     },
 )
+def _client_ip(request: Request) -> Optional[str]:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.client:
+        return request.client.host
+    return None
+
+
 async def github_oauth_callback(
-    data: GitHubOAuthRequest, db: AsyncSession = Depends(get_db)
+    data: GitHubOAuthRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ) -> GitHubOAuthResponse:
     """
     Complete GitHub OAuth flow.
@@ -135,7 +146,9 @@ async def github_oauth_callback(
     5. Return JWT tokens
     """
     try:
-        result = await auth_service.github_oauth_login(db, data.code, data.state)
+        result = await auth_service.github_oauth_login(
+            db, data.code, data.state, client_ip=_client_ip(request)
+        )
         return result
     except GitHubOAuthError as e:
         raise HTTPException(

@@ -15,6 +15,7 @@ import pytest
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
 os.environ["AUTH_ENABLED"] = os.environ.get("AUTH_ENABLED", "false")
+os.environ.setdefault("ANTIGAMING_ENABLED", "false")
 
 # Configure asyncio mode for pytest
 pytest_plugins = ("pytest_asyncio",)

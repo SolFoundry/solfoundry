@@ -190,5 +190,50 @@ export type AdminSection =
   | 'contributors'
   | 'reviews'
   | 'financial'
+  | 'treasury'
   | 'health'
   | 'audit-log';
+
+// ---------------------------------------------------------------------------
+// Treasury dashboard
+// ---------------------------------------------------------------------------
+
+export interface TreasuryFlowBucket {
+  period: string;
+  inflow_fndry: number;
+  outflow_fndry: number;
+}
+
+export interface TreasurySeriesBundle {
+  daily: TreasuryFlowBucket[];
+  weekly: TreasuryFlowBucket[];
+  monthly: TreasuryFlowBucket[];
+}
+
+export interface TreasuryTransactionRow {
+  id: string;
+  kind: 'payout' | 'buyback';
+  label: string;
+  amount_fndry: number;
+  amount_sol?: number | null;
+  occurred_at: string;
+  explorer_url?: string | null;
+  tx_hash?: string | null;
+}
+
+export interface TreasuryRunway {
+  avg_daily_outflow_fndry: number;
+  estimated_runway_days: number | null;
+  window_days: number;
+  total_outflow_window_fndry: number;
+}
+
+export interface TreasuryDashboardResponse {
+  treasury_wallet: string;
+  fndry_balance: number;
+  series: TreasurySeriesBundle;
+  recent_transactions: TreasuryTransactionRow[];
+  runway: TreasuryRunway;
+  tier_spending_fndry: Record<string, number>;
+  generated_at: string;
+}

@@ -13,6 +13,7 @@ import { BountyManagement } from '../components/admin/BountyManagement';
 import { ContributorManagement } from '../components/admin/ContributorManagement';
 import { ReviewPipeline } from '../components/admin/ReviewPipeline';
 import { FinancialPanel } from '../components/admin/FinancialPanel';
+import { TreasuryPanel } from '../components/admin/TreasuryPanel';
 import { SystemHealth } from '../components/admin/SystemHealth';
 import { AuditLogPanel } from '../components/admin/AuditLogPanel';
 import { setAdminToken } from '../hooks/useAdminData';
@@ -61,6 +62,7 @@ export default function AdminPage() {
       case 'contributors': return <ContributorManagement />;
       case 'reviews':      return <ReviewPipeline />;
       case 'financial':    return <FinancialPanel />;
+      case 'treasury':     return <TreasuryPanel />;
       case 'health':       return <SystemHealth />;
       case 'audit-log':    return <AuditLogPanel />;
       default:             return <OverviewPanel />;
