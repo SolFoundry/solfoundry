@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import type { ContributorBadgeStats } from '../types/badges';
 import { computeBadges } from '../types/badges';
 import { BadgeGrid } from './badges';
 import { TimeAgo } from './common/TimeAgo';
+import { WalletAddress } from './wallet/WalletAddress';
 
 interface RecentBounty {
   title: string;
@@ -130,27 +131,10 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
   t3Completed = 0,
   recentBounties,
 }) => {
-  const [copied, setCopied] = useState(false);
-
-  const truncatedWallet = walletAddress
-    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-    : 'Not connected';
-
   const badges = badgeStats ? computeBadges(badgeStats) : [];
   const earnedCount = badges.filter((b) => b.earned).length;
 
   const mostRecentPrTimestamp = badgeStats?.prSubmissionTimestampsUtc?.[badgeStats.prSubmissionTimestampsUtc.length - 1];
-
-  const handleCopyWallet = async () => {
-    if (!walletAddress) return;
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard API may not be available in all contexts
-    }
-  };
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 sm:p-6 text-white space-y-6">
@@ -168,24 +152,11 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
             <h1 className="text-xl sm:text-2xl font-bold break-words">{username}</h1>
             {tier && <TierBadge tier={tier} />}
           </div>
-          <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-            <p className="text-gray-400 text-xs sm:text-sm font-mono">{truncatedWallet}</p>
-            {walletAddress && (
-              <button
-                data-testid="copy-wallet-btn"
-                onClick={handleCopyWallet}
-                className="text-gray-500 hover:text-gray-300 transition-colors"
-                title="Copy wallet address"
-              >
-                {copied ? (
-                  <span className="text-green-400 text-xs">✓</span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                  </svg>
-                )}
-              </button>
+          <div className="flex items-center gap-1.5 justify-center sm:justify-start" data-testid="copy-wallet-btn">
+            {walletAddress ? (
+              <WalletAddress address={walletAddress} startChars={6} endChars={4} className="text-xs sm:text-sm" />
+            ) : (
+              <p className="text-gray-400 text-xs sm:text-sm font-mono">Not connected</p>
             )}
           </div>
           {joinDate && (

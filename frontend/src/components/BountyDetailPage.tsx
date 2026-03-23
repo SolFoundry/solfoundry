@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
+import { WalletAddress } from './wallet/WalletAddress';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
 import { TimeAgo } from './common/TimeAgo';
 import { LoadingButton } from './common/LoadingButton';
@@ -185,7 +186,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
                     <span className="text-lg">🏆</span>
-                    Winner: <code className="font-mono">{bounty.winner_wallet.slice(0, 12)}...</code>
+                    Winner: <WalletAddress address={bounty.winner_wallet} startChars={6} endChars={4} />
                   </div>
                   {bounty.payout_tx_hash && (
                     <a

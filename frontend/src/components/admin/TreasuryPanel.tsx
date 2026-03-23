@@ -12,6 +12,7 @@
  */
 import { useTreasuryDashboard } from '../../hooks/useAdminData';
 import type { TreasuryDailyPoint, SpendingByTier, TreasuryTransaction } from '../../types/admin';
+import { WalletAddress } from '../wallet/WalletAddress';
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
@@ -370,16 +371,16 @@ export function TreasuryPanel() {
           </section>
 
           {/* ── Treasury wallet ─────────────────────────────────────── */}
-          <div className="flex items-center gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2 text-xs text-gray-600" data-testid="treasury-wallet-link">
             <span>Treasury wallet:</span>
+            <WalletAddress address={data.treasury_wallet} startChars={6} endChars={6} />
             <a
               href={`https://solscan.io/account/${data.treasury_wallet}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[#9945FF] hover:underline truncate"
-              data-testid="treasury-wallet-link"
+              className="text-[#9945FF] hover:underline text-xs"
             >
-              {data.treasury_wallet}
+              Solscan ↗
             </a>
           </div>
 

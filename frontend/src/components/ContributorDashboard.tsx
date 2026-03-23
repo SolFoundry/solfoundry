@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
+import { WalletAddress } from './wallet/WalletAddress';
 import {
   Skeleton,
   SkeletonStatCard,
@@ -583,10 +584,8 @@ function SettingsSection({
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
           <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Wallet</h4>
           <div className="py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
-            <p className="text-xs text-gray-600 dark:text-gray-400">Connected Wallet</p>
-            <p className="text-sm text-solana-green font-mono mt-1">
-              {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
-            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Connected Wallet</p>
+            <WalletAddress address={walletAddress} startChars={8} endChars={8} />
           </div>
         </div>
       )}

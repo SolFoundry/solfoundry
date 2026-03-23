@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './common/Modal';
 import { SolFoundryLogoMark } from './common/SolFoundryLogoMark';
+import { WalletAddress } from './wallet/WalletAddress';
 
 interface OnboardingWizardProps {
     isOpen: boolean;
@@ -122,9 +123,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, on
                                         </svg>
                                     </div>
                                     <p className="text-sm font-bold text-green-400 mb-1">Wallet Connected</p>
-                                    <code className="text-xs text-green-500/80 font-mono break-all px-4 block">
-                                        {walletAddress}
-                                    </code>
+                                    <div className="flex justify-center">
+                                        <WalletAddress address={walletAddress} startChars={8} endChars={8} />
+                                    </div>
                                 </div>
                             ) : (
                                 <button
