@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreatorBountyCard } from './bounties/CreatorBountyCard';
 import { Skeleton, SkeletonStatCard, SkeletonCard } from './common/Skeleton';
+import { Tooltip } from './common/Tooltip';
 
 interface CreatorDashboardProps {
     userId?: string;
@@ -157,15 +158,36 @@ export function CreatorDashboard({
                 {/* Escrow Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-green shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Escrowed (Active)</p>
+                        <Tooltip content="Total $FNDRY currently locked in escrow across all your active bounties." placement="top">
+                          <p className="text-gray-600 dark:text-gray-400 text-sm flex items-center gap-1 cursor-default">
+                            Total Escrowed (Active)
+                            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.staked)} <span className="text-solana-green text-lg">$FNDRY</span></p>
                     </div>
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-solana-purple shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Paid Out</p>
+                        <Tooltip content="Total $FNDRY paid out from escrow to contributors for completed bounties." placement="top">
+                          <p className="text-gray-600 dark:text-gray-400 text-sm flex items-center gap-1 cursor-default">
+                            Total Paid Out
+                            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.paid)} <span className="text-solana-purple text-lg">$FNDRY</span></p>
                     </div>
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-gray-500 shadow-sm dark:shadow-none">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">Total Refunded</p>
+                        <Tooltip content="$FNDRY returned to you from cancelled or expired bounties that were never completed." placement="top">
+                          <p className="text-gray-600 dark:text-gray-400 text-sm flex items-center gap-1 cursor-default">
+                            Total Refunded
+                            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </p>
+                        </Tooltip>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.refunded)} <span className="text-gray-600 dark:text-gray-400 text-lg">$FNDRY</span></p>
                     </div>
                 </div>

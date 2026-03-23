@@ -42,3 +42,5 @@ export { MarkdownRenderer } from './MarkdownRenderer';
 export type { MarkdownRendererProps } from './MarkdownRenderer';
 export { SolFoundryLogoMark } from './SolFoundryLogoMark';
 export type { SolFoundryLogoMarkProps, SolFoundryLogoMarkSize } from './SolFoundryLogoMark';
+export { Tooltip } from './Tooltip';
+export type { TooltipProps, TooltipPlacement } from './Tooltip';
