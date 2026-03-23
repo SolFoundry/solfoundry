@@ -3,10 +3,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-fndry_staking = "Stak1111111111111111111111111111111111111111"
+fndry_staking = "Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET"
 
 [programs.devnet]
-fndry_staking = "Stak1111111111111111111111111111111111111111"
+fndry_staking = "Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET"
 
 [registry]
 url = "https://api.apr.dev"

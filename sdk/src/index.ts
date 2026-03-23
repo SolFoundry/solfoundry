@@ -144,6 +144,22 @@ export type {
   ApiErrorResponse,
 } from './types.js';
 
+// Program clients (on-chain Anchor program interaction)
+export {
+  BaseClient,
+  BountyRegistryClient,
+  StakingClient,
+  EscrowProgramClient,
+  ReputationClient,
+  TreasuryClient,
+} from './programs/index.js';
+export type {
+  ProgramClientConfig,
+  EscrowProgramClientConfig,
+  ReputationClientConfig,
+  TreasuryClientConfig,
+} from './programs/index.js';
+
 // ---------------------------------------------------------------------------
 // Convenience factory
 // ---------------------------------------------------------------------------

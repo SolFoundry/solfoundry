@@ -39,7 +39,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("Stak1111111111111111111111111111111111111111");
+declare_id!("Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET");
 
 /// The FNDRY staking program.
 ///
