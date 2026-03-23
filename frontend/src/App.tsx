@@ -14,55 +14,10 @@ import { queryClient } from './services/queryClient';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
 import { SolFoundryLogoMark } from './components/common/SolFoundryLogoMark';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
-/** Catches render errors with retry. */
-/**
- * Catches render errors in any descendant component tree.
- * Displays error details with a retry button and a fallback link home.
- */
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { error: Error | null }
-> {
-  state = { error: null as Error | null };
+// ErrorBoundary is imported from ./components/ErrorBoundary
 
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack);
-  }
-
-  render() {
-    const { error } = this.state;
-    if (!error) return this.props.children;
-    return (
-      <div
-        className="flex flex-col items-center justify-center min-h-[40vh] gap-4 p-8"
-        role="alert"
-      >
-        <p className="text-lg font-semibold text-gray-900 dark:text-white">Something went wrong</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-md">
-          {error.message}
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => this.setState({ error: null })}
-            className="px-4 py-2 rounded-lg bg-solana-purple/20 text-solana-purple hover:bg-solana-purple/30 text-sm"
-          >
-            Try again
-          </button>
-          <a
-            href="/bounties"
-            className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200 text-sm dark:border-transparent dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    );
-  }
 }
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────

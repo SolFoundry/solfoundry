@@ -20,9 +20,9 @@ describe('NotFoundPage', () => {
     expect(screen.getByText('404')).toBeTruthy();
   });
 
-  it('renders the "Page not found" heading', () => {
+  it('renders the custom 404 heading with anvil branding', () => {
     renderWithRouter(<NotFoundPage />);
-    expect(screen.getByRole('heading', { name: /page not found/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /bounty not found/i })).toBeTruthy();
   });
 
   it('renders the SolFoundry branding', () => {
@@ -32,6 +32,13 @@ describe('NotFoundPage', () => {
     expect(mark).toHaveAttribute('src', '/logo-icon.svg');
   });
 
+  it('renders a "Browse open bounties" primary link pointing to /bounties', () => {
+    renderWithRouter(<NotFoundPage />);
+    const bountiesLink = screen.getByRole('link', { name: /browse open bounties/i });
+    expect(bountiesLink).toBeTruthy();
+    expect(bountiesLink.getAttribute('href')).toBe('/bounties');
+  });
+
   it('renders a "Back to Home" link pointing to /', () => {
     renderWithRouter(<NotFoundPage />);
     const homeLink = screen.getByRole('link', { name: /back to home/i });
@@ -39,15 +46,15 @@ describe('NotFoundPage', () => {
     expect(homeLink.getAttribute('href')).toBe('/');
   });
 
-  it('renders a "Browse open bounties" link pointing to /bounties', () => {
+  it('renders a witty description message', () => {
     renderWithRouter(<NotFoundPage />);
-    const bountiesLink = screen.getByRole('link', { name: /browse open bounties/i });
-    expect(bountiesLink).toBeTruthy();
-    expect(bountiesLink.getAttribute('href')).toBe('/bounties');
+    expect(screen.getByText(/fell off the anvil/i)).toBeTruthy();
   });
 
-  it('renders a description message', () => {
-    renderWithRouter(<NotFoundPage />);
-    expect(screen.getByText(/doesn.*t exist or has been moved/i)).toBeTruthy();
+  it('renders the animated anvil illustration (aria-hidden)', () => {
+    const { container } = renderWithRouter(<NotFoundPage />);
+    // The animation container is aria-hidden (decorative)
+    const hidden = container.querySelector('[aria-hidden="true"]');
+    expect(hidden).toBeTruthy();
   });
 });
