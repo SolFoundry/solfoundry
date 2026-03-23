@@ -50,9 +50,9 @@ def auth_headers(client):
         async with async_session_factory() as session:
             user = User(
                 id=user_uuid,
-                github_id="test_github_123",
-                username="testuser",
-                email="test@example.com",
+                github_id=f"test_github_{user_id[:8]}",
+                username=f"testuser_{user_id[:8]}",
+                email=f"test_{user_id[:8]}@example.com",
                 avatar_url="https://example.com/avatar.png",
             )
             session.add(user)

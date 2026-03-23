@@ -41,6 +41,7 @@ class BountyTable(Base):
     category = Column(String(50), nullable=True)
     creator_type = Column(String(20), nullable=False, server_default="platform")
     github_issue_url = Column(String(512), nullable=True)
+    github_issue_number = Column(Integer, nullable=True)
     skills = Column(JSON, nullable=False, default=list)
     deadline = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(String(100), nullable=False, server_default="system")
@@ -60,6 +61,15 @@ class BountyTable(Base):
     search_vector = Column(
         Text, nullable=True
     )  # Fallback for SQLite; TSVECTOR is PG-only
+
+    @property
+    def required_skills(self):
+        """Alias for skills to maintain compatibility with Pydantic models."""
+        return self.skills
+
+    @required_skills.setter
+    def required_skills(self, value):
+        self.skills = value
 
     __table_args__ = (
         Index("ix_bounties_search_vector", search_vector),

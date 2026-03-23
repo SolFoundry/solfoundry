@@ -34,6 +34,7 @@ from app.services.bounty_service import _bounty_store
 from app.services.contributor_service import _store as _contributor_store
 from app.models.bounty import BountyStatus, BountyCreate, VALID_STATUS_TRANSITIONS
 from app.constants import START_TIME
+from app.services.treasury_service import get_treasury_stats
 
 # ---------------------------------------------------------------------------
 # Configuration — captured at import time so tests can patch at the module level
@@ -1110,7 +1111,7 @@ async def get_treasury_dashboard(
     Returns live balances, 30-day daily outflow chart, burn-rate projections,
     per-tier spending breakdown, and the 20 most recent transactions.
     """
-    from app.services.treasury_service import get_treasury_stats
+    # Recent 20 transactions
     from app.services.payout_service import (
         _payout_store,
         _buyback_store,
