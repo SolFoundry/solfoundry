@@ -16,7 +16,7 @@ from app.database import Base, get_db
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost/solfoundry_test",
+    os.getenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test"),
 )
 
 WEBHOOK_SECRET = "test_secret"

@@ -91,7 +91,7 @@ jobs:
         run: pytest tests/ -v --tb=short --ignore=tests/e2e/ --cov=app --cov-report=xml --cov-report=term-missing
         env:
           PYTHONPATH: .
-          DATABASE_URL: sqlite+aiosqlite:///./test_unit.db
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 
@@ -100,7 +100,7 @@ jobs:
         run: pytest tests/e2e/ -v --tb=short
         env:
           PYTHONPATH: .
-          DATABASE_URL: sqlite+aiosqlite:///./test_e2e.db
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 
