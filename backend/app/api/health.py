@@ -283,4 +283,3 @@ async def health_check() -> dict:
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "services": services,
     }
-
