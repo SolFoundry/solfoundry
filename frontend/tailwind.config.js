@@ -11,6 +11,7 @@ export default {
       animation: {
         'shimmer': 'shimmer 2s linear infinite',
         'feed-in': 'feed-in 0.3s ease-out forwards',
+        'tooltip-fade-in': 'tooltip-fade-in 0.15s ease-out forwards',
       },
       keyframes: {
         shimmer: {
@@ -20,6 +21,10 @@ export default {
         'feed-in': {
           '0%': { opacity: '0', transform: 'translateY(-8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'tooltip-fade-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
         'toast-progress': {
           '0%': { width: '100%' },
