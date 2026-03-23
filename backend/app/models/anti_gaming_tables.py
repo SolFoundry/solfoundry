@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, Integer, String, Text, Index
+from sqlalchemy import Column, DateTime, String, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
