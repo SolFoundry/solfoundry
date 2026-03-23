@@ -241,11 +241,24 @@ interface SummaryCardProps {
   icon: React.ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
+  tooltip?: string;
 }
 
-function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryCardProps) {
+function SummaryCard({ label, value, suffix, icon, trend, trendValue, tooltip }: SummaryCardProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipId = tooltip ? `tooltip-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined;
+
   return (
-    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none">
+    <div
+      className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none relative"
+      onMouseEnter={() => tooltip && setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onFocus={() => tooltip && setShowTooltip(true)}
+      onBlur={() => setShowTooltip(false)}
+      onKeyDown={(e) => e.key === 'Escape' && setShowTooltip(false)}
+      tabIndex={tooltip ? 0 : undefined}
+      aria-describedby={showTooltip ? tooltipId : undefined}
+    >
       <div className="flex items-center justify-between mb-3">
         <span className="text-gray-600 dark:text-gray-400 text-sm">{label}</span>
         <div className="w-10 h-10 rounded-lg bg-solana-green/10 flex items-center justify-center">
@@ -261,6 +274,16 @@ function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryC
           {trend === 'up' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>}
           {trend === 'down' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>}
           {trendValue}
+        </div>
+      )}
+      {showTooltip && tooltip && (
+        <div
+          id={tooltipId}
+          role="tooltip"
+          className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg whitespace-nowrap pointer-events-none"
+        >
+          {tooltip}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900 dark:border-t-gray-700" />
         </div>
       )}
     </div>
@@ -793,6 +816,7 @@ export function ContributorDashboard({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <SummaryCard
                 label="Total Earned"
+                tooltip="Total $FNDRY tokens earned from completed bounties"
                 value={formatNumber(stats.totalEarned)}
                 suffix="$FNDRY"
                 trend="up"
@@ -805,6 +829,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Active Bounties"
+                tooltip="Bounties currently in progress or claimed by you"
                 value={stats.activeBounties}
                 icon={
                   <svg className="w-5 h-5 text-solana-purple" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -814,6 +839,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Pending Payouts"
+                tooltip="Approved bounties awaiting on-chain payout to your wallet"
                 value={formatNumber(stats.pendingPayouts)}
                 suffix="$FNDRY"
                 icon={
@@ -824,6 +850,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Reputation Rank"
+                tooltip="Your rank among all contributors based on on-chain reputation score"
                 value={`#${stats.reputationRank}`}
                 suffix={`of ${stats.totalContributors}`}
                 trend="up"
