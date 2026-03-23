@@ -15,7 +15,9 @@ concurrency:
 env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
-  RUST_VERSION: '1.76'
+  # 1.85+ required for dependencies pulled by tooling (e.g. edition2024); matches Anchor/SBF-friendly toolchains
+  RUST_VERSION: '1.85'
+  ANCHOR_VERSION: '0.30.0'
 
 jobs:
   # ==================== BACKEND (Python/FastAPI) ====================
@@ -227,9 +229,9 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
-      - name: Install Anchor
+      - name: Install Anchor CLI
         if: steps.check.outputs.has_anchor == 'true'
-        run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
 
       - name: Build Anchor Program
         if: steps.check.outputs.has_anchor == 'true'

@@ -72,10 +72,17 @@ jobs:
           key: solana-${{ runner.os }}-v${{ env.SOLANA_VERSION }}
 
       - name: Install Solana CLI
-        run: sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
-
-      - name: Add Solana to PATH
-        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          if [ ! -x "$SOLANA_BIN/solana" ]; then
+            echo "::error::Expected solana at $SOLANA_BIN/solana (install or cache layout may be wrong)"
+            ls -la "$HOME/.local/share/solana/install" 2>/dev/null || true
+            exit 1
+          fi
+          echo "$SOLANA_BIN" >> "$GITHUB_PATH"
+          echo "PATH=${SOLANA_BIN}:${PATH}" >> "$GITHUB_ENV"
+          "$SOLANA_BIN/solana" --version
 
       - name: Install Anchor CLI
         run: |
@@ -136,10 +143,17 @@ jobs:
           key: solana-${{ runner.os }}-v${{ env.SOLANA_VERSION }}
 
       - name: Install Solana CLI
-        run: sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
-
-      - name: Add Solana to PATH
-        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          if [ ! -x "$SOLANA_BIN/solana" ]; then
+            echo "::error::Expected solana at $SOLANA_BIN/solana (install or cache layout may be wrong)"
+            ls -la "$HOME/.local/share/solana/install" 2>/dev/null || true
+            exit 1
+          fi
+          echo "$SOLANA_BIN" >> "$GITHUB_PATH"
+          echo "PATH=${SOLANA_BIN}:${PATH}" >> "$GITHUB_ENV"
+          "$SOLANA_BIN/solana" --version
 
       - name: Install Anchor CLI
         run: |
