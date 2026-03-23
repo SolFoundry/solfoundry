@@ -65,6 +65,7 @@ MAX_TRACKED_CLIENTS: int = int(os.getenv("RATE_LIMIT_MAX_CLIENTS", "10000"))
 # Paths exempt from rate limiting
 EXEMPT_PATHS: tuple[str, ...] = (
     "/health",
+    "/metrics",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -454,7 +455,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply Redis-backed token bucket rate limiting."""
         # Skip health check and websockets (handled separately or not limited)
-        if request.url.path == "/health" or request.scope.get("type") == "websocket":
+        if request.url.path in ("/health", "/metrics") or request.scope.get(
+            "type"
+        ) == "websocket":
             return await call_next(request)
 
         group_name = _get_group(request.url.path)

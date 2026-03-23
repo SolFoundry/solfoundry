@@ -27,6 +27,7 @@ References:
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -37,6 +38,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.logging_config import setup_logging
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.api.health import router as health_router
+from app.api.metrics import router as metrics_router
 from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
@@ -56,6 +58,7 @@ from app.api.contributor_webhooks import router as contributor_webhooks_router
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets
+from app.services.observability_metrics import periodic_refresh
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
 from app.services.github_sync import sync_all, periodic_sync
@@ -156,6 +159,14 @@ async def lifespan(app: FastAPI):
         periodic_escrow_refund(interval_seconds=60)
     )
 
+    obs_task = None
+    if os.getenv("OBSERVABILITY_ENABLE_BACKGROUND", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        obs_task = asyncio.create_task(periodic_refresh())
+
     yield
 
     # Shutdown: Cancel background tasks, close connections, then database
@@ -163,6 +174,12 @@ async def lifespan(app: FastAPI):
     auto_approve_task.cancel()
     deadline_task.cancel()
     escrow_refund_task.cancel()
+    if obs_task is not None:
+        obs_task.cancel()
+        try:
+            await obs_task
+        except asyncio.CancelledError:
+            pass
     try:
         await sync_task
     except asyncio.CancelledError:
@@ -393,8 +410,9 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(og_router)
 app.include_router(contributor_webhooks_router, prefix="/api")
 
-# System Health: /health
+# System Health: /health, Prometheus: /metrics
 app.include_router(health_router)
+app.include_router(metrics_router)
 
 # Admin Dashboard: /api/admin/* (protected by ADMIN_API_KEY)
 app.include_router(admin_router)

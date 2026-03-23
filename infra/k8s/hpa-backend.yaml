@@ -1,0 +1,28 @@
+# HorizontalPodAutoscaler for the API Deployment used in .github/workflows/deploy.yml.
+# Apply after metrics-server is installed on the cluster:
+#   kubectl apply -f infra/k8s/hpa-backend.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: solfoundry-backend
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: solfoundry-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

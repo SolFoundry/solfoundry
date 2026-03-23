@@ -205,6 +205,9 @@ jobs:
         working-directory: ${{ env.ANCHOR_WORKSPACE }}
         run: anchor keys list
 
+      - name: Verify programs on-chain
+        run: bash scripts/verify-devnet-programs.sh
+
       - name: Clean up keypair
         if: always()
         run: |
