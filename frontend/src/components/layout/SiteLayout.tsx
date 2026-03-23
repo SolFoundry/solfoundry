@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '../OnboardingWizard';
 import { SolFoundryLogoMark } from '../common/SolFoundryLogoMark';
+import { LoadingButton } from '../common/LoadingButton';
 import { ThemeToggle, SimpleThemeToggle } from './ThemeToggle';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ScrollToTop } from './ScrollToTop';
@@ -22,6 +23,8 @@ export interface SiteLayoutProps {
   walletAddress?: string | null;
   onConnectWallet?: () => void;
   onDisconnectWallet?: () => void;
+  /** Pass true while the wallet adapter is connecting to show a spinner on the button. */
+  isConnecting?: boolean;
   avatarUrl?: string;
   userName?: string;
 }
@@ -60,6 +63,7 @@ export function SiteLayout({
   walletAddress,
   onConnectWallet,
   onDisconnectWallet,
+  isConnecting,
   avatarUrl,
   userName,
 }: SiteLayoutProps) {
@@ -127,6 +131,7 @@ export function SiteLayout({
         currentPath={currentPath}
         walletAddress={walletAddress}
         onConnectWallet={onConnectWallet}
+        isConnecting={isConnecting}
         scrolled={scrolled}
         mobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -190,6 +195,7 @@ interface HeaderProps {
   currentPath: string;
   walletAddress?: string | null;
   onConnectWallet?: () => void;
+  isConnecting?: boolean;
   scrolled: boolean;
   mobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
@@ -207,6 +213,7 @@ function Header({
   currentPath,
   walletAddress,
   onConnectWallet,
+  isConnecting,
   scrolled,
   mobileMenuOpen,
   onToggleMobileMenu,
@@ -324,17 +331,19 @@ function Header({
               )}
             </div>
           ) : (
-            <button
-              type="button"
+            <LoadingButton
               onClick={onConnectWallet}
-              className="flex min-h-11 items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-solana-purple to-solana-green
-                       text-white text-base font-medium hover:opacity-90 transition-opacity shadow-lg shadow-solana-purple/20"
+              isLoading={isConnecting}
+              loadingText="Connecting..."
+              className="min-h-11 gap-2 px-4 py-2 bg-gradient-to-r from-solana-purple to-solana-green hover:opacity-90 shadow-lg shadow-solana-purple/20"
+              icon={
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+                </svg>
+              }
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
-              </svg>
-              <span>Connect Wallet</span>
-            </button>
+              Connect Wallet
+            </LoadingButton>
           )}
 
           {/* Mobile Menu Toggle */}
