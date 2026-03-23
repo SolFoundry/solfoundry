@@ -1,0 +1,220 @@
+/**
+ * Bounty List Component Styles
+ * SolFoundry Bounty #482
+ */
+
+.bounty-list {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.bounty-list__count {
+  font-size: 14px;
+  color: #718096;
+  margin-bottom: 16px;
+  padding: 0 8px;
+}
+
+.bounty-list__items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Bounty Item */
+.bounty-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.bounty-item:hover {
+  border-color: #4299e1;
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.15);
+  transform: translateY(-2px);
+}
+
+.bounty-item:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+
+.bounty-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bounty-item__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.bounty-item__tier {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bounty-item__tier--t1 {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.bounty-item__tier--t2 {
+  background: #feebc8;
+  color: #744210;
+}
+
+.bounty-item__tier--t3 {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.bounty-item__description {
+  font-size: 14px;
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+.bounty-item__footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bounty-item__reward {
+  font-size: 16px;
+  font-weight: 700;
+  color: #38a169;
+}
+
+.bounty-item__status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.bounty-item__status--open {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.bounty-item__status--claimed {
+  background: #bee3f8;
+  color: #2a4365;
+}
+
+.bounty-item__status--closed {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.bounty-item__date {
+  font-size: 13px;
+  color: #718096;
+}
+
+/* Loading State */
+.bounty-list--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.bounty-list__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #4299e1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bounty-list__message {
+  margin-top: 16px;
+  color: #718096;
+  font-size: 14px;
+}
+
+/* Error State */
+.bounty-list--error {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.bounty-list__error {
+  color: #e53e3e;
+  font-size: 14px;
+}
+
+/* Empty State */
+.bounty-list--empty {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .bounty-item__header {
+    flex-direction: column;
+  }
+
+  .bounty-item__tier {
+    align-self: flex-start;
+  }
+
+  .bounty-item__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .bounty-item {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+
+  .bounty-item__title {
+    color: #e2e8f0;
+  }
+
+  .bounty-item__description {
+    color: #a0aec0;
+  }
+
+  .bounty-list__count {
+    color: #a0aec0;
+  }
+}

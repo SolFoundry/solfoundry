@@ -1,0 +1,180 @@
+/**
+ * @fileoverview Bounty Sort Component Styles
+ * @module components/BountySort
+ * 
+ * Responsive styles with dark mode and accessibility support
+ */
+
+/* Main container */
+.bounty-sort {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Label */
+.sort-label {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Wrapper for select + icon */
+.sort-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Select dropdown */
+.sort-select {
+  padding: 10px 40px 10px 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #2d3748;
+  cursor: pointer;
+  min-width: 180px;
+  transition: all 0.2s ease;
+  appearance: none;
+  
+  /* Custom arrow icon */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 32px center;
+}
+
+/* Hover state */
+.sort-select:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Focus state - visible focus indicator for accessibility */
+.sort-select:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.25);
+}
+
+/* Active state */
+.sort-select:active {
+  border-color: #3182ce;
+}
+
+/* Disabled state */
+.sort-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Sort direction icon */
+.sort-icon {
+  position: absolute;
+  right: 12px;
+  font-size: 14px;
+  color: #718096;
+  pointer-events: none;
+  font-weight: bold;
+}
+
+/* Visually hidden element for screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==================== Responsive ==================== */
+
+@media (max-width: 480px) {
+  .bounty-sort {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sort-select {
+    width: 100%;
+  }
+}
+
+/* ==================== Dark Mode ==================== */
+
+@media (prefers-color-scheme: dark) {
+  .bounty-sort {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  }
+
+  .sort-label {
+    color: #e2e8f0;
+  }
+
+  .sort-select {
+    background: #4a5568;
+    border-color: #4a5568;
+    color: #e2e8f0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e2e8f0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  }
+
+  .sort-select:hover {
+    background: #4a5568;
+    border-color: #718096;
+  }
+
+  .sort-select:focus {
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.25);
+  }
+
+  .sort-icon {
+    color: #a0aec0;
+  }
+}
+
+/* ==================== Reduced Motion ==================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .sort-select {
+    transition: none;
+  }
+}
+
+/* ==================== High Contrast Mode ==================== */
+
+@media (prefers-contrast: high) {
+  .sort-select {
+    border-width: 3px;
+  }
+  
+  .sort-select:focus {
+    box-shadow: 0 0 0 4px rgba(66, 153, 225, 0.5);
+  }
+}
+
+/* ==================== Print Styles ==================== */
+
+@media print {
+  .bounty-sort {
+    background: none;
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+  .sort-icon {
+    display: none;
+  }
+}
