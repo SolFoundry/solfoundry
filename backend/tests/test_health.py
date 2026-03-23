@@ -228,6 +228,7 @@ class TestCheckDatabase:
             result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
+        assert "latency_ms" in result
 
     def test_unexpected_error(self):
         class UnexpectedConn:
@@ -241,6 +242,7 @@ class TestCheckDatabase:
             result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "unexpected_error"
+        assert "latency_ms" in result
 
 
 class TestCheckRedis:
@@ -255,6 +257,7 @@ class TestCheckRedis:
             result = run_async(_check_redis())
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
+        assert "latency_ms" in result
 
     def test_unexpected_error(self):
         """Non-Redis exceptions should also return unavailable with unexpected_error."""
@@ -273,6 +276,7 @@ class TestCheckRedis:
             result = run_async(_check_redis())
         assert result["status"] == "unavailable"
         assert result["error"] == "unexpected_error"
+        assert "latency_ms" in result
 
 
 class TestCheckSolanaRpc:

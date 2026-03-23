@@ -45,11 +45,13 @@ async def _check_database() -> dict:
         latency_ms = round((time.monotonic() - start) * 1000)
         return {"status": "healthy", "latency_ms": latency_ms}
     except SQLAlchemyError as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Health check DB failure: %s", exc)
-        return {"status": "unavailable", "error": "connection_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
     except Exception as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Health check DB failure: %s", exc)
-        return {"status": "unavailable", "error": "unexpected_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "unexpected_error"}
 
 
 async def _check_redis() -> dict:
@@ -63,11 +65,13 @@ async def _check_redis() -> dict:
         latency_ms = round((time.monotonic() - start) * 1000)
         return {"status": "healthy", "latency_ms": latency_ms}
     except RedisError as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Health check Redis failure: %s", exc)
-        return {"status": "unavailable", "error": "connection_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
     except Exception as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Health check Redis failure: %s", exc)
-        return {"status": "unavailable", "error": "unexpected_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "unexpected_error"}
 
 
 async def _check_solana_rpc() -> dict:
