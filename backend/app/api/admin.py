@@ -959,6 +959,234 @@ async def get_system_health_admin(
 
 
 # ---------------------------------------------------------------------------
+# Treasury dashboard
+# ---------------------------------------------------------------------------
+
+
+class TreasuryDailyPoint(BaseModel):
+    date: str  # YYYY-MM-DD
+    outflow: float = 0.0
+    inflow: float = 0.0
+
+
+class TreasuryTransaction(BaseModel):
+    id: str
+    type: str  # "payout" or "buyback"
+    amount: float
+    token: str
+    recipient: Optional[str] = None
+    description: Optional[str] = None
+    tx_hash: Optional[str] = None
+    solscan_url: Optional[str] = None
+    status: str
+    created_at: str
+
+
+class SpendingByTier(BaseModel):
+    tier: int
+    label: str
+    total_fndry: float
+    count: int
+
+
+class BurnRateProjection(BaseModel):
+    daily_avg_7d: float
+    daily_avg_30d: float
+    daily_avg_90d: float
+    runway_days_7d: Optional[float] = None
+    runway_days_30d: Optional[float] = None
+
+
+class TreasuryDashboardResponse(BaseModel):
+    # Live balances
+    sol_balance: float
+    fndry_balance: float
+    treasury_wallet: str
+    total_paid_out_fndry: float
+    total_paid_out_sol: float
+    total_payouts: int
+    # 30-day daily chart data
+    daily_points: List[TreasuryDailyPoint]
+    # Burn rate / runway
+    burn_rate: BurnRateProjection
+    # Spending by tier
+    spending_by_tier: List[SpendingByTier]
+    # Recent 20 transactions
+    recent_transactions: List[TreasuryTransaction]
+    last_updated: str
+
+
+def _build_daily_points(payouts: list, days: int = 30) -> List[TreasuryDailyPoint]:
+    """Aggregate confirmed/paid payout amounts by day for the last `days` days."""
+    from datetime import timedelta
+
+    today = datetime.now(timezone.utc).date()
+    buckets: Dict[str, float] = {
+        str(today - timedelta(days=i)): 0.0 for i in range(days - 1, -1, -1)
+    }
+    for p in payouts:
+        created = getattr(p, "created_at", None)
+        if created is None:
+            continue
+        if isinstance(created, str):
+            try:
+                created = datetime.fromisoformat(created)
+            except ValueError:
+                continue
+        day_str = str(created.date() if hasattr(created, "date") else created)
+        if day_str in buckets:
+            buckets[day_str] += float(getattr(p, "amount", 0.0))
+    return [TreasuryDailyPoint(date=d, outflow=v) for d, v in buckets.items()]
+
+
+def _burn_rate(
+    daily_points: List[TreasuryDailyPoint], fndry_balance: float
+) -> BurnRateProjection:
+    """Compute avg daily burn from daily points over 7/30/90-day windows and runway."""
+    values = [p.outflow for p in daily_points]
+
+    def avg(window: int) -> float:
+        slice_ = values[-window:] if len(values) >= window else values
+        return sum(slice_) / max(len(slice_), 1)
+
+    d7 = avg(7)
+    d30 = avg(30)
+    d90 = avg(90)
+
+    def runway(rate: float) -> Optional[float]:
+        if rate <= 0:
+            return None
+        return round(fndry_balance / rate, 1)
+
+    return BurnRateProjection(
+        daily_avg_7d=round(d7, 2),
+        daily_avg_30d=round(d30, 2),
+        daily_avg_90d=round(d90, 2),
+        runway_days_7d=runway(d7),
+        runway_days_30d=runway(d30),
+    )
+
+
+def _spending_by_tier(bounties: list) -> List[SpendingByTier]:
+    """Aggregate paid bounty amounts by tier."""
+    tier_labels = {1: "T1 — Starter", 2: "T2 — Pro", 3: "T3 — Expert"}
+    buckets: Dict[int, Dict[str, Any]] = {
+        1: {"total": 0.0, "count": 0},
+        2: {"total": 0.0, "count": 0},
+        3: {"total": 0.0, "count": 0},
+    }
+    for b in bounties:
+        if b.status != BountyStatus.PAID:
+            continue
+        tier_val = getattr(b, "tier", 2)
+        try:
+            tier_int = int(tier_val)
+        except (TypeError, ValueError):
+            tier_int = 2
+        if tier_int in buckets:
+            buckets[tier_int]["total"] += float(b.reward_amount)
+            buckets[tier_int]["count"] += 1
+    return [
+        SpendingByTier(
+            tier=t,
+            label=tier_labels.get(t, f"T{t}"),
+            total_fndry=round(data["total"], 2),
+            count=data["count"],
+        )
+        for t, data in sorted(buckets.items())
+    ]
+
+
+@router.get(
+    "/treasury/dashboard",
+    response_model=TreasuryDashboardResponse,
+    summary="Treasury health dashboard",
+)
+async def get_treasury_dashboard(
+    _auth: tuple = Depends(require_any),
+) -> TreasuryDashboardResponse:
+    """Admin-only treasury health dashboard.
+
+    Returns live balances, 30-day daily outflow chart, burn-rate projections,
+    per-tier spending breakdown, and the 20 most recent transactions.
+    """
+    from app.services.treasury_service import get_treasury_stats
+    from app.services.payout_service import (
+        _payout_store,
+        _buyback_store,
+        _lock as _store_lock,
+    )
+    from app.models.payout import PayoutStatus as PS
+
+    # Snapshot stores under the lock to avoid races
+    with _store_lock:
+        all_payouts = list(_payout_store.values())
+        all_buybacks = list(_buyback_store.values())
+
+    treasury = await get_treasury_stats()
+
+    # Confirmed payouts only for burn-rate charts
+    confirmed_payouts = [p for p in all_payouts if p.status in (PS.CONFIRMED,)]
+
+    daily_points = _build_daily_points(confirmed_payouts, days=30)
+    burn_rate = _burn_rate(daily_points, treasury.fndry_balance)
+    spending_by_tier = _spending_by_tier(list(_bounty_store.values()))
+
+    # Recent 20 transactions: merge payouts + buybacks, sort newest-first
+    tx_list: List[TreasuryTransaction] = []
+    for p in all_payouts:
+        tx_list.append(
+            TreasuryTransaction(
+                id=p.id,
+                type="payout",
+                amount=p.amount,
+                token=p.token,
+                recipient=p.recipient,
+                description=p.bounty_title,
+                tx_hash=p.tx_hash,
+                solscan_url=p.solscan_url,
+                status=p.status.value if hasattr(p.status, "value") else str(p.status),
+                created_at=p.created_at.isoformat()
+                if hasattr(p.created_at, "isoformat")
+                else str(p.created_at),
+            )
+        )
+    for b in all_buybacks:
+        tx_list.append(
+            TreasuryTransaction(
+                id=b.id,
+                type="buyback",
+                amount=b.amount_sol,
+                token="SOL",
+                description=f"Buyback — {b.amount_fndry:,.0f} FNDRY acquired",
+                tx_hash=b.tx_hash,
+                solscan_url=b.solscan_url,
+                status="confirmed",
+                created_at=b.created_at.isoformat()
+                if hasattr(b.created_at, "isoformat")
+                else str(b.created_at),
+            )
+        )
+
+    tx_list.sort(key=lambda t: t.created_at, reverse=True)
+    recent_transactions = tx_list[:20]
+
+    return TreasuryDashboardResponse(
+        sol_balance=treasury.sol_balance,
+        fndry_balance=treasury.fndry_balance,
+        treasury_wallet=treasury.treasury_wallet,
+        total_paid_out_fndry=treasury.total_paid_out_fndry,
+        total_paid_out_sol=treasury.total_paid_out_sol,
+        total_payouts=treasury.total_payouts,
+        daily_points=daily_points,
+        burn_rate=burn_rate,
+        spending_by_tier=spending_by_tier,
+        recent_transactions=recent_transactions,
+        last_updated=treasury.last_updated.isoformat(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Audit log (PostgreSQL-backed)
 # ---------------------------------------------------------------------------
 

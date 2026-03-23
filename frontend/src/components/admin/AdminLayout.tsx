@@ -27,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'contributors',  label: 'Contributors'     },
   { id: 'reviews',       label: 'Review Pipeline'  },
   { id: 'financial',     label: 'Financial'        },
+  { id: 'treasury',      label: 'Treasury'         },
   { id: 'health',        label: 'System Health'    },
   { id: 'audit-log',     label: 'Audit Log'        },
 ];
@@ -155,7 +156,7 @@ const WS_EVENT_INVALIDATIONS: Record<string, string[][]> = {
   review_complete:    [['admin', 'reviews']],
   admin_action:       [['admin', 'audit-log']],
   contributor_banned: [['admin', 'contributors'], ['admin', 'overview']],
-  payout_completed:   [['admin', 'financial'], ['admin', 'overview']],
+  payout_completed:   [['admin', 'financial'], ['admin', 'overview'], ['admin', 'treasury']],
 };
 
 export function AdminLayout({ active, onNavigate, children }: Props) {

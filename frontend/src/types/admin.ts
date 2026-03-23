@@ -181,6 +181,58 @@ export interface AuditLogResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Treasury dashboard
+// ---------------------------------------------------------------------------
+
+export interface TreasuryDailyPoint {
+  date: string;   // YYYY-MM-DD
+  outflow: number;
+  inflow: number;
+}
+
+export interface TreasuryTransaction {
+  id: string;
+  type: 'payout' | 'buyback';
+  amount: number;
+  token: string;
+  recipient: string | null;
+  description: string | null;
+  tx_hash: string | null;
+  solscan_url: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface SpendingByTier {
+  tier: number;
+  label: string;
+  total_fndry: number;
+  count: number;
+}
+
+export interface BurnRateProjection {
+  daily_avg_7d: number;
+  daily_avg_30d: number;
+  daily_avg_90d: number;
+  runway_days_7d: number | null;
+  runway_days_30d: number | null;
+}
+
+export interface TreasuryDashboardData {
+  sol_balance: number;
+  fndry_balance: number;
+  treasury_wallet: string;
+  total_paid_out_fndry: number;
+  total_paid_out_sol: number;
+  total_payouts: number;
+  daily_points: TreasuryDailyPoint[];
+  burn_rate: BurnRateProjection;
+  spending_by_tier: SpendingByTier[];
+  recent_transactions: TreasuryTransaction[];
+  last_updated: string;
+}
+
+// ---------------------------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------------------------
 
@@ -191,4 +243,5 @@ export type AdminSection =
   | 'reviews'
   | 'financial'
   | 'health'
-  | 'audit-log';
+  | 'audit-log'
+  | 'treasury';

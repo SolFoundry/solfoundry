@@ -16,6 +16,7 @@ import type {
   PayoutHistoryResponse,
   SystemHealthResponse,
   AuditLogResponse,
+  TreasuryDashboardData,
 } from '../types/admin';
 
 // ---------------------------------------------------------------------------
@@ -246,6 +247,16 @@ export function useContributorHistory(contributorId: string, limit = 50) {
     staleTime: 30_000,
     retry: false,
     enabled: Boolean(contributorId),
+  });
+}
+
+export function useTreasuryDashboard() {
+  return useQuery<TreasuryDashboardData>({
+    queryKey: ['admin', 'treasury', 'dashboard'],
+    queryFn: () => adminFetch<TreasuryDashboardData>('/api/admin/treasury/dashboard'),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    retry: false,
   });
 }
 
