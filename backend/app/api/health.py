@@ -120,7 +120,11 @@ async def _check_solana_rpc() -> dict:
     except Exception as exc:
         latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Solana RPC check failed: %s", exc)
-        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
+        return {
+            "status": "unavailable",
+            "latency_ms": latency_ms,
+            "error": "connection_error",
+        }
 
 
 async def _check_github_api() -> dict:
@@ -195,7 +199,11 @@ async def _check_github_api() -> dict:
     except Exception as exc:
         latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("GitHub API check failed: %s", exc)
-        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
+        return {
+            "status": "unavailable",
+            "latency_ms": latency_ms,
+            "error": "connection_error",
+        }
 
 
 def _overall_status(services: dict) -> str:

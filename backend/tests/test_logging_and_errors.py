@@ -67,8 +67,9 @@ def test_health_check_format():
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] in ["ok", "degraded"]
-    assert "database" in data
+    assert data["status"] in ["healthy", "degraded", "unavailable"]
+    assert "services" in data
+    assert "database" in data["services"]
     assert "version" in data
 
 
