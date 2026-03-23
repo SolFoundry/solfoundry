@@ -465,7 +465,9 @@ class BountySearchParams(BaseModel):
     status: Optional[BountyStatus] = None
     tier: Optional[int] = Field(None, ge=1, le=3)
     skills: list[str] = Field(default_factory=list)
-    skills_logic: str = Field("any", description="Logic for multiple skills: any (OR) or all (AND)")
+    skills_logic: str = Field(
+        "any", description="Logic for multiple skills: any (OR) or all (AND)"
+    )
     category: Optional[str] = None
     creator_type: Optional[str] = Field(
         None, pattern=r"^(platform|community)$", description="platform or community"

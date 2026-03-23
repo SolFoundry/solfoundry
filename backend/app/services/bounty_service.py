@@ -638,7 +638,7 @@ def approve_submission(
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
-    
+
     for sub in bounty.submissions:
         if sub.id == submission_id:
             sub.status = SubmissionStatus.APPROVED
@@ -648,7 +648,7 @@ def approve_submission(
             bounty.updated_at = datetime.now(timezone.utc)
             _bounty_store[bounty_id] = bounty
             return _to_submission_response(sub), None
-            
+
     return None, "Submission not found"
 
 
@@ -659,12 +659,12 @@ def dispute_submission(
     bounty = _bounty_store.get(bounty_id)
     if not bounty:
         return None, "Bounty not found"
-    
+
     for sub in bounty.submissions:
         if sub.id == submission_id:
             sub.status = SubmissionStatus.DISPUTED
             bounty.updated_at = datetime.now(timezone.utc)
             _bounty_store[bounty_id] = bounty
             return _to_submission_response(sub), None
-            
+
     return None, "Submission not found"

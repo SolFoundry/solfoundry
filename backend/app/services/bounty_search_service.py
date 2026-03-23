@@ -95,7 +95,7 @@ async def search_bounties_db(
 
     sort_sql = _SORT_SQL.copy()
     sort_sql["best_match"] = f"{elite_rank} DESC, b.created_at DESC"
-    
+
     sort = sort_sql.get(params.sort, sort_sql["newest"])
     if params.sort == "best_match" and not has_query:
         sort = sort_sql["newest"]
@@ -355,7 +355,11 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
     if params.creator_type:
-        results = [b for b in results if getattr(b, "creator_type", None) == params.creator_type]
+        results = [
+            b
+            for b in results
+            if getattr(b, "creator_type", None) == params.creator_type
+        ]
     if params.creator_id:
         results = [b for b in results if b.created_by == params.creator_id]
     if params.reward_min is not None:

@@ -86,6 +86,7 @@ async def _mock_get_current_user() -> UserResponse:
 
 _test_loop = None
 
+
 def _get_test_loop() -> asyncio.AbstractEventLoop:
     """Return a shared event loop for synchronous async execution."""
     global _test_loop
@@ -94,13 +95,16 @@ def _get_test_loop() -> asyncio.AbstractEventLoop:
         asyncio.set_event_loop(_test_loop)
     return _test_loop
 
+
 # ---------------------------------------------------------------------------
 # Application assembly
 # ---------------------------------------------------------------------------
 
+
 def _create_test_app() -> FastAPI:
     """Create a minimal FastAPI app with all routers for E2E testing."""
     from app.database import engine, Base
+
     # Models... (keeping the imports I added)
     from app.models.notification import NotificationDB  # noqa: F401
     from app.models.user import User  # noqa: F401
@@ -119,11 +123,11 @@ def _create_test_app() -> FastAPI:
     from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
     from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
     from app.models.boost import BountyBoostTable  # noqa: F401
-    
+
     async def _async_init():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    
+
     _get_test_loop().run_until_complete(_async_init())
 
     # get_current_user is already imported at module level
@@ -136,7 +140,7 @@ def _create_test_app() -> FastAPI:
     from app.api.payouts import router as payouts_router
     from app.api.stats import router as stats_router
     from app.api.websocket import router as websocket_router
-    
+
     test_app = FastAPI(
         title="SolFoundry E2E Test",
         description="E2E test application instance",
@@ -164,12 +168,18 @@ def _create_test_app() -> FastAPI:
     async def global_exception_handler(request: Request, exc: Exception):
         return JSONResponse(
             status_code=500,
-            content={"message": "Internal Server Error", "detail": str(exc), "code": "INTERNAL_ERROR"},
+            content={
+                "message": "Internal Server Error",
+                "detail": str(exc),
+                "code": "INTERNAL_ERROR",
+            },
         )
 
     return test_app
 
+
 app = _create_test_app()
+
 
 @pytest.fixture(autouse=True)
 def clear_stores():

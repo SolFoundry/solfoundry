@@ -34,9 +34,15 @@ HSTS_MAX_AGE: int = int(os.getenv("HSTS_MAX_AGE", "31536000"))
 
 # CSP directives
 CSP_DEFAULT_SRC: str = os.getenv("CSP_DEFAULT_SRC", "'self'")
-CSP_SCRIPT_SRC: str = os.getenv("CSP_SCRIPT_SRC", "'self' 'unsafe-inline' 'unsafe-eval'")
-CSP_STYLE_SRC: str = os.getenv("CSP_STYLE_SRC", "'self' 'unsafe-inline' https://fonts.googleapis.com")
-CSP_IMG_SRC: str = os.getenv("CSP_IMG_SRC", "'self' data: https: https://solfoundry.org")
+CSP_SCRIPT_SRC: str = os.getenv(
+    "CSP_SCRIPT_SRC", "'self' 'unsafe-inline' 'unsafe-eval'"
+)
+CSP_STYLE_SRC: str = os.getenv(
+    "CSP_STYLE_SRC", "'self' 'unsafe-inline' https://fonts.googleapis.com"
+)
+CSP_IMG_SRC: str = os.getenv(
+    "CSP_IMG_SRC", "'self' data: https: https://solfoundry.org"
+)
 CSP_CONNECT_SRC: str = os.getenv(
     "CSP_CONNECT_SRC", "'self' https://api.mainnet-beta.solana.com"
 )
@@ -49,6 +55,7 @@ SENSITIVE_PATH_PREFIXES: tuple[str, ...] = (
     "/api/payouts",
     "/api/treasury",
 )
+
 
 def _build_csp_header() -> str:
     directives = [
@@ -66,12 +73,20 @@ def _build_csp_header() -> str:
     ]
     return "; ".join(directives)
 
+
 def _build_permissions_policy() -> str:
     policies = [
-        "camera=()", "microphone=()", "geolocation=()", "payment=()",
-        "usb=()", "magnetometer=()", "gyroscope=()", "accelerometer=()",
+        "camera=()",
+        "microphone=()",
+        "geolocation=()",
+        "payment=()",
+        "usb=()",
+        "magnetometer=()",
+        "gyroscope=()",
+        "accelerometer=()",
     ]
     return ", ".join(policies)
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """OWASP-recommended security headers and request body size enforcement."""
@@ -87,15 +102,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if content_length and int(content_length) > MAX_REQUEST_BODY_SIZE:
             return JSONResponse(
                 status_code=413,
-                content={"detail": "Request body too large", "code": "PAYLOAD_TOO_LARGE"}
+                content={
+                    "detail": "Request body too large",
+                    "code": "PAYLOAD_TOO_LARGE",
+                },
             )
 
         response = await call_next(request)
 
         # Apply Headers
         if ENFORCE_HTTPS:
-            response.headers["Strict-Transport-Security"] = f"max-age={HSTS_MAX_AGE}; includeSubDomains; preload"
-        
+            response.headers["Strict-Transport-Security"] = (
+                f"max-age={HSTS_MAX_AGE}; includeSubDomains; preload"
+            )
+
         response.headers["Content-Security-Policy"] = self.csp_header
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -110,6 +130,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             del response.headers["Server"]
 
         return response
+
 
 # Alias for backward compatibility with existing tests
 SecurityMiddleware = SecurityHeadersMiddleware

@@ -70,9 +70,7 @@ class ContributorWebhookDB(Base):
     last_delivery_status = Column(String(20), nullable=True)  # success | failed
     failure_count = Column(Integer, default=0, nullable=False)
 
-    __table_args__ = (
-        Index("ix_contributor_webhooks_active", "active"),
-    )
+    __table_args__ = (Index("ix_contributor_webhooks_active", "active"),)
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────

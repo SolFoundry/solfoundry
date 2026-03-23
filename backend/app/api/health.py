@@ -30,16 +30,16 @@ router = APIRouter(tags=["health"])
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-REDIS_URL       = os.getenv("REDIS_URL",       "redis://localhost:6379/0")
-SOLANA_RPC_URL  = os.getenv("SOLANA_RPC_URL",  "https://api.mainnet-beta.solana.com")
-GITHUB_API_URL  = os.getenv("GITHUB_API_URL",  "https://api.github.com")
-GITHUB_TOKEN    = os.getenv("GITHUB_TOKEN",    "")  # optional; raises rate-limit ceiling
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+SOLANA_RPC_URL = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")  # optional; raises rate-limit ceiling
 
 # Per-check timeout in seconds. Keep tight to ensure fast failover detection.
-CHECK_TIMEOUT   = 0.20   # 200 ms
+CHECK_TIMEOUT = 0.20  # 200 ms
 
 # Disk partition to monitor (logging / data volume).
-DISK_PARTITION  = os.getenv("HEALTH_DISK_PARTITION", "/")
+DISK_PARTITION = os.getenv("HEALTH_DISK_PARTITION", "/")
 
 # ── Shared Redis client (prevents connection leakage) ────────────────────────
 
@@ -55,6 +55,7 @@ async def _get_redis_client() -> Redis:
 
 # ── Status helpers ───────────────────────────────────────────────────────────
 
+
 def _status(ok: bool, soft_fail: bool = False) -> str:
     """
     Map a boolean result to the unified status vocabulary.
@@ -69,6 +70,7 @@ def _status(ok: bool, soft_fail: bool = False) -> str:
 
 
 # ── Internal service checks ──────────────────────────────────────────────────
+
 
 async def _check_database() -> dict:
     """Verify PostgreSQL reachability via a lightweight SELECT 1."""
@@ -107,6 +109,7 @@ async def _check_redis() -> dict:
 
 
 # ── External infrastructure checks ──────────────────────────────────────────
+
 
 async def _check_solana_rpc() -> dict:
     """
@@ -157,7 +160,10 @@ async def _check_github_api() -> dict:
     Marked "degraded" when remaining requests fall below 10 % of the limit,
     which signals imminent integration downtime for bounty sync jobs.
     """
-    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
     if GITHUB_TOKEN:
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
 
@@ -167,16 +173,16 @@ async def _check_github_api() -> dict:
         response.raise_for_status()
 
         core = response.json().get("resources", {}).get("core", {})
-        limit     = core.get("limit",     0)
+        limit = core.get("limit", 0)
         remaining = core.get("remaining", 0)
-        reset_at  = core.get("reset",     0)
+        reset_at = core.get("reset", 0)
 
         low_quota = limit > 0 and (remaining / limit) < 0.10
 
         return {
             "status": "degraded" if low_quota else "healthy",
             "rate_limit": {
-                "limit":     limit,
+                "limit": limit,
                 "remaining": remaining,
                 "reset_utc": datetime.fromtimestamp(reset_at, tz=timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
@@ -197,6 +203,7 @@ async def _check_github_api() -> dict:
 
 # ── System telemetry (sync, wrapped for gather) ──────────────────────────────
 
+
 def _collect_system_telemetry() -> dict:
     """
     Collect CPU, memory, and disk telemetry via psutil.
@@ -210,7 +217,7 @@ def _collect_system_telemetry() -> dict:
     # Memory
     mem = psutil.virtual_memory()
     memory = {
-        "total_mb":     round(mem.total     / 1_048_576, 1),
+        "total_mb": round(mem.total / 1_048_576, 1),
         "available_mb": round(mem.available / 1_048_576, 1),
         "used_percent": mem.percent,
     }
@@ -219,18 +226,18 @@ def _collect_system_telemetry() -> dict:
     try:
         disk = psutil.disk_usage(DISK_PARTITION)
         disk_info = {
-            "partition":    DISK_PARTITION,
-            "total_gb":     round(disk.total / 1_073_741_824, 2),
-            "free_gb":      round(disk.free  / 1_073_741_824, 2),
+            "partition": DISK_PARTITION,
+            "total_gb": round(disk.total / 1_073_741_824, 2),
+            "free_gb": round(disk.free / 1_073_741_824, 2),
             "used_percent": disk.percent,
         }
     except (PermissionError, FileNotFoundError) as exc:
         disk_info = {"error": str(exc)}
 
     return {
-        "cpu_percent":  cpu_percent,
-        "memory":       memory,
-        "disk":         disk_info,
+        "cpu_percent": cpu_percent,
+        "memory": memory,
+        "disk": disk_info,
     }
 
 
@@ -241,6 +248,7 @@ async def _check_system() -> dict:
 
 
 # ── Route ────────────────────────────────────────────────────────────────────
+
 
 @router.get("/health", summary="Comprehensive service health check")
 async def health_check() -> JSONResponse:
@@ -253,21 +261,24 @@ async def health_check() -> JSONResponse:
     HTTP 200 → all core services healthy.
     HTTP 503 → one or more core services unavailable or degraded.
     """
-    db_result, redis_result, solana_result, github_result, system_telemetry = (
-        await asyncio.gather(
-            _check_database(),
-            _check_redis(),
-            _check_solana_rpc(),
-            _check_github_api(),
-            _check_system(),
-            return_exceptions=False,
-        )
+    (
+        db_result,
+        redis_result,
+        solana_result,
+        github_result,
+        system_telemetry,
+    ) = await asyncio.gather(
+        _check_database(),
+        _check_redis(),
+        _check_solana_rpc(),
+        _check_github_api(),
+        _check_system(),
+        return_exceptions=False,
     )
 
     # Core services (PostgreSQL + Redis) determine the top-level status code.
     core_healthy = (
-        db_result["status"]    == "healthy"
-        and redis_result["status"] == "healthy"
+        db_result["status"] == "healthy" and redis_result["status"] == "healthy"
     )
 
     # Overall status reflects the worst state across ALL services.
@@ -285,13 +296,13 @@ async def health_check() -> JSONResponse:
         overall_status = "healthy"
 
     body = {
-        "status":         overall_status,
-        "version":        VERSION,
+        "status": overall_status,
+        "version": VERSION,
         "uptime_seconds": round(time.monotonic() - START_TIME),
-        "timestamp":      datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "services": {
-            "database":   db_result,
-            "redis":      redis_result,
+            "database": db_result,
+            "redis": redis_result,
             "solana_rpc": solana_result,
             "github_api": github_result,
         },

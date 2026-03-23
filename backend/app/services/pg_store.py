@@ -12,6 +12,7 @@ from app.database import get_db_session
 
 log = logging.getLogger(__name__)
 
+
 def _to_uuid(val: Any) -> Any:
     if isinstance(val, _uuid.UUID):
         return val
@@ -20,7 +21,10 @@ def _to_uuid(val: Any) -> Any:
     except (ValueError, AttributeError):
         return val
 
-async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
+
+async def _upsert(
+    session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any
+) -> None:
     """Insert or update a row using merge (session-level upsert)."""
     pk_value = _to_uuid(pk_value)
     obj = await session.get(model_cls, pk_value)
@@ -31,16 +35,21 @@ async def _upsert(session: AsyncSession, model_cls: type, pk_value: Any, **colum
         for key, value in columns.items():
             setattr(obj, key, value)
 
-async def _insert_if_absent(session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any) -> None:
+
+async def _insert_if_absent(
+    session: AsyncSession, model_cls: type, pk_value: Any, **columns: Any
+) -> None:
     """Insert a row only if its primary key does not already exist."""
     pk_value = _to_uuid(pk_value)
     existing = await session.get(model_cls, pk_value)
     if existing is None:
         session.add(model_cls(id=pk_value, **columns))
 
+
 # ---------------------------------------------------------------------------
 # Bounty persistence
 # ---------------------------------------------------------------------------
+
 
 async def persist_bounty(bounty: Any) -> None:
     """Persist a bounty to PostgreSQL, inserting or updating as needed."""
@@ -48,7 +57,7 @@ async def persist_bounty(bounty: Any) -> None:
 
     tier = bounty.tier.value if hasattr(bounty.tier, "value") else bounty.tier
     status = bounty.status.value if hasattr(bounty.status, "value") else bounty.status
-    
+
     async with get_db_session() as session:
         await _upsert(
             session,
@@ -75,7 +84,10 @@ async def persist_bounty(bounty: Any) -> None:
             await _persist_bounty_submission(session, bounty.id, sub)
         await session.commit()
 
-async def _persist_bounty_submission(session: AsyncSession, bounty_id: str, sub: Any) -> None:
+
+async def _persist_bounty_submission(
+    session: AsyncSession, bounty_id: str, sub: Any
+) -> None:
     """Persist a single bounty submission as a row in the bounty_submissions table."""
     from app.models.tables import BountySubmissionTable
 
@@ -100,6 +112,7 @@ async def _persist_bounty_submission(session: AsyncSession, bounty_id: str, sub:
         existing.ai_score = sub.ai_score
         existing.notes = sub.notes
 
+
 async def delete_bounty_row(bounty_id: str) -> None:
     """Delete a bounty row and its submissions from the database."""
     from app.models.bounty_table import BountyTable
@@ -117,8 +130,10 @@ async def delete_bounty_row(bounty_id: str) -> None:
         )
         await session.commit()
 
+
 async def load_bounties(*, offset: int = 0, limit: int = 10000) -> List[Any]:
     from app.models.bounty_table import BountyTable
+
     async with get_db_session() as session:
         stmt = (
             select(BountyTable)
@@ -129,13 +144,17 @@ async def load_bounties(*, offset: int = 0, limit: int = 10000) -> List[Any]:
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
+
 async def get_bounty_by_id(bounty_id: str) -> Optional[Any]:
     from app.models.bounty_table import BountyTable
+
     async with get_db_session() as session:
         return await session.get(BountyTable, _to_uuid(bounty_id))
 
+
 async def load_submissions_for_bounty(bounty_id: str) -> List[Any]:
     from app.models.tables import BountySubmissionTable
+
     async with get_db_session() as session:
         stmt = (
             select(BountySubmissionTable)
@@ -145,8 +164,10 @@ async def load_submissions_for_bounty(bounty_id: str) -> List[Any]:
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
+
 async def count_bounties(**filters: Any) -> int:
     from app.models.bounty_table import BountyTable
+
     async with get_db_session() as session:
         stmt = select(func.count(BountyTable.id))
         for col_name, value in filters.items():
@@ -156,12 +177,15 @@ async def count_bounties(**filters: Any) -> int:
         result = await session.execute(stmt)
         return result.scalar() or 0
 
+
 # ---------------------------------------------------------------------------
 # Contributor persistence
 # ---------------------------------------------------------------------------
 
+
 async def persist_contributor(contributor: Any) -> None:
     from app.models.contributor import ContributorDB
+
     async with get_db_session() as session:
         await _upsert(
             session,
@@ -176,7 +200,9 @@ async def persist_contributor(contributor: Any) -> None:
             badges=getattr(contributor, "badges", []) or [],
             social_links=getattr(contributor, "social_links", {}) or {},
             total_contributions=getattr(contributor, "total_contributions", 0),
-            total_bounties_completed=getattr(contributor, "total_bounties_completed", 0),
+            total_bounties_completed=getattr(
+                contributor, "total_bounties_completed", 0
+            ),
             total_earnings=getattr(contributor, "total_earnings", 0.0),
             reputation_score=getattr(contributor, "reputation_score", 0.0),
             created_at=contributor.created_at,
@@ -184,12 +210,15 @@ async def persist_contributor(contributor: Any) -> None:
         )
         await session.commit()
 
+
 # ---------------------------------------------------------------------------
 # Payout & Treasury persistence
 # ---------------------------------------------------------------------------
 
+
 async def persist_payout(record: Any) -> None:
     from app.models.tables import PayoutTable
+
     status = record.status.value if hasattr(record.status, "value") else record.status
     async with get_db_session() as session:
         await _upsert(
@@ -209,12 +238,19 @@ async def persist_payout(record: Any) -> None:
         )
         await session.commit()
 
+
 async def load_payouts(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any]:
     from app.models.payout import PayoutRecord, PayoutStatus
     from app.models.tables import PayoutTable
+
     out: Dict[str, Any] = {}
     async with get_db_session() as session:
-        stmt = select(PayoutTable).order_by(PayoutTable.created_at.desc()).offset(offset).limit(limit)
+        stmt = (
+            select(PayoutTable)
+            .order_by(PayoutTable.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         for row in (await session.execute(stmt)).scalars():
             out[str(row.id)] = PayoutRecord(
                 id=str(row.id),
@@ -231,8 +267,10 @@ async def load_payouts(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any]
             )
     return out
 
+
 async def persist_buyback(record: Any) -> None:
     from app.models.tables import BuybackTable
+
     async with get_db_session() as session:
         await _upsert(
             session,
@@ -247,12 +285,19 @@ async def persist_buyback(record: Any) -> None:
         )
         await session.commit()
 
+
 async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any]:
     from app.models.payout import BuybackRecord
     from app.models.tables import BuybackTable
+
     out: Dict[str, Any] = {}
     async with get_db_session() as session:
-        stmt = select(BuybackTable).order_by(BuybackTable.created_at.desc()).offset(offset).limit(limit)
+        stmt = (
+            select(BuybackTable)
+            .order_by(BuybackTable.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         for row in (await session.execute(stmt)).scalars():
             out[str(row.id)] = BuybackRecord(
                 id=str(row.id),
@@ -265,29 +310,38 @@ async def load_buybacks(*, offset: int = 0, limit: int = 10000) -> Dict[str, Any
             )
     return out
 
+
 # ---------------------------------------------------------------------------
 # Sync & System persistence
 # ---------------------------------------------------------------------------
 
+
 async def get_last_sync() -> Optional[datetime]:
     from app.models.tables import SyncStateTable
+
     async with get_db_session() as session:
         stmt = select(SyncStateTable).order_by(SyncStateTable.last_sync.desc()).limit(1)
         row = (await session.execute(stmt)).scalar()
         return row.last_sync if row else None
 
+
 async def save_last_sync(dt: datetime) -> None:
     from app.models.tables import SyncStateTable
+
     async with get_db_session() as session:
         session.add(SyncStateTable(last_sync=dt))
         await session.commit()
 
+
 async def load_reputation() -> Dict[str, List[Any]]:
     from app.models.leaderboard import ReputationHistoryEntry
     from app.models.tables import ReputationHistoryTable
+
     out: Dict[str, List[Any]] = {}
     async with get_db_session() as session:
-        stmt = select(ReputationHistoryTable).order_by(ReputationHistoryTable.created_at.desc())
+        stmt = select(ReputationHistoryTable).order_by(
+            ReputationHistoryTable.created_at.desc()
+        )
         for row in (await session.execute(stmt)).scalars():
             out.setdefault(row.contributor_id, []).append(
                 ReputationHistoryEntry(

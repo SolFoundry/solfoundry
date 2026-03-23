@@ -7,6 +7,7 @@ from threading import Lock
 
 log = logging.getLogger(__name__)
 
+
 class HealthMonitor:
     """In-memory request and performance tracker for the health dashboard."""
 
@@ -52,8 +53,11 @@ class HealthMonitor:
                 "error_count": self._error_count,
                 "uptime": round(uptime, 2),
                 "status_codes": self._status_codes,
-                "top_paths": sorted(self._path_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                "top_paths": sorted(
+                    self._path_counts.items(), key=lambda x: x[1], reverse=True
+                )[:5],
             }
+
 
 # Global singleton monitor instance
 monitor = HealthMonitor()

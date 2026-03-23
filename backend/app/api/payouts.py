@@ -76,6 +76,7 @@ _TX_HASH_RE = re.compile(r"^[0-9a-fA-F]{64}$|^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 # List & create payouts
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "",
     response_model=PayoutListResponse,
@@ -103,6 +104,7 @@ async def get_payouts(
         limit=limit,
     )
 
+
 @router.post(
     "",
     response_model=PayoutResponse,
@@ -125,13 +127,18 @@ async def record_payout(data: PayoutCreate) -> PayoutResponse:
 # Treasury & tokenomics
 # ---------------------------------------------------------------------------
 
+
 @router.get("/treasury", response_model=TreasuryStats)
 async def treasury_stats() -> TreasuryStats:
     return await get_treasury_stats()
 
+
 @router.get("/treasury/buybacks", response_model=BuybackListResponse)
-async def treasury_buybacks(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)) -> BuybackListResponse:
+async def treasury_buybacks(
+    skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)
+) -> BuybackListResponse:
     return await list_buybacks(skip=skip, limit=limit)
+
 
 @router.post("/treasury/buybacks", response_model=BuybackResponse, status_code=201)
 async def record_buyback(data: BuybackCreate) -> BuybackResponse:
@@ -142,6 +149,7 @@ async def record_buyback(data: BuybackCreate) -> BuybackResponse:
     invalidate_cache()
     return result
 
+
 @router.get("/tokenomics", response_model=TokenomicsResponse)
 async def tokenomics_api() -> TokenomicsResponse:
     return await get_tokenomics()
@@ -151,20 +159,29 @@ async def tokenomics_api() -> TokenomicsResponse:
 # Wallet validation
 # ---------------------------------------------------------------------------
 
+
 @router.post("/validate-wallet", response_model=WalletValidationResponse)
 async def validate_wallet(body: WalletValidationRequest) -> WalletValidationResponse:
     address = body.wallet_address
     is_program = address in KNOWN_PROGRAM_ADDRESSES
     try:
         validate_solana_wallet(address)
-        return WalletValidationResponse(wallet_address=address, valid=True, message="Valid Solana wallet address")
+        return WalletValidationResponse(
+            wallet_address=address, valid=True, message="Valid Solana wallet address"
+        )
     except ValueError as exc:
-        return WalletValidationResponse(wallet_address=address, valid=False, is_program_address=is_program, message=str(exc))
+        return WalletValidationResponse(
+            wallet_address=address,
+            valid=False,
+            is_program_address=is_program,
+            message=str(exc),
+        )
 
 
 # ---------------------------------------------------------------------------
 # Payout Management (using /id prefix to avoid tx_hash capture)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/id/{payout_id}", response_model=PayoutResponse)
 async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
@@ -173,8 +190,11 @@ async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
         raise HTTPException(status_code=404, detail=f"Payout '{payout_id}' not found")
     return payout
 
+
 @router.post("/{payout_id}/approve", response_model=AdminApprovalResponse)
-async def admin_approve_payout(payout_id: str, body: AdminApprovalRequest) -> AdminApprovalResponse:
+async def admin_approve_payout(
+    payout_id: str, body: AdminApprovalRequest
+) -> AdminApprovalResponse:
     try:
         if body.approved:
             return await approve_payout(payout_id, body.admin_id)
@@ -184,8 +204,11 @@ async def admin_approve_payout(payout_id: str, body: AdminApprovalRequest) -> Ad
     except InvalidPayoutTransitionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+
 @router.post("/{payout_id}/execute", response_model=PayoutResponse)
-async def execute_payout(payout_id: str, db: AsyncSession = Depends(get_db)) -> PayoutResponse:
+async def execute_payout(
+    payout_id: str, db: AsyncSession = Depends(get_db)
+) -> PayoutResponse:
     try:
         result = await process_payout(payout_id)
         invalidate_cache()
@@ -194,7 +217,9 @@ async def execute_payout(payout_id: str, db: AsyncSession = Depends(get_db)) -> 
         try:
             wh_service = ContributorWebhookService(db)
             bounty_id = result.bounty_id if hasattr(result, "bounty_id") else payout_id
-            contributor_id = result.contributor_id if hasattr(result, "contributor_id") else None
+            contributor_id = (
+                result.contributor_id if hasattr(result, "contributor_id") else None
+            )
             await wh_service.dispatch_event(
                 "bounty.paid",
                 str(bounty_id),
@@ -207,7 +232,7 @@ async def execute_payout(payout_id: str, db: AsyncSession = Depends(get_db)) -> 
             )
         except Exception as e:
             logger.error("Failed to dispatch payout webhook: %s", e)
-        
+
         return result
 
     except PayoutNotFoundError as exc:
@@ -220,11 +245,14 @@ async def execute_payout(payout_id: str, db: AsyncSession = Depends(get_db)) -> 
 # Lookup by tx hash (wildcard -- MUST be last)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{tx_hash}", response_model=PayoutResponse)
 async def get_payout_detail(tx_hash: str) -> PayoutResponse:
     if not _TX_HASH_RE.match(tx_hash):
         raise HTTPException(status_code=400, detail="Invalid tx_hash format")
     payout = await get_payout_by_tx_hash(tx_hash)
     if payout is None:
-        raise HTTPException(status_code=404, detail=f"Payout with tx_hash '{tx_hash}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Payout with tx_hash '{tx_hash}' not found"
+        )
     return payout

@@ -1,6 +1,6 @@
 """SolFoundry API (Sovereign 14.0 Reconstruction).
 
-Central FastAPI application with integrated security, rate limiting, and 
+Central FastAPI application with integrated security, rate limiting, and
 unified persistence for payouts and treasury operations.
 """
 
@@ -20,8 +20,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # Middleware
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.ip_blocklist import IPBlocklistMiddleware
-from app.middleware.rate_limit import RateLimitMiddleware # LUA-based
-from app.middleware.rate_limiter import RateLimiterMiddleware # Redis-backed
+from app.middleware.rate_limit import RateLimitMiddleware  # LUA-based
+from app.middleware.rate_limiter import RateLimiterMiddleware  # Redis-backed
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 
@@ -76,7 +76,10 @@ async def lifespan(app: FastAPI):
     # Hydrate in-memory caches
     try:
         from app.services.payout_service import hydrate_from_database as hydrate_payouts
-        from app.services.reputation_service import hydrate_from_database as hydrate_reputation
+        from app.services.reputation_service import (
+            hydrate_from_database as hydrate_reputation,
+        )
+
         await hydrate_payouts()
         await hydrate_reputation()
     except Exception as exc:
@@ -92,14 +95,16 @@ async def lifespan(app: FastAPI):
     sync_task = asyncio.create_task(periodic_sync())
     auto_approve_task = asyncio.create_task(periodic_auto_approve(interval_seconds=300))
     deadline_task = asyncio.create_task(periodic_deadline_check(interval_seconds=60))
-    escrow_refund_task = asyncio.create_task(periodic_escrow_refund(interval_seconds=60))
-    
+    escrow_refund_task = asyncio.create_task(
+        periodic_escrow_refund(interval_seconds=60)
+    )
+
     obs_task = None
     if os.getenv("OBSERVABILITY_ENABLE_BACKGROUND", "true").lower() == "true":
         obs_task = asyncio.create_task(periodic_refresh())
 
     monitor.start()
-    
+
     yield
 
     # Shutdown
@@ -109,7 +114,7 @@ async def lifespan(app: FastAPI):
     escrow_refund_task.cancel()
     if obs_task:
         obs_task.cancel()
-    
+
     await ws_manager.shutdown()
     await close_redis()
     await close_db()
@@ -140,34 +145,41 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(IPBlocklistMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
+
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next: Callable):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request.state.request_id = request_id
-    
+
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
-    
+
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     monitor.track_request(
-        path=request.url.path, 
-        method=request.method, 
-        status_code=response.status_code, 
-        duration=process_time
+        path=request.url.path,
+        method=request.method,
+        status_code=response.status_code,
+        duration=process_time,
     )
     return response
 
+
 # ── Global Exception Handlers ────────────────────────────────────────────────
+
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail, "request_id": getattr(request.state, "request_id", None)}
+        content={
+            "message": exc.detail,
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -175,15 +187,20 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error("unhandled_exception", exc_info=exc, request_id=request_id)
     return JSONResponse(
         status_code=500,
-        content={"message": "Internal Server Error", "request_id": request_id}
+        content={"message": "Internal Server Error", "request_id": request_id},
     )
+
 
 @app.exception_handler(AuthError)
 async def auth_exception_handler(request: Request, exc: AuthError):
     return JSONResponse(
         status_code=401,
-        content={"message": str(exc), "request_id": getattr(request.state, "request_id", None)}
+        content={
+            "message": str(exc),
+            "request_id": getattr(request.state, "request_id", None),
+        },
     )
+
 
 # ── Route Registration ──────────────────────────────────────────────────────
 
@@ -208,5 +225,6 @@ app.include_router(admin_router, tags=["admin"])
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

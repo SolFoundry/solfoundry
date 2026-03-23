@@ -1,6 +1,6 @@
 """Rate-limiting middleware using Redis and a LUA-based token bucket algorithm.
 
-Implements strict IP-based and client-ID-based rate limiting to prevent 
+Implements strict IP-based and client-ID-based rate limiting to prevent
 DoS and abuse, with structured logging and standard headers.
 """
 
@@ -48,10 +48,13 @@ redis.call("EXPIRE", bucket_key, 60) -- Auto-cleanup after 1 min of inactivity
 return {allowed and 1 or 0, tokens}
 """
 
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Production-ready rate limiting using Redis."""
 
-    def __init__(self, app, redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")):
+    def __init__(
+        self, app, redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    ):
         super().__init__(app)
         self.redis = redis.from_url(redis_url, decode_responses=True)
         self._lua_script = None
@@ -63,19 +66,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return xff.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
-    async def _check_limit(self, client_id: str, rate: float = 2.0, burst: int = 10) -> Tuple[bool, float]:
+    async def _check_limit(
+        self, client_id: str, rate: float = 2.0, burst: int = 10
+    ) -> Tuple[bool, float]:
         """Perform atomic rate limit check via Redis LUA."""
         try:
             if not self._lua_script:
                 self._lua_script = self.redis.register_script(RATE_LIMIT_LUA)
-            
+
             key = f"rate_limit:{client_id}"
             now = time.time()
-            allowed, tokens = await self._lua_script(keys=[key], args=[now, rate, burst, 1])
+            allowed, tokens = await self._lua_script(
+                keys=[key], args=[now, rate, burst, 1]
+            )
             return bool(allowed), float(tokens)
         except Exception as e:
             log.error("Redis rate limit failure: %s. Falling back to ALLOW.", e)
-            return True, 10.0 # Fail-open in production to prevent system lockout
+            return True, 10.0  # Fail-open in production to prevent system lockout
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Skip rate limit for health check
@@ -93,8 +100,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={
                     "Retry-After": "5",
                     "X-RateLimit-Limit": "2",
-                    "X-RateLimit-Remaining": "0"
-                }
+                    "X-RateLimit-Remaining": "0",
+                },
             )
 
         response = await call_next(request)

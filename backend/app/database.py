@@ -66,6 +66,7 @@ async_session_factory = async_sessionmaker(
     autoflush=False,
 )
 
+
 def reinit_engine(url: str, **kwargs):
     """Re-initialize the global engine and session factory. Used for tests."""
     global engine, async_session_factory, DATABASE_URL
@@ -74,7 +75,7 @@ def reinit_engine(url: str, **kwargs):
     if url.startswith("sqlite"):
         kwargs.setdefault("poolclass", StaticPool)
         kwargs.setdefault("connect_args", {"check_same_thread": False})
-    
+
     engine = create_async_engine(url, **kwargs)
     async_session_factory = async_sessionmaker(
         engine,
@@ -198,12 +199,13 @@ async def init_db() -> None:
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.
             await conn.run_sync(Base.metadata.create_all)
-            
+
             # Log created tables for troubleshooting
             def get_tables(connection):
                 from sqlalchemy import inspect
+
                 return inspect(connection).get_table_names()
-            
+
             tables = await conn.run_sync(get_tables)
             logger.info("Initialized tables: %s", tables)
 

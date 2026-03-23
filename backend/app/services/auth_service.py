@@ -159,7 +159,9 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
     }
     params = {
         "client_id": client_id,
-        "redirect_uri": os.getenv("GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback"),
+        "redirect_uri": os.getenv(
+            "GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback"
+        ),
         "scope": "read:user user:email",
         "state": state,
         "response_type": "code",

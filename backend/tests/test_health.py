@@ -59,7 +59,7 @@ async def test_health_all_services_up():
     assert data["status"] == "healthy"
     assert data["services"]["database"] == "connected"
     assert data["services"]["redis"] == "connected"
-    
+
     # CodeRabbit Fix: Strict contract validation (Issue #343/395)
     assert "version" in data
     assert "uptime_seconds" in data
