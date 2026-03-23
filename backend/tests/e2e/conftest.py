@@ -39,9 +39,9 @@ os.environ["GITHUB_CLIENT_ID"] = ""
 os.environ["GITHUB_CLIENT_SECRET"] = ""
 
 # Late imports must follow environment setup (architectural requirement)
-from app.api.auth import get_current_user  # noqa: E402, F401
+from app.api.auth import get_current_user  # noqa: E402
 from app.models.user import UserResponse  # noqa: E402
-from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter  # noqa: E402, F401
+from app.services.websocket_manager import WebSocketManager, InMemoryPubSubAdapter  # noqa: E402
 from tests.e2e.factories import DEFAULT_WALLET  # noqa: E402
 
 

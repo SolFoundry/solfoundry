@@ -6,7 +6,7 @@ PENDING -> APPROVED -> PROCESSING -> CONFIRMED/FAILED.
 
 import logging
 import threading
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, Tuple
 from datetime import datetime, timezone
 
 from fastapi import HTTPException

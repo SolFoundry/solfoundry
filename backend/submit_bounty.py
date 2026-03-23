@@ -28,8 +28,7 @@ Solana Wallet: BeQcMrhy5ujhakN96FDbjHnV5f844yZHq1s5AyapQSek
     
     # 2. Commit as 9.0
     subprocess.run(["git", "commit", "-m", "Bounty 169: Autonomous Platinum 9.0 (Final Restoration)"], check=True)
-    # Build PR body
-    body = f"## 📦 SolFoundry: Elite Search & Infrastructure Upgrade (T1 Full Suite)\n\n"
+    # Push to head
     # The user's edit had a syntax error here. Assuming the intent was to keep the push command.
     subprocess.run(["git", "push", "origin", "bounty-169-final-certified", "--force"], check=True)
     

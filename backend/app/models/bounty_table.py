@@ -15,6 +15,8 @@ from sqlalchemy import (
     Integer,
     DateTime,
     Text,
+    Index,
+    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 
