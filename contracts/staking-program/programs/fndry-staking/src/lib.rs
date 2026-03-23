@@ -37,6 +37,9 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 
+#[cfg(test)]
+mod tests;
+
 use instructions::*;
 
 declare_id!("Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET");
