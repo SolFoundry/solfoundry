@@ -19,7 +19,7 @@ from app.models.bounty import (
     AutocompleteResponse,
     BountyStatus,
 )
-from app.services.bounty_service import _bounty_store, BountyInternal as BountyDB
+from app.services.bounty_service import _bounty_store, BountyDB
 
 logger = logging.getLogger(__name__)
 
