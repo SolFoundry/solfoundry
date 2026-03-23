@@ -1,13 +1,14 @@
 #!/usr/bin/env bats
 
 setup() {
-    # Create a temporary test directory structure mimicking the repo
     export TEST_DIR="$(mktemp -d)"
-    cp ./scripts/setup.sh "$TEST_DIR/setup.sh"
+    
+    # Locate the script relative to this test file
+    local BATS_SCRIPT_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    cp "$BATS_SCRIPT_DIR/setup.sh" "$TEST_DIR/setup.sh"
     chmod +x "$TEST_DIR/setup.sh"
     
-    # We use DRY_RUN=1 so it skips executing actual slow/side-effect commands 
-    # like npm install, pip install, and docker compose
+    # Export mock control flags
     export DRY_RUN=1
     
     cd "$TEST_DIR"
@@ -18,6 +19,9 @@ teardown() {
 }
 
 @test "creates .env from .env.example correctly" {
+    # Skip deps check so it doesn't fail on missing node/python locally
+    export SKIP_DEP_CHECKS=1
+    
     touch .env.example
     mkdir -p backend
     touch backend/.env.example
@@ -32,6 +36,8 @@ teardown() {
 }
 
 @test "skips backend setup gracefully when missing" {
+    export SKIP_DEP_CHECKS=1
+    
     mkdir -p frontend
     touch frontend/package.json
     
@@ -41,6 +47,8 @@ teardown() {
 }
 
 @test "skips frontend setup gracefully when missing" {
+    export SKIP_DEP_CHECKS=1
+    
     mkdir -p backend
     touch backend/requirements.txt
     
@@ -50,6 +58,8 @@ teardown() {
 }
 
 @test "skips docker compose if docker-compose.yml is missing" {
+    export SKIP_DEP_CHECKS=1
+    
     mkdir -p backend frontend sdk
     touch backend/requirements.txt frontend/package.json sdk/package.json
     
@@ -60,6 +70,8 @@ teardown() {
 }
 
 @test "reports global success when all components are present and mock execution succeeds" {
+    export SKIP_DEP_CHECKS=1
+    
     mkdir -p backend frontend sdk
     touch backend/requirements.txt frontend/package.json sdk/package.json
     touch docker-compose.yml
@@ -71,6 +83,8 @@ teardown() {
 }
 
 @test "creates Python virtual environment using proper paths" {
+    export SKIP_DEP_CHECKS=1
+    
     mkdir -p backend
     touch backend/requirements.txt
     

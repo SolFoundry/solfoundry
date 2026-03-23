@@ -34,10 +34,25 @@ print_warning() {
     echo -e "${YELLOW}⚠️ $1${NC}"
 }
 
-version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+# Cross-platform version comparison
+version_gt() {
+    # If python is available, use it for reliable semver comparison
+    if command -v python3 &> /dev/null; then
+        python3 -c "import sys; from packaging.version import parse; sys.exit(0 if parse('$1') > parse('$2') else 1)" 2>/dev/null && return 0 || return 1
+    fi
+    # Fallback to GNU sort if available
+    if echo "1.0" | sort -V >/dev/null 2>&1; then
+        test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"
+    else
+        # Very basic string fallback if nothing else exists
+        [ "$1" \> "$2" ]
+    fi
+}
 
 # Skip actual execution during tests (dry run mode)
 DRY_RUN=${DRY_RUN:-0}
+SKIP_DEP_CHECKS=${SKIP_DEP_CHECKS:-0}
+
 run_cmd() {
     if [ "$DRY_RUN" -eq 1 ]; then
         echo "[DRY RUN] Would execute: $*"
@@ -50,56 +65,60 @@ run_cmd() {
 # 1. Dependency Checks
 print_step "Checking required tools..."
 
-if ! command -v node &> /dev/null; then
-    print_error "Node.js is not installed. Please install Node.js v18+."
-fi
-NODE_VERSION=$(node -v | sed 's/v//')
-if ! version_gt "$NODE_VERSION" "17.9.9"; then
-    print_error "Node.js version must be 18+. Found $NODE_VERSION."
-fi
-print_success "Node.js is installed (v$NODE_VERSION)."
+if [ "$SKIP_DEP_CHECKS" -ne 1 ]; then
+    if ! command -v node &> /dev/null; then
+        print_error "Node.js is not installed. Please install Node.js v18+."
+    fi
+    NODE_VERSION=$(node -v | sed 's/v//')
+    if ! version_gt "$NODE_VERSION" "17.9.9"; then
+        print_error "Node.js version must be 18+. Found $NODE_VERSION."
+    fi
+    print_success "Node.js is installed (v$NODE_VERSION)."
 
-if ! command -v npm &> /dev/null; then
-    print_error "npm is not installed. Please install npm."
-fi
-print_success "npm is installed."
+    if ! command -v npm &> /dev/null; then
+        print_error "npm is not installed. Please install npm."
+    fi
+    print_success "npm is installed."
 
-if ! command -v python3 &> /dev/null; then
-    print_error "Python 3 is not installed. Please install Python v3.10+."
-fi
-PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
-if ! version_gt "$PYTHON_VERSION" "3.9.9"; then
-    print_error "Python version must be 3.10+. Found $PYTHON_VERSION."
-fi
-print_success "Python is installed (v$PYTHON_VERSION)."
+    if ! command -v python3 &> /dev/null; then
+        print_error "Python 3 is not installed. Please install Python v3.10+."
+    fi
+    PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
+    if ! version_gt "$PYTHON_VERSION" "3.9.9"; then
+        print_error "Python version must be 3.10+. Found $PYTHON_VERSION."
+    fi
+    print_success "Python is installed (v$PYTHON_VERSION)."
 
-if ! python3 -c 'import venv' &> /dev/null; then
-    print_error "python3-venv is not installed. Please install it (e.g. sudo apt install python3-venv)."
-fi
-print_success "python3-venv is available."
+    if ! python3 -c 'import venv' &> /dev/null; then
+        print_error "python3-venv is not installed. Please install it (e.g. sudo apt install python3-venv)."
+    fi
+    print_success "python3-venv is available."
 
-if ! command -v pip3 &> /dev/null; then
-    print_error "pip3 is not installed. Please install pip for Python 3."
-fi
-print_success "pip3 is installed."
+    if ! command -v pip3 &> /dev/null; then
+        print_error "pip3 is not installed. Please install pip for Python 3."
+    fi
+    print_success "pip3 is installed."
 
-if ! command -v rustc &> /dev/null; then
-    print_error "Rust is not installed. Please install Rust (https://rustup.rs/)."
-fi
-RUST_VERSION=$(rustc --version | awk '{print $2}')
-print_success "Rust is installed ($RUST_VERSION)."
+    if ! command -v rustc &> /dev/null; then
+        print_error "Rust is not installed. Please install Rust (https://rustup.rs/)."
+    fi
+    RUST_VERSION=$(rustc --version | awk '{print $2}')
+    print_success "Rust is installed ($RUST_VERSION)."
 
-if ! command -v anchor &> /dev/null; then
-    print_warning "Anchor is not installed. Smart contract development might fail."
+    if ! command -v anchor &> /dev/null; then
+        print_warning "Anchor is not installed. Smart contract development might fail."
+    else
+        ANCHOR_VERSION=$(anchor --version | awk '{print $2}')
+        print_success "Anchor is installed ($ANCHOR_VERSION)."
+    fi
+
+    if ! command -v docker &> /dev/null; then
+        print_warning "Docker is not installed. You will need it to run Postgres/Redis via compose."
+    else
+        print_success "Docker is installed."
+    fi
 else
-    ANCHOR_VERSION=$(anchor --version | awk '{print $2}')
-    print_success "Anchor is installed ($ANCHOR_VERSION)."
-fi
-
-if ! command -v docker &> /dev/null; then
-    print_warning "Docker is not installed. You will need it to run Postgres/Redis via compose."
-else
-    print_success "Docker is installed."
+    print_warning "Skipping dependency checks (SKIP_DEP_CHECKS=1)"
 fi
 
 # 2. Setup .env Files
@@ -191,7 +210,7 @@ fi
 print_step "Starting local services..."
 
 DOCKER_SUCCESS=0
-if [ -f "docker-compose.yml" ]; then
+if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ]; then
     if command -v docker-compose &> /dev/null; then
         if run_cmd docker-compose up -d db redis; then
             print_success "Database and Redis started via docker-compose."
