@@ -11,9 +11,12 @@ async def verify():
         resp = await ac.get("/health")
         print("\n[1] Security Headers Audit:")
         headers = [
-            "Strict-Transport-Security", "X-Frame-Options", 
-            "X-Content-Type-Options", "Content-Security-Policy",
-            "Referrer-Policy", "Permissions-Policy"
+            "Strict-Transport-Security",
+            "X-Frame-Options",
+            "X-Content-Type-Options",
+            "Content-Security-Policy",
+            "Referrer-Policy",
+            "Permissions-Policy",
         ]
         for h in headers:
             val = resp.headers.get(h, "❌ MISSING")
@@ -21,7 +24,7 @@ async def verify():
         
         # 2. Check Payload Size Enforcement (413)
         print("\n[2] Payload Size Limit Test (Target: 1MB):")
-        large_body = "A" * (1024 * 1024 + 100) # 1.1 MB
+        large_body = "A" * (1024 * 1024 + 100)  # 1.1 MB
         resp_size = await ac.post("/api/sync", content=large_body)
         print(f"  - Request Size: 1.1 MB -> Status: {resp_size.status_code}")
         if resp_size.status_code == 413:

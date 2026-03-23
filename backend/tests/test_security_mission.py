@@ -29,7 +29,11 @@ async def test_payload_limit():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # 1.1MB payload (Limit is 1MB)
         large_data = "x" * (1024 * 1024 + 1024)
-        response = await ac.post("/api/bounties", content=large_data, headers={"Content-Length": str(len(large_data))})
+        response = await ac.post(
+            "/api/bounties",
+            content=large_data,
+            headers={"Content-Length": str(len(large_data))},
+        )
         assert response.status_code == 413
         assert response.json()["code"] == "PAYLOAD_TOO_LARGE"
 
