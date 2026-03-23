@@ -22,7 +22,7 @@ describe('MarkdownRenderer', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  // ── basic markdown ──────────────────────────────────────────────────────────
+  // ── basic markdown ───────────────────────────────────────────────────────────
   it('renders a heading', () => {
     render(<MarkdownRenderer content="# Hello World" />);
     expect(screen.getByRole('heading', { name: 'Hello World', level: 1 })).toBeTruthy();
@@ -53,6 +53,7 @@ describe('MarkdownRenderer', () => {
 
   it('renders a code block with a language class', () => {
     render(<MarkdownRenderer content={'```python\nprint("hello")\n```'} />);
+    // SyntaxHighlighter wraps in a div; verify code is present
     expect(document.body.textContent).toContain('print("hello")');
   });
 
@@ -123,8 +124,15 @@ describe('MarkdownRenderer', () => {
     const { container } = render(<MarkdownRenderer content={md} />);
     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
     expect(checkboxes.length).toBe(2);
+    // Verify checked state
     expect((checkboxes[0] as HTMLInputElement).checked).toBe(true);
     expect((checkboxes[1] as HTMLInputElement).checked).toBe(false);
+    // Verify the component's override class contract and readOnly attribute
+    // (catches class-precedence regressions in the MarkdownRenderer input override)
+    expect((checkboxes[0] as HTMLInputElement).className).toContain('accent-solana-purple');
+    expect((checkboxes[1] as HTMLInputElement).className).toContain('accent-solana-purple');
+    expect((checkboxes[0] as HTMLInputElement).readOnly).toBe(true);
+    expect((checkboxes[1] as HTMLInputElement).readOnly).toBe(true);
   });
 
   // ── GFM: strikethrough ───────────────────────────────────────────────────────
@@ -157,5 +165,27 @@ describe('MarkdownRenderer', () => {
     render(<MarkdownRenderer content={xss} />);
     // react-markdown sanitises by default; window.__xss must not be set
     expect((window as unknown as Record<string, unknown>).__xss).toBeUndefined();
+  });
+
+  it('does not preserve javascript: protocol in link hrefs (XSS safety)', () => {
+    const md = '[click me](javascript:window.__xss_js=1)';
+    const { container } = render(<MarkdownRenderer content={md} />);
+    const anchor = container.querySelector('a');
+    // react-markdown strips javascript: URLs — href should be empty/null or
+    // not contain the dangerous scheme
+    const href = anchor?.getAttribute('href') ?? '';
+    expect(href).not.toMatch(/^javascript:/i);
+    expect((window as unknown as Record<string, unknown>).__xss_js).toBeUndefined();
+  });
+
+  it('does not preserve data: protocol in image src (XSS safety)', () => {
+    const md = '![alt](data:text/html,<script>window.__xss_data=1</script>)';
+    const { container } = render(<MarkdownRenderer content={md} />);
+    const img = container.querySelector('img');
+    // react-markdown strips data: URLs — src should be empty/null or not
+    // contain the dangerous scheme
+    const src = img?.getAttribute('src') ?? '';
+    expect(src).not.toMatch(/^data:text\/html/i);
+    expect((window as unknown as Record<string, unknown>).__xss_data).toBeUndefined();
   });
 });
