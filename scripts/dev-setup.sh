@@ -198,12 +198,21 @@ else
   info "Edit .env to add GITHUB_TOKEN for full functionality"
 fi
 
-# Source .env so BACKEND_PORT / FRONTEND_PORT are available if set there
+# Load .env safely: parse KEY=VALUE lines without executing arbitrary shell code.
 if [ -f .env ]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Skip blank lines and comments
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    # Match KEY=VALUE where KEY is a valid identifier
+    if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      val="${BASH_REMATCH[2]}"
+      # Strip optional surrounding single or double quotes
+      val="${val#\"}" ; val="${val%\"}"
+      val="${val#\'}" ; val="${val%\'}"
+      export "$key"="$val"
+    fi
+  done < .env
 fi
 
 # ---------------------------------------------------------------------------
@@ -277,7 +286,7 @@ if $USE_DOCKER; then
   MAX_RETRIES=10
 
   while [ $RETRIES -lt $MAX_RETRIES ]; do
-    HEALTH=$(curl -sf "$HEALTH_URL" 2>/dev/null) && {
+    HEALTH=$(curl -sf --connect-timeout 2 --max-time 5 "$HEALTH_URL" 2>/dev/null) && {
       STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
       if [ "$STATUS" = "healthy" ]; then
         success "Health check passed: $STATUS"
@@ -304,7 +313,7 @@ else
   echo ""
   echo "  # Terminal 1 — Backend"
   echo "  cd backend && source .venv/bin/activate"
-  echo "  uvicorn app.main:app --reload --port 8000"
+  echo "  uvicorn app.main:app --reload --port \${BACKEND_PORT:-8000}"
   echo ""
   echo "  # Terminal 2 — Frontend"
   echo "  cd frontend && npm run dev"
