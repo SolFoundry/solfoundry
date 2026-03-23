@@ -63,15 +63,19 @@ class BountyBoostTable(Base):
     )
     booster_wallet = Column(String(64), nullable=False, index=True)
     amount = Column(sa.Numeric(precision=20, scale=6), nullable=False)
-    status = Column(String(20), nullable=False, server_default=BoostStatus.PENDING.value)
+    status = Column(
+        String(20), nullable=False, server_default=BoostStatus.PENDING.value
+    )
     tx_hash = Column(String(128), unique=True, nullable=True, index=True)
     refund_tx_hash = Column(String(128), unique=True, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
-
-    __table_args__ = (
-        Index("ix_bounty_boosts_bounty_status", "bounty_id", "status"),
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
     )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
+    )
+
+    __table_args__ = (Index("ix_bounty_boosts_bounty_status", "bounty_id", "status"),)
 
 
 # ---------------------------------------------------------------------------

@@ -54,7 +54,14 @@ async def _send_telegram(message: str) -> None:
     url = f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage"
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(url, json={"chat_id": _TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"})
+            await client.post(
+                url,
+                json={
+                    "chat_id": _TELEGRAM_CHAT_ID,
+                    "text": message,
+                    "parse_mode": "HTML",
+                },
+            )
     except Exception as exc:
         logger.warning("Telegram notification failed: %s", exc)
 
@@ -166,7 +173,9 @@ async def create_boost(
     return response
 
 
-async def get_boosts(bounty_id: str, skip: int = 0, limit: int = 50) -> BoostListResponse:
+async def get_boosts(
+    bounty_id: str, skip: int = 0, limit: int = 50
+) -> BoostListResponse:
     """Return paginated boost history for a bounty (newest first).
 
     Args:
@@ -181,8 +190,10 @@ async def get_boosts(bounty_id: str, skip: int = 0, limit: int = 50) -> BoostLis
     async with get_db_session() as db:
         # Total confirmed count + sum
         agg_result = await db.execute(
-            select(func.count(BountyBoostTable.id), func.coalesce(func.sum(BountyBoostTable.amount), 0))
-            .where(
+            select(
+                func.count(BountyBoostTable.id),
+                func.coalesce(func.sum(BountyBoostTable.amount), 0),
+            ).where(
                 BountyBoostTable.bounty_id == bounty_id,
                 BountyBoostTable.status == BoostStatus.CONFIRMED.value,
             )
@@ -217,8 +228,10 @@ async def get_boost_summary(bounty_id: str, original_amount: float) -> BoostSumm
     """
     async with get_db_session() as db:
         result = await db.execute(
-            select(func.count(BountyBoostTable.id), func.coalesce(func.sum(BountyBoostTable.amount), 0))
-            .where(
+            select(
+                func.count(BountyBoostTable.id),
+                func.coalesce(func.sum(BountyBoostTable.amount), 0),
+            ).where(
                 BountyBoostTable.bounty_id == bounty_id,
                 BountyBoostTable.status == BoostStatus.CONFIRMED.value,
             )
@@ -262,8 +275,7 @@ async def get_boost_leaderboard(bounty_id: str) -> BoostLeaderboardResponse:
 
         # Total boosted (across all confirmed boosts for this bounty)
         total_result = await db.execute(
-            select(func.coalesce(func.sum(BountyBoostTable.amount), 0))
-            .where(
+            select(func.coalesce(func.sum(BountyBoostTable.amount), 0)).where(
                 BountyBoostTable.bounty_id == bounty_id,
                 BountyBoostTable.status == BoostStatus.CONFIRMED.value,
             )
@@ -280,7 +292,9 @@ async def get_boost_leaderboard(bounty_id: str) -> BoostLeaderboardResponse:
         for i, row in enumerate(rows)
     ]
 
-    return BoostLeaderboardResponse(leaderboard=leaderboard, total_boosted=total_boosted)
+    return BoostLeaderboardResponse(
+        leaderboard=leaderboard, total_boosted=total_boosted
+    )
 
 
 async def refund_bounty_boosts(bounty_id: str) -> int:

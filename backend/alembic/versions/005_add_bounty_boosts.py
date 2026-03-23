@@ -45,7 +45,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_bounty_boosts_bounty_id", "bounty_boosts", ["bounty_id"])
-    op.create_index("ix_bounty_boosts_booster_wallet", "bounty_boosts", ["booster_wallet"])
+    op.create_index(
+        "ix_bounty_boosts_booster_wallet", "bounty_boosts", ["booster_wallet"]
+    )
     op.create_index("ix_bounty_boosts_created_at", "bounty_boosts", ["created_at"])
     op.create_index(
         "ix_bounty_boosts_bounty_status",

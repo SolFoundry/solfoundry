@@ -29,7 +29,12 @@ from sqlalchemy.pool import StaticPool
 from app.api.bounties import router as bounties_router
 from app.database import Base
 from app.exceptions import BoostBelowMinimumError, BoostInvalidBountyError
-from app.models.boost import BoostRequest, BoostStatus, BountyBoostTable, MINIMUM_BOOST_AMOUNT
+from app.models.boost import (
+    BoostRequest,
+    BoostStatus,
+    BountyBoostTable,
+    MINIMUM_BOOST_AMOUNT,
+)
 from app.models.bounty_table import BountyTable
 from app.services import boost_service
 
@@ -44,7 +49,9 @@ _engine = create_async_engine(
     poolclass=StaticPool,
     connect_args={"check_same_thread": False},
 )
-_session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
+_session_factory = async_sessionmaker(
+    _engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 def run(coro):
@@ -54,31 +61,38 @@ def run(coro):
 @pytest.fixture(scope="module", autouse=True)
 def create_tables():
     """Create all tables once for the module."""
+
     async def _create():
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
     run(_create())
     yield
+
     async def _drop():
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
+
     run(_drop())
 
 
 @pytest.fixture(autouse=True)
 def clean_tables():
     """Truncate boost + bounty tables between tests."""
+
     async def _clean():
         async with _session_factory() as db:
             await db.execute(BountyBoostTable.__table__.delete())
             await db.execute(BountyTable.__table__.delete())
             await db.commit()
+
     run(_clean())
 
 
 # ---------------------------------------------------------------------------
 # Patch get_db_session to use the test DB
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def _test_db_session():
@@ -100,8 +114,8 @@ def patch_db(monkeypatch):
 # ---------------------------------------------------------------------------
 
 VALID_WALLET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
-WALLET_B     = "7nkFRQMdByBmgZFdGtJv6F5EZqnc9tJo9XsEoQFaJLqV"
-WALLET_C     = "9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLZacgYmW"
+WALLET_B = "7nkFRQMdByBmgZFdGtJv6F5EZqnc9tJo9XsEoQFaJLqV"
+WALLET_C = "9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLZacgYmW"
 
 
 def make_bounty_id() -> str:
@@ -110,6 +124,7 @@ def make_bounty_id() -> str:
 
 def insert_bounty(bounty_id: str, status: str = "open", reward: float = 5000.0) -> None:
     """Insert a minimal BountyTable row directly into the test DB."""
+
     async def _insert():
         async with _session_factory() as db:
             row = BountyTable(
@@ -123,6 +138,7 @@ def insert_bounty(bounty_id: str, status: str = "open", reward: float = 5000.0) 
             )
             db.add(row)
             await db.commit()
+
     run(_insert())
 
 
@@ -134,6 +150,7 @@ def insert_boost(
 ) -> str:
     """Insert a BountyBoostTable row directly and return its id."""
     bid = str(uuid.uuid4())
+
     async def _insert():
         async with _session_factory() as db:
             row = BountyBoostTable(
@@ -145,6 +162,7 @@ def insert_boost(
             )
             db.add(row)
             await db.commit()
+
     run(_insert())
     return bid
 
@@ -152,6 +170,7 @@ def insert_boost(
 # ---------------------------------------------------------------------------
 # Pydantic schema validation
 # ---------------------------------------------------------------------------
+
 
 class TestBoostRequestSchema:
     def test_valid_request(self):
@@ -180,12 +199,15 @@ class TestBoostRequestSchema:
 # boost_service.create_boost
 # ---------------------------------------------------------------------------
 
+
 class TestCreateBoost:
     def test_creates_confirmed_boost_with_tx_hash(self):
         bid = make_bounty_id()
         insert_bounty(bid)
         with patch.object(boost_service, "_send_telegram", new=AsyncMock()):
-            result = run(boost_service.create_boost(bid, VALID_WALLET, 2000.0, tx_hash="txABC"))
+            result = run(
+                boost_service.create_boost(bid, VALID_WALLET, 2000.0, tx_hash="txABC")
+            )
         assert result.status == BoostStatus.CONFIRMED
         assert result.tx_hash == "txABC"
         assert result.bounty_id == bid
@@ -243,6 +265,7 @@ class TestCreateBoost:
 # boost_service.get_boosts
 # ---------------------------------------------------------------------------
 
+
 class TestGetBoosts:
     def test_returns_empty_for_unknown_bounty(self):
         result = run(boost_service.get_boosts("no-bounty"))
@@ -288,6 +311,7 @@ class TestGetBoosts:
 # ---------------------------------------------------------------------------
 # boost_service.get_boost_leaderboard
 # ---------------------------------------------------------------------------
+
 
 class TestGetBoostLeaderboard:
     def test_empty_leaderboard_for_unknown_bounty(self):
@@ -342,6 +366,7 @@ class TestGetBoostLeaderboard:
 # boost_service.get_boost_summary
 # ---------------------------------------------------------------------------
 
+
 class TestGetBoostSummary:
     def test_summary_no_boosts(self):
         bid = make_bounty_id()
@@ -374,6 +399,7 @@ class TestGetBoostSummary:
 # ---------------------------------------------------------------------------
 # boost_service.refund_bounty_boosts
 # ---------------------------------------------------------------------------
+
 
 class TestRefundBountyBoosts:
     def test_refunds_all_confirmed_boosts(self):
@@ -421,6 +447,7 @@ class TestRefundBountyBoosts:
 # API endpoints (via FastAPI TestClient + HTTP)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def api_client():
     """Create a TestClient with only the bounties router."""
@@ -454,7 +481,11 @@ class TestBoostAPI:
         with patch.object(boost_service, "_send_telegram", new=AsyncMock()):
             resp = api_client.post(
                 f"/api/bounties/{bid}/boost",
-                json={"booster_wallet": VALID_WALLET, "amount": 1000.0, "tx_hash": "txXYZ"},
+                json={
+                    "booster_wallet": VALID_WALLET,
+                    "amount": 1000.0,
+                    "tx_hash": "txXYZ",
+                },
             )
         assert resp.status_code == 201
         assert resp.json()["status"] == "confirmed"
