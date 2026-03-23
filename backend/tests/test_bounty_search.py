@@ -11,7 +11,7 @@ import pytest
 from datetime import datetime, timezone, timedelta
 
 from app.models.bounty import (
-    BountyDB,
+    BountyInternal as BountyDB,
     BountySearchParams,
     BountyStatus,
     BountyTier,
