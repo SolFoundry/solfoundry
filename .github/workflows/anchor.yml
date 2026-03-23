@@ -63,10 +63,19 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1.2
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
         with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+          path: |
+            ~/.cache/solana
+            ~/.local/share/solana
+          key: solana-${{ runner.os }}-v${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        run: sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: |
@@ -118,10 +127,19 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1.2
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
         with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+          path: |
+            ~/.cache/solana
+            ~/.local/share/solana
+          key: solana-${{ runner.os }}-v${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        run: sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: |
