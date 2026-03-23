@@ -477,6 +477,7 @@ def test_health_all_services_up():
         solana_patch,
         github_patch,
     ):
+
         async def _run():
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -505,6 +506,7 @@ def test_health_check_db_down():
         solana_patch,
         github_patch,
     ):
+
         async def _run():
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -528,6 +530,7 @@ def test_health_check_redis_down():
         solana_patch,
         github_patch,
     ):
+
         async def _run():
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -551,6 +554,7 @@ def test_health_check_both_core_down():
         solana_patch,
         github_patch,
     ):
+
         async def _run():
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -575,6 +579,7 @@ def test_health_response_structure():
         solana_patch,
         github_patch,
     ):
+
         async def _run():
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"

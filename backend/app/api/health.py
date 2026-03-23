@@ -118,8 +118,9 @@ async def _check_solana_rpc() -> dict:
             "error": f"http_{exc.response.status_code}",
         }
     except Exception as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Solana RPC check failed: %s", exc)
-        return {"status": "unavailable", "error": "connection_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
 
 
 async def _check_github_api() -> dict:
@@ -144,7 +145,7 @@ async def _check_github_api() -> dict:
                 data = resp.json()
                 if not isinstance(data, dict):
                     raise ValueError(f"unexpected response type: {type(data)}")
-                # Validate expected shape; raises KeyError if missing
+                # Validate expected shape; missing keys return empty dicts
                 _ = data.get("resources", {}).get("core", {})
             except Exception as exc:
                 logger.warning("GitHub API malformed response: %s", exc)
@@ -192,8 +193,9 @@ async def _check_github_api() -> dict:
             "error": f"http_{exc.response.status_code}",
         }
     except Exception as exc:
+        latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("GitHub API check failed: %s", exc)
-        return {"status": "unavailable", "error": "connection_error"}
+        return {"status": "unavailable", "latency_ms": latency_ms, "error": "connection_error"}
 
 
 def _overall_status(services: dict) -> str:
