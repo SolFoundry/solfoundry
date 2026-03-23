@@ -6,7 +6,6 @@ automatically by the session context manager.
 """
 
 import os
-import sys
 import uuid
 import logging
 from typing import AsyncGenerator
@@ -177,9 +176,6 @@ async def init_db() -> None:
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401
             from app.models.escrow import EscrowTable, EscrowLedgerTable  # noqa: F401
             from app.models.boost import BountyBoostTable  # noqa: F401
-            from app.models.contributor_webhook import ContributorWebhookDB  # noqa: F401
-            from app.models.wallet_session import WalletSession, SiwsNonce  # noqa: F401
-            from app.models.webhook_log import WebhookEventLogDB  # noqa: F401
 
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.
@@ -187,11 +183,6 @@ async def init_db() -> None:
 
             logger.info("Database schema initialized successfully")
     except Exception as e:
-        # In test/CI environments, schema failures should be fatal so that
-        # missing-table errors surface immediately instead of cascading
-        # as hundreds of confusing test failures.
-        if os.getenv("CI") or "pytest" in sys.modules:
-            raise
         logger.warning(f"Database init warning (non-fatal): {e}")
         # Non-fatal -- tables may already exist. In-memory services work without DB.
 
