@@ -110,7 +110,11 @@ async def _check_solana_rpc() -> dict:
     except httpx.HTTPStatusError as exc:
         latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("Solana RPC HTTP error: %s", exc.response.status_code)
-        return {"status": "degraded", "latency_ms": latency_ms, "error": f"http_{exc.response.status_code}"}
+        return {
+            "status": "degraded",
+            "latency_ms": latency_ms,
+            "error": f"http_{exc.response.status_code}",
+        }
     except Exception as exc:
         logger.warning("Solana RPC check failed: %s", exc)
         return {"status": "unavailable", "error": "connection_error"}
@@ -176,7 +180,11 @@ async def _check_github_api() -> dict:
     except httpx.HTTPStatusError as exc:
         latency_ms = round((time.monotonic() - start) * 1000)
         logger.warning("GitHub API HTTP error: %s", exc.response.status_code)
-        return {"status": "degraded", "latency_ms": latency_ms, "error": f"http_{exc.response.status_code}"}
+        return {
+            "status": "degraded",
+            "latency_ms": latency_ms,
+            "error": f"http_{exc.response.status_code}",
+        }
     except Exception as exc:
         logger.warning("GitHub API check failed: %s", exc)
         return {"status": "unavailable", "error": "connection_error"}
