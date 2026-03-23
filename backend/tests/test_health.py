@@ -449,6 +449,23 @@ class TestCheckGitHubApi:
         assert result["status"] == "degraded"
         assert result["error"] == "malformed_response"
 
+    def test_missing_resources_key(self):
+        """Response missing 'resources' key should return degraded with malformed_response."""
+        mock_resp = MagicMock(spec=Response)
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {"unexpected": "shape"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_resp)
+
+        with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
+            result = run_async(_check_github_api())
+        assert result["status"] == "degraded"
+        assert result["error"] == "malformed_response"
+
     def test_http_status_error(self):
         """Non-2xx GitHub responses (e.g. 403, 500) return degraded with http_<code> error."""
         from httpx import HTTPStatusError, Request as HttpxRequest

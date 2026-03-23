@@ -169,8 +169,8 @@ async def _check_github_api() -> dict:
                 data = resp.json()
                 if not isinstance(data, dict):
                     raise ValueError(f"unexpected response type: {type(data)}")
-                # Validate expected shape; missing keys return empty dicts
-                _ = data.get("resources", {}).get("core", {})
+                # Validate expected shape; KeyError raised here if keys missing.
+                _ = data["resources"]["core"]
             except Exception as exc:
                 logger.warning("GitHub API malformed response: %s", exc)
                 latency_ms = round((time.monotonic() - start) * 1000)
@@ -283,3 +283,4 @@ async def health_check() -> dict:
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "services": services,
     }
+
