@@ -3,7 +3,9 @@
  * All requests include a Bearer token from sessionStorage.
  * @module hooks/useAdminData
  */
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { PublicKey } from '@solana/web3.js';
 import type {
   AdminOverview,
   BountyListAdminResponse,
@@ -16,6 +18,7 @@ import type {
   PayoutHistoryResponse,
   SystemHealthResponse,
   AuditLogResponse,
+  TreasuryDashboardResponse,
 } from '../types/admin';
 
 // ---------------------------------------------------------------------------
@@ -46,14 +49,19 @@ export function clearAdminToken(): void {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
-async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function adminFetch<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: { treasuryWallet?: string | null },
+): Promise<T> {
   const token = getAdminToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(init?.headers as Record<string, string>),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
+      ...(opts?.treasuryWallet ? { 'X-SF-Treasury-Wallet': opts.treasuryWallet } : {}),
     },
   });
 
@@ -67,6 +75,39 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ---------------------------------------------------------------------------
 // Query hooks
 // ---------------------------------------------------------------------------
+
+export function parseTreasuryOwnerWallets(): string[] {
+  const raw = import.meta.env.VITE_TREASURY_OWNER_WALLETS as string | undefined;
+  if (!raw?.trim()) return [];
+  return raw
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function useTreasuryDashboard(publicKey: PublicKey | null) {
+  const owners = useMemo(() => parseTreasuryOwnerWallets(), []);
+  const walletHeader = publicKey?.toBase58() ?? null;
+  const ownerOk =
+    owners.length === 0 ||
+    Boolean(walletHeader && owners.includes(walletHeader.toLowerCase()));
+  const canFetch =
+    Boolean(getAdminToken()) &&
+    ownerOk &&
+    (owners.length === 0 || Boolean(walletHeader));
+
+  return useQuery<TreasuryDashboardResponse>({
+    queryKey: ['admin', 'treasury', walletHeader ?? 'no-wallet'],
+    queryFn: () =>
+      adminFetch<TreasuryDashboardResponse>('/api/admin/treasury/dashboard', undefined, {
+        treasuryWallet: owners.length ? walletHeader : null,
+      }),
+    enabled: canFetch,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
 
 export function useAdminOverview() {
   return useQuery<AdminOverview>({

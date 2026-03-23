@@ -23,7 +23,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -154,6 +154,32 @@ async def require_any(
 ) -> tuple[str, AdminRole]:
     """Require any valid admin role; return (actor, role)."""
     return await _resolve_role(credentials)
+
+
+def _treasury_owner_wallets() -> set[str]:
+    """Solana addresses allowed to call the treasury dashboard (lowercased)."""
+    raw = os.getenv("TREASURY_OWNER_WALLETS", "")
+    return {w.strip().lower() for w in raw.split(",") if w.strip()}
+
+
+async def require_treasury_dashboard_access(
+    actor: str = Depends(require_admin),
+    x_sf_treasury_wallet: Optional[str] = Header(None, alias="X-SF-Treasury-Wallet"),
+) -> str:
+    """Admin token plus optional owner-wallet header when TREASURY_OWNER_WALLETS is set."""
+    owners = _treasury_owner_wallets()
+    if not owners:
+        return actor
+    w = (x_sf_treasury_wallet or "").strip().lower()
+    if not w or w not in owners:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Treasury dashboard requires header X-SF-Treasury-Wallet matching "
+                "TREASURY_OWNER_WALLETS"
+            ),
+        )
+    return actor
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +429,57 @@ class AuditLogEntry(BaseModel):
 class AuditLogResponse(BaseModel):
     entries: List[AuditLogEntry]
     total: int
+
+
+class TreasuryChartPoint(BaseModel):
+    period_start: str
+    inflow: float
+    outflow: float
+
+
+class TreasuryChartBundle(BaseModel):
+    daily: List[TreasuryChartPoint]
+    weekly: List[TreasuryChartPoint]
+    monthly: List[TreasuryChartPoint]
+
+
+class TreasuryTxItem(BaseModel):
+    id: str
+    kind: Literal["payout", "buyback"]
+    direction: Literal["inflow", "outflow"]
+    amount_fndry: Optional[float] = None
+    amount_sol: Optional[float] = None
+    token: str
+    occurred_at: str
+    tx_hash: Optional[str] = None
+    explorer_url: Optional[str] = None
+    bounty_id: Optional[str] = None
+    bounty_title: Optional[str] = None
+    counterparty: Optional[str] = None
+
+
+class TreasuryProjections(BaseModel):
+    current_balance_fndry: float
+    avg_daily_outflow_fndry: float
+    runway_days: Optional[float] = None
+    window_days: int
+    note: Optional[str] = None
+
+
+class TierSpendingItem(BaseModel):
+    tier: int
+    total_fndry: float
+    bounty_count: int
+
+
+class TreasuryDashboardResponse(BaseModel):
+    treasury_pda_address: str
+    fndry_balance: float
+    last_updated: str
+    chart: TreasuryChartBundle
+    recent_transactions: List[TreasuryTxItem]
+    projections: TreasuryProjections
+    tier_spending: List[TierSpendingItem]
 
 
 # ---------------------------------------------------------------------------
@@ -1019,3 +1096,22 @@ async def get_audit_log(
         ],
         total=total,
     )
+
+
+# ---------------------------------------------------------------------------
+# Treasury dashboard (read-only)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/treasury/dashboard",
+    response_model=TreasuryDashboardResponse,
+    summary="Treasury health dashboard (read-only)",
+)
+async def get_treasury_dashboard(
+    _actor: str = Depends(require_treasury_dashboard_access),
+) -> TreasuryDashboardResponse:
+    from app.services.treasury_dashboard_service import build_treasury_dashboard_payload
+
+    payload = await build_treasury_dashboard_payload()
+    return TreasuryDashboardResponse.model_validate(payload)

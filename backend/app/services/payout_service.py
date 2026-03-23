@@ -194,6 +194,20 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
     return _payout_to_response(record)
 
 
+async def fetch_all_payout_records() -> list[PayoutRecord]:
+    """Return every payout row from PostgreSQL or the in-memory fallback."""
+    db_payouts = await _load_payouts_from_db()
+    source = db_payouts if db_payouts is not None else _payout_store
+    return list(source.values())
+
+
+async def fetch_all_buyback_records() -> list[BuybackRecord]:
+    """Return every buyback row from PostgreSQL or the in-memory fallback."""
+    db_buybacks = await _load_buybacks_from_db()
+    source = db_buybacks if db_buybacks is not None else _buyback_store
+    return list(source.values())
+
+
 async def list_payouts(
     recipient: Optional[str] = None,
     status: Optional[PayoutStatus] = None,

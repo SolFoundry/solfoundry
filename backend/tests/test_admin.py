@@ -411,3 +411,43 @@ class TestAuditLog:
 
         data = client.get("/api/admin/audit-log?limit=5", headers=AUTH_HEADER).json()
         assert len(data["entries"]) <= 5
+
+
+# ---------------------------------------------------------------------------
+# Treasury dashboard
+# ---------------------------------------------------------------------------
+
+
+class TestTreasuryDashboard:
+    @pytest.fixture(autouse=True)
+    def _fake_treasury_balance(self, monkeypatch):
+        import app.services.treasury_dashboard_service as tds
+
+        async def fake() -> float:
+            return 500_000.0
+
+        monkeypatch.setattr(tds, "fetch_treasury_pda_fndry_balance", fake)
+
+    def test_treasury_requires_auth(self, client):
+        resp = client.get("/api/admin/treasury/dashboard")
+        assert resp.status_code == 401
+
+    def test_treasury_owner_header_required_when_configured(self, client, monkeypatch):
+        owner = "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
+        monkeypatch.setenv("TREASURY_OWNER_WALLETS", owner)
+        resp = client.get("/api/admin/treasury/dashboard", headers=AUTH_HEADER)
+        assert resp.status_code == 403
+        ok = client.get(
+            "/api/admin/treasury/dashboard",
+            headers={**AUTH_HEADER, "X-SF-Treasury-Wallet": owner},
+        )
+        assert ok.status_code == 200
+        body = ok.json()
+        assert body["fndry_balance"] == 500_000.0
+        assert len(body["chart"]["daily"]) == 30
+
+    def test_treasury_ok_without_owner_env(self, client, monkeypatch):
+        monkeypatch.delenv("TREASURY_OWNER_WALLETS", raising=False)
+        resp = client.get("/api/admin/treasury/dashboard", headers=AUTH_HEADER)
+        assert resp.status_code == 200
+        assert resp.json()["projections"]["window_days"] == 30

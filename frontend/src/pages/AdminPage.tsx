@@ -15,6 +15,7 @@ import { ReviewPipeline } from '../components/admin/ReviewPipeline';
 import { FinancialPanel } from '../components/admin/FinancialPanel';
 import { SystemHealth } from '../components/admin/SystemHealth';
 import { AuditLogPanel } from '../components/admin/AuditLogPanel';
+import { TreasuryDashboardPanel } from '../components/admin/TreasuryDashboardPanel';
 import { setAdminToken } from '../hooks/useAdminData';
 import type { AdminSection } from '../types/admin';
 
@@ -61,6 +62,7 @@ export default function AdminPage() {
       case 'contributors': return <ContributorManagement />;
       case 'reviews':      return <ReviewPipeline />;
       case 'financial':    return <FinancialPanel />;
+      case 'treasury':     return <TreasuryDashboardPanel />;
       case 'health':       return <SystemHealth />;
       case 'audit-log':    return <AuditLogPanel />;
       default:             return <OverviewPanel />;

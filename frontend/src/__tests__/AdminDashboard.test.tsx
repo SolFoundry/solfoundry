@@ -31,6 +31,7 @@ vi.mock('../hooks/useAdminData', async (importOriginal) => {
     usePayoutHistory: vi.fn(),
     useSystemHealth: vi.fn(),
     useAuditLog: vi.fn(),
+    useTreasuryDashboard: vi.fn(),
   };
 });
 

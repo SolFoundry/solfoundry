@@ -190,5 +190,61 @@ export type AdminSection =
   | 'contributors'
   | 'reviews'
   | 'financial'
+  | 'treasury'
   | 'health'
   | 'audit-log';
+
+// ---------------------------------------------------------------------------
+// Treasury dashboard
+// ---------------------------------------------------------------------------
+
+export interface TreasuryChartPoint {
+  period_start: string;
+  inflow: number;
+  outflow: number;
+}
+
+export interface TreasuryChartBundle {
+  daily: TreasuryChartPoint[];
+  weekly: TreasuryChartPoint[];
+  monthly: TreasuryChartPoint[];
+}
+
+export interface TreasuryTxItem {
+  id: string;
+  kind: 'payout' | 'buyback';
+  direction: 'inflow' | 'outflow';
+  amount_fndry: number | null;
+  amount_sol: number | null;
+  token: string;
+  occurred_at: string;
+  tx_hash: string | null;
+  explorer_url: string | null;
+  bounty_id: string | null;
+  bounty_title: string | null;
+  counterparty: string | null;
+}
+
+export interface TreasuryProjections {
+  current_balance_fndry: number;
+  avg_daily_outflow_fndry: number;
+  runway_days: number | null;
+  window_days: number;
+  note: string | null;
+}
+
+export interface TierSpendingItem {
+  tier: number;
+  total_fndry: number;
+  bounty_count: number;
+}
+
+export interface TreasuryDashboardResponse {
+  treasury_pda_address: string;
+  fndry_balance: number;
+  last_updated: string;
+  chart: TreasuryChartBundle;
+  recent_transactions: TreasuryTxItem[];
+  projections: TreasuryProjections;
+  tier_spending: TierSpendingItem[];
+}
