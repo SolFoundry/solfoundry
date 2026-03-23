@@ -69,3 +69,7 @@ class BountyTable(Base):
         Index("ix_bounties_deadline", deadline),
         Index("ix_bounties_popularity", popularity),
     )
+
+
+# Alias for backward compatibility with existing tests and services
+BountyDB = BountyTable

@@ -16,7 +16,8 @@ from typing import Optional
 
 import httpx
 
-from app.models.bounty import BountyDB, BountyStatus, BountyTier
+from app.models.bounty_table import BountyDB
+from app.models.bounty import BountyStatus, BountyTier
 from app.services.bounty_service import _bounty_store
 
 logger = logging.getLogger(__name__)

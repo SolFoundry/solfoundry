@@ -56,7 +56,7 @@ class TestStatsEndpoint:
         """Test response with bounties and contributors."""
         from app.services.bounty_service import _bounty_store
         from app.services.contributor_service import _store as _contributor_store
-        from app.models.bounty import BountyDB
+        from app.models.bounty_table import BountyTable as BountyDB
         from app.models.contributor import ContributorDB
         import uuid
 
@@ -130,7 +130,7 @@ class TestStatsEndpoint:
     def test_tier_breakdown(self, client, clear_stores):
         """Test tier breakdown statistics."""
         from app.services.bounty_service import _bounty_store
-        from app.models.bounty import BountyDB
+        from app.models.bounty_table import BountyTable as BountyDB
 
         # Create bounties in different tiers
         bounties = [

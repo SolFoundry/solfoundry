@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook_log import WebhookEventLogDB
-from app.models.bounty import BountyDB, BountyStatus, BountyTier
+from app.models.bounty_table import BountyDB
+from app.models.bounty import BountyStatus, BountyTier
 from app.services import bounty_service
 from app.services import bounty_lifecycle_service
 

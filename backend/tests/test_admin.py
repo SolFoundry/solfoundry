@@ -16,7 +16,8 @@ from fastapi.testclient import TestClient
 
 import app.api.admin as admin_module
 from app.api.admin import router as admin_router
-from app.models.bounty import BountyDB, BountyStatus, BountyTier
+from app.models.bounty_table import BountyDB
+from app.models.bounty import BountyStatus, BountyTier
 from app.services import bounty_service, contributor_service
 
 # ---------------------------------------------------------------------------
