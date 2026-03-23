@@ -82,7 +82,6 @@ async def get_siws_message(
 
     Args:
         wallet_address: Solana public key in base58 format.
-        domain: Optional override for the origin domain (defaults to
                 ``SIWS_DOMAIN`` environment variable).
 
     Returns:

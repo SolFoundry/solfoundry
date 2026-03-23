@@ -187,14 +187,15 @@ async def _check_rate_limit(db: AsyncSession, wallet_address: str) -> None:
 async def create_siws_challenge(
     db: AsyncSession,
     wallet_address: str,
-    domain: Optional[str] = None,
 ) -> Dict:
     """Generate and persist a SIWS challenge for the given wallet.
+
+    The domain is server-controlled (SIWS_DOMAIN env var) to prevent
+    domain spoofing attacks. Clients cannot override it.
 
     Args:
         db: Async SQLAlchemy session.
         wallet_address: Solana public key (base58).
-        domain: Override the default domain (for multi-tenant support).
 
     Returns:
         Dict with ``domain``, ``address``, ``nonce``, ``issued_at``,
@@ -202,9 +203,10 @@ async def create_siws_challenge(
 
     Raises:
         SiwsRateLimitError: If the wallet has exceeded the rate limit.
+        SiwsValidationError: If the wallet address is invalid.
     """
     wallet_address = wallet_address.strip()
-    domain = domain or SIWS_DOMAIN
+    domain = SIWS_DOMAIN
 
     # Validate wallet address format (base58, 32-44 chars)
     _validate_wallet_address(wallet_address)
@@ -396,40 +398,42 @@ async def refresh_wallet_session(
     """
     token_hash = _sha256(refresh_token)
 
+    # Atomic single-use: conditionally revoke in one UPDATE to prevent
+    # concurrent double-spend of the same refresh token.
+    from sqlalchemy import update as sa_update
+
     result = await db.execute(
-        select(WalletSession).where(WalletSession.refresh_token_hash == token_hash)
-    )
-    session: Optional[WalletSession] = result.scalar_one_or_none()
-
-    if session is None:
-        raise SiwsSessionError("Invalid refresh token")
-
-    if session.revoked:
-        raise SiwsSessionError("Refresh token has been revoked")
-
-    refresh_expiry = session.refresh_expires_at
-    if refresh_expiry.tzinfo is None:
-        refresh_expiry = refresh_expiry.replace(tzinfo=timezone.utc)
-    if _now_utc() > refresh_expiry:
-        raise SiwsSessionError("Refresh token has expired")
-
-    # Decode to get wallet address
-    try:
-        from jose import jwt as jose_jwt
-        payload = jose_jwt.decode(
-            refresh_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
+        sa_update(WalletSession)
+        .where(
+            WalletSession.refresh_token_hash == token_hash,
+            WalletSession.revoked == False,  # noqa: E712
         )
-        wallet_address = payload.get("sub", "")
-    except JWTError as exc:
-        raise SiwsSessionError(f"Cannot decode refresh token: {exc}") from exc
+        .values(revoked=True, refresh_token_hash=None)
+        .returning(
+            WalletSession.wallet_address,
+            WalletSession.refresh_expires_at,
+            WalletSession.nonce,
+        )
+    )
+    row = result.first()
 
-    # Revoke old session
-    session.revoked = True
+    if row is None:
+        raise SiwsSessionError("Invalid, revoked, or already-consumed refresh token")
+
+    wallet_address, refresh_expiry, nonce = row
+
+    if refresh_expiry is not None:
+        if refresh_expiry.tzinfo is None:
+            refresh_expiry = refresh_expiry.replace(tzinfo=timezone.utc)
+        if _now_utc() > refresh_expiry:
+            await db.commit()
+            raise SiwsSessionError("Refresh token has expired")
+
     await db.flush()
 
     # Issue new session (no new nonce needed for refresh)
     new_access, new_refresh = await _create_wallet_session(
-        db, wallet_address, nonce=session.nonce or ""
+        db, wallet_address, nonce=nonce or ""
     )
     return new_access, new_refresh
 
@@ -493,6 +497,9 @@ async def siws_authenticate(
         SiwsNonceError: Nonce validation failed.
         WalletVerificationError: Signature invalid.
     """
+    # 0. Rate-limit on verification attempts (not just challenge issuance)
+    await _check_rate_limit(db, wallet_address)
+
     # 1. Validate nonce (checks expiry, wallet match, message integrity)
     #    but do NOT consume yet — verify signature first to prevent
     #    attackers from burning valid challenges with invalid signatures.
