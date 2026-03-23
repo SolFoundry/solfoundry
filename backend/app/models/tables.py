@@ -81,8 +81,8 @@ class ReputationHistoryTable(Base):
     __tablename__ = "reputation_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    contributor_id = Column(String(64), nullable=False, index=True)
-    bounty_id = Column(String(64), nullable=False, index=True)
+    contributor_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     bounty_title = Column(String(200), nullable=False)
     bounty_tier = Column(Integer, nullable=False)
     review_score = Column(sa.Numeric(precision=5, scale=2), nullable=False)
@@ -109,9 +109,9 @@ class BountySubmissionTable(Base):
 
     __tablename__ = "bounty_submissions"
 
-    id = Column(String(36), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        String(36),
+        UUID(as_uuid=True),
         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
