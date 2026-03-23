@@ -198,13 +198,13 @@ def clear_stores():
             await conn.execute(text("PRAGMA foreign_keys = ON"))
 
     _get_test_loop().run_until_complete(_db_cleanup())
-    
+
     # Reset internal service caches if any
     if hasattr(bounty_service, "_bounty_store"):
         bounty_service._bounty_store.clear()
     if hasattr(contributor_service, "_store"):
         contributor_service._store.clear()
-    
+
     reset_payout_stores()
     reset_counters()
     yield
