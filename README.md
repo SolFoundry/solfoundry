@@ -25,6 +25,15 @@
   <a href="https://solscan.io/token/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Solscan</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions"><img src="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml/badge.svg" alt="CI Build Status"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry" alt="Contributors"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues"><img src="https://img.shields.io/github/issues/SolFoundry/solfoundry" alt="Open Issues"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SolFoundry/solfoundry" alt="License"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry" alt="GitHub Stars"/></a>
+  <a href="https://github.com/SolFoundry/solfoundry/forks"><img src="https://img.shields.io/github/forks/SolFoundry/solfoundry" alt="Forks"/></a>
+</p>
+
 ---
 
 ## What is SolFoundry?
