@@ -48,6 +48,7 @@ from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
 from app.services.contributor_webhook_service import ContributorWebhookService
+from app.services.anti_sybil_service import has_hard_block, run_claim_checks
 
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
@@ -384,6 +385,23 @@ async def submit_solution(
     data.submitted_by = user.wallet_address or str(user.id)
     if not data.contributor_wallet and user.wallet_address:
         data.contributor_wallet = user.wallet_address
+
+    # Anti-gaming: check active claims and T1 cooldown
+    try:
+        bounty_for_tier = await bounty_service.get_bounty(bounty_id)
+        bounty_tier = getattr(bounty_for_tier, "tier", 1) if bounty_for_tier else 1
+        claim_results = await run_claim_checks(
+            user_id=str(user.id),
+            bounty_tier=int(bounty_tier),
+        )
+        blocker = has_hard_block(claim_results)
+        if blocker:
+            raise HTTPException(status_code=403, detail=blocker.message)
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # anti-sybil checks are never allowed to break the submission flow
+
     result, error = await bounty_service.submit_solution(bounty_id, data)
     if error:
         status_code = 404 if "not found" in error.lower() else 400

@@ -239,15 +239,29 @@ async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
 
 
 async def github_oauth_login(
-    db: AsyncSession, code: str, state: Optional[str] = None
+    db: AsyncSession,
+    code: str,
+    state: Optional[str] = None,
+    client_ip: str = "unknown",
 ) -> Dict:
-    """Complete GitHub OAuth login and create/update user."""
+    """Complete GitHub OAuth login and create/update user.
+
+    Runs anti-sybil registration checks for new accounts.  Hard-block
+    failures raise ``HTTPException(403)``; soft flags are logged silently.
+    """
+    from fastapi import HTTPException as FastAPIHTTPException
+    from app.services.anti_sybil_service import (
+        has_hard_block,
+        run_registration_checks,
+    )
+
     github_user = await exchange_github_code(code, state)
     github_id = str(github_user["id"])
 
     result = await db.execute(select(User).where(User.github_id == github_id))
     user = result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
+    is_new_user = user is None
 
     if user:
         user.username = github_user.get("login", "")
@@ -267,6 +281,28 @@ async def github_oauth_login(
 
     await db.commit()
     await db.refresh(user)
+
+    # Anti-sybil checks for new registrations
+    if is_new_user:
+        try:
+            results = await run_registration_checks(
+                user_id=str(user.id),
+                ip=client_ip,
+                github_created_at=github_user.get("created_at", now.isoformat()),
+                public_repos=int(github_user.get("public_repos", 0)),
+                followers=int(github_user.get("followers", 0)),
+                following=int(github_user.get("following", 0)),
+            )
+            blocker = has_hard_block(results)
+            if blocker:
+                raise FastAPIHTTPException(
+                    status_code=403,
+                    detail=blocker.message,
+                )
+        except FastAPIHTTPException:
+            raise
+        except Exception as exc:
+            logger.warning("Anti-sybil check failed (non-fatal): %s", exc)
 
     return {
         "access_token": create_access_token(str(user.id)),

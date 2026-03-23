@@ -53,6 +53,7 @@ from app.api.admin import router as admin_router
 from app.database import init_db, close_db
 from app.api.og import router as og_router
 from app.api.contributor_webhooks import router as contributor_webhooks_router
+from app.api.anti_sybil import router as anti_sybil_router
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets
@@ -392,6 +393,9 @@ app.include_router(stats_router, prefix="/api")
 # Open Graph previews: /og/*
 app.include_router(og_router)
 app.include_router(contributor_webhooks_router, prefix="/api")
+
+# Anti-sybil: /api/anti-sybil/* and /api/admin/sybil/*
+app.include_router(anti_sybil_router, prefix="/api")
 
 # System Health: /health
 app.include_router(health_router)
