@@ -348,7 +348,9 @@ class TestCheckSolanaRpc:
         mock_err_resp = MagicMock()
         mock_err_resp.status_code = 503
 
-        http_error = HTTPStatusError("503 Service Unavailable", request=mock_request, response=mock_err_resp)
+        http_error = HTTPStatusError(
+            "503 Service Unavailable", request=mock_request, response=mock_err_resp
+        )
 
         mock_resp = MagicMock(spec=Response)
         mock_resp.status_code = 503
@@ -458,7 +460,9 @@ class TestCheckGitHubApi:
         mock_err_resp = MagicMock()
         mock_err_resp.status_code = 403
 
-        http_error = HTTPStatusError("403 Forbidden", request=mock_request, response=mock_err_resp)
+        http_error = HTTPStatusError(
+            "403 Forbidden", request=mock_request, response=mock_err_resp
+        )
 
         mock_resp = MagicMock(spec=Response)
         mock_resp.status_code = 403
