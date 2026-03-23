@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +65,9 @@ from app.services.treasury_service import (
 )
 from app.services.contributor_webhook_service import ContributorWebhookService
 from app.api.admin import _resolve_role
+
+if TYPE_CHECKING:
+    from app.api.admin import AdminRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
