@@ -71,7 +71,6 @@ class ContributorWebhookDB(Base):
     failure_count = Column(Integer, default=0, nullable=False)
 
     __table_args__ = (
-        Index("ix_contributor_webhooks_user_id", "user_id"),
         Index("ix_contributor_webhooks_active", "active"),
     )
 

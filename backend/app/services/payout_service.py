@@ -182,7 +182,8 @@ async def reject_payout(payout_id: str, admin_id: str, reason: Optional[str] = N
     """Admin rejection gate."""
     all_p = await pg_store.load_payouts(limit=5000)
     record = all_p.get(payout_id)
-    if not record: raise HTTPException(status_code=404, detail="Payout not found")
+    if not record:\
+        raise HTTPException(status_code=404, detail="Payout not found")
     
     record.status = PayoutStatus.FAILED
     record.failure_reason = reason
@@ -202,7 +203,8 @@ async def process_payout(payout_id: str) -> PayoutResponse:
     
     all_p = await pg_store.load_payouts(limit=5000)
     record = all_p.get(payout_id)
-    if not record: raise HTTPException(status_code=404, detail="Payout not found")
+    if not record:\
+        raise HTTPException(status_code=404, detail="Payout not found")
     if record.status != PayoutStatus.APPROVED:
         raise HTTPException(status_code=400, detail="Payout must be APPROVED before execution")
 

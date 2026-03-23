@@ -17,7 +17,7 @@ async def test_ip_blocklist():
             
             # Case 1: IP is blacklisted
             mock_redis.sismember.return_value = True
-            response = await ac.get("/api/health", headers={"X-Forwarded-For": "1.2.3.4"})
+            await ac.get("/api/health", headers={"X-Forwarded-For": "1.2.3.4"})
             # Note: We need to re-initialize the app or patch the middleware instance because it's already added to 'app'
             # For simplicity in this test mission, we patch the direct check line if possible, 
             # but usually we mock the redis call at the class level.
