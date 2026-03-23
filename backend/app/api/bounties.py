@@ -12,7 +12,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.exceptions import BoostBelowMinimumError, BoostInvalidBountyError
+from app.models.boost import (
+    BoostRequest,
+    BoostResponse,
+    BoostListResponse,
+    BoostLeaderboardResponse,
+)
 from app.models.errors import ErrorResponse
+from app.services import boost_service
 from app.services.bounty_lifecycle_service import (
     LifecycleError,
     publish_bounty as _publish_bounty,
@@ -855,3 +863,62 @@ async def transition_bounty(
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
+
+
+# ---------------------------------------------------------------------------
+# Boost endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{bounty_id}/boost",
+    response_model=BoostResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Boost a bounty reward",
+    responses={
+        400: {"model": ErrorResponse, "description": "Below minimum or invalid bounty"},
+        404: {"model": ErrorResponse, "description": "Bounty not found"},
+    },
+)
+async def boost_bounty(bounty_id: str, body: BoostRequest):
+    """Add $FNDRY to a bounty's prize pool.
+
+    The boosted amount goes into escrow alongside the original reward.
+    Minimum contribution is 1,000 $FNDRY. The bounty must be OPEN or
+    IN_PROGRESS. A Telegram notification is sent to the bounty owner.
+    """
+    try:
+        return await boost_service.create_boost(
+            bounty_id=bounty_id,
+            booster_wallet=body.booster_wallet,
+            amount=body.amount,
+            tx_hash=body.tx_hash,
+        )
+    except BoostBelowMinimumError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except BoostInvalidBountyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get(
+    "/{bounty_id}/boosts",
+    response_model=BoostListResponse,
+    summary="List boosts for a bounty",
+)
+async def list_bounty_boosts(
+    bounty_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """Return paginated boost history for a bounty (newest first)."""
+    return await boost_service.get_boosts(bounty_id, skip=skip, limit=limit)
+
+
+@router.get(
+    "/{bounty_id}/boost-leaderboard",
+    response_model=BoostLeaderboardResponse,
+    summary="Top boosters for a bounty",
+)
+async def bounty_boost_leaderboard(bounty_id: str):
+    """Return the top 20 boosters ranked by total $FNDRY contributed."""
+    return await boost_service.get_boost_leaderboard(bounty_id)

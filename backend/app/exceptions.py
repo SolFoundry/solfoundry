@@ -134,3 +134,24 @@ class EscrowFundingError(EscrowError):
 
 class EscrowDoubleSpendError(EscrowError):
     """Raised when a funding transaction could not be confirmed on-chain."""
+
+
+# ---------------------------------------------------------------------------
+# Boost exceptions
+# ---------------------------------------------------------------------------
+
+
+class BoostError(Exception):
+    """Base class for all bounty-boost errors."""
+
+
+class BoostBelowMinimumError(BoostError):
+    """Raised when a boost amount is below the 1,000 $FNDRY minimum."""
+
+
+class BoostInvalidBountyError(BoostError):
+    """Raised when the target bounty does not exist or is not boostable."""
+
+
+class BoostNotFoundError(BoostError):
+    """Raised when a boost ID does not exist."""

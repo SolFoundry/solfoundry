@@ -11,6 +11,7 @@ import SubmissionForm from './bounties/SubmissionForm';
 import CreatorApprovalPanel from './bounties/CreatorApprovalPanel';
 import LifecycleTimeline from './bounties/LifecycleTimeline';
 import { BountyTags } from './bounties/BountyTags';
+import { BoostPanel } from './bounties/BoostPanel';
 
 interface BountyDetail {
   id: string;
@@ -157,10 +158,10 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
               </h1>
 
               <div className="flex flex-wrap items-center gap-4 text-sm sm:text-base">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" data-testid="bounty-reward">
                   <span className="text-gray-600 dark:text-gray-400">Reward:</span>
                   <span className="text-green-700 dark:text-green-400 font-bold text-lg sm:text-xl">
-                    {rewardAmount.toLocaleString()} FNDRY
+                    {rewardAmount.toLocaleString()} $FNDRY
                   </span>
                 </div>
               </div>
@@ -351,6 +352,14 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 )}
               </div>
             </div>
+
+            {/* Boost Panel — community reward contributions */}
+            <BoostPanel
+              bountyId={bounty.id}
+              bountyStatus={bounty.status}
+              originalAmount={rewardAmount}
+              walletAddress={currentUserWallet}
+            />
 
             {/* Escrow Status */}
             <EscrowStatus
