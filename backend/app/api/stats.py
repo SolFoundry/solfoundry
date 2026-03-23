@@ -138,21 +138,19 @@ def _get_cached_stats() -> dict:
     return data
 
 
+def format_payout_amount(total_paid: int) -> str:
+    """Format total paid amount for badges."""
+    if total_paid >= 1000000:
+        return f"{total_paid / 1000000:.1f}M".replace(".0M", "M")
+    elif total_paid >= 1000:
+        return f"{total_paid / 1000:.1f}k".replace(".0k", "k")
+    else:
+        return f"{total_paid:,}"
+
+
 @router.get("/api/stats", response_model=StatsResponse)
 async def get_stats() -> StatsResponse:
-    """Get bounty program statistics.
-
-    Returns aggregate statistics about the bounty program:
-    - Total bounties (created, completed, open)
-    - Total contributors
-    - Total $FNDRY paid out
-    - Total PRs reviewed
-    - Breakdown by tier
-    - Top contributor
-
-    No authentication required - public endpoint.
-    Cached for 5 minutes.
-    """
+    """Get bounty program statistics."""
     data = _get_cached_stats()
     return StatsResponse(**data)
 
@@ -162,15 +160,14 @@ async def get_payouts_shield():
     """Endpoint format specifically for shields.io custom badge endpoints.
     Returns the total $FNDRY paid in a format compatible with shields.io JSON endpoint.
     """
-    data = _get_cached_stats()
-    total_paid = data.get("total_fndry_paid", 0)
+    try:
+        data = _get_cached_stats()
+        total_paid = data.get("total_fndry_paid", 0)
+    except Exception as e:
+        logger.error(f"Error generating shield payout stats: {e}")
+        total_paid = 0
     
-    # Format large numbers (e.g. 250000 -> 250k)
-    formatted_paid = f"{total_paid:,}"
-    if total_paid >= 1000000:
-        formatted_paid = f"{total_paid / 1000000:.1f}M"
-    elif total_paid >= 1000:
-        formatted_paid = f"{total_paid / 1000:.0f}k"
+    formatted_paid = format_payout_amount(total_paid)
     
     return {
         "schemaVersion": 1,
@@ -178,4 +175,3 @@ async def get_payouts_shield():
         "message": f"{formatted_paid} $FNDRY",
         "color": "blueviolet"
     }
-
