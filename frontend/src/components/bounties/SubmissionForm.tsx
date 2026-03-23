@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { LoadingButton } from '../common/LoadingButton';
 
 interface SubmissionFormProps {
   bountyId: string;
@@ -119,20 +120,15 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({
           </div>
         )}
 
-        <button
+        <LoadingButton
           type="submit"
-          disabled={disabled || loading}
-          className="w-full bg-solana-purple hover:bg-violet-600 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-surface-300 dark:disabled:text-gray-500 text-white py-3 rounded-lg font-medium transition-colors min-h-[44px] flex items-center justify-center gap-2"
+          isLoading={loading}
+          loadingText="Submitting..."
+          disabled={disabled}
+          className="w-full py-3 min-h-[44px]"
         >
-          {loading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            'Submit PR for Review'
-          )}
-        </button>
+          Submit PR for Review
+        </LoadingButton>
       </form>
     </div>
   );
