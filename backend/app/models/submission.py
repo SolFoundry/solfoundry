@@ -14,9 +14,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 import sqlalchemy as sa
 from sqlalchemy import Column, String, DateTime, JSON, Integer, Text, Index
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class SubmissionStatus(str, Enum):
@@ -49,10 +47,10 @@ class SubmissionDB(Base):
 
     __tablename__ = "submissions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
 
     # Contributor information
-    contributor_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    contributor_id = Column(GUID, nullable=False, index=True)
     contributor_wallet = Column(String(64), nullable=False, index=True)
 
     # PR information
@@ -63,7 +61,7 @@ class SubmissionDB(Base):
     pr_merged_at = Column(DateTime(timezone=True), nullable=True)
 
     # Bounty matching
-    bounty_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    bounty_id = Column(GUID, nullable=True, index=True)
     match_confidence = Column(String(20), nullable=True)  # high, medium, low
     match_score = Column(sa.Numeric(precision=5, scale=4), nullable=True)  # 0.0-1.0
     match_reasons = Column(JSON, default=list, nullable=False)  # Why matched
@@ -71,7 +69,7 @@ class SubmissionDB(Base):
     # Submission status
     status = Column(String(20), nullable=False, default="pending", index=True)
     review_notes = Column(Text, nullable=True)
-    reviewer_id = Column(UUID(as_uuid=True), nullable=True)
+    reviewer_id = Column(GUID, nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Payout information

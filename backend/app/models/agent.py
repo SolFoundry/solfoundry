@@ -22,19 +22,7 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    Boolean,
-    Text,
-    JSON,
-    UUID,
-    Float,
-    Integer,
-)
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +84,7 @@ class Agent(Base):
 
     __tablename__ = "agents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     name = Column(String(NAME_MAX_LENGTH), nullable=False)
     description = Column(Text, nullable=True)
     role = Column(String(64), nullable=False, index=True)

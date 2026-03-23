@@ -9,6 +9,7 @@ import asyncio
 import os
 
 import pytest
+import sqlalchemy as sa
 
 # Set test database URL before importing app modules
 # This must be done before any app imports
@@ -104,3 +105,22 @@ def init_test_db():
     if _test_loop and not _test_loop.is_closed():
         _test_loop.close()
         _test_loop = None
+
+
+@pytest.fixture(autouse=True)
+async def db_cleanup():
+    """Clear all database tables between tests to ensure isolation.
+
+    Uses SQLAlchemy's ``metadata.tables`` to find all registered models
+    and issues a DELETE FROM command for each. This is much faster than
+    drop/create for in-memory SQLite.
+    """
+    from app.database import engine, Base
+
+    async with engine.begin() as conn:
+        # Disable foreign key checks for SQLite to allow unconditional deletion
+        await conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+        await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
+    yield

@@ -14,9 +14,7 @@ from typing import Any, Optional
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 # ── event types ────────────────────────────────────────────────────────────────
 
@@ -47,8 +45,8 @@ class ContributorWebhookDB(Base):
 
     __tablename__ = "contributor_webhooks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID, nullable=False, index=True)
     url = Column(Text, nullable=False)
     # HMAC-SHA256 secret supplied by the contributor at registration time.
     # Stored as plaintext (contributor's choice); used to sign outgoing payloads.

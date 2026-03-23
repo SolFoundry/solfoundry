@@ -25,9 +25,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class ContributorTable(Base):
@@ -46,7 +44,7 @@ class ContributorTable(Base):
 
     __tablename__ = "contributors"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, nullable=False, index=True)
     display_name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=True)
@@ -178,8 +176,6 @@ class ContributorResponse(ContributorBase):
     id: str
     username: str
     unsubscribe_token: str
-    email_notifications_enabled: bool
-    notification_preferences: dict
     stats: ContributorStats
     created_at: datetime
     updated_at: datetime

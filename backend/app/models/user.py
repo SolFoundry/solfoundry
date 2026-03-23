@@ -5,10 +5,9 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import Column, String, DateTime, Boolean
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from pydantic import BaseModel, Field
 
-from app.database import Base
+from app.database import Base, GUID
 
 
 class User(Base):
@@ -16,7 +15,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(GUID, primary_key=True, default=uuid4)
     github_id = Column(String(64), unique=True, nullable=False, index=True)
     username = Column(String(128), nullable=False)
     email = Column(String(256), nullable=True)

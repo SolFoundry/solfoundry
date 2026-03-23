@@ -9,10 +9,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Column, String, DateTime, Boolean, Index
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from pydantic import BaseModel, Field
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class WalletSession(Base):
@@ -20,7 +17,7 @@ class WalletSession(Base):
 
     __tablename__ = "wallet_sessions"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(GUID, primary_key=True, default=uuid4)
     wallet_address = Column(String(64), nullable=False, index=True)
     # SHA-256 hex digest of the JWT access token (never store raw tokens)
     access_token_hash = Column(String(64), nullable=False)

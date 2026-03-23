@@ -11,9 +11,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, DateTime, Boolean, JSON, Text, Index
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class NotificationType(str, Enum):
@@ -45,13 +43,13 @@ class NotificationDB(Base):
 
     __tablename__ = "notifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID, nullable=False, index=True)
     notification_type = Column(String(50), nullable=False)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     read = Column(Boolean, default=False, nullable=False, index=True)
-    bounty_id = Column(UUID(as_uuid=True), nullable=True)
+    bounty_id = Column(GUID, nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )

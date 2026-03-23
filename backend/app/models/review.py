@@ -11,9 +11,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Column, String, DateTime, Float, Text, Index
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 AI_REVIEW_SCORE_THRESHOLD = (
@@ -42,9 +40,9 @@ class AIReviewScoreDB(Base):
 
     __tablename__ = "ai_review_scores"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    submission_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    submission_id = Column(GUID, nullable=False, index=True)
+    bounty_id = Column(GUID, nullable=False, index=True)
 
     model_name = Column(
         String(50), nullable=False

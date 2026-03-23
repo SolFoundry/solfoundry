@@ -11,9 +11,7 @@ from enum import Enum
 
 from pydantic import BaseModel
 from sqlalchemy import Column, String, DateTime, JSON, Index
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class LifecycleEventType(str, Enum):
@@ -45,9 +43,9 @@ class BountyLifecycleLogDB(Base):
 
     __tablename__ = "bounty_lifecycle_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    submission_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    bounty_id = Column(GUID, nullable=False, index=True)
+    submission_id = Column(GUID, nullable=True, index=True)
     event_type = Column(String(50), nullable=False)
     previous_state = Column(String(50), nullable=True)
     new_state = Column(String(50), nullable=True)

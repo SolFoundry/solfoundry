@@ -7,9 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, String, DateTime, Text, Index
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class WebhookEventLogDB(Base):
@@ -21,7 +19,7 @@ class WebhookEventLogDB(Base):
 
     __tablename__ = "webhook_event_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     delivery_id = Column(String(100), nullable=False, unique=True, index=True)
     event_type = Column(String(50), nullable=False)
     payload_hash = Column(String(64), nullable=False)  # SHA256 hash

@@ -18,9 +18,7 @@ from sqlalchemy import (
     Index,
     JSON,
 )
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 class BountyTable(Base):
@@ -33,7 +31,7 @@ class BountyTable(Base):
 
     __tablename__ = "bounties"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     title = Column(String(200), nullable=False)
     project_name = Column(String(100), nullable=True)
     description = Column(Text, nullable=False, server_default="")

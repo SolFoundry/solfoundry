@@ -21,10 +21,7 @@ from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, String
-from sqlalchemy.dialects.postgresql import UUID
-from pydantic import BaseModel, Field, field_validator
-
-from app.database import Base
+from app.database import Base, GUID
 
 _BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 MINIMUM_BOOST_AMOUNT = 1_000.0
@@ -55,9 +52,9 @@ class BountyBoostTable(Base):
 
     __tablename__ = "bounty_boosts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        UUID(as_uuid=True),
+        GUID,
         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

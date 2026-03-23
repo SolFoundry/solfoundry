@@ -10,9 +10,7 @@ from datetime import datetime, timezone
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
-
-from app.database import Base
+from app.database import Base, GUID
 
 
 def _now() -> datetime:
@@ -30,13 +28,13 @@ class PayoutTable(Base):
 
     __tablename__ = "payouts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     recipient = Column(String(100), nullable=False, index=True)
     recipient_wallet = Column(String(64))
     amount = Column(sa.Numeric(precision=20, scale=6), nullable=False)
     token = Column(String(20), nullable=False, server_default="FNDRY")
     bounty_id = Column(
-        UUID(as_uuid=True),
+        GUID,
         sa.ForeignKey("bounties.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -59,7 +57,7 @@ class BuybackTable(Base):
 
     __tablename__ = "buybacks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     amount_sol = Column(sa.Numeric(precision=20, scale=6), nullable=False)
     amount_fndry = Column(sa.Numeric(precision=20, scale=6), nullable=False)
     price_per_fndry = Column(sa.Numeric(precision=20, scale=10), nullable=False)
@@ -80,9 +78,9 @@ class ReputationHistoryTable(Base):
 
     __tablename__ = "reputation_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    contributor_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    contributor_id = Column(GUID, nullable=False, index=True)
+    bounty_id = Column(GUID, nullable=False, index=True)
     bounty_title = Column(String(200), nullable=False)
     bounty_tier = Column(Integer, nullable=False)
     review_score = Column(sa.Numeric(precision=5, scale=2), nullable=False)
@@ -109,9 +107,9 @@ class BountySubmissionTable(Base):
 
     __tablename__ = "bounty_submissions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        UUID(as_uuid=True),
+        GUID,
         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -139,7 +137,7 @@ class AdminAuditLogTable(Base):
 
     __tablename__ = "admin_audit_log"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
     event = Column(String(100), nullable=False, index=True)
     actor = Column(String(200), nullable=False)
     role = Column(String(20), nullable=False, server_default="admin")
