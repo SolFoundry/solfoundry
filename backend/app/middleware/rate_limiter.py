@@ -455,9 +455,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply Redis-backed token bucket rate limiting."""
         # Skip health check and websockets (handled separately or not limited)
-        if request.url.path in ("/health", "/metrics") or request.scope.get(
-            "type"
-        ) == "websocket":
+        if (
+            request.url.path in ("/health", "/metrics")
+            or request.scope.get("type") == "websocket"
+        ):
             return await call_next(request)
 
         group_name = _get_group(request.url.path)

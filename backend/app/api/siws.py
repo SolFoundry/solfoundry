@@ -180,7 +180,10 @@ async def siws_sign_in(
         "Each refresh token is single-use — the old pair is revoked on use."
     ),
     responses={
-        401: {"model": ErrorResponse, "description": "Invalid or expired refresh token"},
+        401: {
+            "model": ErrorResponse,
+            "description": "Invalid or expired refresh token",
+        },
     },
 )
 async def siws_refresh(
@@ -199,11 +202,13 @@ async def siws_refresh(
         # Decode wallet address from new token for response
         from jose import jwt as jose_jwt
         from app.services.auth_service import JWT_SECRET_KEY, JWT_ALGORITHM
+
         payload = jose_jwt.decode(
             access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
         )
         wallet_address = payload.get("sub", "")
         from app.services.siws_service import ACCESS_TOKEN_TTL_HOURS
+
         return SiwsAuthResponse(
             access_token=access_token,
             refresh_token=refresh_token,

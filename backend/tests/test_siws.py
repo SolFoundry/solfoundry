@@ -24,6 +24,7 @@ from app.models.wallet_session import SiwsNonce, WalletSession
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def client():
     """Create a test client."""
@@ -59,12 +60,15 @@ def _full_auth(client, keypair, wallet_address):
 
     # Step 2 — sign and verify
     signature = _sign_message(keypair, message)
-    r = client.post("/api/auth/siws", json={
-        "wallet_address": wallet_address,
-        "signature": signature,
-        "message": message,
-        "nonce": nonce,
-    })
+    r = client.post(
+        "/api/auth/siws",
+        json={
+            "wallet_address": wallet_address,
+            "signature": signature,
+            "message": message,
+            "nonce": nonce,
+        },
+    )
     assert r.status_code == 200, f"verify failed: {r.text}"
     tokens = r.json()
     assert "access_token" in tokens
@@ -77,12 +81,15 @@ def _full_auth(client, keypair, wallet_address):
 # 1. Challenge / nonce endpoint
 # ---------------------------------------------------------------------------
 
+
 class TestSiwsChallenge:
     """GET /api/auth/siws/message"""
 
     def test_returns_challenge(self, client, wallet_address):
         """Returns nonce + SIWS-formatted message containing wallet address."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         assert r.status_code == 200
         data = r.json()
         assert "nonce" in data
@@ -92,7 +99,9 @@ class TestSiwsChallenge:
 
     def test_message_has_siws_fields(self, client, wallet_address):
         """SIWS message includes domain, nonce, issued-at per the standard."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         msg = r.json()["message"]
         # Standard SIWS fields
         assert "Nonce:" in msg or "nonce" in msg.lower()
@@ -100,13 +109,19 @@ class TestSiwsChallenge:
 
     def test_nonce_unique(self, client, wallet_address):
         """Each request produces a different nonce."""
-        r1 = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
-        r2 = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r1 = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
+        r2 = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         assert r1.json()["nonce"] != r2.json()["nonce"]
 
     def test_invalid_wallet_rejected(self, client):
         """Non-base58 wallet address is rejected."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": "not-a-wallet!!!"})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": "not-a-wallet!!!"}
+        )
         assert r.status_code in (400, 422)
 
 
@@ -114,10 +129,13 @@ class TestSiwsChallenge:
 # 2. Signature verification & session creation
 # ---------------------------------------------------------------------------
 
+
 class TestSiwsVerify:
     """POST /api/auth/siws"""
 
-    def test_valid_signature_creates_session(self, client, test_keypair, wallet_address):
+    def test_valid_signature_creates_session(
+        self, client, test_keypair, wallet_address
+    ):
         """Valid wallet signature returns access_token + refresh_token."""
         tokens = _full_auth(client, test_keypair, wallet_address)
         assert len(tokens["access_token"]) > 20
@@ -125,33 +143,45 @@ class TestSiwsVerify:
 
     def test_invalid_signature_rejected(self, client, wallet_address):
         """Random bytes as signature → 401."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         data = r.json()
-        r2 = client.post("/api/auth/siws", json={
-            "wallet_address": wallet_address,
-            "signature": base64.b64encode(b"\x00" * 64).decode(),
-            "message": data["message"],
-            "nonce": data["nonce"],
-        })
+        r2 = client.post(
+            "/api/auth/siws",
+            json={
+                "wallet_address": wallet_address,
+                "signature": base64.b64encode(b"\x00" * 64).decode(),
+                "message": data["message"],
+                "nonce": data["nonce"],
+            },
+        )
         assert r2.status_code in (401, 400, 403)
 
     def test_wrong_wallet_rejected(self, client, wallet_address):
         """Signature from different keypair is rejected."""
         other = Keypair()
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         data = r.json()
         wrong_sig = _sign_message(other, data["message"])
-        r2 = client.post("/api/auth/siws", json={
-            "wallet_address": wallet_address,
-            "signature": wrong_sig,
-            "message": data["message"],
-            "nonce": data["nonce"],
-        })
+        r2 = client.post(
+            "/api/auth/siws",
+            json={
+                "wallet_address": wallet_address,
+                "signature": wrong_sig,
+                "message": data["message"],
+                "nonce": data["nonce"],
+            },
+        )
         assert r2.status_code in (401, 400, 403)
 
     def test_replay_attack_rejected(self, client, test_keypair, wallet_address):
         """Reusing a consumed nonce is rejected."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         data = r.json()
         sig = _sign_message(test_keypair, data["message"])
         payload = {
@@ -169,16 +199,21 @@ class TestSiwsVerify:
 
     def test_tampered_message_rejected(self, client, test_keypair, wallet_address):
         """Signing a different message than the challenge → rejected."""
-        r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+        r = client.get(
+            "/api/auth/siws/message", params={"wallet_address": wallet_address}
+        )
         data = r.json()
         # Sign the WRONG message
         sig = _sign_message(test_keypair, "I am a hacker")
-        r2 = client.post("/api/auth/siws", json={
-            "wallet_address": wallet_address,
-            "signature": sig,
-            "message": data["message"],
-            "nonce": data["nonce"],
-        })
+        r2 = client.post(
+            "/api/auth/siws",
+            json={
+                "wallet_address": wallet_address,
+                "signature": sig,
+                "message": data["message"],
+                "nonce": data["nonce"],
+            },
+        )
         assert r2.status_code in (401, 400, 403)
 
 
@@ -186,15 +221,19 @@ class TestSiwsVerify:
 # 3. Token refresh
 # ---------------------------------------------------------------------------
 
+
 class TestSiwsRefresh:
     """POST /api/auth/siws/refresh"""
 
     def test_refresh_returns_new_tokens(self, client, test_keypair, wallet_address):
         """Refresh token returns new access + refresh pair."""
         tokens = _full_auth(client, test_keypair, wallet_address)
-        r = client.post("/api/auth/siws/refresh", json={
-            "refresh_token": tokens["refresh_token"],
-        })
+        r = client.post(
+            "/api/auth/siws/refresh",
+            json={
+                "refresh_token": tokens["refresh_token"],
+            },
+        )
         assert r.status_code == 200
         new_tokens = r.json()
         assert "access_token" in new_tokens
@@ -216,15 +255,19 @@ class TestSiwsRefresh:
 
     def test_invalid_refresh_token_rejected(self, client):
         """Garbage refresh token is rejected."""
-        r = client.post("/api/auth/siws/refresh", json={
-            "refresh_token": "totally-invalid-token",
-        })
+        r = client.post(
+            "/api/auth/siws/refresh",
+            json={
+                "refresh_token": "totally-invalid-token",
+            },
+        )
         assert r.status_code in (401, 400, 403)
 
 
 # ---------------------------------------------------------------------------
 # 4. Session revocation / logout
 # ---------------------------------------------------------------------------
+
 
 class TestSiwsRevoke:
     """POST /api/auth/siws/revoke"""
@@ -238,9 +281,12 @@ class TestSiwsRevoke:
         assert r.status_code in (200, 204)
 
         # Refresh with the revoked session's refresh token should fail
-        r2 = client.post("/api/auth/siws/refresh", json={
-            "refresh_token": tokens["refresh_token"],
-        })
+        r2 = client.post(
+            "/api/auth/siws/refresh",
+            json={
+                "refresh_token": tokens["refresh_token"],
+            },
+        )
         assert r2.status_code in (401, 400, 403)
 
     def test_revoke_without_token_fails(self, client):
@@ -253,10 +299,13 @@ class TestSiwsRevoke:
 # 5. Middleware: require_wallet_auth
 # ---------------------------------------------------------------------------
 
+
 class TestRequireWalletAuth:
     """require_wallet_auth dependency for protected endpoints."""
 
-    def test_protected_endpoint_with_valid_token(self, client, test_keypair, wallet_address):
+    def test_protected_endpoint_with_valid_token(
+        self, client, test_keypair, wallet_address
+    ):
         """Authenticated user can access protected routes."""
         tokens = _full_auth(client, test_keypair, wallet_address)
         auth = {"Authorization": f"Bearer {tokens['access_token']}"}
@@ -274,7 +323,9 @@ class TestRequireWalletAuth:
         """Expired JWT → 401."""
         r = client.post(
             "/api/auth/siws/revoke",
-            headers={"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ.invalid"},
+            headers={
+                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ.invalid"
+            },
         )
         assert r.status_code in (401, 403)
 
@@ -283,22 +334,28 @@ class TestRequireWalletAuth:
 # 6. Rate limiting
 # ---------------------------------------------------------------------------
 
+
 class TestSiwsRateLimit:
     """Rate limiting: max 5 sign-in attempts per wallet per minute."""
 
     def test_rate_limit_triggers(self, client, wallet_address):
         """6th failed verify attempt within 60s → 429 or equivalent."""
         for i in range(6):
-            r = client.get("/api/auth/siws/message", params={"wallet_address": wallet_address})
+            r = client.get(
+                "/api/auth/siws/message", params={"wallet_address": wallet_address}
+            )
             if r.status_code != 200:
                 break
             data = r.json()
-            resp = client.post("/api/auth/siws", json={
-                "wallet_address": wallet_address,
-                "signature": base64.b64encode(b"\xff" * 64).decode(),
-                "message": data["message"],
-                "nonce": data["nonce"],
-            })
+            resp = client.post(
+                "/api/auth/siws",
+                json={
+                    "wallet_address": wallet_address,
+                    "signature": base64.b64encode(b"\xff" * 64).decode(),
+                    "message": data["message"],
+                    "nonce": data["nonce"],
+                },
+            )
         # After 5+ failures, should see rate limit or continued 401
         assert resp.status_code in (429, 401, 400, 403)
 
@@ -306,6 +363,7 @@ class TestSiwsRateLimit:
 # ---------------------------------------------------------------------------
 # 7. Model integrity
 # ---------------------------------------------------------------------------
+
 
 class TestSiwsModels:
     """Database model structure validation."""
@@ -330,20 +388,20 @@ class TestSiwsModels:
 
     def test_wallet_session_has_refresh(self):
         """WalletSession must support refresh token storage."""
-        has_refresh = (
-            hasattr(WalletSession, "refresh_token_hash")
-            or hasattr(WalletSession, "refresh_token")
+        has_refresh = hasattr(WalletSession, "refresh_token_hash") or hasattr(
+            WalletSession, "refresh_token"
         )
         assert has_refresh, "WalletSession must store refresh token"
 
     def test_wallet_session_has_expiry(self):
         """WalletSession must track expiry."""
-        has_expiry = (
-            hasattr(WalletSession, "expires_at")
-            or hasattr(WalletSession, "access_expires_at")
+        has_expiry = hasattr(WalletSession, "expires_at") or hasattr(
+            WalletSession, "access_expires_at"
         )
         assert has_expiry, "WalletSession must have expiry field"
 
     def test_wallet_session_has_revoked(self):
         """WalletSession must support revocation."""
-        assert hasattr(WalletSession, "revoked"), "WalletSession must have revoked field"
+        assert hasattr(WalletSession, "revoked"), (
+            "WalletSession must have revoked field"
+        )
