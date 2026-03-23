@@ -6,6 +6,10 @@ setup() {
     cp ./scripts/setup.sh "$TEST_DIR/setup.sh"
     chmod +x "$TEST_DIR/setup.sh"
     
+    # We use DRY_RUN=1 so it skips executing actual slow/side-effect commands 
+    # like npm install, pip install, and docker compose
+    export DRY_RUN=1
+    
     cd "$TEST_DIR"
 }
 
@@ -13,47 +17,65 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "script runs and exits 0 on valid environment" {
-    # Mocking required directories
-    mkdir -p backend frontend sdk
-    touch backend/requirements.txt frontend/package.json sdk/package.json
-    
-    # Run the script but stop before docker to test execution flow
-    run ./setup.sh
-    
-    # It should pass or exit cleanly depending on docker presence.
-    # To truly mock it we'd need more complex bats mocking, 
-    # but at least we can verify it doesn't crash on syntax errors.
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-}
-
-@test "creates .env from .env.example" {
+@test "creates .env from .env.example correctly" {
     touch .env.example
     mkdir -p backend
     touch backend/.env.example
     
     run ./setup.sh
     
+    [ "$status" -eq 0 ]
     [ -f .env ]
     [ -f backend/.env ]
+    echo "$output" | grep "Created Root .env from .env.example"
+    echo "$output" | grep "Created backend/.env from backend/.env.example"
 }
 
-@test "handles missing backend gracefully" {
-    # Don't create backend dir
+@test "skips backend setup gracefully when missing" {
     mkdir -p frontend
     touch frontend/package.json
     
     run ./setup.sh
     
-    # Should not fail hard
-    echo "$output" | grep -q "backend/ directory not found. Skipping backend setup."
+    echo "$output" | grep "backend/ directory not found. Skipping backend setup."
 }
 
-@test "handles missing frontend gracefully" {
+@test "skips frontend setup gracefully when missing" {
     mkdir -p backend
     touch backend/requirements.txt
     
     run ./setup.sh
     
-    echo "$output" | grep -q "frontend/ directory not found. Skipping frontend setup."
+    echo "$output" | grep "frontend/ directory not found. Skipping frontend setup."
+}
+
+@test "skips docker compose if docker-compose.yml is missing" {
+    mkdir -p backend frontend sdk
+    touch backend/requirements.txt frontend/package.json sdk/package.json
+    
+    run ./setup.sh
+    
+    echo "$output" | grep "docker-compose.yml not found. Skipping local service startup."
+    echo "$output" | grep "Setup Completed with Warnings"
+}
+
+@test "reports global success when all components are present and mock execution succeeds" {
+    mkdir -p backend frontend sdk
+    touch backend/requirements.txt frontend/package.json sdk/package.json
+    touch docker-compose.yml
+    
+    run ./setup.sh
+    
+    [ "$status" -eq 0 ]
+    echo "$output" | grep "Setup Complete! All components successfully installed."
+}
+
+@test "creates Python virtual environment using proper paths" {
+    mkdir -p backend
+    touch backend/requirements.txt
+    
+    run ./setup.sh
+    
+    echo "$output" | grep "\[DRY RUN\] Would execute: python3 -m venv venv"
+    echo "$output" | grep "\[DRY RUN\] Would execute: venv/bin/pip install -r requirements.txt"
 }

@@ -36,6 +36,17 @@ print_warning() {
 
 version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
 
+# Skip actual execution during tests (dry run mode)
+DRY_RUN=${DRY_RUN:-0}
+run_cmd() {
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "[DRY RUN] Would execute: $*"
+        return 0
+    else
+        "$@"
+    fi
+}
+
 # 1. Dependency Checks
 print_step "Checking required tools..."
 
@@ -80,7 +91,6 @@ print_success "Rust is installed ($RUST_VERSION)."
 
 if ! command -v anchor &> /dev/null; then
     print_warning "Anchor is not installed. Smart contract development might fail."
-    echo -e "Install later with: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force"
 else
     ANCHOR_VERSION=$(anchor --version | awk '{print $2}')
     print_success "Anchor is installed ($ANCHOR_VERSION)."
@@ -117,21 +127,26 @@ elif [ -f backend/.env ]; then
     print_success "backend/.env already exists."
 fi
 
+# Track global setup status
+SETUP_FAILED=0
+
 # 3. Install Backend Dependencies
 if [ -d "backend" ]; then
     print_step "Installing backend dependencies (Python)..."
     cd backend
     if [ ! -d "venv" ]; then
-        python3 -m venv venv
+        run_cmd python3 -m venv venv
     fi
-    source venv/bin/activate
+    
     if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
-        print_success "Backend dependencies installed."
+        if run_cmd venv/bin/pip install -r requirements.txt; then
+            print_success "Backend dependencies installed."
+        else
+            print_error "Backend dependencies failed to install."
+        fi
     else
         print_warning "backend/requirements.txt not found."
     fi
-    deactivate
     cd ..
 else
     print_warning "backend/ directory not found. Skipping backend setup."
@@ -142,8 +157,11 @@ if [ -d "frontend" ]; then
     print_step "Installing frontend dependencies (Node.js)..."
     cd frontend
     if [ -f "package.json" ]; then
-        npm install
-        print_success "Frontend dependencies installed."
+        if run_cmd npm install; then
+            print_success "Frontend dependencies installed."
+        else
+            print_error "Frontend dependencies failed to install."
+        fi
     else
         print_warning "frontend/package.json not found."
     fi
@@ -157,10 +175,11 @@ if [ -d "sdk" ]; then
     print_step "Installing SDK dependencies..."
     cd sdk
     if [ -f "package.json" ]; then
-        if npm install; then
+        if run_cmd npm install; then
             print_success "SDK dependencies installed successfully."
         else
             print_warning "npm install in sdk failed. Continuing anyway."
+            SETUP_FAILED=1
         fi
     else
         print_warning "sdk/package.json not found."
@@ -171,31 +190,47 @@ fi
 # 6. Start Local Services
 print_step "Starting local services..."
 
-if command -v docker-compose &> /dev/null; then
-    if docker-compose up -d db redis; then
-        print_success "Database and Redis started via docker-compose."
+DOCKER_SUCCESS=0
+if [ -f "docker-compose.yml" ]; then
+    if command -v docker-compose &> /dev/null; then
+        if run_cmd docker-compose up -d db redis; then
+            print_success "Database and Redis started via docker-compose."
+            DOCKER_SUCCESS=1
+        else
+            print_warning "Failed to start services via docker-compose. Is Docker daemon running?"
+            SETUP_FAILED=1
+        fi
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        if run_cmd docker compose up -d db redis; then
+            print_success "Database and Redis started via docker compose."
+            DOCKER_SUCCESS=1
+        else
+            print_warning "Failed to start services via docker compose. Is Docker daemon running?"
+            SETUP_FAILED=1
+        fi
     else
-        print_warning "Failed to start services via docker-compose. Is Docker daemon running?"
-    fi
-elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
-    if docker compose up -d db redis; then
-        print_success "Database and Redis started via docker compose."
-    else
-        print_warning "Failed to start services via docker compose. Is Docker daemon running?"
+        print_warning "Docker Compose not found. Please ensure Postgres and Redis are running locally."
+        SETUP_FAILED=1
     fi
 else
-    print_warning "Docker Compose not found or failed. Please ensure Postgres and Redis are running locally."
+    print_warning "docker-compose.yml not found. Skipping local service startup."
 fi
 
 # Final Output
-echo -e "\n${GREEN}${BOLD}🎉 Setup Complete! You are ready to build.${NC}\n"
+if [ "$SETUP_FAILED" -eq 0 ]; then
+    echo -e "\n${GREEN}${BOLD}🎉 Setup Complete! All components successfully installed.${NC}\n"
+else
+    echo -e "\n${YELLOW}${BOLD}⚠️ Setup Completed with Warnings. Some components may need manual attention.${NC}\n"
+fi
 
 echo -e "To start the development servers, open separate terminals and run:"
 echo -e "  ${BOLD}Backend:${NC}  cd backend && source venv/bin/activate && uvicorn app.main:app --reload"
 echo -e "  ${BOLD}Frontend:${NC} cd frontend && npm run dev\n"
 
-echo -e "${BLUE}${BOLD}Local Services URLs:${NC}"
-echo -e "  - Frontend: http://localhost:5173 (or port shown by Vite)"
-echo -e "  - Backend API: http://localhost:8000"
-echo -e "  - Backend Docs: http://localhost:8000/docs"
+if [ "$DOCKER_SUCCESS" -eq 1 ]; then
+    echo -e "${BLUE}${BOLD}Local Services URLs:${NC}"
+    echo -e "  - Frontend: http://localhost:5173 (or port shown by Vite)"
+    echo -e "  - Backend API: http://localhost:8000"
+    echo -e "  - Backend Docs: http://localhost:8000/docs"
+fi
 
