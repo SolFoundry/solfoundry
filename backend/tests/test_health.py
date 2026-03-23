@@ -11,7 +11,6 @@ Covers all service check scenarios:
 """
 
 from unittest.mock import patch, AsyncMock, MagicMock
-from app.database import engine as _db_engine
 
 from sqlalchemy.exc import SQLAlchemyError
 from redis.asyncio import RedisError
