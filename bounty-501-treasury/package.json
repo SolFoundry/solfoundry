@@ -1,0 +1,22 @@
+{
+  "name": "solfoundry-treasury-dashboard",
+  "version": "1.0.0",
+  "description": "Treasury Management Dashboard for SolFoundry",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "test": "pnpm --filter backend test && pnpm --filter frontend test",
+    "test:coverage": "pnpm --filter backend test:coverage",
+    "lint": "pnpm --filter backend lint && pnpm --filter frontend lint",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
