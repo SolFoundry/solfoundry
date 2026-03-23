@@ -199,7 +199,7 @@ class TestDisputeCreation:
             "plagiarism",
             "rule_violation",
             "technical_issue",
-            "unfair_competition",
+            "unfair_rejection",
             "other",
         }
         assert valid_reasons == expected_reasons
@@ -281,7 +281,7 @@ class TestDisputeStatusModel:
         """Verify all expected dispute statuses exist in the model."""
         from app.models.dispute import DisputeStatus
 
-        expected = {"pending", "under_review", "resolved", "closed"}
+        expected = {"opened", "evidence", "mediation", "pending", "under_review", "resolved"}
         actual = {s.value for s in DisputeStatus}
         assert actual == expected
 
@@ -289,7 +289,7 @@ class TestDisputeStatusModel:
         """Verify all expected dispute outcomes exist in the model."""
         from app.models.dispute import DisputeOutcome
 
-        expected = {"approved", "rejected", "cancelled"}
+        expected = {"release_to_contributor", "refund_to_creator", "split", "approved", "rejected", "cancelled"}
         actual = {o.value for o in DisputeOutcome}
         assert actual == expected
 

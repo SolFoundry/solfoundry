@@ -18,6 +18,7 @@ from sqlalchemy import (
     Index,
     JSON,
 )
+from sqlalchemy.orm import relationship
 from app.database import Base, GUID
 
 
@@ -61,6 +62,10 @@ class BountyTable(Base):
     search_vector = Column(
         Text, nullable=True
     )  # Fallback for SQLite; TSVECTOR is PG-only
+
+    submissions = relationship(
+        "BountySubmissionTable", back_populates="bounty", cascade="all, delete-orphan"
+    )
 
     @property
     def required_skills(self):

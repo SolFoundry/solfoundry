@@ -59,6 +59,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,6 +93,7 @@ jobs:
           PYTHONPATH: .
           DATABASE_URL: postgresql://test:test@localhost:5432/test
           TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 
   # ==================== FRONTEND (React/TypeScript) ====================
