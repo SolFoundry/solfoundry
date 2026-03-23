@@ -64,7 +64,7 @@ from app.services.treasury_service import (
     invalidate_cache,
 )
 from app.services.contributor_webhook_service import ContributorWebhookService
-from app.api.admin import _resolve_role, AdminRole
+from app.api.admin import _resolve_role
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
