@@ -9,6 +9,7 @@ import asyncio
 import os
 
 import pytest
+import pytest_asyncio
 import sqlalchemy as sa
 
 # Set test database URL before importing app modules
@@ -18,9 +19,6 @@ os.environ["DATABASE_URL"] = DATABASE_URL
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
 os.environ.setdefault("AUTH_ENABLED", "false")
 os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
-
-# Configure asyncio mode for pytest
-pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

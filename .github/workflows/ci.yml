@@ -15,7 +15,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
-  RUST_VERSION: '1.76'
+  RUST_VERSION: '1.85'
 
 jobs:
   # ==================== BACKEND (Python/FastAPI) ====================
@@ -92,6 +92,9 @@ jobs:
         env:
           PYTHONPATH: .
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 
@@ -101,6 +104,9 @@ jobs:
         env:
           PYTHONPATH: .
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
 
