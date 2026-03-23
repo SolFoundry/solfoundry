@@ -7,11 +7,11 @@ const REPO = 'SolFoundry/solfoundry';
 const GITHUB_API = 'https://api.github.com';
 
 const TIER_MAP: Record<number, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3' };
-const STATUS_MAP: Record<string, 'open' | 'in-progress' | 'completed'> = {
+const STATUS_MAP: Record<string, 'open' | 'in_progress' | 'completed' | 'paid'> = {
   open: 'open',
-  in_progress: 'in-progress',
+  in_progress: 'in_progress',
   completed: 'completed',
-  paid: 'completed',
+  paid: 'paid',
 };
 
 function mapApiBounty(b: any): Bounty {
@@ -44,7 +44,7 @@ function buildSearchParams(
     p.set('tier', tierNum);
   }
   if (filters.status !== 'all') {
-    const map: Record<string, string> = { open: 'open', 'in-progress': 'in_progress', completed: 'completed' };
+    const map: Record<string, string> = { open: 'open', in_progress: 'in_progress', completed: 'completed', paid: 'paid' };
     p.set('status', map[filters.status] || filters.status);
   }
   if (filters.skills.length) p.set('skills', filters.skills.join(','));

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import BoostPanel from './BoostPanel';
 
 interface BountyDetail {
   id: string;
@@ -220,7 +221,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <div className="bg-gray-900 rounded-lg p-4 sm:p-6 sticky top-4 space-y-4">
               <h2 className="text-lg font-semibold">Quick Stats</h2>
 
@@ -257,6 +258,9 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 </a>
               </div>
             </div>
+
+            {/* Boost Panel — reward pool, boost input, leaderboard, history */}
+            <BoostPanel bountyId={bounty.id} bountyStatus={bounty.status} />
           </div>
         </div>
       </div>

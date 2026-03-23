@@ -1,5 +1,5 @@
 export type BountyTier = 'T1' | 'T2' | 'T3';
-export type BountyStatus = 'open' | 'in-progress' | 'completed';
+export type BountyStatus = 'open' | 'in_progress' | 'completed' | 'paid';
 export type BountySortBy = 'newest' | 'reward_high' | 'reward_low' | 'deadline' | 'submissions' | 'best_match';
 
 export interface Bounty {
@@ -58,8 +58,9 @@ export const TIER_OPTIONS: { value: BountyTier | 'all'; label: string }[] = [
 export const STATUS_OPTIONS: { value: BountyStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'open', label: 'Open' },
-  { value: 'in-progress', label: 'In Progress' },
+  { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
+  { value: 'paid', label: 'Paid' },
 ];
 
 export const SORT_OPTIONS: { value: BountySortBy; label: string }[] = [

@@ -1,0 +1,535 @@
+## ❌ Multi-LLM Code Review — REQUEST CHANGES
+
+**Aggregated Score: 6.3/10** (trimmed mean of 4 models)
+**Tier:** tier-2 | **Threshold:** 6.5/10
+
+📊 **Method:** trimmed_mean
+### Model Verdicts
+| Model | Score | Verdict |
+|-------|-------|--------|
+| Grok 4 | FAILED | ❌ |
+| Sonnet 4.6 | 8.3/10 | ✅ |
+| DeepSeek V3.2 | 6.7/10 | ✅ |
+| GPT-5.4 | 5.8/10 | ⚠️ |
+| Gemini 3.1 Pro | 5.9/10 | ⚠️ |
+
+### Category Scores (Median)
+| Category | Score |
+|----------|-------|
+| Quality | ███████░░░ 7.8/10 |
+| Correctness | ██████░░░░ 6.0/10 |
+| Security | ██████░░░░ 6.2/10 |
+| Completeness | ██████░░░░ 6.2/10 |
+| Tests | ███████░░░ 7.5/10 |
+| Integration | ██████░░░░ 6.8/10 |
+
+### Warning: Bounty Spec Compliance: PARTIAL
+This submission partially meets the acceptance criteria. Review the issues above for gaps.
+
+### Summary
+**Grok 4:** Review failed: Error code: 429 - {'code': 'Some resource has been exhausted', 'error': 'Your team 04d275b5-c238-47d
+**Sonnet 4.6:** Excellent implementation of the bounty boost mechanism with comprehensive test coverage and clean architecture. The code demonstrates production-quality standards with proper error handling, validation, and database design. Minor concerns around wallet signature verification in production and some hardcoded authorization logic.
+**DeepSeek V3.2:** The PR implements a solid foundation for the bounty boost mechanism with good code structure and comprehensive tests, but misses several key acceptance criteria from the bounty specification including frontend integration, proper Solana escrow integration, and complete refund workflow. The backend implementation is well-architected but incomplete against the full requirements.
+**GPT-5.4:** This PR adds a substantial amount of boost-related backend functionality with decent structure and meaningful tests, but several core acceptance criteria are only partially implemented or implemented as placeholders. The biggest concerns are that the on-chain escrow/refund flow is mocked rather than real, the refund authorization/state checks are too weak, and the bounty display integration appears additive rather than integrated into existing bounty detail contracts.
+**Gemini 3.1 Pro:** The PR provides a well-structured FastAPI implementation with comprehensive tests and clean database models. However, it fundamentally misses the core blockchain requirement by mocking the on-chain token transfer and using a flawed API design that cannot actually move user tokens.
+
+### Issues
+- [Sonnet 4.6] Wallet signature verification uses dev-mode bypass that could be problematic in production if BOOST_DEV_MODE isn't properly controlled
+- [Sonnet 4.6] Authorization check in refund endpoint only validates bounty creator, missing admin role verification mentioned in comments
+- [Sonnet 4.6] Missing foreign key constraint in migration file (commented out) could lead to orphaned boost records
+- [DeepSeek V3.2] Missing frontend components: No boost button + amount input on bounty page as required by acceptance criteria #9
+- [DeepSeek V3.2] Incomplete Solana integration: Mocked escrow transfers instead of real on-chain transactions to bounty's escrow PDA as required by acceptance criteria #2
+- [DeepSeek V3.2] Missing refund workflow integration: No connection to bounty expiration logic or automated refund triggering
+- [DeepSeek V3.2] Endpoint path mismatch: Uses '/api/bounties/{id}/boost' instead of '/api/bounty/{id}/boost' as specified in acceptance criteria #1
+- [GPT-5.4] The on-chain transfer and refund requirements are not actually implemented: transfer_to_escrow and transfer_refund_from_escrow only generate local hashes instead of submitting Solana transactions to the bounty escrow PDA.
+- [GPT-5.4] Wallet signature verification is insecure by default because BOOST_DEV_MODE defaults to true, allowing the sentinel signature SKIP_VERIFICATION_DEV_ONLY unless production explicitly disables it.
+- [GPT-5.4] Refund processing does not verify that the bounty has actually expired; the endpoint only blocks completed/paid states, so refunds could be triggered prematurely on open/in_progress bounties.
+- [GPT-5.4] Admin authorization required by the spec is not implemented; the refund endpoint only allows the bounty creator and contains a comment saying admin role checks should be done in production.
+- [GPT-5.4] Bounty existence lookup appears incorrectly integrated: _get_bounty_or_404 calls get_bounty synchronously and treats the result as an object with attributes despite the helper being typed as returning dict, which suggests a likely contract mismatch with the existing bounty service.
+- [Gemini 3.1 Pro] The on-chain token transfer is completely mocked (`transfer_to_escrow` just hashes a string). A production-ready T2 bounty must include actual Solana integration.
+- [Gemini 3.1 Pro] The API design is fundamentally flawed for token transfers. A signed plaintext message does not give the backend permission to move tokens from a user's non-custodial wallet.
+- [Gemini 3.1 Pro] Due to the mocked transfer and message-based signature, the current implementation allows users to create infinite boosts without actually spending any $FNDRY tokens, which is a critical security vulnerability.
+
+### Suggestions
+- [Sonnet 4.6] Add environment-specific validation to ensure dev-mode bypasses are never enabled in production
+- [Sonnet 4.6] Implement proper admin role checking service for refund authorization
+- [Sonnet 4.6] Consider adding rate limiting for boost creation to prevent spam attacks
+- [DeepSeek V3.2] Implement real Solana escrow PDA integration using the bounty program's escrow seeds and SPL token transfers
+- [DeepSeek V3.2] Add frontend components for boost button and amount input with proper validation and wallet connection
+- [DeepSeek V3.2] Integrate refund processing with bounty expiration workflow (cron job or event listener)
+- [DeepSeek V3.2] Fix API endpoint path to match specification exactly and ensure frontend can call it
+- [GPT-5.4] Replace the escrow/refund hash stubs with real Solana transaction handling or, at minimum, integrate through the existing Solana/escrow service abstraction so the API reflects actual escrow PDA transfers.
+- [GPT-5.4] Make signature bypass impossible by default: default BOOST_DEV_MODE to false, gate bypass to explicit non-production environments, and add tests proving bypass is rejected in production mode.
+- [GPT-5.4] Enforce refund eligibility using explicit bounty expiry/state checks from the bounty model and implement proper admin role authorization through the existing auth/user system.
+
+
+_Contributor stats: 3 merged bounty PRs, rep score 39_
+
+🎯 **Expected scope:** ~43 files | This requires coordinated API, database, Solana escrow, refund workflow, leaderboard/history queryin
+
+---
+*SolFoundry Multi-LLM Review Pipeline v3.1 — GPT-5.4 + Gemini 3.1 Pro + Grok 4 + Sonnet 4.6 + DeepSeek V3.2*
+*Scoring: trimmed_mean across 4 models*
+
+### Next Steps
+Please address the issues above and push updated commits. The review will re-run automatically.
+
+=== backend/app/api/boosts.py:303 ===
+_⚠️ Potential issue_ | _🟡 Minor_
+
+**Admin authorization check is incomplete.**
+
+The docstring (line 278) claims "restricted to admin users and the bounty creator," but only creator check is implemented. The comment "In production, check admin role from user service" indicates missing functionality. If admins should be able to trigger refunds, this needs implementation or the docstring should be corrected.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/api/boosts.py` around lines 297 - 303, The authorization only
+checks bounty.created_by vs user_id but the endpoint/docstring (refund logic in
+backend/app/api/boosts.py around the refund handling) promises "restricted to
+admin users and the bounty creator"; update the logic so admins are permitted:
+replace the single check against bounty.created_by with a compound check that
+also queries the user service (or the auth token) to determine admin status
+(e.g., call the existing user client or auth helper to get is_admin for
+user_id), and allow the action if user_id == bounty.created_by OR is_admin is
+true; alternatively, if admin checks are out of scope, update the docstring to
+remove the admin claim and keep only creator restriction—target the conditional
+using the bounty.created_by and user_id symbols to implement the fix.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/app/models/boost.py:193 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Consider moving `re` import to module level.**
+
+The `import re` inside `validate_wallet_address` runs on every validation call. Moving it to module level (line ~10) is a minor optimization and follows Python conventions.
+
+
+<details>
+<summary>♻️ Move import to module level</summary>
+
+```diff
+ from decimal import Decimal
+ from enum import Enum
++import re
+ from typing import List, Optional
+ 
+ ...
+ 
+     `@field_validator`("wallet_address")
+     `@classmethod`
+     def validate_wallet_address(cls, value: str) -> str:
+-        import re
+-
+         if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,64}$", value):
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/app/models/boost.py` around lines 173 - 193, The
+validate_wallet_address method currently imports the re module inside the
+function which runs on every validation call; move the import to module level
+(add import re near the top of the file) and remove the local import in the
+`@field_validator` method (validate_wallet_address) so the function uses the
+module-level re; ensure nothing else depends on a local import and run tests to
+confirm behavior is unchanged.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/tests/test_boost.py:198 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check for HTTP/API-level boost tests using TestClient
+rg -l "TestClient|client\." --type=py -g '*test*boost*' 
+rg -n "def test.*boost" --type=py -g '*test*' | grep -i "api\|endpoint\|route\|client"
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 47
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get repository structure overview
+git ls-files | head -50
+echo "---"
+# Find all test files related to boost
+fd "test.*\.py$" -t f backend/tests/ 2>/dev/null | head -20
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1905
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search more broadly for boost tests and TestClient usage
+find backend/tests -name "*.py" -type f | xargs grep -l "boost" 2>/dev/null
+echo "---"
+# Look for TestClient imports
+find backend/tests -name "*.py" -type f | xargs grep -l "TestClient\|from fastapi.testclient" 2>/dev/null
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 253
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Find API endpoint definitions for boost
+find backend -name "*.py" -type f | xargs grep -l "router.*boost\|@.*route.*boost\|def.*create_boost" 2>/dev/null | grep -v __pycache__
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 176
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Examine the boost API endpoints
+cat backend/app/api/boosts.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 10357
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get full test_boost.py file to see all tests
+cat backend/tests/test_boost.py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 34546
+
+---
+
+
+
+</details>
+
+**HTTP endpoint tests are missing for the boost creation endpoint.**
+
+Service-layer tests exist but do not cover the FastAPI endpoint at `POST /api/bounties/{bounty_id}/boost`. Add HTTP-level tests using TestClient to verify:
+- Routing and request/response handling
+- Authentication dependency (`get_current_user_id`)
+- Exception-to-HTTP-response mapping: `BountyNotBoostableError` (400), `InsufficientBoostAmountError` (400), `WalletVerificationError` (403), `DuplicateTransactionError` (409)
+- Request model validation (`BoostCreate`)
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/tests/test_boost.py` around lines 147 - 198, Add HTTP-level tests
+that exercise the POST /api/bounties/{bounty_id}/boost endpoint via TestClient:
+create tests that (1) call the route with a valid BoostCreate payload and an
+overridden get_current_user_id dependency to return a test user id and assert
+200/201 and expected response body fields, (2) mock/patch the
+service.create_boost to raise BountyNotBoostableError,
+InsufficientBoostAmountError, WalletVerificationError, and
+DuplicateTransactionError respectively and assert the endpoint maps them to HTTP
+400, 400, 403, and 409 status codes, and (3) send invalid/malformed BoostCreate
+payloads to assert FastAPI validation returns 422; ensure tests reference the
+route path POST /api/bounties/{bounty_id}/boost, the dependency
+get_current_user_id, the request model BoostCreate, and service.create_boost so
+they can override/mocking behavior.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== backend/tests/test_boost.py:549 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Consider using more specific exception type in schema validation test.**
+
+`pytest.raises(Exception)` is overly broad. Pydantic v2 raises `pydantic.ValidationError` for schema violations — using that would make the test more precise and catch regressions if the validation behavior changes.
+
+
+<details>
+<summary>♻️ More specific exception</summary>
+
+```diff
++from pydantic import ValidationError
++
+ def test_spec_minimum_boost_below_1000_rejected_by_pydantic(self):
+     """A boost below 1,000 $FNDRY should be rejected at the schema level."""
+-    with pytest.raises(Exception):
++    with pytest.raises(ValidationError):
+         BoostCreate(
+             amount=Decimal("999"),
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/tests/test_boost.py` around lines 542 - 549, The test
+test_spec_minimum_boost_below_1000_rejected_by_pydantic should assert the
+specific pydantic error type rather than Exception; update the with
+pytest.raises(...) to expect pydantic.ValidationError (import ValidationError
+from pydantic or reference pydantic.ValidationError) when constructing
+BoostCreate with amount=Decimal("999"), so the test asserts schema validation
+failures specifically for BoostCreate instead of catching any exception.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== frontend/src/components/BoostPanel.tsx:129 ===
+_🧹 Nitpick_ | _🔵 Trivial_
+
+**Consider adding loading state for initial data fetch.**
+
+The component fetches summary, history, and leaderboard on mount but doesn't indicate loading state. Users see empty/default values until fetches complete. A loading skeleton would improve perceived performance.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/components/BoostPanel.tsx` around lines 75 - 129, The component
+lacks an initial loading state; add a new state (e.g. isLoading) in BoostPanel
+and set it true on mount, then set it false after the initial fetches complete
+(use Promise.all to await fetchSummary, fetchHistory, fetchLeaderboard or have
+those functions return their promises), update
+fetchSummary/fetchHistory/fetchLeaderboard to propagate errors but not swallow
+them so Promise.all resolves correctly, and render a loading skeleton /
+placeholder UI when isLoading is true (instead of the empty/default values)
+while preserving existing isSubmitting, error and success behaviors.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== frontend/src/components/BoostPanel.tsx:85 ===
+_⚠️ Potential issue_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check bounty status enum values in backend
+rg -n "status.*=.*['\"]" --type=py -g '*bounty*' | head -30
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 2132
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Find BountyStatus enum definition
+rg -A 10 "class BountyStatus|enum BountyStatus" --type=py
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 672
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Get the BoostPanel.tsx file content around line 85
+cat frontend/src/components/BoostPanel.tsx | head -100 | tail -30
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1281
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search for bountyStatus type definitions in frontend
+rg "bountyStatus" frontend/src/components/BoostPanel.tsx -B 3 -A 3
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 1000
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Find all status enum or type definitions in the codebase
+find . -name "*.ts" -o -name "*.tsx" | xargs grep -l "BountyStatus\|'open'\|'in_progress'" | grep -E "(type|enum|interface)" | head -10
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 95
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Check the bounty types in frontend
+cat frontend/src/types/bounty.ts
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 3277
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+# Search for any references to PAID status and boost eligibility
+rg -i "paid|boost" frontend/src/components/BoostPanel.tsx -B 2 -A 2
+```
+
+Repository: SolFoundry/solfoundry
+
+Length of output: 7377
+
+---
+
+
+
+</details>
+
+**Fix frontend BountyStatus type definition to match backend enum values.**
+
+The `isBoostable` check at line 85 correctly uses `'in_progress'` (underscore) matching the backend enum. However, the frontend type definition in `frontend/src/types/bounty.ts` declares `BountyStatus = 'open' | 'in-progress' | 'completed'` with hyphens, which doesn't match the backend's `'in_progress'` (underscore). This creates a type safety gap. Also, the backend enum includes `PAID` status, which is missing from the frontend type definition. Update the frontend type to match backend: `'open' | 'in_progress' | 'completed' | 'paid'`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/components/BoostPanel.tsx` at line 85, Update the frontend
+BountyStatus type so it matches the backend enum: change the union to 'open' |
+'in_progress' | 'completed' | 'paid' (replace the hyphenated 'in-progress' and
+add 'paid'); locate and modify the BountyStatus type declaration in frontend
+types (used by BoostPanel.tsx where isBoostable checks bountyStatus ===
+'in_progress') so the compiler and runtime checks align with the backend values.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
+=== frontend/src/components/BoostPanel.tsx:152 ===
+_⚠️ Potential issue_ | _🔴 Critical_
+
+**Hardcoded wallet bypass must not ship to production.**
+
+The boost submission sends hardcoded `wallet_address: 'SKIP_VERIFICATION_DEV_ONLY'` and `wallet_signature: 'SKIP_VERIFICATION_DEV_ONLY'`, completely bypassing wallet signature verification. This allows anyone to boost without proving wallet ownership, defeating the security model.
+
+Production implementation requires actual wallet integration (e.g., Phantom adapter) to sign a message proving ownership before submitting.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/components/BoostPanel.tsx` around lines 147 - 152, The
+BoostPanel currently submits hardcoded wallet_address and wallet_signature
+values which bypass verification; update the boost submission flow in the
+BoostPanel component (e.g., the function that builds the POST body where
+amount/wallet_address/wallet_signature are set) to obtain the connected wallet
+public key and a real signature instead of 'SKIP_VERIFICATION_DEV_ONLY' by using
+the app's wallet adapter (Phantom or the existing wallet provider), sign the
+required message payload (or nonce) with the wallet's
+signMessage/signTransaction method, populate wallet_address with the
+publicKey.toString() and wallet_signature with the produced signature
+(base64/hex as expected by the backend), and handle/signature errors by
+preventing the request and surfacing a user-friendly error; remove any dev-only
+bypass branches or flags so this hardcoded behavior is not shipped.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:medusa:ocelot -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+
