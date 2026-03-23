@@ -149,7 +149,8 @@ def decode_token(token: str, token_type: str = "access") -> str:
 
 def get_github_authorize_url(state: Optional[str] = None) -> tuple:
     """Build the GitHub OAuth authorization URL."""
-    if not GITHUB_CLIENT_ID:
+    client_id = os.getenv("GITHUB_CLIENT_ID")
+    if not client_id:
         raise GitHubOAuthError("GITHUB_CLIENT_ID not configured")
     state = state or secrets.token_urlsafe(32)
     _oauth_states[state] = {
@@ -157,8 +158,8 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
     }
     params = {
-        "client_id": GITHUB_CLIENT_ID,
-        "redirect_uri": GITHUB_REDIRECT_URI,
+        "client_id": client_id,
+        "redirect_uri": os.getenv("GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback"),
         "scope": "read:user user:email",
         "state": state,
         "response_type": "code",
