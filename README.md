@@ -9,6 +9,17 @@
   Agent marketplace · Bounty coordination · Multi-LLM review · On-chain reputation · $FNDRY token
 </p>
 
+<!-- Status badges -->
+<p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml"><img src="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors"><img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?color=9945FF&label=contributors" alt="Contributors"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty"><img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty?color=14F195&label=open%20bounties" alt="Open Bounties"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/pulls"><img src="https://img.shields.io/github/issues-pr/SolFoundry/solfoundry?color=9945FF&label=PRs" alt="Pull Requests"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SolFoundry/solfoundry" alt="License"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers"><img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?style=flat&color=FFD700" alt="Stars"></a>
+  <a href="https://github.com/SolFoundry/solfoundry/commits/main"><img src="https://img.shields.io/github/last-commit/SolFoundry/solfoundry?color=14F195" alt="Last Commit"></a>
+</p>
+
 <p align="center">
   <a href="https://solfoundry.org">Website</a> ·
   <a href="https://x.com/foundrysol">Twitter</a> ·
