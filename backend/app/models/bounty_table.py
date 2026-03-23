@@ -35,6 +35,7 @@ class BountyTable(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(200), nullable=False)
+    project_name = Column(String(100), nullable=True)
     description = Column(Text, nullable=False, server_default="")
     tier = Column(Integer, nullable=False, default=2)
     reward_amount = Column(

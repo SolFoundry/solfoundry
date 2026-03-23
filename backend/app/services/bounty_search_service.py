@@ -57,7 +57,8 @@ async def search_bounties_db(
         conditions.append("b.tier = :tier")
         binds["tier"] = params.tier
     if params.skills:
-        conditions.append("b.skills ?| :skills")
+        op = "?&" if params.skills_logic == "all" else "?|"
+        conditions.append(f"b.skills {op} :skills")
         binds["skills"] = params.skills
     if params.category:
         conditions.append("b.category = :category")
@@ -81,14 +82,21 @@ async def search_bounties_db(
     where = " AND ".join(conditions) if conditions else "TRUE"
 
     rank_expr = (
-        "ts_rank(b.search_vector, plainto_tsquery('english', :query))"
+        "ts_rank_cd(b.search_vector, plainto_tsquery('english', :query))"
         if has_query
         else "0"
     )
 
-    sort = _SORT_SQL.get(params.sort, _SORT_SQL["newest"])
+    # Elite Hot-Relevance: Combined rank with popularity and reward log-scale
+    # Formula: Rank + ln(1+pop)*0.15 + ln(1+reward)*0.10
+    elite_rank = f"({rank_expr} + LN(1+COALESCE(b.popularity,0))*0.15 + LN(1+COALESCE(b.reward_amount,0))*0.10)"
+
+    sort_sql = _SORT_SQL.copy()
+    sort_sql["best_match"] = f"{elite_rank} DESC, b.created_at DESC"
+    
+    sort = sort_sql.get(params.sort, sort_sql["newest"])
     if params.sort == "best_match" and not has_query:
-        sort = _SORT_SQL["newest"]
+        sort = sort_sql["newest"]
 
     offset = (params.page - 1) * params.per_page
 
@@ -98,7 +106,7 @@ async def search_bounties_db(
 
     select_sql = f"""
         SELECT
-            b.id::text, b.title, b.description, b.tier, b.reward_amount,
+            b.id::text, b.title, b.project_name, b.description, b.tier, b.reward_amount,
             b.status, b.skills, b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at,
             {rank_expr} AS rank

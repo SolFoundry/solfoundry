@@ -186,6 +186,7 @@ async def persist_bounty(bounty: Any) -> None:
             BountyTable,
             bounty.id,
             title=bounty.title,
+            project_name=bounty.project_name,
             description=bounty.description,
             tier=bounty.tier,
             reward_amount=bounty.reward_amount,

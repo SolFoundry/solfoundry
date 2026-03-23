@@ -207,6 +207,11 @@ class BountyBase(BaseModel):
         description="Broad category for the task (e.g., backend, frontend, docs)",
         examples=["backend"],
     )
+    project_name: Optional[str] = Field(
+        None,
+        description="Name of the project this bounty belongs to",
+        examples=["SolFoundry"],
+    )
     reward_amount: float = Field(
         ...,
         ge=REWARD_MIN,
@@ -237,6 +242,13 @@ class BountyBase(BaseModel):
         description="Identifier of the user or system that created the bounty",
         examples=["user_123", "platform_admin"],
     )
+
+    model_config = {
+        "populate_by_name": True,
+        "alias_generator": lambda s: "".join(
+            word.capitalize() if i > 0 else word for i, word in enumerate(s.split("_"))
+        ),
+    }
 
     @field_validator("required_skills")
     @classmethod
@@ -273,6 +285,7 @@ class BountyUpdate(BaseModel):
     reward_amount: Optional[float] = Field(None, ge=REWARD_MIN, le=REWARD_MAX)
     required_skills: Optional[list[str]] = None
     deadline: Optional[datetime] = None
+    project_name: Optional[str] = None
 
     @field_validator("required_skills")
     @classmethod
@@ -288,6 +301,7 @@ class BountyDB(BaseModel):
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
+    project_name: Optional[str] = None
     description: str = ""
     tier: BountyTier = BountyTier.T2
     reward_amount: float
@@ -337,6 +351,7 @@ class BountyListItem(BaseModel):
 
     id: str
     title: str
+    project_name: Optional[str] = None
     tier: BountyTier
     reward_amount: float
     status: BountyStatus
@@ -391,6 +406,7 @@ class BountySearchParams(BaseModel):
     status: Optional[BountyStatus] = None
     tier: Optional[int] = Field(None, ge=1, le=3)
     skills: list[str] = Field(default_factory=list)
+    skills_logic: str = Field("any", description="Logic for multiple skills: any (OR) or all (AND)")
     category: Optional[str] = None
     creator_type: Optional[str] = Field(
         None, pattern=r"^(platform|community)$", description="platform or community"
