@@ -20,7 +20,7 @@ from enum import Enum
 from typing import Optional
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, Index, String, Text, ForeignKey
+from sqlalchemy import Column, DateTime, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from pydantic import BaseModel, Field, field_validator
 
