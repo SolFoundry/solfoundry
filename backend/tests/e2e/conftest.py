@@ -183,19 +183,31 @@ app = _create_test_app()
 
 @pytest.fixture(autouse=True)
 def clear_stores():
-    """Reset all in-memory stores and factory counters between tests."""
+    """Reset all in-memory stores, database tables, and factory counters between tests."""
+    from sqlalchemy import delete, text
+    from app.database import engine, Base
     from app.services import bounty_service, contributor_service
     from app.services.payout_service import reset_stores as reset_payout_stores
     from tests.e2e.factories import reset_counters
 
-    bounty_service._bounty_store.clear()
-    contributor_service._store.clear()
+    async def _db_cleanup():
+        async with engine.begin() as conn:
+            await conn.execute(text("PRAGMA foreign_keys = OFF"))
+            for table in reversed(Base.metadata.sorted_tables):
+                await conn.execute(delete(table))
+            await conn.execute(text("PRAGMA foreign_keys = ON"))
+
+    _get_test_loop().run_until_complete(_db_cleanup())
+    
+    # Reset internal service caches if any
+    if hasattr(bounty_service, "_bounty_store"):
+        bounty_service._bounty_store.clear()
+    if hasattr(contributor_service, "_store"):
+        contributor_service._store.clear()
+    
     reset_payout_stores()
     reset_counters()
     yield
-    bounty_service._bounty_store.clear()
-    contributor_service._store.clear()
-    reset_payout_stores()
 
 
 # ---------------------------------------------------------------------------
