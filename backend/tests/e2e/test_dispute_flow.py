@@ -281,7 +281,14 @@ class TestDisputeStatusModel:
         """Verify all expected dispute statuses exist in the model."""
         from app.models.dispute import DisputeStatus
 
-        expected = {"opened", "evidence", "mediation", "pending", "under_review", "resolved"}
+        expected = {
+            "opened",
+            "evidence",
+            "mediation",
+            "pending",
+            "under_review",
+            "resolved",
+        }
         actual = {s.value for s in DisputeStatus}
         assert actual == expected
 
@@ -289,7 +296,14 @@ class TestDisputeStatusModel:
         """Verify all expected dispute outcomes exist in the model."""
         from app.models.dispute import DisputeOutcome
 
-        expected = {"release_to_contributor", "refund_to_creator", "split", "approved", "rejected", "cancelled"}
+        expected = {
+            "release_to_contributor",
+            "refund_to_creator",
+            "split",
+            "approved",
+            "rejected",
+            "cancelled",
+        }
         actual = {o.value for o in DisputeOutcome}
         assert actual == expected
 
