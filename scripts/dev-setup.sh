@@ -109,10 +109,11 @@ check_cmd() {
 
 header "🔍 Checking prerequisites..."
 
-check_cmd "git"    "2.0"  "https://git-scm.com/downloads"
-check_cmd "node"   "18.0" "https://nodejs.org (v18+ required)"
-check_cmd "python3" "3.10" "https://python.org (v3.10+ required)"
-check_cmd "npm"    "9.0"  "Comes with Node.js"
+check_cmd "git"    "2.0"  "https://git-scm.com/downloads"     || true
+check_cmd "node"   "18.0" "https://nodejs.org (v18+ required)"  || true
+check_cmd "python3" "3.10" "https://python.org (v3.10+ required)" || true
+check_cmd "npm"    "9.0"  "Comes with Node.js"                  || true
+check_cmd "curl"   "7.0"  "https://curl.se/download.html"       || true
 
 # Check Node version >= 18
 if command -v node &>/dev/null; then
@@ -268,45 +269,59 @@ cd "$PROJECT_ROOT"
 # Start services
 # ---------------------------------------------------------------------------
 
+SERVICES_HEALTHY=false
+
 if $USE_DOCKER; then
   header "🐳 Starting services with Docker Compose..."
 
-  $COMPOSE_CMD up -d --build 2>&1 | tail -5
-  success "Docker services started"
+  COMPOSE_OUTPUT=$($COMPOSE_CMD up -d --build 2>&1) || {
+    warn "Docker Compose startup failed — falling back to manual setup"
+    warn "$COMPOSE_OUTPUT"
+    USE_DOCKER=false
+  }
 
-  # Wait for services to be ready
-  info "Waiting for services to initialize..."
-  sleep 5
+  if $USE_DOCKER; then
+    echo "$COMPOSE_OUTPUT" | tail -5
+    success "Docker services started"
 
-  # Health check
-  header "🏥 Running health check..."
+    # Wait for services to be ready
+    info "Waiting for services to initialize..."
+    sleep 5
 
-  HEALTH_URL="http://localhost:${BACKEND_PORT:-8000}/health"
-  RETRIES=0
-  MAX_RETRIES=10
+    # Health check
+    header "🏥 Running health check..."
 
-  while [ $RETRIES -lt $MAX_RETRIES ]; do
-    HEALTH=$(curl -sf --connect-timeout 2 --max-time 5 "$HEALTH_URL" 2>/dev/null) && {
-      STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
-      if [ "$STATUS" = "healthy" ]; then
-        success "Health check passed: $STATUS"
-        break
-      else
-        warn "Health check returned: $STATUS — retrying..."
-        RETRIES=$((RETRIES + 1))
-        sleep 2
-        continue
-      fi
-    }
-    RETRIES=$((RETRIES + 1))
-    sleep 2
-  done
+    HEALTH_URL="http://localhost:${BACKEND_PORT:-8000}/health"
+    RETRIES=0
+    MAX_RETRIES=10
 
-  if [ $RETRIES -eq $MAX_RETRIES ]; then
-    warn "Health check timed out — services may still be starting"
-    info "Check logs: $COMPOSE_CMD logs -f"
+    while [ $RETRIES -lt $MAX_RETRIES ]; do
+      HEALTH=$(curl -sf --connect-timeout 2 --max-time 5 "$HEALTH_URL" 2>/dev/null) && {
+        STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+        if [ "$STATUS" = "healthy" ]; then
+          success "Health check passed: $STATUS"
+          SERVICES_HEALTHY=true
+          break
+        else
+          warn "Health check returned: $STATUS — retrying..."
+          RETRIES=$((RETRIES + 1))
+          sleep 2
+          continue
+        fi
+      }
+      RETRIES=$((RETRIES + 1))
+      sleep 2
+    done
+
+    if [ $RETRIES -eq $MAX_RETRIES ]; then
+      warn "Health check timed out — services may still be starting"
+      info "Check logs: $COMPOSE_CMD logs -f"
+      exit 1
+    fi
   fi
-else
+fi
+
+if ! $USE_DOCKER; then
   header "📝 Manual setup instructions"
   echo ""
   info "Start PostgreSQL and Redis manually, then:"
@@ -318,22 +333,25 @@ else
   echo "  # Terminal 2 — Frontend"
   echo "  cd frontend && npm run dev"
   echo ""
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
-header "🎉 SolFoundry dev environment is ready!"
-echo ""
-echo -e "  ${BOLD}Frontend:${NC}  http://localhost:${FRONTEND_PORT:-3000}"
-echo -e "  ${BOLD}Backend:${NC}   http://localhost:${BACKEND_PORT:-8000}"
-echo -e "  ${BOLD}API Docs:${NC}  http://localhost:${BACKEND_PORT:-8000}/docs"
-echo -e "  ${BOLD}Health:${NC}    http://localhost:${BACKEND_PORT:-8000}/health"
-echo ""
-if $USE_DOCKER; then
-  echo -e "  ${BOLD}Logs:${NC}      $COMPOSE_CMD logs -f"
-  echo -e "  ${BOLD}Stop:${NC}      $COMPOSE_CMD down"
+if $SERVICES_HEALTHY; then
+  header "🎉 SolFoundry dev environment is ready!"
   echo ""
+  echo -e "  ${BOLD}Frontend:${NC}  http://localhost:${FRONTEND_PORT:-3000}"
+  echo -e "  ${BOLD}Backend:${NC}   http://localhost:${BACKEND_PORT:-8000}"
+  echo -e "  ${BOLD}API Docs:${NC}  http://localhost:${BACKEND_PORT:-8000}/docs"
+  echo -e "  ${BOLD}Health:${NC}    http://localhost:${BACKEND_PORT:-8000}/health"
+  echo ""
+  if $USE_DOCKER; then
+    echo -e "  ${BOLD}Logs:${NC}      $COMPOSE_CMD logs -f"
+    echo -e "  ${BOLD}Stop:${NC}      $COMPOSE_CMD down"
+    echo ""
+  fi
+  info "Read CONTRIBUTING.md to start building → earn \$FNDRY!"
 fi
-info "Read CONTRIBUTING.md to start building → earn \$FNDRY!"
