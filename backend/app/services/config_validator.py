@@ -69,6 +69,10 @@ OPTIONAL_SECRETS: dict[str, dict] = {
         "description": "Redis connection URL for caching and rate limiting",
         "example": "redis://localhost:6379/0",
     },
+    "CHAIN_WEBHOOK_INDEXER_SECRET": {
+        "description": "Shared secret for POST /api/webhooks/internal/chain-events (Helius/Shyft indexer)",
+        "example": "long-random-token-for-indexer-only",
+    },
     "AUTH_ENABLED": {
         "description": "Enable authentication (true/false)",
         "example": "true",

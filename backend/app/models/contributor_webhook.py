@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
@@ -26,6 +26,22 @@ WEBHOOK_EVENTS = (
     "review.passed",
     "review.failed",
     "bounty.paid",
+    "webhook.test",
+    "escrow.locked",
+    "escrow.released",
+    "reputation.updated",
+    "stake.deposited",
+    "stake.withdrawn",
+)
+
+ON_CHAIN_WEBHOOK_EVENTS = frozenset(
+    {
+        "escrow.locked",
+        "escrow.released",
+        "reputation.updated",
+        "stake.deposited",
+        "stake.withdrawn",
+    }
 )
 
 
@@ -37,6 +53,12 @@ class WebhookEvent(str, Enum):
     REVIEW_PASSED = "review.passed"
     REVIEW_FAILED = "review.failed"
     BOUNTY_PAID = "bounty.paid"
+    WEBHOOK_TEST = "webhook.test"
+    ESCROW_LOCKED = "escrow.locked"
+    ESCROW_RELEASED = "escrow.released"
+    REPUTATION_UPDATED = "reputation.updated"
+    STAKE_DEPOSITED = "stake.deposited"
+    STAKE_WITHDRAWN = "stake.withdrawn"
 
 
 # ── SQLAlchemy model ───────────────────────────────────────────────────────────
@@ -120,9 +142,49 @@ class WebhookListResponse(BaseModel):
 
 
 class WebhookPayload(BaseModel):
-    """Shape of the JSON body POSTed to subscriber endpoints."""
+    """Shape of the JSON body POSTed to subscriber endpoints (single event)."""
 
     event: str
-    bounty_id: str
+    bounty_id: str = ""
     timestamp: str
-    data: dict[str, Any]
+    data: dict[str, Any] = Field(default_factory=dict)
+    transaction_signature: Optional[str] = None
+    slot: Optional[int] = None
+
+
+class WebhookBatchPayload(BaseModel):
+    """Batched on-chain (and indexer) events within a delivery window."""
+
+    delivery_mode: Literal["batch"] = "batch"
+    batch_id: str
+    window_seconds: int = 5
+    timestamp: str
+    events: list[WebhookPayload]
+
+
+class WebhookDeliveryAttemptPublic(BaseModel):
+    """Single delivery attempt row for dashboard / API consumers."""
+
+    id: str
+    webhook_id: str
+    webhook_url: str
+    batch_id: Optional[str] = None
+    delivery_mode: str
+    event_types: list[str]
+    attempt_number: int
+    success: bool
+    http_status: Optional[int] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+
+
+class WebhookDeliveryDashboard(BaseModel):
+    """Webhook delivery health for the contributor dashboard."""
+
+    period_days: int = 7
+    total_attempts: int
+    successful_attempts: int
+    failure_rate: float
+    active_webhooks: int
+    last_webhook_status: Optional[str] = None
+    recent_attempts: list[WebhookDeliveryAttemptPublic]

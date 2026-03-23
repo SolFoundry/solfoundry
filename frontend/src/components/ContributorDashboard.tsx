@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../services/apiClient';
+import { apiClient, ApiError } from '../services/apiClient';
 import {
   Skeleton,
   SkeletonStatCard,
@@ -38,6 +38,30 @@ interface Notification {
   message: string;
   timestamp: string;
   read: boolean;
+}
+
+interface WebhookDeliveryAttempt {
+  id: string;
+  webhook_id: string;
+  webhook_url: string;
+  batch_id: string | null;
+  delivery_mode: string;
+  event_types: string[];
+  attempt_number: number;
+  success: boolean;
+  http_status: number | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+interface WebhookDeliveryDashboard {
+  period_days: number;
+  total_attempts: number;
+  successful_attempts: number;
+  failure_rate: number;
+  active_webhooks: number;
+  last_webhook_status: string | null;
+  recent_attempts: WebhookDeliveryAttempt[];
 }
 
 interface DashboardStats {
@@ -607,7 +631,7 @@ export function ContributorDashboard({
   onConnectAccount,
   onDisconnectAccount,
 }: ContributorDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings' | 'webhooks'>('overview');
 
   // React Query handles fetching, caching, and retry for dashboard data
   const { data: dashboardData, isLoading, isError, error: queryError, refetch } = useQuery({
@@ -615,6 +639,47 @@ export function ContributorDashboard({
     queryFn: () => fetchDashboardData(userId),
     staleTime: 30_000,
   });
+
+  const {
+    data: webhookStats,
+    isLoading: webhookStatsLoading,
+    isError: webhookStatsError,
+    error: webhookStatsErr,
+    refetch: refetchWebhookStats,
+  } = useQuery({
+    queryKey: ['webhook-delivery-stats'],
+    queryFn: () =>
+      apiClient<WebhookDeliveryDashboard>('/api/webhooks/delivery-stats', { retries: 0 }),
+    enabled: activeTab === 'webhooks',
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const [webhookTestMessage, setWebhookTestMessage] = useState<string | null>(null);
+  const [webhookTestBusy, setWebhookTestBusy] = useState(false);
+
+  const handleWebhookTest = useCallback(async () => {
+    setWebhookTestMessage(null);
+    setWebhookTestBusy(true);
+    try {
+      const res = await apiClient<{ status: string; endpoints_notified: number }>(
+        '/api/webhooks/test',
+        { method: 'POST', retries: 0 },
+      );
+      setWebhookTestMessage(`Test event delivered to ${res.endpoints_notified} endpoint(s).`);
+      void refetchWebhookStats();
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? String(e.message)
+          : e instanceof Error
+            ? e.message
+            : 'Webhook test failed';
+      setWebhookTestMessage(msg);
+    } finally {
+      setWebhookTestBusy(false);
+    }
+  }, [refetchWebhookStats]);
 
   const stats = dashboardData?.stats ?? null;
   const bounties = dashboardData?.bounties ?? [];
@@ -765,6 +830,7 @@ export function ContributorDashboard({
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'notifications', label: 'Notifications', badge: unreadNotifications },
+            { id: 'webhooks', label: 'Webhooks' },
             { id: 'settings', label: 'Settings' },
           ].map((tab) => (
             <button
@@ -888,6 +954,117 @@ export function ContributorDashboard({
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'webhooks' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-gray-900 dark:text-white font-medium">Webhook delivery</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    On-chain events are batched every 5 seconds. Bounty events are sent immediately.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleWebhookTest()}
+                  disabled={webhookTestBusy}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-solana-purple to-solana-green text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                >
+                  {webhookTestBusy ? 'Sending…' : 'Send test event'}
+                </button>
+              </div>
+              {webhookTestMessage && (
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-4" role="status">
+                  {webhookTestMessage}
+                </p>
+              )}
+              {webhookStatsLoading && (
+                <p className="text-sm text-gray-600 dark:text-gray-400" role="status">
+                  Loading delivery stats…
+                </p>
+              )}
+              {webhookStatsError && !webhookStatsLoading && (
+                <p className="text-sm text-amber-600 dark:text-amber-400" role="alert">
+                  {webhookStatsErr instanceof ApiError && webhookStatsErr.status === 401
+                    ? 'Sign in to view webhook delivery stats and register endpoints under /api/webhooks.'
+                    : `Could not load webhook stats: ${webhookStatsErr instanceof Error ? webhookStatsErr.message : 'Unknown error'}`}
+                </p>
+              )}
+              {webhookStats && !webhookStatsLoading && (
+                <>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                    <div className="rounded-lg bg-gray-100 dark:bg-surface p-3 border border-gray-200/80 dark:border-white/5">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Failure rate ({webhookStats.period_days}d)</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {(webhookStats.failure_rate * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-gray-100 dark:bg-surface p-3 border border-gray-200/80 dark:border-white/5">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Attempts ({webhookStats.period_days}d)</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{webhookStats.total_attempts}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-100 dark:bg-surface p-3 border border-gray-200/80 dark:border-white/5">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Successful</p>
+                      <p className="text-lg font-semibold text-solana-green">{webhookStats.successful_attempts}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-100 dark:bg-surface p-3 border border-gray-200/80 dark:border-white/5">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Active URLs</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{webhookStats.active_webhooks}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    Last delivery status (most recently touched endpoint):{' '}
+                    <span className="text-gray-900 dark:text-white font-medium">
+                      {webhookStats.last_webhook_status ?? '—'}
+                    </span>
+                  </p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Recent attempts (incl. retries)</h4>
+                  {webhookStats.recent_attempts.length === 0 ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">No delivery attempts logged yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-200 dark:border-white/10 rounded-lg">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-100 dark:bg-surface text-left text-gray-600 dark:text-gray-400">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Time</th>
+                            <th className="px-3 py-2 font-medium">Events</th>
+                            <th className="px-3 py-2 font-medium">Try</th>
+                            <th className="px-3 py-2 font-medium">HTTP</th>
+                            <th className="px-3 py-2 font-medium">Result</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-white/5">
+                          {webhookStats.recent_attempts.map((row) => (
+                            <tr key={row.id} className="text-gray-800 dark:text-gray-200">
+                              <td className="px-3 py-2 whitespace-nowrap text-xs">
+                                {formatRelativeTime(row.created_at)}
+                              </td>
+                              <td className="px-3 py-2 text-xs max-w-[12rem] truncate" title={row.event_types.join(', ')}>
+                                {row.event_types.join(', ')}
+                              </td>
+                              <td className="px-3 py-2">{row.attempt_number}</td>
+                              <td className="px-3 py-2">{row.http_status ?? '—'}</td>
+                              <td className="px-3 py-2">
+                                <span className={row.success ? 'text-solana-green' : 'text-red-400'}>
+                                  {row.success ? 'ok' : 'fail'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              Event types and payload schemas: see{' '}
+              <code className="text-gray-700 dark:text-gray-300">docs/WEBHOOK_EVENT_CATALOG.md</code> in the repo.
+            </p>
           </div>
         )}
 

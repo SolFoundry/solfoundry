@@ -127,6 +127,7 @@ async def test_register_creates_record():
     count_result.scalar_one = MagicMock(return_value=0)
 
     db = AsyncMock()
+    db.add = MagicMock()
     db.execute = AsyncMock(return_value=count_result)
 
     # Simulate refresh populating the record
@@ -231,6 +232,7 @@ async def test_deliver_success_on_first_attempt():
     """Successful 2xx delivery should record success and not retry."""
     record = _make_db_record()
     db = AsyncMock()
+    db.add = MagicMock()
 
     service = ContributorWebhookService(db)
 
@@ -251,7 +253,9 @@ async def test_deliver_success_on_first_attempt():
         return_value=mock_session_cm,
     ):
         payload_bytes = _build_payload("bounty.claimed", "b-1", {})
-        await service._deliver_with_retry(record, "bounty.claimed", payload_bytes)
+        await service._deliver_with_retry(
+            record, "bounty.claimed", payload_bytes, event_types=["bounty.claimed"]
+        )
 
     db.commit.assert_called()
 
@@ -261,6 +265,7 @@ async def test_deliver_retries_on_non_2xx():
     """Non-2xx responses should trigger retries up to MAX_ATTEMPTS."""
     record = _make_db_record()
     db = AsyncMock()
+    db.add = MagicMock()
     service = ContributorWebhookService(db)
 
     mock_resp = MagicMock()
@@ -287,7 +292,9 @@ async def test_deliver_retries_on_non_2xx():
         ),
     ):
         payload_bytes = _build_payload("review.failed", "b-2", {})
-        await service._deliver_with_retry(record, "review.failed", payload_bytes)
+        await service._deliver_with_retry(
+            record, "review.failed", payload_bytes, event_types=["review.failed"]
+        )
 
     from app.services.contributor_webhook_service import MAX_ATTEMPTS
 
@@ -299,6 +306,7 @@ async def test_deliver_retries_on_network_error():
     """Network exceptions should trigger retries."""
     record = _make_db_record()
     db = AsyncMock()
+    db.add = MagicMock()
     service = ContributorWebhookService(db)
 
     mock_session = MagicMock()
@@ -318,7 +326,9 @@ async def test_deliver_retries_on_network_error():
         ),
     ):
         payload_bytes = _build_payload("bounty.paid", "b-3", {})
-        await service._deliver_with_retry(record, "bounty.paid", payload_bytes)
+        await service._deliver_with_retry(
+            record, "bounty.paid", payload_bytes, event_types=["bounty.paid"]
+        )
 
     from app.services.contributor_webhook_service import MAX_ATTEMPTS
 
@@ -330,6 +340,7 @@ async def test_deliver_succeeds_on_second_attempt():
     """Delivery that fails once then succeeds should not exhaust retries."""
     record = _make_db_record()
     db = AsyncMock()
+    db.add = MagicMock()
     service = ContributorWebhookService(db)
 
     call_count = 0
@@ -364,7 +375,9 @@ async def test_deliver_succeeds_on_second_attempt():
         ),
     ):
         payload_bytes = _build_payload("review.passed", "b-4", {})
-        await service._deliver_with_retry(record, "review.passed", payload_bytes)
+        await service._deliver_with_retry(
+            record, "review.passed", payload_bytes, event_types=["review.passed"]
+        )
 
     assert call_count == 2  # failed once, succeeded on second try
 

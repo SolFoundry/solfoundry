@@ -8,6 +8,8 @@ Endpoints
 POST   /api/webhooks/register       Register a new webhook URL
 DELETE /api/webhooks/{id}           Unregister a webhook
 GET    /api/webhooks                List registered webhooks for the caller
+GET    /api/webhooks/delivery-stats Delivery health + retry history (dashboard)
+POST   /api/webhooks/test           Send a signed test event to your endpoints
 """
 
 import logging
@@ -18,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user_id
 from app.database import get_db
 from app.models.contributor_webhook import (
+    WebhookDeliveryDashboard,
     WebhookListResponse,
     WebhookRegisterRequest,
     WebhookResponse,
@@ -116,3 +119,45 @@ async def list_webhooks(
     service = ContributorWebhookService(db)
     items = await service.list_for_user(user_id)
     return WebhookListResponse(items=items, total=len(items))
+
+
+# ── dashboard + test ────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/delivery-stats",
+    response_model=WebhookDeliveryDashboard,
+    summary="Webhook delivery health",
+    description=(
+        "Returns attempt counts, failure rate over the last 7 days, last endpoint "
+        "status, and recent per-attempt rows (including retries) for the caller's "
+        "registered webhooks."
+    ),
+)
+async def webhook_delivery_stats(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> WebhookDeliveryDashboard:
+    service = ContributorWebhookService(db)
+    raw = await service.delivery_dashboard(user_id)
+    return WebhookDeliveryDashboard(**raw)
+
+
+@router.post(
+    "/test",
+    summary="Send a test webhook",
+    description=(
+        "Dispatches a signed ``webhook.test`` payload immediately to every active "
+        "webhook registered by the caller (not batched)."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+    },
+)
+async def webhook_test_delivery(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    service = ContributorWebhookService(db)
+    n = await service.dispatch_test_event(user_id)
+    return {"status": "completed", "endpoints_notified": n}

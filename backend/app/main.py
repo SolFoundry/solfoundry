@@ -55,6 +55,8 @@ from app.api.admin import router as admin_router
 from app.database import init_db, close_db
 from app.api.og import router as og_router
 from app.api.contributor_webhooks import router as contributor_webhooks_router
+from app.api.chain_webhook_indexer import router as chain_webhook_indexer_router
+from app.services.chain_webhook_batcher import chain_webhook_batcher
 from app.api.siws import router as siws_router
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
@@ -111,6 +113,7 @@ async def lifespan(app: FastAPI):
         )
 
     await init_db()
+    await chain_webhook_batcher.start()
     await ws_manager.init()
 
     # Hydrate in-memory caches from PostgreSQL (source of truth)
@@ -169,6 +172,8 @@ async def lifespan(app: FastAPI):
         obs_task = asyncio.create_task(periodic_refresh())
 
     yield
+
+    await chain_webhook_batcher.stop()
 
     # Shutdown: Cancel background tasks, close connections, then database
     sync_task.cancel()
@@ -410,6 +415,7 @@ app.include_router(stats_router, prefix="/api")
 # Open Graph previews: /og/*
 app.include_router(og_router)
 app.include_router(contributor_webhooks_router, prefix="/api")
+app.include_router(chain_webhook_indexer_router, prefix="/api")
 app.include_router(siws_router, prefix="/api")
 
 # System Health: /health, Prometheus: /metrics

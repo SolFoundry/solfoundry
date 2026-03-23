@@ -16,6 +16,7 @@ from app.database import Base
 
 # Import all models so Alembic can detect them
 from app.models.contributor import ContributorTable  # noqa: F401
+from app.models.webhook_delivery import WebhookDeliveryAttemptDB  # noqa: F401
 
 config = context.config
 
