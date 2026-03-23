@@ -1,6 +1,7 @@
 /** Financial overview panel — token distribution and payout history. */
 import { useState } from 'react';
 import { useFinancialOverview, usePayoutHistory } from '../../hooks/useAdminData';
+import { WalletAddress } from '../wallet/WalletAddress';
 
 function fmt(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
@@ -85,7 +86,9 @@ export function FinancialPanel() {
                         {p.bounty_title}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 truncate max-w-[140px]">{p.winner || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400 truncate max-w-[140px]">
+                      {p.winner ? <WalletAddress address={p.winner} startChars={4} endChars={4} className="inline-flex" /> : '—'}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums text-[#14F195] font-medium">
                       {fmt(p.amount)}
                     </td>

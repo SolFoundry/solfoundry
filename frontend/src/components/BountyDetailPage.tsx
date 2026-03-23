@@ -12,6 +12,7 @@ import CreatorApprovalPanel from './bounties/CreatorApprovalPanel';
 import LifecycleTimeline from './bounties/LifecycleTimeline';
 import { BountyTags } from './bounties/BountyTags';
 import { BoostPanel } from './bounties/BoostPanel';
+import { WalletAddress } from './wallet/WalletAddress';
 
 interface BountyDetail {
   id: string;
@@ -185,7 +186,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
                     <span className="text-lg">🏆</span>
-                    Winner: <code className="font-mono">{bounty.winner_wallet.slice(0, 12)}...</code>
+                    Winner: <WalletAddress address={bounty.winner_wallet} startChars={8} endChars={4} className="inline-flex" />
                   </div>
                   {bounty.payout_tx_hash && (
                     <a

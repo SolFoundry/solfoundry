@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import { useBoost } from '../../hooks/useBoost';
 import type { Boost, BoosterLeaderboardEntry } from '../../types/boost';
+import { WalletAddress } from '../wallet/WalletAddress';
 
 // ── Skeleton helper ───────────────────────────────────────────────────────────
 
@@ -219,8 +220,8 @@ function BoostLeaderboardSection({
                 <span className="w-6 text-center font-mono text-xs text-gray-500 shrink-0">
                   {medal ?? `#${entry.rank}`}
                 </span>
-                <span className="flex-1 font-mono text-gray-300 truncate text-xs">
-                  {entry.booster_wallet.slice(0, 6)}…{entry.booster_wallet.slice(-4)}
+                <span className="flex-1 shrink-0">
+                  <WalletAddress address={entry.booster_wallet} startChars={6} endChars={4} className="text-xs" />
                 </span>
                 <span className="font-mono font-semibold text-solana-green shrink-0">
                   {entry.total_boosted.toLocaleString()}
@@ -280,8 +281,8 @@ function BoostHistorySection({
               className="flex items-center gap-3 text-sm border-b border-white/5 last:border-0 pb-3 last:pb-0"
               aria-label={`${boost.booster_wallet} boosted ${boost.amount.toLocaleString()} $FNDRY`}
             >
-              <span className="flex-1 font-mono text-gray-400 text-xs truncate">
-                {boost.booster_wallet.slice(0, 6)}…{boost.booster_wallet.slice(-4)}
+              <span className="flex-1 shrink-0">
+                <WalletAddress address={boost.booster_wallet} startChars={6} endChars={4} className="text-xs" />
               </span>
               <span className={`font-mono font-semibold shrink-0 ${STATUS_COLOR[boost.status] ?? ''}`}>
                 +{boost.amount.toLocaleString()}

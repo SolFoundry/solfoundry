@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { BountySubmission, AggregatedReviewScore } from '../../types/bounty';
+import { WalletAddress } from '../wallet/WalletAddress';
 
 interface CreatorApprovalPanelProps {
   submissions: BountySubmission[];
@@ -95,7 +96,7 @@ export const CreatorApprovalPanel: React.FC<CreatorApprovalPanelProps> = ({
                     <p className="text-xs text-gray-500">
                       Submitted {formatDate(sub.submitted_at)}
                       {sub.contributor_wallet && (
-                        <> · <code className="text-gray-600">{sub.contributor_wallet.slice(0, 8)}...</code></>
+                        <> · <WalletAddress address={sub.contributor_wallet} startChars={4} endChars={4} className="inline-flex" /></>
                       )}
                     </p>
                   </div>
