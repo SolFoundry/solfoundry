@@ -9,7 +9,9 @@ from app.main import app
 @pytest.mark.asyncio
 async def test_ip_blocklist():
     """Verify that blacklisted IPs receive 403 Forbidden."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         # We need to patch the redis instance within IPBlocklistMiddleware
         with patch("app.middleware.security.redis.from_url") as mock_redis_func:
             mock_redis = AsyncMock()
@@ -26,7 +28,9 @@ async def test_ip_blocklist():
 @pytest.mark.asyncio
 async def test_payload_limit():
     """Verify that oversized payloads (Bounty #169) are rejected."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         # 1.1MB payload (Limit is 1MB)
         large_data = "x" * (1024 * 1024 + 1024)
         response = await ac.post(
