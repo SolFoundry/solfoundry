@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 // Placeholder ID — run `anchor build && anchor keys sync` to regenerate from keypair.
-declare_id!("STKGnFTAiPsEHzaMqN2ySJzaDnFTiRwb3JXFb4yHwqPr");
+declare_id!("5yBCCECfnEPBQTaKxhwABHNeAmb5j8rNHLLuvJfUCkZ");
 
 #[program]
 pub mod staking {

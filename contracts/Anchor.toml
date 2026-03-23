@@ -9,13 +9,13 @@ skip-lint = false
 escrow     = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 reputation = "RPTNzHXtmDSy7y7UoU3X3r56QQW3bRGSJhWKFpkXHmk"
 treasury   = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
-staking    = "STKGnFTAiPsEHzaMqN2ySJzaDnFTiRwb3JXFb4yHwqPr"
+staking    = "5yBCCECfnEPBQTaKxhwABHNeAmb5j8rNHLLuvJfUCkZ"
 
 [programs.devnet]
 escrow     = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 reputation = "RPTNzHXtmDSy7y7UoU3X3r56QQW3bRGSJhWKFpkXHmk"
 treasury   = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
-staking    = "STKGnFTAiPsEHzaMqN2ySJzaDnFTiRwb3JXFb4yHwqPr"
+staking    = "5yBCCECfnEPBQTaKxhwABHNeAmb5j8rNHLLuvJfUCkZ"
 
 [registry]
 url = "https://api.apr.dev"
