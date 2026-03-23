@@ -23,7 +23,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.constants import START_TIME, VERSION
 from app.database import engine
-from app.api.admin import _resolve_role, AdminRole, _security
+from app.api.admin import _resolve_role, _security
 from fastapi.security import HTTPAuthorizationCredentials
 
 logger = logging.getLogger(__name__)
