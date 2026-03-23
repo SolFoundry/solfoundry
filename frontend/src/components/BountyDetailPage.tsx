@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { EscrowStatus } from './wallet/EscrowStatus';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
 import { TimeAgo } from './common/TimeAgo';
+import { LoadingButton } from './common/LoadingButton';
 import { useBountySubmission } from '../hooks/useBountySubmission';
 import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
@@ -330,12 +331,14 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
               {/* Action Buttons */}
               <div className="space-y-3 pt-4">
                 {canSubmit && !showSubmitForm && (
-                  <button
+                  <LoadingButton
                     onClick={() => setShowSubmitForm(true)}
-                    className="w-full bg-solana-purple hover:bg-violet-600 text-white py-3 sm:py-4 rounded-lg font-medium transition-colors min-h-[44px] touch-manipulation"
+                    isLoading={loading}
+                    loadingText="Loading..."
+                    className="w-full py-3 sm:py-4 min-h-[44px] touch-manipulation"
                   >
                     Submit PR
-                  </button>
+                  </LoadingButton>
                 )}
                 {githubUrl && (
                   <a
