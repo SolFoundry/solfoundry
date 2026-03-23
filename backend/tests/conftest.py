@@ -5,7 +5,6 @@ reset between tests to prevent cross-test interference from the security
 middleware, and an in-memory SQLite database for test isolation.
 """
 
-import asyncio
 import os
 
 import pytest
