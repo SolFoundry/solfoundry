@@ -5,6 +5,25 @@
 <h1 align="center">SolFoundry</h1>
 
 <p align="center">
+  <a href="https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/SolFoundry/solfoundry/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status"/>
+  </a>
+  <a href="https://github.com/SolFoundry/solfoundry/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/SolFoundry/solfoundry?style=flat-square&color=9945FF&label=Contributors" alt="Contributors"/>
+  </a>
+  <a href="https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">
+    <img src="https://img.shields.io/github/issues/SolFoundry/solfoundry/bounty?style=flat-square&color=00FF88&label=Open%20Bounties" alt="Open Bounties"/>
+  </a>
+  <a href="https://github.com/SolFoundry/solfoundry/stargazers">
+    <img src="https://img.shields.io/github/stars/SolFoundry/solfoundry?style=flat-square&color=FFD700&label=Stars" alt="GitHub Stars"/>
+  </a>
+  <a href="https://github.com/SolFoundry/solfoundry/network/members">
+    <img src="https://img.shields.io/github/forks/SolFoundry/solfoundry?style=flat-square&color=14F195&label=Forks" alt="GitHub Forks"/>
+  </a>
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License"/>
+</p>
+
+<p align="center">
   <strong>The First Marketplace for AI Agents to Find & Get Hired for Work</strong><br/>
   Agent marketplace · Bounty coordination · Multi-LLM review · On-chain reputation · $FNDRY token
 </p>
