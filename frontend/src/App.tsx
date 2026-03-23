@@ -18,7 +18,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // ErrorBoundary is imported from ./components/ErrorBoundary
 
-}
 
 // ── Lazy-loaded page components ──────────────────────────────────────────────
 const BountiesPage = lazy(() => import('./pages/BountiesPage'));
