@@ -15,7 +15,6 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/common/ToastContainer';
 import { SolFoundryLogoMark } from './components/common/SolFoundryLogoMark';
 
-/** Catches render errors with retry. */
 /**
  * Catches render errors in any descendant component tree.
  * Displays error details with a retry button and a fallback link home.
