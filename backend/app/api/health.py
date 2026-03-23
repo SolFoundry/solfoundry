@@ -15,7 +15,7 @@ from typing import Optional
 
 import httpx
 import psutil
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis, RedisError, from_url
 from sqlalchemy import text
@@ -23,6 +23,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.constants import START_TIME, VERSION
 from app.database import engine
+from app.api.admin import _resolve_role, AdminRole, _security
+from fastapi.security import HTTPAuthorizationCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -251,16 +253,22 @@ async def _check_system() -> dict:
 
 
 @router.get("/health", summary="Comprehensive service health check")
-async def health_check() -> JSONResponse:
+async def health_check(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security),
+) -> JSONResponse:
     """
-    Return a structured health report covering:
-    - Internal services: PostgreSQL, Redis
-    - External infrastructure: Solana RPC, GitHub API
-    - System telemetry: CPU, memory, disk
+    Return a structured health report. HTTP 200 on healthy core, 503 otherwise.
+    Detailed telemetry is only visible to authenticated admins.
+    """
+    # Check if requester is an admin
+    is_admin = False
+    if credentials:
+        try:
+            _, role = await _resolve_role(credentials)
+            is_admin = (role == "admin")
+        except Exception:
+            pass
 
-    HTTP 200 → all core services healthy.
-    HTTP 503 → one or more core services unavailable or degraded.
-    """
     (
         db_result,
         redis_result,
@@ -275,6 +283,16 @@ async def health_check() -> JSONResponse:
         _check_system(),
         return_exceptions=False,
     )
+
+    # Clean up error leaks and sensitive info for public view
+    if not is_admin:
+        for res in [db_result, redis_result, solana_result, github_result]:
+            if "error" in res:
+                res["error"] = "Service unavailable"
+            if "cluster" in res:
+                del res["cluster"]
+            if "rate_limit" in res:
+                del res["rate_limit"]
 
     # Core services (PostgreSQL + Redis) determine the top-level status code.
     core_healthy = (
@@ -305,9 +323,12 @@ async def health_check() -> JSONResponse:
             "redis": redis_result,
             "solana_rpc": solana_result,
             "github_api": github_result,
-        },
-        "system": system_telemetry,
+        }
     }
+
+    # System telemetry only for admins
+    if is_admin:
+        body["system"] = system_telemetry
 
     http_status = 200 if core_healthy else 503
     return JSONResponse(content=body, status_code=http_status)

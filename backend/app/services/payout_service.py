@@ -83,7 +83,7 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
 
     # Double-pay check (bounty level)
     if data.bounty_id:
-        all_payouts = await pg_store.load_payouts(limit=5000)
+        all_payouts = await pg_store.load_payouts(limit=100000)
         for p in all_payouts.values():
             if str(p.bounty_id) == str(data.bounty_id):
                 raise HTTPException(
@@ -158,7 +158,7 @@ async def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
             return _payout_to_response(_payout_store[payout_id])
 
     # DB Fallback
-    all_payouts = await pg_store.load_payouts(limit=5000)
+    all_payouts = await pg_store.load_payouts(limit=100000)
     if payout_id in all_payouts:
         return _payout_to_response(all_payouts[payout_id])
     return None
@@ -180,7 +180,7 @@ async def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse
 
     if not record:
         # Final attempt to load from DB before failing
-        all_p = await pg_store.load_payouts(limit=5000)
+        all_p = await pg_store.load_payouts(limit=100000)
         record = all_p.get(payout_id)
 
     if not record:
@@ -206,7 +206,7 @@ async def reject_payout(
     payout_id: str, admin_id: str, reason: Optional[str] = None
 ) -> AdminApprovalResponse:
     """Admin rejection gate."""
-    all_p = await pg_store.load_payouts(limit=5000)
+    all_p = await pg_store.load_payouts(limit=100000)
     record = all_p.get(payout_id)
     if not record:
         raise HTTPException(status_code=404, detail="Payout not found")
@@ -228,7 +228,7 @@ async def process_payout(payout_id: str) -> PayoutResponse:
     """Execute on-chain SPL transfer."""
     from app.services.transfer_service import send_spl_transfer, confirm_transaction
 
-    all_p = await pg_store.load_payouts(limit=5000)
+    all_p = await pg_store.load_payouts(limit=100000)
     record = all_p.get(payout_id)
     if not record:
         raise HTTPException(status_code=404, detail="Payout not found")

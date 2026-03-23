@@ -351,9 +351,18 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
         results = [b for b in results if b.tier == params.tier]
     if params.skills:
         skill_set = {s.lower() for s in params.skills}
-        results = [
-            b for b in results if skill_set & {s.lower() for s in b.required_skills}
-        ]
+        if params.skills_logic == "all":
+            results = [
+                b
+                for b in results
+                if skill_set.issubset({s.lower() for s in b.required_skills})
+            ]
+        else:
+            results = [
+                b
+                for b in results
+                if skill_set & {s.lower() for s in b.required_skills}
+            ]
     if params.creator_type:
         results = [
             b

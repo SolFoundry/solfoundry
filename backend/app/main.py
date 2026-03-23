@@ -45,9 +45,12 @@ from app.api.contributor_webhooks import router as contributor_webhooks_router
 from app.api.siws import router as siws_router
 from app.api import buybacks
 
-# Core & Services
-from app.database import init_db, close_db
+from app.core.config import ALLOWED_ORIGINS
 from app.core.logging_config import setup_logging
+from app.database import init_db, close_db
+
+# Initialize logging
+setup_logging()
 from app.core.redis import close_redis
 from app.services.health import monitor
 from app.services.websocket_manager import manager as ws_manager
@@ -59,8 +62,7 @@ from app.services.observability_metrics import periodic_refresh
 from app.services.config_validator import install_log_filter, validate_secrets
 from app.services.auth_service import AuthError
 
-# Initialize logging
-setup_logging()
+# Logger instance
 logger = structlog.get_logger(__name__)
 
 
@@ -132,7 +134,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

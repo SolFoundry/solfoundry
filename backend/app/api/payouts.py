@@ -64,6 +64,7 @@ from app.services.treasury_service import (
     invalidate_cache,
 )
 from app.services.contributor_webhook_service import ContributorWebhookService
+from app.api.admin import _resolve_role, AdminRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payouts", tags=["payouts", "treasury"])
@@ -111,8 +112,13 @@ async def get_payouts(
     status_code=status.HTTP_201_CREATED,
     summary="Record a payout",
 )
-async def record_payout(data: PayoutCreate) -> PayoutResponse:
+async def record_payout(
+    data: PayoutCreate,
+    admin: tuple[str, AdminRole] = Depends(_resolve_role),
+) -> PayoutResponse:
     """Record a new payout with per-bounty lock to prevent double-pay."""
+    if admin[1] != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
     try:
         result = await create_payout(data)
     except (DoublePayError, ValueError) as exc:
@@ -141,7 +147,12 @@ async def treasury_buybacks(
 
 
 @router.post("/treasury/buybacks", response_model=BuybackResponse, status_code=201)
-async def record_buyback(data: BuybackCreate) -> BuybackResponse:
+async def record_buyback(
+    data: BuybackCreate,
+    admin: tuple[str, AdminRole] = Depends(_resolve_role),
+) -> BuybackResponse:
+    if admin[1] != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
     try:
         result = await create_buyback(data)
     except ValueError as exc:
@@ -193,8 +204,12 @@ async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
 
 @router.post("/{payout_id}/approve", response_model=AdminApprovalResponse)
 async def admin_approve_payout(
-    payout_id: str, body: AdminApprovalRequest
+    payout_id: str,
+    body: AdminApprovalRequest,
+    admin: tuple[str, AdminRole] = Depends(_resolve_role),
 ) -> AdminApprovalResponse:
+    if admin[1] not in ("admin", "reviewer"):
+        raise HTTPException(status_code=403, detail="Reviewer privileges required")
     try:
         if body.approved:
             return await approve_payout(payout_id, body.admin_id)
@@ -207,8 +222,12 @@ async def admin_approve_payout(
 
 @router.post("/{payout_id}/execute", response_model=PayoutResponse)
 async def execute_payout(
-    payout_id: str, db: AsyncSession = Depends(get_db)
+    payout_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin: tuple[str, AdminRole] = Depends(_resolve_role),
 ) -> PayoutResponse:
+    if admin[1] != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
     try:
         result = await process_payout(payout_id)
         invalidate_cache()
