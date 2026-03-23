@@ -91,11 +91,19 @@ async def _check_solana_rpc() -> dict:
             except Exception as exc:
                 logger.warning("Solana RPC malformed response: %s", exc)
                 latency_ms = round((time.monotonic() - start) * 1000)
-                return {"status": "degraded", "latency_ms": latency_ms, "error": "malformed_response"}
+                return {
+                    "status": "degraded",
+                    "latency_ms": latency_ms,
+                    "error": "malformed_response",
+                }
         latency_ms = round((time.monotonic() - start) * 1000)
         if slot is not None:
             return {"status": "healthy", "latency_ms": latency_ms, "slot": slot}
-        return {"status": "degraded", "latency_ms": latency_ms, "error": "no_slot_in_response"}
+        return {
+            "status": "degraded",
+            "latency_ms": latency_ms,
+            "error": "no_slot_in_response",
+        }
     except httpx.TimeoutException:
         return {"status": "degraded", "error": "timeout"}
     except httpx.HTTPStatusError as exc:
@@ -129,7 +137,11 @@ async def _check_github_api() -> dict:
             except Exception as exc:
                 logger.warning("GitHub API malformed response: %s", exc)
                 latency_ms = round((time.monotonic() - start) * 1000)
-                return {"status": "degraded", "latency_ms": latency_ms, "error": "malformed_response"}
+                return {
+                    "status": "degraded",
+                    "latency_ms": latency_ms,
+                    "error": "malformed_response",
+                }
         latency_ms = round((time.monotonic() - start) * 1000)
         core = data.get("resources", {}).get("core", {})
         remaining = core.get("remaining", 0)
@@ -151,7 +163,9 @@ async def _check_github_api() -> dict:
                 "limit": limit,
                 "reset_at": datetime.fromtimestamp(reset_at, tz=timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
-                ) if reset_at else None,
+                )
+                if reset_at
+                else None,
             },
         }
     except httpx.TimeoutException:

@@ -122,11 +122,19 @@ def _mock_all_external_healthy():
     return (
         patch(
             "app.api.health._check_solana_rpc",
-            new=AsyncMock(return_value={"status": "healthy", "latency_ms": 10, "slot": 350000000}),
+            new=AsyncMock(
+                return_value={"status": "healthy", "latency_ms": 10, "slot": 350000000}
+            ),
         ),
         patch(
             "app.api.health._check_github_api",
-            new=AsyncMock(return_value={"status": "healthy", "latency_ms": 15, "rate_limit": {"remaining": 4500, "limit": 5000, "reset_at": None}}),
+            new=AsyncMock(
+                return_value={
+                    "status": "healthy",
+                    "latency_ms": 15,
+                    "rate_limit": {"remaining": 4500, "limit": 5000, "reset_at": None},
+                }
+            ),
         ),
     )
 
@@ -217,6 +225,7 @@ class TestCheckDatabase:
         class UnexpectedConn:
             async def __aenter__(self):
                 raise RuntimeError("unexpected")
+
             async def __aexit__(self, *a):
                 pass
 
@@ -245,7 +254,9 @@ class TestCheckRedis:
 class TestCheckSolanaRpc:
     @pytest.mark.asyncio
     async def test_healthy(self):
-        with patch("app.api.health.httpx.AsyncClient", return_value=_mock_solana_success()):
+        with patch(
+            "app.api.health.httpx.AsyncClient", return_value=_mock_solana_success()
+        ):
             result = await _check_solana_rpc()
         assert result["status"] == "healthy"
         assert result["slot"] == 350000000
@@ -313,7 +324,9 @@ class TestCheckSolanaRpc:
 class TestCheckGitHubApi:
     @pytest.mark.asyncio
     async def test_healthy(self):
-        with patch("app.api.health.httpx.AsyncClient", return_value=_mock_github_success()):
+        with patch(
+            "app.api.health.httpx.AsyncClient", return_value=_mock_github_success()
+        ):
             result = await _check_github_api()
         assert result["status"] == "healthy"
         assert result["rate_limit"]["remaining"] == 4500
@@ -321,7 +334,10 @@ class TestCheckGitHubApi:
 
     @pytest.mark.asyncio
     async def test_degraded_low_rate_limit(self):
-        with patch("app.api.health.httpx.AsyncClient", return_value=_mock_github_success(remaining=50, limit=5000)):
+        with patch(
+            "app.api.health.httpx.AsyncClient",
+            return_value=_mock_github_success(remaining=50, limit=5000),
+        ):
             result = await _check_github_api()
         assert result["status"] == "degraded"
         assert result["rate_limit"]["remaining"] == 50
@@ -329,7 +345,10 @@ class TestCheckGitHubApi:
     @pytest.mark.asyncio
     async def test_healthy_unauthenticated_low_limit(self):
         """With unauthenticated limit=60, threshold is 10% = 6; remaining=10 → healthy."""
-        with patch("app.api.health.httpx.AsyncClient", return_value=_mock_github_success(remaining=10, limit=60)):
+        with patch(
+            "app.api.health.httpx.AsyncClient",
+            return_value=_mock_github_success(remaining=10, limit=60),
+        ):
             result = await _check_github_api()
         assert result["status"] == "healthy"
         assert result["rate_limit"]["remaining"] == 10
@@ -337,7 +356,10 @@ class TestCheckGitHubApi:
     @pytest.mark.asyncio
     async def test_degraded_unauthenticated_exhausted(self):
         """With unauthenticated limit=60, remaining=5 (< 10%) → degraded."""
-        with patch("app.api.health.httpx.AsyncClient", return_value=_mock_github_success(remaining=5, limit=60)):
+        with patch(
+            "app.api.health.httpx.AsyncClient",
+            return_value=_mock_github_success(remaining=5, limit=60),
+        ):
             result = await _check_github_api()
         assert result["status"] == "degraded"
 
