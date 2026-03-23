@@ -13,6 +13,13 @@ with its on-chain transaction hash for full auditability.
 
 from __future__ import annotations
 
+import re
+import uuid
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Optional
+
+import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, String, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from pydantic import BaseModel, Field, field_validator
