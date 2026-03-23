@@ -250,6 +250,25 @@ class TestCheckRedis:
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
 
+    @pytest.mark.asyncio
+    async def test_unexpected_error(self):
+        """Non-Redis exceptions should also return unavailable with unexpected_error."""
+
+        class UnexpectedRedis:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                pass
+
+            async def ping(self):
+                raise RuntimeError("unexpected failure")
+
+        with patch("app.api.health.from_url", return_value=UnexpectedRedis()):
+            result = await _check_redis()
+        assert result["status"] == "unavailable"
+        assert result["error"] == "unexpected_error"
+
 
 class TestCheckSolanaRpc:
     @pytest.mark.asyncio
@@ -319,6 +338,32 @@ class TestCheckSolanaRpc:
             result = await _check_solana_rpc()
         assert result["status"] == "degraded"
         assert result["error"] == "malformed_response"
+
+    @pytest.mark.asyncio
+    async def test_http_status_error(self):
+        """Non-2xx HTTP responses (e.g. 503) should return degraded with http_<code> error."""
+        from httpx import HTTPStatusError, Request as HttpxRequest
+
+        mock_request = HttpxRequest("POST", "https://api.mainnet-beta.solana.com")
+        mock_err_resp = MagicMock()
+        mock_err_resp.status_code = 503
+
+        http_error = HTTPStatusError("503 Service Unavailable", request=mock_request, response=mock_err_resp)
+
+        mock_resp = MagicMock(spec=Response)
+        mock_resp.status_code = 503
+        mock_resp.raise_for_status = MagicMock(side_effect=http_error)
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
+            result = await _check_solana_rpc()
+        assert result["status"] == "degraded"
+        assert result["error"] == "http_503"
+        assert "latency_ms" in result
 
 
 class TestCheckGitHubApi:
@@ -403,6 +448,32 @@ class TestCheckGitHubApi:
             result = await _check_github_api()
         assert result["status"] == "degraded"
         assert result["error"] == "malformed_response"
+
+    @pytest.mark.asyncio
+    async def test_http_status_error(self):
+        """Non-2xx GitHub responses (e.g. 403, 500) return degraded with http_<code> error."""
+        from httpx import HTTPStatusError, Request as HttpxRequest
+
+        mock_request = HttpxRequest("GET", "https://api.github.com/rate_limit")
+        mock_err_resp = MagicMock()
+        mock_err_resp.status_code = 403
+
+        http_error = HTTPStatusError("403 Forbidden", request=mock_request, response=mock_err_resp)
+
+        mock_resp = MagicMock(spec=Response)
+        mock_resp.status_code = 403
+        mock_resp.raise_for_status = MagicMock(side_effect=http_error)
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_resp)
+
+        with patch("app.api.health.httpx.AsyncClient", return_value=mock_client):
+            result = await _check_github_api()
+        assert result["status"] == "degraded"
+        assert result["error"] == "http_403"
+        assert "latency_ms" in result
 
 
 # ---------------------------------------------------------------------------
