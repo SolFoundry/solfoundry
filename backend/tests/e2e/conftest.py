@@ -16,6 +16,7 @@ with a clean application state.
 import asyncio
 import json
 import os
+import tempfile
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Generator, Optional
 
@@ -26,8 +27,10 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 # Environment must be set before any app imports
-TEST_DB_PATH = "/Users/composter/AEA/github_bounty_hunter/workspaces/solfoundry/backend/test_e2e.db"
-os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+# Ensure the test database path is absolute and platform-agnostic
+TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "test_e2e.db")
+DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+os.environ["DATABASE_URL"] = DATABASE_URL
 os.environ.setdefault("SECRET_KEY", "e2e-test-secret-key")
 os.environ.setdefault("AUTH_ENABLED", "true")
 os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
@@ -133,6 +136,7 @@ def _create_test_app() -> FastAPI:
     from app.api.payouts import router as payouts_router
     from app.api.stats import router as stats_router
     from app.api.websocket import router as websocket_router
+    from app.services.websocket_manager import manager as ws_manager, WebSocketManager, InMemoryPubSubAdapter
     
     test_app = FastAPI(
         title="SolFoundry E2E Test",

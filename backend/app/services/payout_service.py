@@ -62,7 +62,7 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
     """Create and persist a new payout record."""
     if data.tx_hash:
         # Check for duplicate tx_hash in memory
-        with _lock:
+        with _store_lock:
             for existing in _payout_store.values():
                 if existing.tx_hash == data.tx_hash:
                     raise HTTPException(status_code=400, detail="Payout with tx_hash already exists")
@@ -87,7 +87,7 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
     )
 
     await pg_store.persist_payout(record)
-    with _lock:
+    with _store_lock:
         _payout_store[record.id] = record
     
     log.info("Created payout: %s (Status: %s)", record.id, record.status)
