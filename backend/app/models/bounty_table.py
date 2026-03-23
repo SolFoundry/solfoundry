@@ -38,14 +38,10 @@ class BountyTable(Base):
     project_name = Column(String(100), nullable=True)
     description = Column(Text, nullable=False, server_default="")
     tier = Column(Integer, nullable=False, default=2)
-    reward_amount = Column(
-        sa.Numeric(precision=20, scale=6), nullable=False
-    )
+    reward_amount = Column(sa.Numeric(precision=20, scale=6), nullable=False)
     status = Column(String(20), nullable=False, default="open")
     category = Column(String(50), nullable=True)
-    creator_type = Column(
-        String(20), nullable=False, server_default="platform"
-    )
+    creator_type = Column(String(20), nullable=False, server_default="platform")
     github_issue_url = Column(String(512), nullable=True)
     skills = Column(JSON, nullable=False, default=list)
     deadline = Column(DateTime(timezone=True), nullable=True)

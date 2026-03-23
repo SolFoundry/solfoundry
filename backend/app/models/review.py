@@ -1,7 +1,7 @@
 """AI review score models for multi-model code review integration.
 
-Stores per-model scores (GPT, Gemini, Grok) and an aggregated overall score
-pulled from GitHub Actions AI review pipeline.
+Stores per-model scores (GPT, Gemini, Grok, Sonnet, DeepSeek) and an
+aggregated overall score pulled from GitHub Actions AI review pipeline.
 """
 
 import uuid
@@ -10,13 +10,15 @@ from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Float, Integer, Text, Index
+from sqlalchemy import Column, String, DateTime, Float, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 
 
-AI_REVIEW_SCORE_THRESHOLD = 7.0  # Minimum overall score for auto-approve (out of 10)
+AI_REVIEW_SCORE_THRESHOLD = (
+    7.0  # Minimum overall score for auto-approve (out of 10, averaged across 5 models)
+)
 AUTO_APPROVE_TIMEOUT_HOURS = 48
 
 
@@ -24,6 +26,8 @@ class ReviewModel(str, Enum):
     GPT = "gpt"
     GEMINI = "gemini"
     GROK = "grok"
+    SONNET = "sonnet"
+    DEEPSEEK = "deepseek"
 
 
 class ReviewStatus(str, Enum):
@@ -42,7 +46,9 @@ class AIReviewScoreDB(Base):
     submission_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     bounty_id = Column(UUID(as_uuid=True), nullable=False, index=True)
 
-    model_name = Column(String(50), nullable=False)  # gpt, gemini, grok
+    model_name = Column(
+        String(50), nullable=False
+    )  # gpt, gemini, grok, sonnet, deepseek
     quality_score = Column(Float, nullable=False, default=0.0)
     correctness_score = Column(Float, nullable=False, default=0.0)
     security_score = Column(Float, nullable=False, default=0.0)
@@ -73,7 +79,9 @@ class ModelScore(BaseModel):
 
     model_config = {"protected_namespaces": ()}
 
-    model_name: str = Field(..., description="AI model identifier (gpt, gemini, grok)")
+    model_name: str = Field(
+        ..., description="AI model identifier (gpt, gemini, grok, sonnet, deepseek)"
+    )
     quality_score: float = Field(0.0, ge=0, le=10)
     correctness_score: float = Field(0.0, ge=0, le=10)
     security_score: float = Field(0.0, ge=0, le=10)
@@ -126,8 +134,12 @@ class AggregatedReviewScore(BaseModel):
     submission_id: str
     bounty_id: str
     model_scores: List[ModelScore] = Field(default_factory=list)
-    overall_score: float = Field(0.0, ge=0, le=10, description="Average across all models")
-    meets_threshold: bool = Field(False, description=f"True if overall >= {AI_REVIEW_SCORE_THRESHOLD}")
+    overall_score: float = Field(
+        0.0, ge=0, le=10, description="Average across all models"
+    )
+    meets_threshold: bool = Field(
+        False, description=f"True if overall >= {AI_REVIEW_SCORE_THRESHOLD}"
+    )
     review_complete: bool = Field(False, description="True if all models have scored")
 
     quality_avg: float = 0.0

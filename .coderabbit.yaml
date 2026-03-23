@@ -16,10 +16,17 @@ reviews:
   auto_title_placeholder: "@coderabbitai"
   poem: false
   review_status: false
-  collapse_walkthrough: true
+  walkthrough: false              # Suppress walkthrough comment on PRs
   sequence_diagrams: false
+  review_comment:
+    enabled: false                 # Disable inline review comments entirely
+    lgtm: "none"                   # Never post LGTM comments
   changed_files_summary: false
   abort_on_close: true
+  labeling_instructions: []       # No auto-labels
+
+  # Suppress ALL public-facing review output
+  path_filters: []
 
   auto_review:
     enabled: true

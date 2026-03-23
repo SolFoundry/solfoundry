@@ -1,5 +1,11 @@
 name: Claim Guard
 
+# T3 claim approval flow ONLY.
+# When someone comments on a T3 bounty issue, checks their tier eligibility
+# and routes to Telegram for owner approval.
+#
+# T1/T2 anti-spam is handled by spam-guard.yml (separate workflow).
+
 on:
   issue_comment:
     types: [created]
@@ -10,10 +16,12 @@ permissions:
 jobs:
   claim-guard:
     runs-on: ubuntu-latest
+    # Only run on T3 bounty issues
+    if: contains(join(github.event.issue.labels.*.name, ','), 'tier-3')
     concurrency:
       group: claim-guard-${{ github.event.issue.number }}-${{ github.event.comment.user.login }}
     steps:
-      - name: Guard claims and clean spam
+      - name: Process T3 claim
         env:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
@@ -26,7 +34,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           python3 << 'PYEOF'
-          import os, re, json, urllib.request
+          import os, re, json, urllib.request, unicodedata
 
           labels = os.environ.get("ISSUE_LABELS", "")
           issue_title = os.environ.get("ISSUE_TITLE", "").lower()
@@ -34,25 +42,13 @@ jobs:
           user = os.environ.get("COMMENT_USER", "")
           comment_id = os.environ.get("COMMENT_ID", "")
           issue = os.environ.get("ISSUE_NUMBER", "")
-
-          # Skip content/social bounties — these expect non-code submissions
-          content_keywords = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
-          if any(kw in issue_title for kw in content_keywords):
-              print(f"Content bounty #{issue} — skipping claim guard")
-              exit(0)
-
-          # Skip star reward issue
-          if issue == "48":
-              print("Star reward issue — skipping")
-              exit(0)
           repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
           token = os.environ.get("GH_TOKEN", "")
 
-          # Skip bot and org owner comments
-          if user in ["github-actions[bot]", "chronoeth-creator"]:
+          # Skip bots and owner
+          if user in ["github-actions[bot]", "chronoeth-creator", "coderabbitai[bot]"]:
               exit(0)
 
-          # Only act on bounty issues
           if "bounty" not in labels:
               print("Not a bounty issue - skipping")
               exit(0)
@@ -91,60 +87,74 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          lower = comment.lower()
+          # Tiny comment filter
+          if len(comment.strip()) < 5:
+              print(f"Tiny comment from {user} on #{issue} — deleting")
+              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+              exit(0)
 
-          # --- REPEAT OFFENDER CHECK (all tiers) ---
-          # If the bot already warned this user on this issue, auto-delete further claim attempts
-          comments_data, _ = gh_get(f"repos/{repo}/issues/{issue}/comments?per_page=100")
-          if comments_data:
-              already_warned = False
-              for c in comments_data:
-                  body_c = c.get("body", "")
-                  author = c["user"]["login"]
-                  # Check if bot/owner already posted a warning/rules message for this user
-                  if author in ["chronoeth-creator", "github-actions[bot]"] and f"@{user}" in body_c:
-                      if any(kw in body_c.lower() for kw in [
-                          "require at least", "away from t2", "away from t3",
-                          "open race", "fcfs", "no claiming needed",
-                          "reputation-gated", "pending owner approval",
-                          "posts have been removed", "auto-deleted"
-                      ]):
-                          already_warned = True
-                          break
+          # Normalize
+          normalized = unicodedata.normalize('NFKC', comment).lower()
+          confusables = str.maketrans('аеорсухіјёАЕОРСУХІ', 'aeopcyxijeAEOPCYXI')
+          lower = normalized.translate(confusables)
+          stripped = re.sub(r'[*_`~>\[\]()]', '', lower)
 
-              if already_warned:
-                  print(f"REPEAT OFFENDER: {user} already warned on #{issue} — auto-deleting comment {comment_id}")
-                  gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
-                  exit(0)
-
-          # --- SPAM DETECTION ---
+          # Spam detection (applies to all tiers)
           spam_patterns = [
               r"(i am a .* developer|hire me|my portfolio|check my profile)",
               r"(dm me|contact me at|whatsapp|telegram.*@)",
               r"(upvote|follow me|subscribe|check out my)",
               r"(great (project|repo|work).*star|nice repo.*followed)",
+              r"https?://\S+\.(click|xyz|top|buzz|gq|ml|tk|ga|cf)\b",
           ]
-          is_spam = any(re.search(p, lower) for p in spam_patterns)
-
-          if is_spam:
+          if any(re.search(p, stripped) for p in spam_patterns):
               print(f"SPAM detected from {user} on #{issue} — deleting")
               gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
               exit(0)
 
-          # --- CLAIM DETECTION ---
-          claim_re = r"(/attempt|attempt|claim|dibs|i.?ll take|assigning myself|assign.*(me|this)|can i (take|work)|i want to (take|work)|want to work|working on this|taking this|claiming this|want to implement|i.?d like to (work|take|build|implement)|interested in this|please assign|let me work|i.?ll work on|i.?ll build|i.?ll implement)"
-          is_claim = bool(re.search(claim_re, lower))
+          # Repeat offender check
+          comments_data = []
+          cpage = 1
+          while True:
+              cpage_data, _ = gh_get(f"repos/{repo}/issues/{issue}/comments?per_page=100&page={cpage}")
+              if not cpage_data:
+                  break
+              comments_data.extend(cpage_data)
+              if len(cpage_data) < 100:
+                  break
+              cpage += 1
+          if comments_data:
+              already_warned = False
+              for c in comments_data:
+                  body_c = c.get("body", "")
+                  author = c["user"]["login"]
+                  if author in ["chronoeth-creator", "github-actions[bot]"] and f"@{user}" in body_c:
+                      if any(kw in body_c.lower() for kw in [
+                          "reputation-gated", "pending owner approval",
+                          "posts have been removed", "auto-deleted",
+                          "claim has been approved", "claim has been denied"
+                      ]):
+                          already_warned = True
+                          break
+
+              if already_warned:
+                  print(f"REPEAT: {user} already handled on #{issue} — auto-deleting")
+                  gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+                  exit(0)
+
+          # Claim detection
+          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this)"
+          is_claim = bool(re.search(claim_re, stripped))
 
           if not is_claim:
-              print("Not a claim attempt — ignoring")
+              # T3 issues can have regular discussion comments — don't delete
+              print("Not a claim attempt on T3 — ignoring")
               exit(0)
 
-          # Determine tier
-          is_t1 = "tier-1" in labels
-          is_t2 = "tier-2" in labels
-          is_t3 = "tier-3" in labels
+          # ══════════════════════════════════════════════════════════════
+          # T3 Claim Processing
+          # ══════════════════════════════════════════════════════════════
 
-          # ── Shared helper: fetch issue tier by issue number ──
           def get_issue_tier(issue_num):
               """Check if an issue is a real bounty and return its tier label."""
               try:
@@ -156,7 +166,7 @@ jobs:
                   issue_data = json.loads(resp_i.read().decode())
                   title_lower = issue_data.get("title", "").lower()
                   ilabels = [l["name"] for l in issue_data.get("labels", [])]
-                  if str(issue_num) == "48":
+                  if any(l["name"] in ("star-reward", "content-bounty") for l in issue_data.get("labels", [])):
                       return None
                   content_kw = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
                   if any(kw in title_lower for kw in content_kw):
@@ -170,222 +180,158 @@ jobs:
               except Exception:
                   return None
 
-          # ── Shared helper: count user's merged bounty PRs by tier ──
           def count_user_bounty_prs(username):
-              url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100"
-              req = urllib.request.Request(url)
-              req.add_header("Authorization", f"token {token}")
-              req.add_header("Accept", "application/vnd.github.v3+json")
-              resp = urllib.request.urlopen(req)
-              all_prs = json.loads(resp.read().decode())
               t1_count = 0
               t2_count = 0
               t3_count = 0
-              for pr in all_prs:
-                  if pr["user"]["login"] != username or not pr.get("merged_at"):
-                      continue
-                  pr_body = pr.get("body", "") or ""
-                  linked = re.findall(r"(?:closes|fixes|resolves)\s*#(\d+)", pr_body, re.IGNORECASE)
-                  for linked_num in linked:
-                      tier = get_issue_tier(linked_num)
-                      if tier == "tier-1":
-                          t1_count += 1
-                      elif tier == "tier-2":
-                          t2_count += 1
-                      elif tier == "tier-3":
-                          t3_count += 1
+              page = 1
+              while True:
+                  url = f"https://api.github.com/repos/{repo}/pulls?state=closed&per_page=100&page={page}"
+                  req = urllib.request.Request(url)
+                  req.add_header("Authorization", f"token {token}")
+                  req.add_header("Accept", "application/vnd.github.v3+json")
+                  resp = urllib.request.urlopen(req)
+                  page_prs = json.loads(resp.read().decode())
+                  for pr in page_prs:
+                      if pr["user"]["login"] != username or not pr.get("merged_at"):
+                          continue
+                      pr_body = pr.get("body", "") or ""
+                      linked = re.findall(r"(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)", pr_body, re.IGNORECASE)
+                      for linked_num in linked:
+                          tier = get_issue_tier(linked_num)
+                          if tier == "tier-1":
+                              t1_count += 1
+                          elif tier == "tier-2":
+                              t2_count += 1
+                          elif tier == "tier-3":
+                              t3_count += 1
+                  if len(page_prs) < 100:
+                      break
+                  page += 1
               return t1_count, t2_count, t3_count
 
-          # ══════════════════════════════════════════════════════════════
-          # TIER 1: Open Race / FCFS — no claiming, just submit a PR
-          # ══════════════════════════════════════════════════════════════
-          if is_t1:
-              print(f"T1 claim attempt from {user} on #{issue} — deleting + posting FCFS rules")
-              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+          print(f"T3 claim from {user} on #{issue} — checking eligibility")
 
-              body = (
-                  f"👋 Hey @{user} — **Tier 1 bounties are open race (FCFS)**. "
-                  f"No claiming needed!\n\n"
-                  f"### How it works:\n"
-                  f"1. Read the bounty spec in the issue description\n"
-                  f"2. Build your solution and submit a PR linking this issue (`Closes #{issue}`)\n"
-                  f"3. Include your **Solana wallet** in the PR body for payout\n"
-                  f"4. Our multi-LLM review pipeline scores your submission\n"
-                  f"5. **First PR to pass review wins** the bounty 🏆\n\n"
-                  f"Just ship it — your code speaks for itself.\n\n"
-                  f"*— SolFoundry Bot 🏭*"
-              )
-              gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+          try:
+              t1_count, t2_count, t3_count = count_user_bounty_prs(user)
+              print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
 
-          # ══════════════════════════════════════════════════════════════
-          # TIER 2: Reputation-Gated FCFS — need 4+ T1 completions, but
-          # still FCFS (no claiming). First quality PR wins.
-          # ══════════════════════════════════════════════════════════════
-          elif is_t2:
-              print(f"T2 claim attempt from {user} on #{issue} — deleting + checking reputation")
-              gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+              # Gate: T3 requires EITHER 3+ T2 completions OR (5+ T1 AND 1+ T2)
+              t3_standard = t2_count >= 3
+              t3_alt = t1_count >= 5 and t2_count >= 1
+              if not t3_standard and not t3_alt:
+                  print(f"NOT ELIGIBLE: T1={t1_count}, T2={t2_count}")
+                  gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
 
-              try:
-                  t1_count, t2_count, t3_count = count_user_bounty_prs(user)
-                  print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
+                  remaining_std = 3 - t2_count
+                  body = (
+                      f"⚠️ @{user} — **Tier 3 bounties are reputation-gated.** "
+                      f"You need one of the following:\n\n"
+                      f"- **Standard path:** 3+ completed Tier 2 bounties (you have {t2_count}, need {remaining_std} more)\n"
+                      f"- **Alternative path:** 5+ completed Tier 1 AND 1+ completed Tier 2 bounties "
+                      f"(you have {t1_count} T1, {t2_count} T2)\n\n"
+                      f"### Tier 3 rules:\n"
+                      f"- Meet one of the above requirements to be eligible\n"
+                      f"- Comment with a brief plan/proposal to claim\n"
+                      f"- The project owner reviews and approves/denies your claim\n"
+                      f"- Once approved: 14-day deadline, AI review ≥7/10\n\n"
+                      f"Keep building — the top-tier bounties will open up.\n\n"
+                      f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
+                      f"*— SolFoundry Bot 🏭*"
+                  )
+                  gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+                  exit(0)
 
-                  if t1_count < 4:
-                      # Not enough reputation — post requirements
-                      remaining = 4 - t1_count
-                      print(f"Only {t1_count} T1 completions — {user} not eligible for T2")
+              # Bulk claiming check: max 1 active T3 claim per user
+              # Check both assignees AND approval comments (since assignment may not always be set)
+              t3_issues, _ = gh_get(f"repos/{repo}/issues?state=open&labels=tier-3&per_page=100")
+              user_t3_claims = set()
+              if t3_issues:
+                  for t3_issue in t3_issues:
+                      t3_num = str(t3_issue.get("number", ""))
+                      if t3_num == issue:
+                          continue
+                      # Check assignees
+                      assignees = [a["login"].lower() for a in t3_issue.get("assignees", [])]
+                      if user.lower() in assignees:
+                          user_t3_claims.add(t3_num)
+                          continue
+                      # Check for bot approval comment (fallback when assignee not set)
+                      t3_comments, _ = gh_get(f"repos/{repo}/issues/{t3_num}/comments?per_page=50")
+                      if t3_comments:
+                          for c in t3_comments:
+                              cbody = (c.get("body") or "")
+                              cauthor = c.get("user", {}).get("login", "")
+                              if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and "claim has been approved" in cbody.lower():
+                                  user_t3_claims.add(t3_num)
+                                  break
 
-                      body = (
-                          f"⚠️ @{user} — **Tier 2 bounties are reputation-gated.** "
-                          f"You need at least **4 completed Tier 1 bounties** to submit here.\n\n"
-                          f"You have **{t1_count}** merged T1 bounty PR(s) — "
-                          f"**{remaining} more** to unlock T2.\n\n"
-                          f"### How to unlock Tier 2:\n"
-                          f"1. Pick **Tier 1** bounties (open race, no claiming needed)\n"
-                          f"2. Submit PRs that pass our AI review (≥6/10 score)\n"
-                          f"3. Get 4 merged and you'll unlock Tier 2\n\n"
-                          f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
-                          f"Browse T1 bounties: [Filter by tier-1](https://github.com/{repo}/labels/tier-1)\n\n"
-                          f"*— SolFoundry Bot 🏭*"
-                      )
-                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
-                  else:
-                      # Eligible — tell them it's FCFS, no claiming needed
-                      print(f"{user} is eligible for T2 — posting FCFS rules")
-
-                      body = (
-                          f"👋 Hey @{user} — you're **eligible for Tier 2** (✅ {t1_count} T1 completions)!\n\n"
-                          f"**Tier 2 is still FCFS** — no claiming needed. "
-                          f"First quality PR to pass review wins.\n\n"
-                          f"### How it works:\n"
-                          f"1. Read the bounty spec in the issue description\n"
-                          f"2. Build your solution and submit a PR (`Closes #{issue}`)\n"
-                          f"3. Include your **Solana wallet** in the PR body\n"
-                          f"4. Min AI review score: **7.0/10** (tests + docs required)\n"
-                          f"5. **First PR to pass wins** 🏆\n\n"
-                          f"Ship it!\n\n"
-                          f"*— SolFoundry Bot 🏭*"
-                      )
-                      gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
-
-              except Exception as e:
-                  print(f"T2 reputation check failed: {e}")
-
-          # ══════════════════════════════════════════════════════════════
-          # TIER 3: Reputation + Approved Claim — need 3+ T2 completions
-          # AND owner must approve the claim via Telegram.
-          # This is the ONLY tier with a claim→approve/deny flow.
-          # ══════════════════════════════════════════════════════════════
-          elif is_t3:
-              print(f"T3 claim attempt from {user} on #{issue} — checking reputation + routing to approval")
-
-              try:
-                  t1_count, t2_count, t3_count = count_user_bounty_prs(user)
-                  print(f"{user} bounty PRs: T1={t1_count}, T2={t2_count}, T3={t3_count}")
-
-                  # Gate: T3 requires 3+ completed T2 bounties
-                  if t2_count < 3:
-                      remaining = 3 - t2_count
-                      print(f"Only {t2_count} T2 completions — {user} not eligible for T3")
+                  if len(user_t3_claims) >= 1:
+                      claims_str = ", ".join(f"#{n}" for n in user_t3_claims)
+                      print(f"BULK CLAIMER: {user} has {len(user_t3_claims)} active T3 claim(s): {claims_str}")
                       gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
-
                       body = (
-                          f"⚠️ @{user} — **Tier 3 bounties require at least 3 completed Tier 2 bounties.**\n\n"
-                          f"You have **{t2_count}** merged T2 bounty PR(s) — "
-                          f"**{remaining} more** to unlock T3.\n\n"
-                          f"### Tier 3 rules:\n"
-                          f"- You must have **3+ merged T2 PRs** to be eligible\n"
-                          f"- Comment with a brief plan/proposal to claim\n"
-                          f"- The project owner reviews and approves/denies your claim\n"
-                          f"- Once approved: 14-day deadline, AI review ≥8/10\n\n"
-                          f"Keep building through T2 — the top-tier bounties will open up.\n\n"
-                          f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
+                          f"⚠️ @{user} — You already have an active T3 claim (#{list(user_t3_claims)[0]}). "
+                          f"Please complete or release your existing claim before taking on another.\n\n"
+                          f"**One T3 bounty at a time** — these are large-scope projects that need full focus.\n\n"
                           f"*— SolFoundry Bot 🏭*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                       exit(0)
 
-                  # Bulk claiming check: max 2 concurrent T3 claims per user
-                  comments_data, _ = gh_get(f"repos/{repo}/issues/comments?per_page=100")
-                  if comments_data:
-                      user_t3_claims = set()
-                      for c in comments_data:
-                          if c["user"]["login"] == user:
-                              c_lower = c.get("body", "").lower()
-                              if re.search(claim_re, c_lower):
-                                  c_issue_num = c["issue_url"].rstrip("/").split("/")[-1]
-                                  if c_issue_num != issue:
-                                      # Check if that issue is T3
-                                      c_tier = get_issue_tier(c_issue_num)
-                                      if c_tier == "tier-3":
-                                          user_t3_claims.add(c_issue_num)
+              # Eligible + under claim limit → Telegram approval
+              print(f"T3 ELIGIBLE: {user} on #{issue} (T1={t1_count}, T2={t2_count})")
 
-                      if len(user_t3_claims) >= 2:
-                          print(f"BULK CLAIMER: {user} has {len(user_t3_claims)} active T3 claims")
-                          gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
+              body = (
+                  f"⏳ @{user} — Your **Tier 3 claim** is pending owner approval.\n\n"
+                  f"**Your stats:** {t1_count} T1 + {t2_count} T2 completed bounties ✅\n"
+                  f"**Proposal:** {comment[:300]}{'...' if len(comment) > 300 else ''}\n\n"
+                  f"You'll be notified here when your claim is approved or denied.\n\n"
+                  f"*— SolFoundry Bot 🏭*"
+              )
+              gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 
-                          body = (
-                              f"⚠️ @{user} — You already have **{len(user_t3_claims)}** active T3 claims. "
-                              f"Please complete or release existing claims before taking on more.\n\n"
-                              f"Max **2 concurrent claims** for Tier 3 bounties.\n\n"
-                              f"*— SolFoundry Bot 🏭*"
-                          )
-                          gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
-                          exit(0)
-
-                  # ── Eligible + under claim limit → send to Telegram for approval ──
-                  print(f"T3 ELIGIBLE: {user} on #{issue} (T1={t1_count}, T2={t2_count}) — sending to Telegram for approval")
-
-                  # Post a "pending approval" message on GitHub
-                  body = (
-                      f"⏳ @{user} — Your **Tier 3 claim** is pending owner approval.\n\n"
-                      f"**Your stats:** {t1_count} T1 + {t2_count} T2 completed bounties ✅\n"
-                      f"**Proposal:** {comment[:300]}{'...' if len(comment) > 300 else ''}\n\n"
-                      f"You'll be notified here when your claim is approved or denied.\n\n"
-                      f"*— SolFoundry Bot 🏭*"
+              # Telegram notification
+              tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+              tg_chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+              if tg_token and tg_chat:
+                  issue_url = f"https://github.com/{repo}/issues/{issue}"
+                  tg_msg = (
+                      f"🔴 <b>T3 Claim Request</b>\n\n"
+                      f"<b>Bounty:</b> #{issue} — {os.environ.get('ISSUE_TITLE', 'Unknown')}\n"
+                      f"<b>Claimant:</b> @{user}\n"
+                      f"<b>Stats:</b> {t1_count} T1 + {t2_count} T2 merged\n"
+                      f"<b>Proposal:</b> {comment[:200]}{'...' if len(comment) > 200 else ''}\n\n"
+                      f"Approve or deny this T3 claim?"
                   )
-                  gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
+                  keyboard = json.dumps({
+                      "inline_keyboard": [[
+                          {"text": "✅ Approve Claim", "callback_data": f"t3claim_approve_{issue}_{user}"},
+                          {"text": "❌ Deny Claim", "callback_data": f"t3claim_deny_{issue}_{user}"}
+                      ], [
+                          {"text": "👀 View Issue", "url": issue_url}
+                      ]]
+                  })
+                  payload = {
+                      "chat_id": tg_chat,
+                      "text": tg_msg,
+                      "parse_mode": "HTML",
+                      "disable_web_page_preview": True,
+                      "reply_markup": keyboard
+                  }
+                  data = json.dumps(payload).encode()
+                  tg_req = urllib.request.Request(
+                      f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                      data=data, method="POST"
+                  )
+                  tg_req.add_header("Content-Type", "application/json")
+                  try:
+                      urllib.request.urlopen(tg_req)
+                      print(f"Telegram approval sent for {user} on #{issue}")
+                  except Exception as e:
+                      print(f"Telegram failed: {e}")
 
-                  # Send Telegram notification with Approve/Deny buttons
-                  tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-                  tg_chat = os.environ.get("TELEGRAM_CHAT_ID", "")
-                  if tg_token and tg_chat:
-                      issue_url = f"https://github.com/{repo}/issues/{issue}"
-                      tg_msg = (
-                          f"🔴 <b>T3 Claim Request</b>\n\n"
-                          f"<b>Bounty:</b> #{issue} — {os.environ.get('ISSUE_TITLE', 'Unknown')}\n"
-                          f"<b>Claimant:</b> @{user}\n"
-                          f"<b>Stats:</b> {t1_count} T1 + {t2_count} T2 merged\n"
-                          f"<b>Proposal:</b> {comment[:200]}{'...' if len(comment) > 200 else ''}\n\n"
-                          f"Approve or deny this T3 claim?"
-                      )
-                      keyboard = json.dumps({
-                          "inline_keyboard": [[
-                              {"text": "✅ Approve Claim", "callback_data": f"t3claim_approve_{issue}_{user}"},
-                              {"text": "❌ Deny Claim", "callback_data": f"t3claim_deny_{issue}_{user}"}
-                          ], [
-                              {"text": "👀 View Issue", "url": issue_url}
-                          ]]
-                      })
-                      payload = {
-                          "chat_id": tg_chat,
-                          "text": tg_msg,
-                          "parse_mode": "HTML",
-                          "disable_web_page_preview": True,
-                          "reply_markup": keyboard
-                      }
-                      data = json.dumps(payload).encode()
-                      tg_req = urllib.request.Request(
-                          f"https://api.telegram.org/bot{tg_token}/sendMessage",
-                          data=data, method="POST"
-                      )
-                      tg_req.add_header("Content-Type", "application/json")
-                      try:
-                          urllib.request.urlopen(tg_req)
-                          print(f"Telegram approval request sent for T3 claim by {user} on #{issue}")
-                      except Exception as e:
-                          print(f"Telegram notification failed: {e}")
-
-              except Exception as e:
-                  print(f"T3 claim check failed: {e}")
+          except Exception as e:
+              print(f"T3 claim check failed: {e}")
 
           PYEOF

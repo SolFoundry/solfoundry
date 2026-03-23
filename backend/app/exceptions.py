@@ -14,6 +14,37 @@ class TierNotUnlockedError(Exception):
     """Raised when a contributor attempts a bounty tier they have not unlocked."""
 
 
+# Dispute resolution exceptions (Issue #192)
+
+
+class DisputeNotFoundError(Exception):
+    """Raised when a dispute ID does not exist in the database."""
+
+
+class DisputeWindowExpiredError(Exception):
+    """Raised when the 72-hour dispute window from rejection has passed."""
+
+
+class InvalidDisputeTransitionError(Exception):
+    """Raised when an invalid dispute state transition is attempted."""
+
+
+class DuplicateDisputeError(Exception):
+    """Raised when a dispute already exists for this submission."""
+
+
+class UnauthorizedDisputeAccessError(Exception):
+    """Raised when a non-authorized user attempts a restricted dispute action."""
+
+
+class BountyNotFoundError(Exception):
+    """Raised when a referenced bounty does not exist in the database."""
+
+
+class SubmissionNotFoundError(Exception):
+    """Raised when a referenced submission does not exist in the database."""
+
+
 class PayoutError(Exception):
     """Base class for all payout-pipeline errors.
 
@@ -70,3 +101,57 @@ class InvalidPayoutTransitionError(PayoutError):
     For example, attempting to execute a payout that has not been
     admin-approved yet.  Maps to HTTP 409 in the API layer.
     """
+
+
+# ---------------------------------------------------------------------------
+# Escrow exceptions
+# ---------------------------------------------------------------------------
+
+
+class EscrowError(Exception):
+    """Base class for all escrow-related errors."""
+
+
+class EscrowNotFoundError(EscrowError):
+    """Raised when no escrow exists for the given bounty_id."""
+
+
+class EscrowAlreadyExistsError(EscrowError):
+    """Raised when an escrow already exists for the given bounty_id."""
+
+
+class InvalidEscrowTransitionError(EscrowError):
+    """Raised when a state transition is not allowed by the escrow state machine."""
+
+
+class EscrowFundingError(EscrowError):
+    """Raised when the on-chain funding transfer fails."""
+
+    def __init__(self, message: str, tx_hash: str | None = None) -> None:
+        super().__init__(message)
+        self.tx_hash = tx_hash
+
+
+class EscrowDoubleSpendError(EscrowError):
+    """Raised when a funding transaction could not be confirmed on-chain."""
+
+
+# ---------------------------------------------------------------------------
+# Boost exceptions
+# ---------------------------------------------------------------------------
+
+
+class BoostError(Exception):
+    """Base class for all bounty-boost errors."""
+
+
+class BoostBelowMinimumError(BoostError):
+    """Raised when a boost amount is below the 1,000 $FNDRY minimum."""
+
+
+class BoostInvalidBountyError(BoostError):
+    """Raised when the target bounty does not exist or is not boostable."""
+
+
+class BoostNotFoundError(BoostError):
+    """Raised when a boost ID does not exist."""

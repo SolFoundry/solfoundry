@@ -46,42 +46,42 @@ function ApprovalModal({
         if (ref.current && !ref.current.contains(e.target as Node)) onClose();
       }}
     >
-      <div ref={ref} className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 mx-4">
+      <div ref={ref} className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 mx-4 shadow-xl dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-white">Confirm Staking</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Staking</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 rounded-lg text-gray-400 hover:text-white inline-flex items-center justify-center"
+            className="h-8 w-8 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white inline-flex items-center justify-center"
           >
             ✕
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 mb-6 text-center">
-          <p className="text-gray-400 text-sm mb-2">You are staking</p>
-          <p className="text-3xl font-bold text-green-400">{amount.toLocaleString()}</p>
-          <p className="text-gray-400 text-sm mt-1">$FNDRY</p>
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 mb-6 text-center border border-gray-200 dark:border-transparent">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">You are staking</p>
+          <p className="text-3xl font-bold text-green-700 dark:text-green-400">{amount.toLocaleString()}</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">$FNDRY</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-4 mb-6 space-y-2">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 space-y-2 border border-gray-200 dark:border-transparent">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Your balance</span>
-            <span className={insufficient ? 'text-red-400' : 'text-white'}>
+            <span className="text-gray-600 dark:text-gray-400">Your balance</span>
+            <span className={insufficient ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}>
               {balance !== null ? `${balance.toLocaleString()} $FNDRY` : 'Loading…'}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">After staking</span>
-            <span className="text-white">
+            <span className="text-gray-600 dark:text-gray-400">After staking</span>
+            <span className="text-gray-900 dark:text-white">
               {balance !== null ? `${Math.max(0, balance - amount).toLocaleString()} $FNDRY` : '—'}
             </span>
           </div>
         </div>
 
-        <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3 mb-6">
-          <p className="text-yellow-400 text-xs">
+        <div className="bg-amber-50 dark:bg-yellow-900/20 border border-amber-200 dark:border-yellow-700/30 rounded-lg p-3 mb-6">
+          <p className="text-amber-900 dark:text-yellow-400 text-xs">
             Funds will be held in escrow until the bounty is completed or cancelled. This transaction
             requires approval from your wallet.
           </p>
@@ -91,7 +91,7 @@ function ApprovalModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+            className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
           >
             Cancel
           </button>
@@ -140,8 +140,8 @@ function TransactionStatusTracker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 mx-4">
-        <h2 className="text-lg font-semibold text-white mb-6">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 mx-4 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
           {status === 'error'
             ? 'Transaction Failed'
             : status === 'confirmed'
@@ -151,13 +151,13 @@ function TransactionStatusTracker({
 
         {status === 'error' ? (
           <div className="space-y-4">
-            <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
-              <p className="text-red-400 text-sm">{error || 'An unknown error occurred'}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-lg p-4">
+              <p className="text-red-700 dark:text-red-400 text-sm">{error || 'An unknown error occurred'}</p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 py-3 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+                className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
@@ -185,7 +185,7 @@ function TransactionStatusTracker({
                           ? 'bg-green-500'
                           : isActive
                             ? 'bg-purple-500 animate-pulse'
-                            : 'bg-gray-700'
+                            : 'bg-gray-300 dark:bg-gray-700'
                       }`}
                     >
                       {isComplete ? (
@@ -199,18 +199,22 @@ function TransactionStatusTracker({
                       ) : isActive ? (
                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <span className="text-gray-400 text-xs">{idx + 1}</span>
+                        <span className="text-gray-600 dark:text-gray-400 text-xs">{idx + 1}</span>
                       )}
                     </div>
                     <div>
                       <p
                         className={`text-sm font-medium ${
-                          isComplete ? 'text-green-400' : isActive ? 'text-white' : 'text-gray-500'
+                          isComplete
+                            ? 'text-green-700 dark:text-green-400'
+                            : isActive
+                              ? 'text-gray-900 dark:text-white'
+                              : 'text-gray-500 dark:text-gray-500'
                         }`}
                       >
                         {step.label}
                       </p>
-                      <p className={`text-xs ${isActive ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <p className={`text-xs ${isActive ? 'text-gray-600 dark:text-gray-400' : 'text-gray-500 dark:text-gray-600'}`}>
                         {step.desc}
                       </p>
                     </div>
@@ -225,7 +229,7 @@ function TransactionStatusTracker({
                   href={solscanTxUrl(signature, network)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full text-center py-2 rounded-lg border border-purple-700/30 text-purple-400 hover:bg-purple-900/20 text-sm transition-colors"
+                  className="block w-full text-center py-2 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-700/30 dark:text-purple-400 dark:hover:bg-purple-900/20 text-sm transition-colors"
                 >
                   View on Solscan ↗
                 </a>
@@ -287,8 +291,8 @@ export function FundBountyButton({ amount, onFunded, disabled }: FundBountyButto
     <>
       {connected && (
         <div className="flex items-center justify-between text-sm mb-3">
-          <span className="text-gray-400">$FNDRY Balance</span>
-          <span className={insufficient ? 'text-red-400 font-medium' : 'text-green-400 font-medium'}>
+          <span className="text-gray-600 dark:text-gray-400">$FNDRY Balance</span>
+          <span className={insufficient ? 'text-red-600 dark:text-red-400 font-medium' : 'text-green-700 dark:text-green-400 font-medium'}>
             {balanceLoading ? 'Loading…' : balance !== null ? `${balance.toLocaleString()} $FNDRY` : 'Error'}
           </span>
         </div>
@@ -310,7 +314,7 @@ export function FundBountyButton({ amount, onFunded, disabled }: FundBountyButto
       </button>
 
       {insufficient && connected && !funded && (
-        <p className="text-red-400 text-xs mt-2 text-center">
+        <p className="text-red-600 dark:text-red-400 text-xs mt-2 text-center">
           Need {Math.ceil(amount - (balance || 0)).toLocaleString()} more $FNDRY
         </p>
       )}

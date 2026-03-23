@@ -1,0 +1,118 @@
+{
+  "address": "DwCJkFvRD7NJqzUnPo1njptVScDJsMS6ezZPNXxRrQxe",
+  "metadata": {
+    "name": "bounty_registry",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "On-chain bounty registry for SolFoundry"
+  },
+  "instructions": [
+    {
+      "name": "register_bounty",
+      "discriminator": [73, 234, 168, 29, 74, 136, 43, 236],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "bounty_record", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 103, 105, 115, 116, 114, 121] }, { "kind": "arg", "path": "bounty_id" }] } },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "bounty_id", "type": "u64" },
+        { "name": "title", "type": "string" },
+        { "name": "tier", "type": "u8" },
+        { "name": "reward_amount", "type": "u64" },
+        { "name": "github_issue", "type": "string" }
+      ]
+    },
+    {
+      "name": "update_status",
+      "discriminator": [29, 252, 73, 11, 129, 187, 110, 151],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "bounty_record", "writable": true }
+      ],
+      "args": [
+        { "name": "new_status", "type": "u8" },
+        { "name": "contributor", "type": { "option": "pubkey" } }
+      ]
+    },
+    {
+      "name": "record_completion",
+      "discriminator": [205, 174, 39, 3, 98, 157, 62, 130],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "bounty_record", "writable": true }
+      ],
+      "args": [
+        { "name": "github_pr", "type": "string" },
+        { "name": "review_scores", "type": { "vec": "u16" } },
+        { "name": "final_score", "type": "u16" },
+        { "name": "pr_hash", "type": { "array": ["u8", 32] } }
+      ]
+    },
+    {
+      "name": "close_bounty",
+      "discriminator": [178, 54, 79, 142, 2, 18, 235, 148],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "bounty_record", "writable": true }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    { "name": "BountyRecord", "discriminator": [142, 49, 166, 150, 43, 197, 101, 42] }
+  ],
+  "errors": [
+    { "code": 6000, "name": "TitleTooLong", "msg": "Title exceeds maximum length of 64 characters" },
+    { "code": 6001, "name": "InvalidTier", "msg": "Invalid tier: must be 1, 2, or 3" },
+    { "code": 6002, "name": "GithubReferenceTooLong", "msg": "GitHub reference exceeds maximum length of 128 characters" },
+    { "code": 6003, "name": "InvalidStatusTransition", "msg": "Invalid status transition" },
+    { "code": 6004, "name": "ContributorRequiredForClaim", "msg": "Contributor public key is required when claiming a bounty" },
+    { "code": 6005, "name": "BountyAlreadyClosed", "msg": "Bounty is already closed (completed or cancelled)" },
+    { "code": 6006, "name": "InvalidStatusValue", "msg": "Invalid status value: must be 0-4" },
+    { "code": 6007, "name": "InvalidStatusForCompletion", "msg": "Bounty must be in InReview status to record completion" },
+    { "code": 6008, "name": "InvalidScoreCount", "msg": "Exactly 5 review scores are required (one per model)" },
+    { "code": 6009, "name": "ScoreOutOfRange", "msg": "Review score out of range: must be 0-1000" },
+    { "code": 6010, "name": "ArithmeticOverflow", "msg": "Arithmetic overflow detected" },
+    { "code": 6011, "name": "Unauthorized", "msg": "Unauthorized: signer is not the registry admin" }
+  ],
+  "types": [
+    {
+      "name": "BountyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "bounty_id", "type": "u64" },
+          { "name": "title", "type": "string" },
+          { "name": "tier", "type": "u8" },
+          { "name": "reward_amount", "type": "u64" },
+          { "name": "status", "type": { "defined": { "name": "BountyStatus" } } },
+          { "name": "creator", "type": "pubkey" },
+          { "name": "contributor", "type": { "option": "pubkey" } },
+          { "name": "github_issue", "type": "string" },
+          { "name": "github_pr", "type": "string" },
+          { "name": "review_scores", "type": { "vec": "u16" } },
+          { "name": "final_score", "type": "u16" },
+          { "name": "pr_hash", "type": { "option": { "array": ["u8", 32] } } },
+          { "name": "created_at", "type": "i64" },
+          { "name": "updated_at", "type": "i64" },
+          { "name": "completed_at", "type": { "option": "i64" } },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "BountyStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Open" },
+          { "name": "Claimed" },
+          { "name": "InReview" },
+          { "name": "Completed" },
+          { "name": "Cancelled" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../services/apiClient';
+import {
+  Skeleton,
+  SkeletonStatCard,
+  SkeletonActivityFeed,
+} from './common/Skeleton';
 
 // ============================================================================
 // Types
@@ -57,54 +64,7 @@ interface ContributorDashboardProps {
 }
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_STATS: DashboardStats = {
-  totalEarned: 2450000,
-  activeBounties: 3,
-  pendingPayouts: 500000,
-  reputationRank: 42,
-  totalContributors: 256,
-};
-
-const MOCK_BOUNTIES: Bounty[] = [
-  { id: '1', title: 'GitHub <-> Platform Bi-directional Sync', reward: 450000, deadline: '2026-03-27', status: 'in_progress', progress: 60 },
-  { id: '2', title: 'Real-time WebSocket Server', reward: 400000, deadline: '2026-03-26', status: 'submitted', progress: 100 },
-  { id: '3', title: 'Bounty Claiming System', reward: 500000, deadline: '2026-03-28', status: 'claimed', progress: 20 },
-];
-
-const MOCK_ACTIVITIES: Activity[] = [
-  { id: '1', type: 'payout', title: 'Payout Received', description: 'Received 500,000 $FNDRY for CI/CD Pipeline', timestamp: '2026-03-20T10:00:00Z', amount: 500000 },
-  { id: '2', type: 'review_received', title: 'Review Completed', description: 'Your PR for Auth System received score 8/10', timestamp: '2026-03-20T08:30:00Z' },
-  { id: '3', type: 'pr_submitted', title: 'PR Submitted', description: 'Submitted PR for WebSocket Server', timestamp: '2026-03-19T15:00:00Z' },
-  { id: '4', type: 'bounty_claimed', title: 'Bounty Claimed', description: 'Claimed "GitHub <-> Platform Sync"', timestamp: '2026-03-19T12:00:00Z' },
-  { id: '5', type: 'bounty_completed', title: 'Bounty Completed', description: 'CI/CD Pipeline bounty merged', timestamp: '2026-03-19T10:00:00Z' },
-];
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', type: 'success', title: 'PR Merged', message: 'Your PR #109 has been merged!', timestamp: '2026-03-20T10:00:00Z', read: false },
-  { id: '2', type: 'info', title: 'New Bounty', message: 'A new T1 bounty is available: Twitter Post', timestamp: '2026-03-20T03:00:00Z', read: false },
-  { id: '3', type: 'warning', title: 'Deadline Approaching', message: 'WebSocket Server bounty deadline in 2 days', timestamp: '2026-03-20T02:00:00Z', read: true },
-];
-
-const MOCK_EARNINGS: EarningsData[] = [
-  { date: '2026-03-01', amount: 0 },
-  { date: '2026-03-05', amount: 0 },
-  { date: '2026-03-10', amount: 100000 },
-  { date: '2026-03-12', amount: 150000 },
-  { date: '2026-03-15', amount: 500000 },
-  { date: '2026-03-18', amount: 800000 },
-  { date: '2026-03-20', amount: 950000 },
-];
-
-const MOCK_LINKED_ACCOUNTS = [
-  { type: 'github', username: 'HuiNeng6', connected: true },
-  { type: 'twitter', username: '', connected: false },
-];
-
-// ============================================================================
-// Data Fetcher (Simulates API calls)
+// Data Fetcher — Real API with empty-state fallback
 // ============================================================================
 
 interface DashboardData {
@@ -115,25 +75,49 @@ interface DashboardData {
   earnings: EarningsData[];
   linkedAccounts: { type: string; username: string; connected: boolean }[];
 }
-
+const EMPTY_STATS: DashboardStats = { totalEarned: 0, activeBounties: 0, pendingPayouts: 0, reputationRank: 0, totalContributors: 0 };
+/** Fetch endpoint, logging errors instead of swallowing. */
+async function safeFetch<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T | null> {
+  try { return await apiClient<T>(endpoint, { params, retries: 0 }); }
+  catch (error) { console.warn(`[Dashboard] ${endpoint} failed:`, error); return null; }
+}
+/** Fetch user-specific dashboard data from real API endpoints. */
 async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  // Simulate network delay (100-300ms)
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-  
-  // In a real app, this would fetch from an API using userId
-  // For now, return mock data but log userId for future integration
-  if (process.env.NODE_ENV !== 'test') {
-    console.log('Fetching dashboard data for user:', userId || 'anonymous');
+  const data: DashboardData = { stats: { ...EMPTY_STATS }, bounties: [], activities: [], notifications: [], earnings: [], linkedAccounts: [] };
+  const encodedId = userId ? encodeURIComponent(userId) : '';
+  const [bountiesRaw, notificationsRaw, leaderboardRaw] = await Promise.all([
+    safeFetch<{ items?: unknown[] }>('/api/bounties', { limit: 10, ...(userId ? { assignee: encodedId } : {}) }),
+    safeFetch<{ items?: unknown[] }>('/api/notifications', { limit: 10 }),
+    safeFetch<unknown[]>('/api/leaderboard', { range: 'all', limit: 50 }),
+  ]);
+  if (bountiesRaw) {
+    const items = (Array.isArray(bountiesRaw) ? bountiesRaw : (bountiesRaw.items ?? [])) as Record<string, unknown>[];
+    data.bounties = items.map(entry => ({
+      id: String(entry.id ?? ''), title: String(entry.title ?? ''),
+      reward: Number(entry.reward_amount ?? entry.reward ?? 0), deadline: String(entry.deadline ?? ''),
+      status: String(entry.status ?? 'claimed') as Bounty['status'], progress: Number(entry.progress ?? 0),
+    }));
   }
-  
-  return {
-    stats: MOCK_STATS,
-    bounties: MOCK_BOUNTIES,
-    activities: MOCK_ACTIVITIES,
-    notifications: MOCK_NOTIFICATIONS,
-    earnings: MOCK_EARNINGS,
-    linkedAccounts: MOCK_LINKED_ACCOUNTS,
-  };
+  if (notificationsRaw) {
+    const items = (Array.isArray(notificationsRaw) ? notificationsRaw : (notificationsRaw.items ?? [])) as Record<string, unknown>[];
+    data.notifications = items.map(entry => ({
+      id: String(entry.id ?? ''), type: String(entry.type ?? 'info') as Notification['type'],
+      title: String(entry.title ?? ''), message: String(entry.message ?? ''),
+      timestamp: String(entry.created_at ?? entry.timestamp ?? ''), read: Boolean(entry.read ?? false),
+    }));
+  }
+  if (Array.isArray(leaderboardRaw)) {
+    data.stats.totalContributors = leaderboardRaw.length;
+    const currentUser = (leaderboardRaw as Record<string, unknown>[]).find(
+      entry => String(entry.username ?? '').toLowerCase() === (userId ?? '').toLowerCase()
+    );
+    if (currentUser) {
+      data.stats.totalEarned = Number(currentUser.earningsFndry ?? 0);
+      data.stats.reputationRank = Number(currentUser.rank ?? 0);
+    }
+  }
+  data.stats.activeBounties = data.bounties.length;
+  return data;
 }
 
 // ============================================================================
@@ -261,16 +245,16 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, value, suffix, icon, trend, trendValue }: SummaryCardProps) {
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors">
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 hover:border-gray-300 dark:border-white/5 dark:hover:border-white/10 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-gray-400 text-sm">{label}</span>
-        <div className="w-10 h-10 rounded-lg bg-[#14F195]/10 flex items-center justify-center">
+        <span className="text-gray-600 dark:text-gray-400 text-sm">{label}</span>
+        <div className="w-10 h-10 rounded-lg bg-solana-green/10 flex items-center justify-center">
           {icon}
         </div>
       </div>
       <div className="flex items-end gap-2">
-        <span className="text-2xl font-bold text-white">{value}</span>
-        {suffix && <span className="text-sm text-gray-400 mb-1">{suffix}</span>}
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">{value}</span>
+        {suffix && <span className="text-sm text-gray-600 dark:text-gray-400 mb-1">{suffix}</span>}
       </div>
       {trend && trendValue && (
         <div className={`mt-2 text-xs flex items-center gap-1 ${trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
@@ -292,11 +276,11 @@ function BountyCard({ bounty }: BountyCardProps) {
   const isUrgent = isDeadlineUrgent(daysRemaining);
   
   return (
-    <div className="bg-[#1a1a1a] rounded-lg p-4 border border-white/5 hover:border-[#9945FF]/30 transition-colors">
+    <div className="bg-white dark:bg-surface-100 rounded-lg p-4 border border-gray-200 hover:border-solana-purple/40 dark:border-white/5 dark:hover:border-solana-purple/30 transition-colors shadow-sm dark:shadow-none">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-medium truncate">{bounty.title}</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-gray-900 dark:text-white font-medium truncate">{bounty.title}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             <span className={`font-medium ${getStatusColor(bounty.status)}`}>
               {formatStatus(bounty.status)}
             </span>
@@ -307,20 +291,20 @@ function BountyCard({ bounty }: BountyCardProps) {
           </p>
         </div>
         <div className="text-right ml-4">
-          <span className="text-[#14F195] font-bold">{formatNumber(bounty.reward)}</span>
-          <span className="text-gray-400 text-sm ml-1">$FNDRY</span>
+          <span className="text-solana-green font-bold">{formatNumber(bounty.reward)}</span>
+          <span className="text-gray-600 dark:text-gray-400 text-sm ml-1">$FNDRY</span>
         </div>
       </div>
       
       {/* Progress Bar */}
       <div className="mt-3">
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
           <span>Progress</span>
           <span>{bounty.progress}%</span>
         </div>
-        <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-200 dark:bg-surface rounded-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-[#9945FF] to-[#14F195] transition-all duration-300"
+            className="h-full bg-gradient-to-r from-solana-purple to-solana-green transition-all duration-300"
             style={{ width: `${bounty.progress}%` }}
           />
         </div>
@@ -335,17 +319,17 @@ interface ActivityItemProps {
 
 function ActivityItem({ activity }: ActivityItemProps) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
+    <div className="flex items-start gap-3 py-3 border-b border-gray-200 dark:border-white/5 last:border-0">
       <div className="flex-shrink-0 mt-0.5">
         {getActivityIcon(activity.type)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{activity.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{activity.description}</p>
+        <p className="text-sm text-gray-900 dark:text-white font-medium">{activity.title}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{activity.description}</p>
       </div>
       <div className="flex-shrink-0 text-right">
         {activity.amount && (
-          <p className="text-sm text-[#14F195] font-medium">+{formatNumber(activity.amount)}</p>
+          <p className="text-sm text-solana-green font-medium">+{formatNumber(activity.amount)}</p>
         )}
         <p className="text-xs text-gray-500 mt-0.5">{formatRelativeTime(activity.timestamp)}</p>
       </div>
@@ -362,7 +346,7 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
   return (
     <div 
       className={`flex items-start gap-3 py-3 px-2 rounded-lg transition-colors cursor-pointer
-                  ${notification.read ? 'opacity-60' : 'bg-white/5 hover:bg-white/10'}`}
+                  ${notification.read ? 'opacity-60' : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10'}`}
       onClick={() => !notification.read && onMarkAsRead(notification.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -379,8 +363,8 @@ function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps)
         {getNotificationIcon(notification.type)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{notification.title}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{notification.message}</p>
+        <p className="text-sm text-gray-900 dark:text-white font-medium">{notification.title}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{notification.message}</p>
       </div>
       <span className="text-xs text-gray-500" aria-label={formatRelativeTime(notification.timestamp)}>
         {formatRelativeTime(notification.timestamp)}
@@ -398,12 +382,12 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // Handle empty or insufficient data
   if (!data || data.length === 0) {
     return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+      <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-gray-400 text-lg">0 $FNDRY</span>
+          <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
+          <span className="text-gray-600 dark:text-gray-400 text-lg">0 $FNDRY</span>
         </div>
-        <div className="h-[120px] flex items-center justify-center text-gray-400">
+        <div className="h-[120px] flex items-center justify-center text-gray-600 dark:text-gray-400">
           No earnings data available
         </div>
       </div>
@@ -413,13 +397,13 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   // For single data point, show a simple display
   if (data.length === 1) {
     return (
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+      <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-          <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
+          <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
+          <span className="text-solana-green text-lg font-bold">{formatNumber(data[0].amount)} $FNDRY</span>
         </div>
         <div className="h-[120px] flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-[#14F195]" />
+          <div className="w-4 h-4 rounded-full bg-solana-green" />
         </div>
       </div>
     );
@@ -440,15 +424,15 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${padding} ${chartHeight - padding} Z`;
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">Earnings (Last 30 Days)</h3>
-        <span className="text-[#14F195] text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
+        <h3 className="text-gray-900 dark:text-white font-medium">Earnings (Last 30 Days)</h3>
+        <span className="text-solana-green text-lg font-bold">{formatNumber(data[data.length - 1].amount)} $FNDRY</span>
       </div>
       <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
         {/* Grid lines */}
-        <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
-        <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#333" strokeWidth="1" />
+        <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#64748b" strokeWidth="1" />
+        <line x1={padding} y1={padding} x2={padding} y2={chartHeight - padding} stroke="#64748b" strokeWidth="1" />
         
         {/* Area fill */}
         <path d={areaD} fill="url(#gradient)" opacity="0.3" />
@@ -464,9 +448,9 @@ function SimpleLineChart({ data }: SimpleLineChartProps) {
             cy={p.y} 
             r="4" 
             fill="#14F195" 
-            stroke="#0a0a0a" 
+            stroke="#e5e7eb" 
             strokeWidth="2"
-            className="hover:scale-125 transition-transform cursor-pointer"
+            className="hover:scale-125 transition-transform cursor-pointer dark:stroke-surface"
           >
             <title>{`${formatNumber(p.amount)} $FNDRY - ${p.date}`}</title>
           </circle>
@@ -497,8 +481,8 @@ interface QuickActionsProps {
 
 function QuickActions({ onBrowseBounties, onViewLeaderboard, onCheckTreasury }: QuickActionsProps) {
   const actions = [
-    { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-[#9945FF] to-[#9945FF]' },
-    { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-[#14F195] to-[#14F195]' },
+    { label: 'Browse Bounties', icon: '🔍', onClick: onBrowseBounties, color: 'from-solana-purple to-solana-purple' },
+    { label: 'View Leaderboard', icon: '🏆', onClick: onViewLeaderboard, color: 'from-solana-green to-solana-green' },
     { label: 'Check Treasury', icon: '💰', onClick: onCheckTreasury, color: 'from-yellow-500 to-yellow-500' },
   ];
 
@@ -537,20 +521,20 @@ function SettingsSection({
   onDisconnectAccount 
 }: SettingsSectionProps) {
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
-      <h3 className="text-white font-medium mb-4">Settings</h3>
+    <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+      <h3 className="text-gray-900 dark:text-white font-medium mb-4">Settings</h3>
       
       {/* Linked Accounts */}
       <div className="mb-6">
-        <h4 className="text-sm text-gray-400 mb-3">Linked Accounts</h4>
+        <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Linked Accounts</h4>
         <div className="space-y-2">
           {linkedAccounts.map((account) => (
-            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
+            <div key={account.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
               <div className="flex items-center gap-3">
                 <span className="text-lg">{account.type === 'github' ? '🐙' : account.type === 'twitter' ? '🐦' : '🔐'}</span>
                 <div>
-                  <p className="text-sm text-white">{account.type.charAt(0).toUpperCase() + account.type.slice(1)}</p>
-                  <p className="text-xs text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{account.type.charAt(0).toUpperCase() + account.type.slice(1)}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{account.connected ? account.username : 'Not connected'}</p>
                 </div>
               </div>
               <button 
@@ -562,8 +546,8 @@ function SettingsSection({
                 aria-pressed={account.connected}
                 className={`text-xs px-3 py-1 rounded transition-colors ${
                   account.connected 
-                    ? 'text-gray-400 bg-gray-700 hover:bg-gray-600' 
-                    : 'text-[#14F195] bg-[#14F195]/10 hover:bg-[#14F195]/20'
+                    ? 'text-gray-600 bg-gray-200 hover:bg-gray-300 dark:text-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600' 
+                    : 'text-solana-green bg-solana-green/10 hover:bg-solana-green/20'
                 }`}
               >
                 {account.connected ? 'Disconnect' : 'Connect'}
@@ -575,17 +559,17 @@ function SettingsSection({
       
       {/* Notification Preferences */}
       <div>
-        <h4 className="text-sm text-gray-400 mb-3">Notifications</h4>
+        <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Notifications</h4>
         <div className="space-y-2">
           {notificationPreferences.map((pref) => (
-            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-[#0a0a0a] rounded-lg">
-              <span className="text-sm text-white">{pref.type}</span>
+            <div key={pref.type} className="flex items-center justify-between py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
+              <span className="text-sm text-gray-900 dark:text-white">{pref.type}</span>
               <button 
                 onClick={() => onToggleNotification(pref.type)}
                 aria-label={`Toggle ${pref.type} notifications`}
                 aria-checked={pref.enabled}
                 role="switch"
-                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-[#14F195]' : 'bg-gray-700'}`}
+                className={`w-10 h-5 rounded-full transition-colors ${pref.enabled ? 'bg-solana-green' : 'bg-gray-300 dark:bg-gray-700'}`}
               >
                 <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${pref.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
@@ -596,11 +580,11 @@ function SettingsSection({
       
       {/* Wallet */}
       {walletAddress && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <h4 className="text-sm text-gray-400 mb-3">Wallet</h4>
-          <div className="py-2 px-3 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-400">Connected Wallet</p>
-            <p className="text-sm text-[#14F195] font-mono mt-1">
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
+          <h4 className="text-sm text-gray-600 dark:text-gray-400 mb-3">Wallet</h4>
+          <div className="py-2 px-3 bg-gray-100 dark:bg-surface rounded-lg border border-gray-200/80 dark:border-transparent">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Connected Wallet</p>
+            <p className="text-sm text-solana-green font-mono mt-1">
               {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
             </p>
           </div>
@@ -624,19 +608,32 @@ export function ContributorDashboard({
   onDisconnectAccount,
 }: ContributorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'settings'>('overview');
-  
-  // Data states
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [earnings, setEarnings] = useState<EarningsData[]>([]);
-  const [linkedAccounts, setLinkedAccounts] = useState<{ type: string; username: string; connected: boolean }[]>([]);
-  
-  // UI states
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
+
+  // React Query handles fetching, caching, and retry for dashboard data
+  const { data: dashboardData, isLoading, isError, error: queryError, refetch } = useQuery({
+    queryKey: ['dashboard', userId],
+    queryFn: () => fetchDashboardData(userId),
+    staleTime: 30_000,
+  });
+
+  const stats = dashboardData?.stats ?? null;
+  const bounties = dashboardData?.bounties ?? [];
+  const activities = dashboardData?.activities ?? [];
+  const rawNotifications = dashboardData?.notifications ?? [];
+  const earnings = dashboardData?.earnings ?? [];
+  const linkedAccounts = dashboardData?.linkedAccounts?.length
+    ? dashboardData.linkedAccounts
+    : [
+        { type: 'github', username: userId ?? walletAddress ?? '', connected: Boolean(userId || walletAddress) },
+        { type: 'twitter', username: '', connected: false },
+      ];
+  const error = isError ? (queryError instanceof Error ? queryError.message : 'Failed to load dashboard data') : null;
+
+  // Local read-state overlay for notifications (mark-as-read without mutating query cache)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const notifications = rawNotifications.map(notification => readIds.has(notification.id) ? { ...notification, read: true } : notification);
+  const unreadNotifications = notifications.filter(notification => !notification.read).length;
+
   const [notificationPrefs, setNotificationPrefs] = useState([
     { type: 'Payout Alerts', enabled: true },
     { type: 'Review Updates', enabled: true },
@@ -644,91 +641,76 @@ export function ContributorDashboard({
     { type: 'New Bounties', enabled: false },
   ]);
 
-  // Fetch data on mount and when userId changes
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const data = await fetchDashboardData(userId);
-        
-        if (!isMounted) return;
-        
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-      } catch (err) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [userId]);
-
-  const unreadNotifications = notifications.filter(n => !n.read).length;
-
   const handleMarkAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setReadIds(prev => new Set(prev).add(id));
   }, []);
 
   const handleMarkAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    setReadIds(new Set(rawNotifications.map(notification => notification.id)));
+  }, [rawNotifications]);
 
   const handleToggleNotification = useCallback((type: string) => {
-    setNotificationPrefs(prev => prev.map(p => p.type === type ? { ...p, enabled: !p.enabled } : p));
+    setNotificationPrefs(prev => prev.map(pref => pref.type === type ? { ...pref, enabled: !pref.enabled } : pref));
   }, []);
 
-  const handleRetry = useCallback(() => {
-    // Trigger a re-render by clearing error and setting loading
-    setError(null);
-    setIsLoading(true);
-    
-    // Re-fetch data
-    fetchDashboardData(userId)
-      .then(data => {
-        setStats(data.stats);
-        setBounties(data.bounties);
-        setActivities(data.activities);
-        setNotifications(data.notifications);
-        setEarnings(data.earnings);
-        setLinkedAccounts(data.linkedAccounts);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-        setIsLoading(false);
-      });
-  }, [userId]);
+  const handleRetry = useCallback(() => { refetch(); }, [refetch]);
 
-  // Loading state UI
+  // Loading state UI — skeleton layout mirrors loaded dashboard (stats, actions, two-column content)
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
           </div>
-          <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-[#9945FF] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400">Loading dashboard...</p>
+          <div
+            className="space-y-6"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading dashboard"
+          >
+            <div className="flex gap-1 bg-gray-100 dark:bg-surface-100 rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
+              {[0, 1, 2].map(i => (
+                <Skeleton key={i} height="2.25rem" width="5.5rem" rounded="md" className="shrink-0" />
+              ))}
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map(i => (
+                <SkeletonStatCard key={i} />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {[0, 1, 2].map(i => (
+                <Skeleton key={i} height="2.75rem" width="10rem" rounded="lg" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton height="1rem" width="8rem" rounded="md" />
+                    <Skeleton height="0.75rem" width="4rem" rounded="md" />
+                  </div>
+                  <div className="space-y-3">
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="rounded-lg border border-gray-200 dark:border-white/5 p-4 space-y-2">
+                        <Skeleton height="0.9rem" width="75%" rounded="md" />
+                        <Skeleton height="0.75rem" width="50%" rounded="md" />
+                        <Skeleton height="0.5rem" width="100%" rounded="full" variant="pill" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton height="1rem" width="10rem" rounded="md" />
+                    <Skeleton height="0.75rem" width="3.5rem" rounded="md" />
+                  </div>
+                  <Skeleton height="7.5rem" width="100%" rounded="lg" />
+                </div>
+              </div>
+              <SkeletonActivityFeed count={4} />
             </div>
           </div>
         </div>
@@ -739,11 +721,11 @@ export function ContributorDashboard({
   // Error state UI
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-            <p className="text-gray-400">Track your progress, earnings, and active work</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
           </div>
           <div className="flex items-center justify-center py-20" role="alert" aria-live="assertive">
             <div className="flex flex-col items-center gap-4 text-center">
@@ -753,11 +735,11 @@ export function ContributorDashboard({
                 </svg>
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white mb-2">Failed to Load Dashboard</h2>
-                <p className="text-gray-400 mb-4">{error}</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Failed to Load Dashboard</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                 <button 
                   onClick={handleRetry}
-                  className="px-4 py-2 bg-[#9945FF] text-white rounded-lg hover:bg-[#9945FF]/80 transition-colors"
+                  className="px-4 py-2 bg-solana-purple text-white rounded-lg hover:bg-solana-purple/80 transition-colors"
                 >
                   Retry
                 </button>
@@ -770,16 +752,16 @@ export function ContributorDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-surface dark:text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Contributor Dashboard</h1>
-          <p className="text-gray-400">Track your progress, earnings, and active work</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Contributor Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Track your progress, earnings, and active work</p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 bg-[#1a1a1a] rounded-lg p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-surface-100 rounded-lg p-1 w-fit border border-gray-200 dark:border-transparent">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'notifications', label: 'Notifications', badge: unreadNotifications },
@@ -790,8 +772,8 @@ export function ContributorDashboard({
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors relative
                 ${activeTab === tab.id 
-                  ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-solana-purple to-solana-green text-white' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
                 }`}
             >
               {tab.label}
@@ -816,7 +798,7 @@ export function ContributorDashboard({
                 trend="up"
                 trendValue="+15% this month"
                 icon={
-                  <svg className="w-5 h-5 text-[#14F195]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg className="w-5 h-5 text-solana-green" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
                   </svg>
                 }
@@ -825,7 +807,7 @@ export function ContributorDashboard({
                 label="Active Bounties"
                 value={stats.activeBounties}
                 icon={
-                  <svg className="w-5 h-5 text-[#9945FF]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg className="w-5 h-5 text-solana-purple" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
                   </svg>
                 }
@@ -866,13 +848,13 @@ export function ContributorDashboard({
               {/* Left Column */}
               <div className="space-y-6">
                 {/* Active Bounties */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Active Bounties</h3>
-                    <span className="text-xs text-gray-400">{bounties.length} active</span>
+                    <h3 className="text-gray-900 dark:text-white font-medium">Active Bounties</h3>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{bounties.length} active</span>
                   </div>
                   {bounties.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No active bounties</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">No active bounties</p>
                   ) : (
                     <div className="space-y-3">
                       {bounties.map((bounty) => (
@@ -889,15 +871,15 @@ export function ContributorDashboard({
               {/* Right Column */}
               <div className="space-y-6">
                 {/* Recent Activity */}
-                <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+                <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-medium">Recent Activity</h3>
-                    <button className="text-xs text-[#14F195] hover:text-[#14F195]/80">View All</button>
+                    <h3 className="text-gray-900 dark:text-white font-medium">Recent Activity</h3>
+                    <button className="text-xs text-solana-green hover:text-solana-green/80">View All</button>
                   </div>
                   {activities.length === 0 ? (
-                    <p className="text-gray-400 text-center py-4">No recent activity</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">No recent activity</p>
                   ) : (
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-gray-200 dark:divide-white/5">
                       {activities.map((activity) => (
                         <ActivityItem key={activity.id} activity={activity} />
                       ))}
@@ -910,24 +892,24 @@ export function ContributorDashboard({
         )}
 
         {activeTab === 'notifications' && (
-          <div className="bg-[#1a1a1a] rounded-xl p-5 border border-white/5">
+          <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium">Notifications</h3>
+              <h3 className="text-gray-900 dark:text-white font-medium">Notifications</h3>
               {unreadNotifications > 0 && (
                 <button 
                   onClick={handleMarkAllAsRead}
-                  className="text-xs text-[#14F195] hover:text-[#14F195]/80"
+                  className="text-xs text-solana-green hover:text-solana-green/80"
                 >
                   Mark all as read
                 </button>
               )}
             </div>
             {notifications.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">No notifications</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No notifications</p>
             ) : (
               <div className="space-y-1">
                 {notifications.map((notification) => (
-                  <NotificationItem 
+                  <NotificationItem
                     key={notification.id} 
                     notification={notification} 
                     onMarkAsRead={handleMarkAsRead}

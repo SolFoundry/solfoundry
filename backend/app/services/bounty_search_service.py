@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 
 _SORT_SQL = {
     "newest": "b.created_at DESC",
+    "oldest": "b.created_at ASC",
     "reward_high": "b.reward_amount DESC",
     "reward_low": "b.reward_amount ASC",
+    "tier_high": "b.tier DESC",
     "deadline": "b.deadline ASC NULLS LAST",
     "submissions": "b.submission_count DESC",
     "best_match": "rank DESC, b.created_at DESC",
@@ -107,7 +109,7 @@ async def search_bounties_db(
     select_sql = f"""
         SELECT
             b.id::text, b.title, b.project_name, b.description, b.tier, b.reward_amount,
-            b.status, b.skills, b.github_issue_url, b.deadline,
+            b.status, b.category, b.creator_type, b.skills, b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at,
             {rank_expr} AS rank
         FROM bounties b
@@ -132,10 +134,13 @@ async def search_bounties_db(
             BountySearchResult(
                 id=row.id,
                 title=row.title,
+                project_name=getattr(row, "project_name", None),
                 description=row.description or "",
                 tier=row.tier,
+                category=getattr(row, "category", None),
                 reward_amount=row.reward_amount,
                 status=BountyStatus(row.status),
+                creator_type=getattr(row, "creator_type", "platform"),
                 required_skills=bounty_skills,
                 github_issue_url=row.github_issue_url,
                 deadline=row.deadline,
@@ -204,8 +209,8 @@ async def get_hot_bounties_db(
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     sql = """
         SELECT
-            b.id::text, b.title, b.description, b.tier, b.reward_amount,
-            b.status, b.skills, b.github_issue_url, b.deadline,
+            b.id::text, b.title, b.project_name, b.description, b.tier, b.reward_amount,
+            b.status, b.category, b.creator_type, b.skills, b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at, b.popularity
         FROM bounties b
         WHERE b.status IN ('open', 'in_progress')
@@ -218,10 +223,13 @@ async def get_hot_bounties_db(
         BountySearchResult(
             id=row.id,
             title=row.title,
+            project_name=getattr(row, "project_name", None),
             description=row.description or "",
             tier=row.tier,
+            category=getattr(row, "category", None),
             reward_amount=row.reward_amount,
             status=BountyStatus(row.status),
+            creator_type=getattr(row, "creator_type", "platform"),
             required_skills=row.skills if isinstance(row.skills, list) else [],
             github_issue_url=row.github_issue_url,
             deadline=row.deadline,
@@ -247,8 +255,8 @@ async def get_recommended_bounties_db(
 
     sql = """
         SELECT
-            b.id::text, b.title, b.description, b.tier, b.reward_amount,
-            b.status, b.skills, b.github_issue_url, b.deadline,
+            b.id::text, b.title, b.project_name, b.description, b.tier, b.reward_amount,
+            b.status, b.category, b.creator_type, b.skills, b.github_issue_url, b.deadline,
             b.created_by, b.submission_count, b.created_at
         FROM bounties b
         WHERE b.status = 'open'
@@ -272,10 +280,13 @@ async def get_recommended_bounties_db(
         BountySearchResult(
             id=row.id,
             title=row.title,
+            project_name=getattr(row, "project_name", None),
             description=row.description or "",
             tier=row.tier,
+            category=getattr(row, "category", None),
             reward_amount=row.reward_amount,
             status=BountyStatus(row.status),
+            creator_type=getattr(row, "creator_type", "platform"),
             required_skills=row.skills if isinstance(row.skills, list) else [],
             github_issue_url=row.github_issue_url,
             deadline=row.deadline,
@@ -316,6 +327,8 @@ def _sort_key(b: BountyDB, sort: str, query: str):
         return (-b.reward_amount,)
     if sort == "reward_low":
         return (b.reward_amount,)
+    if sort == "tier_high":
+        return (-int(b.tier),)
     if sort == "deadline":
         dl = b.deadline.timestamp() if b.deadline else float("inf")
         return (dl,)
@@ -323,6 +336,8 @@ def _sort_key(b: BountyDB, sort: str, query: str):
         return (-len(b.submissions),)
     if sort == "best_match":
         return (-_match_text(query, b.title, b.description),)
+    if sort == "oldest":
+        return (b.created_at.timestamp(),)
     return (-b.created_at.timestamp(),)
 
 
@@ -339,6 +354,8 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
         results = [
             b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
+    if params.creator_type:
+        results = [b for b in results if getattr(b, "creator_type", None) == params.creator_type]
     if params.creator_id:
         results = [b for b in results if b.created_by == params.creator_id]
     if params.reward_min is not None:
@@ -376,10 +393,13 @@ def search_bounties_memory(params: BountySearchParams) -> BountySearchResponse:
             BountySearchResult(
                 id=b.id,
                 title=b.title,
+                project_name=getattr(b, "project_name", None),
                 description=b.description,
                 tier=b.tier,
+                category=getattr(b, "category", None),
                 reward_amount=b.reward_amount,
                 status=b.status,
+                creator_type=getattr(b, "creator_type", "platform"),
                 required_skills=b.required_skills,
                 github_issue_url=b.github_issue_url,
                 deadline=b.deadline,
@@ -431,17 +451,20 @@ def get_hot_bounties_memory(limit: int = 6) -> list[BountySearchResult]:
         b
         for b in _bounty_store.values()
         if b.status in (BountyStatus.OPEN, BountyStatus.IN_PROGRESS)
-        and (b.updated_at >= cutoff or b.created_at >= cutoff)
+        and (getattr(b, "updated_at", b.created_at) >= cutoff or b.created_at >= cutoff)
     ]
     active.sort(key=lambda b: (-len(b.submissions), -b.created_at.timestamp()))
     return [
         BountySearchResult(
             id=b.id,
             title=b.title,
+            project_name=getattr(b, "project_name", None),
             description=b.description,
             tier=b.tier,
+            category=getattr(b, "category", None),
             reward_amount=b.reward_amount,
             status=b.status,
+            creator_type=getattr(b, "creator_type", "platform"),
             required_skills=b.required_skills,
             github_issue_url=b.github_issue_url,
             deadline=b.deadline,
@@ -479,10 +502,13 @@ def get_recommended_memory(
         BountySearchResult(
             id=b.id,
             title=b.title,
+            project_name=getattr(b, "project_name", None),
             description=b.description,
             tier=b.tier,
+            category=getattr(b, "category", None),
             reward_amount=b.reward_amount,
             status=b.status,
+            creator_type=getattr(b, "creator_type", "platform"),
             required_skills=b.required_skills,
             github_issue_url=b.github_issue_url,
             deadline=b.deadline,

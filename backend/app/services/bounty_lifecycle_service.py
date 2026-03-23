@@ -344,9 +344,13 @@ def check_deadlines() -> dict:
                     reason="deadline_expired",
                 )
                 released += 1
-                logger.info("Auto-released claim on bounty %s (deadline passed)", bounty_id)
+                logger.info(
+                    "Auto-released claim on bounty %s (deadline passed)", bounty_id
+                )
             except LifecycleError as exc:
-                logger.warning("Failed to auto-release bounty %s: %s", bounty_id, exc.message)
+                logger.warning(
+                    "Failed to auto-release bounty %s: %s", bounty_id, exc.message
+                )
 
         # 80% — warning
         elif progress >= DEADLINE_WARNING_THRESHOLD:
@@ -363,7 +367,9 @@ def check_deadlines() -> dict:
             )
             warned += 1
             logger.info(
-                "Deadline warning for bounty %s (%.0f%% elapsed)", bounty_id, progress * 100
+                "Deadline warning for bounty %s (%.0f%% elapsed)",
+                bounty_id,
+                progress * 100,
             )
 
     return {"warned": warned, "released": released}

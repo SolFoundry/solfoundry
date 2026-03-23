@@ -1,80 +1,112 @@
-"""Security Middleware for SolFoundry - Sovereign 14.0 Hardened Version.
+"""HTTP security headers middleware for production hardening.
 
-Implements standard headers, IP blocklisting via Redis, and strict 
-Payload/Content-Length limits to prevent OOM and DoS attacks.
+Implements comprehensive security headers following OWASP recommendations:
+- Strict-Transport-Security (HSTS) with preload
+- Content-Security-Policy (CSP) restricting resource origins
+- X-Frame-Options preventing clickjacking
+- X-Content-Type-Options preventing MIME sniffing
+- Referrer-Policy limiting referrer information leakage
+- Permissions-Policy restricting browser feature access
+- Cache-Control headers for sensitive endpoints
+- Request body size enforcement to prevent resource exhaustion
 """
 
 import logging
-from typing import Set, Optional
-import redis.asyncio as redis
 import os
+from typing import Callable
 
 from fastapi import Request, Response
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+# Maximum request body size in bytes (default 1 MB)
+MAX_REQUEST_BODY_SIZE: int = int(
+    os.getenv("MAX_REQUEST_BODY_SIZE", str(1 * 1024 * 1024))
+)
+
+# Whether to enforce HTTPS (disable in local dev)
+ENFORCE_HTTPS: bool = os.getenv("ENFORCE_HTTPS", "true").lower() == "true"
+
+# HSTS max-age in seconds (default: 1 year)
+HSTS_MAX_AGE: int = int(os.getenv("HSTS_MAX_AGE", "31536000"))
+
+# CSP directives
+CSP_DEFAULT_SRC: str = os.getenv("CSP_DEFAULT_SRC", "'self'")
+CSP_SCRIPT_SRC: str = os.getenv("CSP_SCRIPT_SRC", "'self' 'unsafe-inline' 'unsafe-eval'")
+CSP_STYLE_SRC: str = os.getenv("CSP_STYLE_SRC", "'self' 'unsafe-inline' https://fonts.googleapis.com")
+CSP_IMG_SRC: str = os.getenv("CSP_IMG_SRC", "'self' data: https: https://solfoundry.org")
+CSP_CONNECT_SRC: str = os.getenv(
+    "CSP_CONNECT_SRC", "'self' https://api.mainnet-beta.solana.com"
+)
+CSP_FONT_SRC: str = os.getenv("CSP_FONT_SRC", "'self' https://fonts.gstatic.com")
+CSP_FRAME_ANCESTORS: str = os.getenv("CSP_FRAME_ANCESTORS", "'none'")
+
+# Paths considered sensitive (no caching)
+SENSITIVE_PATH_PREFIXES: tuple[str, ...] = (
+    "/auth/",
+    "/api/payouts",
+    "/api/treasury",
+)
+
+def _build_csp_header() -> str:
+    directives = [
+        f"default-src {CSP_DEFAULT_SRC}",
+        f"script-src {CSP_SCRIPT_SRC}",
+        f"style-src {CSP_STYLE_SRC}",
+        f"img-src {CSP_IMG_SRC}",
+        f"connect-src {CSP_CONNECT_SRC}",
+        f"font-src {CSP_FONT_SRC}",
+        f"frame-ancestors {CSP_FRAME_ANCESTORS}",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+        "upgrade-insecure-requests",
+    ]
+    return "; ".join(directives)
+
+def _build_permissions_policy() -> str:
+    policies = [
+        "camera=()", "microphone=()", "geolocation=()", "payment=()",
+        "usb=()", "magnetometer=()", "gyroscope=()", "accelerometer=()",
+    ]
+    return ", ".join(policies)
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Adds production-grade security headers to all responses."""
-    async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    """OWASP-recommended security headers and request body size enforcement."""
+
+    def __init__(self, app: Callable) -> None:
+        super().__init__(app)
+        self.csp_header = _build_csp_header()
+        self.permissions_policy = _build_permissions_policy()
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Enforce request body size limit
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_REQUEST_BODY_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "Request body too large", "code": "PAYLOAD_TOO_LARGE"}
+            )
+
+        response = await call_next(request)
+
+        # Apply Headers
+        if ENFORCE_HTTPS:
+            response.headers["Strict-Transport-Security"] = f"max-age={HSTS_MAX_AGE}; includeSubDomains; preload"
+        
+        response.headers["Content-Security-Policy"] = self.csp_header
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https://solfoundry.org;"
+        response.headers["Permissions-Policy"] = self.permissions_policy
+
+        if any(request.url.path.startswith(p) for p in SENSITIVE_PATH_PREFIXES):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+
+        if "Server" in response.headers:
+            del response.headers["Server"]
+
         return response
-
-class IPBlocklistMiddleware(BaseHTTPMiddleware):
-    """Blocks requests from blacklisted IPs using Redis."""
-    def __init__(self, app, redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")):
-        super().__init__(app)
-        self.redis = redis.from_url(redis_url, decode_responses=True)
-
-    async def dispatch(self, request: Request, call_next):
-        client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
-        
-        try:
-            if await self.redis.sismember("ip_blocklist", client_ip):
-                log.warning("Blocked IP access attempt: %s", client_ip)
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": "Access forbidden: IP blacklisted", "code": "IP_BLOCKED"}
-                )
-        except Exception as e:
-            log.error("IP Blocklist Redis failure: %s", e)
-            # Fail-open in production for IP blocklist
-            pass
-            
-        return await call_next(request)
-
-class ContentLimitMiddleware(BaseHTTPMiddleware):
-    """Enforces strict Payload Size and Rejects Streaming/Chunked (DoS prevention)."""
-    def __init__(self, app, max_content_length: int = 1014 * 1024): # 1MB limit
-        super().__init__(app)
-        self.max_content_length = max_content_length
-
-    async def dispatch(self, request: Request, call_next):
-        if request.method in ("POST", "PUT", "PATCH"):
-            content_length = request.headers.get("Content-Length")
-            
-            # 1. Reject missing Content-Length (prevents slowloris/unbound streams)
-            if content_length is None:
-                return JSONResponse(status_code=411, content={"detail": "Length Required"})
-            
-            # 2. Reject Chunked/Streaming if unexpected
-            if "chunked" in request.headers.get("Transfer-Encoding", "").lower():
-                return JSONResponse(status_code=403, content={"detail": "Streaming not allowed"})
-            
-            # 3. Enforce 1MB limit
-            try:
-                if int(content_length) > self.max_content_length:
-                    return JSONResponse(
-                        status_code=413, 
-                        content={"detail": "Payload too large", "code": "PAYLOAD_TOO_LARGE"}
-                    )
-            except ValueError:
-                return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
-                
-        return await call_next(request)

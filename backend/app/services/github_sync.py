@@ -28,6 +28,11 @@ API_BASE = "https://api.github.com"
 # Sync interval in seconds
 SYNC_INTERVAL = 300  # 5 minutes
 
+# Banned users — reverted contributions, blocked from repo
+# Blocked from repo — still shown on leaderboard for past contributions
+# but excluded from future sync updates
+BANNED_USERS: set[str] = set()  # Don't exclude anyone from leaderboard display
+
 # Track sync state
 _last_sync: Optional[datetime] = None
 _sync_lock = asyncio.Lock()
@@ -280,14 +285,16 @@ async def fetch_merged_prs() -> list[dict]:
 
 
 def _extract_bounty_number_from_pr(pr: dict) -> Optional[int]:
-    """Extract linked issue number from PR body (Closes #N)."""
+    """Extract linked issue number from PR title + body (Closes #N)."""
+    title = pr.get("title") or ""
     body = pr.get("body") or ""
+    text = title + " " + body
     patterns = [
         r"(?i)(?:closes|fixes|resolves|implements)\s*#(\d+)",
         r"(?i)(?:closes|fixes|resolves|implements)\s+https://github\.com/[^/]+/[^/]+/issues/(\d+)",
     ]
     for pattern in patterns:
-        m = re.search(pattern, body)
+        m = re.search(pattern, text)
         if m:
             return int(m.group(1))
     return None
@@ -341,12 +348,12 @@ async def sync_bounties() -> int:
         return len(new_store)
 
 
-# ── Known Phase 1 payout data (on-chain payouts, not tracked via labels) ──
-# Maps GitHub username → {bounties_completed, total_fndry, skills}
+# -- Known Phase 1 payout data (on-chain payouts before GitHub sync existed) --
+# Phase 2 data is computed dynamically from merged PRs → closed bounty issues.
+# This only covers Phase 1 payouts that can't be derived from GitHub.
 KNOWN_PAYOUTS: dict[str, dict] = {
     "HuiNeng6": {
-        "bounties_completed": 12,
-        "total_fndry": 1_800_000,
+        "total_fndry": 1_800_000,  # Phase 1 on-chain payouts
         "skills": [
             "Python",
             "FastAPI",
@@ -359,30 +366,45 @@ KNOWN_PAYOUTS: dict[str, dict] = {
         "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
     },
     "ItachiDevv": {
-        "bounties_completed": 8,
-        "total_fndry": 1_750_000,
-        "skills": ["React", "TypeScript", "Tailwind", "Solana", "Frontend"],
-        "bio": "Frontend specialist. React, TypeScript, Tailwind, Solana wallet integration.",
+        "total_fndry": 1_750_000,  # Phase 1 on-chain payouts
+        "skills": [
+            "React",
+            "TypeScript",
+            "Tailwind",
+            "Solana",
+            "Frontend",
+            "Docker",
+            "DevOps",
+        ],
+        "bio": "Full-stack specialist. React, TypeScript, Solana, CI/CD, WebSocket.",
     },
     "LaphoqueRC": {
-        "bounties_completed": 1,
         "total_fndry": 150_000,
         "skills": ["Frontend", "React", "TypeScript"],
         "bio": "Frontend contributor. Landing page & animations.",
     },
     "zhaog100": {
-        "bounties_completed": 1,
         "total_fndry": 150_000,
         "skills": ["Backend", "Python", "FastAPI"],
         "bio": "Backend contributor. API development.",
+    },
+    "KodeSage": {
+        "total_fndry": 0,  # Phase 2 only — computed from merged PRs
+        "skills": ["React", "TypeScript", "FastAPI", "Python", "Solana"],
+        "bio": "Full-stack developer. Marketplace, staking, dashboards.",
+    },
+    "codebestia": {
+        "total_fndry": 0,  # Phase 2 only
+        "skills": ["Python", "FastAPI", "React", "TypeScript"],
+        "bio": "Backend + frontend contributor. Onboarding, lifecycle, logging.",
     },
 }
 
 
 async def sync_contributors() -> int:
-    """Sync merged PRs + known payouts → contributor store for leaderboard."""
-    from app.models.contributor import ContributorDB as ContribDB
-    from app.services.contributor_service import _store
+    """Sync merged PRs + known payouts → PostgreSQL + in-memory cache."""
+    from app.services import contributor_service
+    from decimal import Decimal
     import uuid
 
     logger.info("Starting contributor sync...")
@@ -399,6 +421,9 @@ async def sync_contributors() -> int:
         author = pr.get("user", {}).get("login", "unknown")
         avatar = pr.get("user", {}).get("avatar_url", "")
         if author.endswith("[bot]") or author in ("dependabot", "github-actions"):
+            continue
+        # Skip banned contributors (reverted code, blocked from repo)
+        if author in BANNED_USERS:
             continue
         if author not in author_pr_counts:
             author_pr_counts[author] = {"avatar_url": avatar, "prs": 0}
@@ -417,19 +442,36 @@ async def sync_contributors() -> int:
                     phase2_earnings.get(author, 0) + bounty.reward_amount
                 )
 
-    # Build contributor store — merge known payouts with live PR data
-    new_store: dict[str, ContribDB] = {}
+    # Build contributor data — merge known payouts with live PR data
     now = datetime.now(timezone.utc)
-
-    # All known contributors (from payouts + anyone with merged PRs)
     all_authors = set(KNOWN_PAYOUTS.keys()) | set(author_pr_counts.keys())
+    synced_count = 0
+
+    # Count actual bounty completions per author from merged PRs → closed bounty issues
+    author_bounty_counts: dict[str, int] = {}
+    for pr in prs:
+        author = pr.get("user", {}).get("login", "unknown")
+        if author in BANNED_USERS:
+            continue
+        linked_issue = _extract_bounty_number_from_pr(pr)
+        if linked_issue:
+            bounty_id = f"gh-{linked_issue}"
+            bounty = _bounty_store.get(bounty_id)
+            if bounty and bounty.status == BountyStatus.COMPLETED:
+                author_bounty_counts[author] = author_bounty_counts.get(author, 0) + 1
 
     for author in all_authors:
+        if author in BANNED_USERS:
+            continue
+
         known = KNOWN_PAYOUTS.get(author, {})
         pr_data = author_pr_counts.get(author, {"avatar_url": "", "prs": 0})
 
         total_prs = pr_data["prs"]
-        bounties = known.get("bounties_completed", total_prs)  # fallback to PR count
+        # Use actual bounty count from merged PRs, fall back to known payouts, then PR count
+        bounties = author_bounty_counts.get(
+            author, known.get("bounties_completed", total_prs)
+        )
         earnings = known.get("total_fndry", 0) + phase2_earnings.get(author, 0)
         skills = known.get("skills", [])
         bio = known.get("bio", f"SolFoundry contributor — {total_prs} merged PRs")
@@ -438,7 +480,6 @@ async def sync_contributors() -> int:
             or f"https://avatars.githubusercontent.com/{author}"
         )
 
-        # Compute badges
         badges = []
         if bounties >= 1:
             badges.append("tier-1")
@@ -451,63 +492,58 @@ async def sync_contributors() -> int:
         if total_prs >= 5:
             badges.append("phase-1-og")
 
-        # Reputation score
+        # Reputation score -- uncapped, scales with actual contributions
         rep = 0
-        rep += min(total_prs * 5, 40)
-        rep += min(bounties * 5, 40)
-        rep += min(len(skills) * 3, 20)
+        rep += min(total_prs * 5, 40)  # Up to 40 pts for PRs
+        rep += min(bounties * 10, 40)  # Up to 40 pts for bounties
+        rep += min(len(skills) * 2, 20)  # Up to 20 pts for skill breadth
         rep = min(rep, 100)
 
-        contrib = ContribDB(
-            id=uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
-            username=author,
-            display_name=author,
-            avatar_url=avatar,
-            bio=bio,
-            skills=skills[:10],
-            badges=badges,
-            total_contributions=total_prs,
-            total_bounties_completed=bounties,
-            total_earnings=earnings,
-            reputation_score=rep,
-            created_at=now - timedelta(days=45),
-            updated_at=now,
+        # Upsert to PostgreSQL instead of in-memory dict
+        await contributor_service.upsert_contributor(
+            {
+                "id": uuid.uuid5(uuid.NAMESPACE_DNS, f"solfoundry-{author}"),
+                "username": author,
+                "display_name": author,
+                "avatar_url": avatar,
+                "bio": bio,
+                "skills": skills[:10],
+                "badges": badges,
+                "total_contributions": total_prs,
+                "total_bounties_completed": bounties,
+                "total_earnings": Decimal(str(earnings)),
+                "reputation_score": float(rep),
+                "created_at": now - timedelta(days=45),
+                "updated_at": now,
+            }
         )
-        new_store[str(contrib.id)] = contrib
+        synced_count += 1
 
     # Core team member (doesn't earn bounties)
-    core_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"))
-    if core_id in new_store:
-        # Update existing entry with core team info
-        existing = new_store[core_id]
-        existing.display_name = "SolFoundry Core"
-        existing.badges = ["core-team", "tier-3", "architect"]
-        existing.reputation_score = 100
-        existing.total_earnings = 0  # Core team doesn't earn bounties
-    else:
-        core = ContribDB(
-            id=uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
-            username="mtarcure",
-            display_name="SolFoundry Core",
-            avatar_url="https://avatars.githubusercontent.com/u/mtarcure",
-            bio="SolFoundry core team. Architecture, security, DevOps.",
-            skills=["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
-            badges=["core-team", "tier-3", "architect"],
-            total_contributions=50,
-            total_bounties_completed=15,
-            total_earnings=0,
-            reputation_score=100,
-            created_at=now - timedelta(days=60),
-            updated_at=now,
-        )
-        new_store[str(core.id)] = core
+    await contributor_service.upsert_contributor(
+        {
+            "id": uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
+            "username": "mtarcure",
+            "display_name": "SolFoundry Core",
+            "avatar_url": "https://avatars.githubusercontent.com/u/mtarcure",
+            "bio": "SolFoundry core team. Architecture, security, DevOps.",
+            "skills": ["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
+            "badges": ["core-team", "tier-3", "architect"],
+            "total_contributions": 50,
+            "total_bounties_completed": 15,
+            "total_earnings": Decimal("0"),
+            "reputation_score": 100.0,
+            "created_at": now - timedelta(days=60),
+            "updated_at": now,
+        }
+    )
+    synced_count += 1
 
-    # Atomic swap
-    _store.clear()
-    _store.update(new_store)
+    # Refresh the in-memory cache from PostgreSQL
+    await contributor_service.refresh_store_cache()
 
-    logger.info("Synced %d contributors", len(new_store))
-    return len(new_store)
+    logger.info("Synced %d contributors to PostgreSQL", synced_count)
+    return synced_count
 
 
 def _compute_badges(stats: dict) -> list[str]:

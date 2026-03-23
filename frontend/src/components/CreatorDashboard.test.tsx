@@ -45,7 +45,7 @@ describe('CreatorDashboard', () => {
 
     it('renders loading state initially', () => {
         render(<CreatorDashboard walletAddress="test-wallet" />);
-        expect(screen.getByRole('status')).toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'Loading creator dashboard' })).toBeInTheDocument();
     });
 
     it('renders dashboard title and stats after loading', async () => {

@@ -2,7 +2,7 @@
  * ThemeToggle - Toggle between light, dark, and system theme modes
  * @module components/layout/ThemeToggle
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, ThemeMode } from '../../contexts/ThemeContext';
 
 // ============================================================================
@@ -102,111 +102,152 @@ export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
-    setMounted(true);
+  useEffect(() => { setMounted(true); }, []);
+
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+    setFocusedIndex(-1);
+    triggerRef.current?.focus();
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeMenu();
       }
     }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  // Handle keyboard navigation
-  useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setIsOpen(false);
+        closeMenu();
       }
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, closeMenu]);
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0) {
+      optionRefs.current[focusedIndex]?.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, focusedIndex]);
 
-  // Get current icon based on resolved theme
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex(THEME_OPTIONS.length - 1);
+    }
+  };
+
+  const handleOptionKeyDown = (e: React.KeyboardEvent, index: number) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex((index + 1) % THEME_OPTIONS.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex((index - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length);
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFocusedIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setFocusedIndex(THEME_OPTIONS.length - 1);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        setTheme(THEME_OPTIONS[index].value);
+        closeMenu();
+        break;
+      case 'Escape':
+      case 'Tab':
+        closeMenu();
+        break;
+    }
+  };
+
   const getCurrentIcon = () => {
-    if (resolvedTheme === 'dark') {
-      return <MoonIcon className="w-5 h-5" />;
-    }
+    if (resolvedTheme === 'dark') return <MoonIcon className="w-5 h-5" />;
     return <SunIcon className="w-5 h-5" />;
   };
 
-  // Don't render until mounted (prevents hydration mismatch)
   if (!mounted) {
     return (
-      <button
-        type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-        aria-label="Toggle theme"
-      >
-        <span className="sr-only">Toggle theme</span>
-      </button>
+      <div className="h-11 w-11 shrink-0 rounded-lg" aria-hidden="true" />
     );
   }
 
   return (
     <div ref={dropdownRef} className="relative">
-      {/* Toggle Button */}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 h-9 px-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
-        aria-label="Toggle theme"
+        onClick={() => { setIsOpen(!isOpen); if (!isOpen) setFocusedIndex(0); }}
+        onKeyDown={handleTriggerKeyDown}
+        className="flex h-11 min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
+        aria-label={`Theme: ${theme === 'system' ? `system (${resolvedTheme})` : theme}. Click to change.`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        aria-controls={isOpen ? 'theme-listbox' : undefined}
       >
         {getCurrentIcon()}
         <ChevronDownIcon className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-40 py-1 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-50"
+          id="theme-listbox"
+          className="absolute right-0 mt-2 w-44 py-1 rounded-lg bg-white dark:bg-surface-100 border border-gray-200 dark:border-white/10 shadow-xl z-50"
           role="listbox"
-          aria-label="Theme options"
+          aria-label="Select theme"
+          tabIndex={-1}
         >
-          {THEME_OPTIONS.map((option) => (
+          {THEME_OPTIONS.map((option, index) => (
             <button
               key={option.value}
+              ref={(el) => { optionRefs.current[index] = el; }}
               type="button"
-              onClick={() => {
-                setTheme(option.value);
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors
-                ${theme === option.value
-                  ? 'text-[#14F195] bg-[#14F195]/10'
-                  : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
               role="option"
               aria-selected={theme === option.value}
+              tabIndex={focusedIndex === index ? 0 : -1}
+              onClick={() => { setTheme(option.value); closeMenu(); }}
+              onKeyDown={(e) => handleOptionKeyDown(e, index)}
+              className={`flex w-full min-h-11 items-center gap-3 px-3 py-2 text-base transition-colors outline-none
+                ${theme === option.value
+                  ? 'text-solana-green bg-solana-green/10'
+                  : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'
+                }
+                ${focusedIndex === index ? 'ring-2 ring-inset ring-solana-purple' : ''}`}
             >
               {option.icon}
               <span className="flex-1 text-left">{option.label}</span>
               {theme === option.value && (
-                <CheckIcon className="w-4 h-4 text-[#14F195]" />
+                <CheckIcon className="w-4 h-4 text-solana-green" />
               )}
             </button>
           ))}
-          
-          {/* System hint */}
+
           {theme === 'system' && (
-            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 mt-1">
-              Using {resolvedTheme} mode
+            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 mt-1">
+              Currently using {resolvedTheme} mode
             </div>
           )}
         </div>
@@ -250,7 +291,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     return (
       <button
         type="button"
-        className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF]"
+        className="h-11 w-11 min-h-11 min-w-11 shrink-0 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple"
         aria-label="Toggle theme"
       />
     );
@@ -260,7 +301,7 @@ export function SimpleThemeToggle({ showSystemOption = false }: SimpleThemeToggl
     <button
       type="button"
       onClick={cycleTheme}
-      className="h-9 w-9 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9945FF] transition-colors"
+      className="flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solana-purple transition-colors"
       aria-label={`Current theme: ${theme}. Click to change.`}
     >
       {theme === 'system' ? (

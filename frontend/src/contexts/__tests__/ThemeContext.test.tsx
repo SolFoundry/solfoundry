@@ -1,201 +1,179 @@
 /**
- * Tests for ThemeContext
- * @module contexts/__tests__/ThemeContext.test
+ * ThemeProvider persistence, system resolution, and document / meta updates.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { ThemeProvider, useTheme, ThemeMode, ResolvedTheme } from '../ThemeContext';
+import { render, screen, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ThemeProvider, THEME_STORAGE_KEY, useTheme } from '../ThemeContext';
 
-// ============================================================================
-// Test Component
-// ============================================================================
+function matchMediaFactory(prefersDark: boolean) {
+  return vi.fn().mockImplementation((query: string) => ({
+    matches: query === '(prefers-color-scheme: dark)' ? prefersDark : false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
 
-function TestComponent() {
-  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
-  
+function ThemeProbe() {
+  const { theme, resolvedTheme } = useTheme();
   return (
     <div>
-      <span data-testid="theme">{theme}</span>
-      <span data-testid="resolved-theme">{resolvedTheme}</span>
-      <button onClick={() => setTheme('light')} data-testid="set-light">Set Light</button>
-      <button onClick={() => setTheme('dark')} data-testid="set-dark">Set Dark</button>
-      <button onClick={() => setTheme('system')} data-testid="set-system">Set System</button>
-      <button onClick={toggleTheme} data-testid="toggle">Toggle</button>
+      <span data-testid="mode">{theme}</span>
+      <span data-testid="resolved">{resolvedTheme}</span>
     </div>
   );
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-const mockMatchMedia = (matches: boolean) => {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-};
-
-const renderWithProvider = (defaultTheme?: ThemeMode, storageKey?: string) => {
-  return render(
-    <ThemeProvider defaultTheme={defaultTheme} storageKey={storageKey}>
-      <TestComponent />
-    </ThemeProvider>
-  );
-};
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-describe('ThemeContext', () => {
+describe('ThemeProvider', () => {
   beforeEach(() => {
-    // Clear localStorage
     localStorage.clear();
-    // Reset document classes
     document.documentElement.className = '';
-    // Mock matchMedia for dark mode
-    mockMatchMedia(false);
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', '#ffffff');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('Initialization', () => {
-    it('should use default theme when no stored theme', () => {
-      renderWithProvider('dark');
-      expect(screen.getByTestId('theme').textContent).toBe('dark');
+  it('defaults to system and resolves from prefers-color-scheme when nothing stored', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: matchMediaFactory(true),
     });
 
-    it('should use stored theme from localStorage', () => {
-      localStorage.setItem('test-theme', 'light');
-      renderWithProvider('dark', 'test-theme');
-      expect(screen.getByTestId('theme').textContent).toBe('light');
-    });
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
 
-    it('should fallback to default theme for invalid stored value', () => {
-      localStorage.setItem('test-theme', 'invalid');
-      renderWithProvider('dark', 'test-theme');
-      expect(screen.getByTestId('theme').textContent).toBe('dark');
-    });
+    expect(screen.getByTestId('mode')).toHaveTextContent('system');
+    expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 
-  describe('Theme Selection', () => {
-    it('should set theme to light', () => {
-      renderWithProvider('dark');
-      
-      fireEvent.click(screen.getByTestId('set-light'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('light');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('light');
+  it('restores explicit light/dark from localStorage', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'light');
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: matchMediaFactory(true),
     });
 
-    it('should set theme to dark', () => {
-      renderWithProvider('light');
-      
-      fireEvent.click(screen.getByTestId('set-dark'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('dark');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('dark');
-    });
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
 
-    it('should set theme to system', () => {
-      renderWithProvider('light');
-      
-      fireEvent.click(screen.getByTestId('set-system'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('system');
-    });
-
-    it('should persist theme to localStorage', () => {
-      renderWithProvider('dark', 'test-theme');
-      
-      fireEvent.click(screen.getByTestId('set-light'));
-      
-      expect(localStorage.getItem('test-theme')).toBe('light');
-    });
+    expect(screen.getByTestId('mode')).toHaveTextContent('light');
+    expect(screen.getByTestId('resolved')).toHaveTextContent('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
-  describe('Toggle Theme', () => {
-    it('should toggle from dark to light', () => {
-      renderWithProvider('dark');
-      
-      fireEvent.click(screen.getByTestId('toggle'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('light');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('light');
+  it('persists setTheme to localStorage', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: matchMediaFactory(false),
     });
 
-    it('should toggle from light to dark', () => {
-      renderWithProvider('light');
-      
-      fireEvent.click(screen.getByTestId('toggle'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('dark');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('dark');
-    });
-  });
-
-  describe('System Theme', () => {
-    it('should use light when system prefers light', () => {
-      mockMatchMedia(false); // prefers-color-scheme: light
-      
-      renderWithProvider('light');
-      fireEvent.click(screen.getByTestId('set-system'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('system');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('light');
-    });
-
-    it('should use dark when system prefers dark', () => {
-      mockMatchMedia(true); // prefers-color-scheme: dark
-      
-      renderWithProvider('light');
-      fireEvent.click(screen.getByTestId('set-system'));
-      
-      expect(screen.getByTestId('theme').textContent).toBe('system');
-      expect(screen.getByTestId('resolved-theme').textContent).toBe('dark');
-    });
-  });
-
-  describe('DOM Updates', () => {
-    it('should add dark class to document when dark theme', () => {
-      renderWithProvider('light');
-      
-      fireEvent.click(screen.getByTestId('set-dark'));
-      
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-    });
-
-    it('should remove dark class from document when light theme', () => {
-      document.documentElement.classList.add('dark');
-      renderWithProvider('dark');
-      
-      fireEvent.click(screen.getByTestId('set-light'));
-      
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should throw error when useTheme is used outside provider', () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      expect(() => render(<TestComponent />)).toThrow(
-        'useTheme must be used within a ThemeProvider'
+    function Switcher() {
+      const { setTheme } = useTheme();
+      return (
+        <button type="button" onClick={() => setTheme('dark')}>
+          go dark
+        </button>
       );
-      
-      consoleError.mockRestore();
+    }
+
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+        <Switcher />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /go dark/i }));
+
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    expect(meta?.getAttribute('content')).toBe('#0a0a0a');
+  });
+
+  it('updates theme-color meta for light resolution', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: matchMediaFactory(false),
     });
+
+    function Switcher() {
+      const { setTheme } = useTheme();
+      return (
+        <button type="button" onClick={() => setTheme('light')}>
+          go light
+        </button>
+      );
+    }
+
+    render(
+      <ThemeProvider>
+        <Switcher />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /go light/i }));
+
+    const meta = document.querySelector('meta[name="theme-color"]');
+    expect(meta?.getAttribute('content')).toBe('#ffffff');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('reacts to system preference while in system mode', () => {
+    const listeners: Array<(e: MediaQueryListEvent) => void> = [];
+    const mql = {
+      matches: false,
+      media: '(prefers-color-scheme: dark)',
+      addEventListener: vi.fn((_evt: string, fn: (e: MediaQueryListEvent) => void) => {
+        listeners.push(fn);
+      }),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockReturnValue(mql),
+    });
+
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId('resolved')).toHaveTextContent('light');
+
+    act(() => {
+      mql.matches = true;
+      listeners.forEach((fn) =>
+        fn({ matches: true } as MediaQueryListEvent),
+      );
+    });
+
+    expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 });

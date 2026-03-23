@@ -1,7 +1,15 @@
 import React from 'react';
 import { BountyTag } from '../common/BountyTag';
 
-export function SkillTags({ skills, maxVisible = 3, onTagClick }: { skills: string[]; maxVisible?: number; onTagClick?: (tag: string) => void }) {
+export function SkillTags({ 
+  skills, 
+  maxVisible = 3, 
+  onTagClick 
+}: { 
+  skills: string[]; 
+  maxVisible?: number; 
+  onTagClick?: (tag: string) => void 
+}) {
   const visible = skills.slice(0, maxVisible);
   const overflow = skills.length - maxVisible;
   
@@ -15,7 +23,7 @@ export function SkillTags({ skills, maxVisible = 3, onTagClick }: { skills: stri
         />
       ))}
       {overflow > 0 && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-200 text-gray-500 border border-surface-300">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-200 text-gray-500 border border-surface-300 backdrop-blur-sm">
           +{overflow}
         </span>
       )}

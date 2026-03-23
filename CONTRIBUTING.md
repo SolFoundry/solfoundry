@@ -54,8 +54,8 @@ Your PR is automatically reviewed by **5 AI models in parallel** (GPT-5.4, Gemin
 
 - Scores are aggregated using **trimmed mean** — highest and lowest are dropped, middle 3 averaged.
 - **T1:** Score ≥ 6.0/10 → approved for merge → $FNDRY sent to your wallet automatically.
-- **T2:** Score ≥ 7.0/10 (6.5 for veteran contributors with rep ≥ 80).
-- **T3:** Score ≥ 7.5/10 (7.0 for veteran contributors with rep ≥ 80).
+- **T2:** Score ≥ 6.5/10 (6.0 for veteran contributors with rep ≥ 80).
+- **T3:** Score ≥ 7.0/10 (6.5 for veteran contributors with rep ≥ 80).
 - Score below threshold → changes requested with feedback. Fix the issues and push an update.
 - Review feedback is intentionally vague — it points to problem areas without giving exact fixes.
 
@@ -72,6 +72,100 @@ Your PR gets a **24-hour warning** if:
 - Missing Solana wallet address — add it within 24 hours or it's auto-closed
 
 > **💡 Tip:** There's also a temporary star bounty (issue [#48](https://github.com/SolFoundry/solfoundry/issues/48)) — star the repo and comment with your wallet to earn 10,000 $FNDRY. This is a one-time promo and does NOT count toward tier progression.
+
+---
+
+## Local Development Setup
+
+### Prerequisites
+
+| Tool | Version | Required? |
+|------|---------|-----------|
+| Node.js | 18+ | ✅ Yes |
+| Python | 3.10+ | ✅ Yes |
+| Docker & Docker Compose | latest | 📦 Recommended |
+| Rust | 1.76+ | ⚙️ Smart contracts only |
+| Anchor | 0.30+ | ⚙️ Smart contracts only |
+
+### Quick Start (Docker — Recommended)
+
+```bash
+git clone https://github.com/SolFoundry/solfoundry.git
+cd solfoundry
+cp .env.example .env
+docker compose up --build
+```
+
+This starts PostgreSQL, Redis, the FastAPI backend, and the Next.js frontend.
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| API Docs (Swagger) | http://localhost:8000/docs |
+
+### Manual Setup (No Docker)
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev    # → http://localhost:3000
+```
+
+**Backend:**
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+> **Tip:** If `scripts/setup.sh` exists, you can run `bash scripts/setup.sh` for a one-command setup.
+
+---
+
+## Code Style & PR Naming Conventions
+
+### Branch Naming
+
+Use descriptive branch names that reference the bounty:
+
+```
+feat/bounty-488-readme-badges
+fix/bounty-476-loading-spinners
+docs/bounty-489-contributing-guide
+```
+
+### PR Titles
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+feat: Add README status badges (Closes #488)
+fix: Resolve wallet validation edge case (Closes #502)
+docs: Write contributing guide (Closes #489)
+```
+
+Prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
+
+### Code Style
+
+- **Python (backend):** Follows [Ruff](https://docs.astral.sh/ruff/) defaults. CI runs `ruff check .` on every PR.
+- **TypeScript (frontend):** Follows ESLint config in the repo. CI runs `eslint` and `tsc --noEmit`.
+- **Rust (contracts):** Follows `clippy` defaults.
+- **General:** No trailing whitespace, files end with a newline, UTF-8 encoding.
+
+Run linters locally before pushing:
+
+```bash
+# Backend
+cd backend && ruff check . --fix
+
+# Frontend
+cd frontend && npx eslint . && npx tsc --noEmit
+```
 
 ---
 
@@ -132,7 +226,7 @@ Every PR **must** include a Solana wallet address in the PR description. Use the
 
 ## PR Rules
 
-1. **Max 5 submissions per bounty per person.** Make each attempt count — iterate on review feedback.
+1. **Max 50 submissions per bounty per person.** Make each attempt count — iterate on review feedback.
 2. **Reference the bounty issue** with `Closes #N` in the PR description.
 3. **Follow the PR template.** Description, wallet address, checklist. All of it.
 4. **Code must be clean, tested, and match the issue spec exactly.** Don't over-engineer, don't under-deliver.
@@ -170,8 +264,8 @@ Scores are aggregated using **trimmed mean** — the highest and lowest model sc
 | Tier | Standard | Veteran (rep ≥ 80) |
 |------|----------|-------------------|
 | T1 | 6.0/10 | 6.5/10 (raised to prevent farming) |
-| T2 | 7.0/10 | 6.5/10 |
-| T3 | 7.5/10 | 7.0/10 |
+| T2 | 6.5/10 | 6.0/10 |
+| T3 | 7.0/10 | 6.5/10 |
 
 ### How It Works
 
@@ -199,7 +293,7 @@ These actions run automatically on your PR:
 
 We take this seriously.
 
-- **Max 5 submissions per bounty.** After 5 failed attempts on the same bounty, you're locked out. Make each one count.
+- **Max 50 submissions per bounty.** After 50 failed attempts on the same bounty, you're locked out. Make each one count.
 - **Bulk-dumped AI slop is auto-filtered.** The spam detector catches copy-pasted ChatGPT output. If you didn't write it, don't submit it.
 - **One open PR per bounty per person.** Close your old PR before opening a new one for the same bounty.
 - **Sybil resistance** via on-chain reputation tied to your Solana wallet. Alt accounts don't work here.
@@ -217,11 +311,47 @@ We take this seriously.
 
 ---
 
+## FAQ
+
+**Q: Can I work on multiple bounties at the same time?**
+A: Yes. For T1 and T2, there's no limit on concurrent open PRs. For T3, you can have a maximum of 2 concurrent claims.
+
+**Q: What happens if two people submit passing PRs for the same bounty?**
+A: First one merged wins. Speed matters, especially for T1 bounties.
+
+**Q: My PR scored below the threshold. Can I fix it and resubmit?**
+A: Yes. Push updates to the same PR branch. The review will re-run automatically. You have up to 50 attempts per bounty.
+
+**Q: Do I need to claim a bounty before working on it?**
+A: Only T3 bounties require claiming (comment "claiming" on the issue). T1 and T2 are open races — just submit your PR.
+
+**Q: When do I get paid?**
+A: $FNDRY tokens are sent to your Solana wallet automatically after merge. It usually takes a few minutes.
+
+**Q: Can I use AI tools (Copilot, ChatGPT) to help write code?**
+A: Yes, but the code must be high quality and tailored to the specific bounty. Bulk-dumped AI slop is auto-detected and rejected by the spam filter.
+
+**Q: The review feedback is vague. Can I get more details?**
+A: That's by design. The review points to problem areas without giving exact fixes. Read the feedback carefully, look at the relevant code, and figure it out.
+
+**Q: I found a bug that's not a bounty. Should I submit a PR?**
+A: Sure! Non-bounty contributions are welcome but don't earn $FNDRY or count toward tier progression.
+
+**Q: How do I check my tier progression?**
+A: Look at your merged PRs that reference bounty issues with tier labels. The `claim-guard.yml` action checks your eligibility automatically when you submit to gated tiers.
+
+**Q: My tests pass locally but CI fails. What do I do?**
+A: CI runs linters (`ruff`, `eslint`, `tsc`, `clippy`) and tests on the entire codebase. Make sure you run linters on the full project, not just your changed files.
+
+---
+
 ## Links
 
 - **Repo**: [github.com/SolFoundry/solfoundry](https://github.com/SolFoundry/solfoundry)
+- **Open bounties**: [Issues with bounty label](https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty)
+- **Tier 1 bounties**: [Beginner-friendly tasks](https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Atier-1)
 - **X / Twitter**: [@foundrysol](https://x.com/foundrysol)
-- **Token**: $FNDRY on Solana -- `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
+- **Token**: $FNDRY on Solana — `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
 
 ---
 

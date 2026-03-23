@@ -1,0 +1,87 @@
+name: Escrow Lock Cleanup
+
+# When a PR is closed (not merged), check if it held an escrow lock
+# and remove the review-passed label from the linked bounty issue.
+# This prevents orphaned locks when PRs are closed as spam, manually, etc.
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup-escrow:
+    # Only run for closed (not merged) PRs
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove escrow lock if PR held one
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+            | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
+
+          # Extract linked issue number
+          ISSUE_NUM=$(PR_TITLE="$PR_TITLE" PR_BODY_TEXT="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE', '') + ' ' + os.environ.get('PR_BODY_TEXT', '')
+          m = re.search(r'(?:closes|fixes|resolves)\s+(?:\S+#)?(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
+          " 2>/dev/null)
+
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "No linked issue — nothing to clean up"
+            exit 0
+          fi
+
+          # Check if the bounty issue has review-passed label
+          LABELS=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM" \
+            | python3 -c "import sys,json; print(','.join(l['name'] for l in json.loads(sys.stdin.read()).get('labels',[])))" 2>/dev/null)
+
+          if ! echo "$LABELS" | grep -q "review-passed"; then
+            echo "Issue #$ISSUE_NUM has no review-passed label — nothing to clean up"
+            exit 0
+          fi
+
+          # Verify this closed PR is the one that holds the lock
+          # Check for the escrow-lock-pr-N tracking comment
+          LOCK_HOLDER=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/comments?per_page=100" \
+            | python3 -c "
+          import sys, json, re
+          comments = json.loads(sys.stdin.read())
+          for c in reversed(comments):
+              m = re.search(r'escrow-lock-pr-(\d+)', c.get('body', ''))
+              if m:
+                  print(m.group(1))
+                  break
+          else:
+              print('')
+          " 2>/dev/null)
+
+          if [ -n "$LOCK_HOLDER" ] && [ "$LOCK_HOLDER" != "$PR_NUM" ]; then
+            echo "Lock held by PR #$LOCK_HOLDER, not this PR #$PR_NUM — skipping"
+            exit 0
+          fi
+
+          # Remove the review-passed label
+          echo "Removing review-passed label from issue #$ISSUE_NUM (PR #$PR_NUM closed)"
+          curl -sf -X DELETE \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/labels/review-passed"
+
+          # Post a comment noting the unlock
+          curl -sf -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/comments" \
+            -d "{\"body\":\"🔓 **Escrow lock released** — PR #$PR_NUM was closed without merging.\n\nThis bounty is open for new submissions.\n\n---\n*SolFoundry Review Bot*\"}"
+
+          echo "Escrow lock cleaned up for issue #$ISSUE_NUM"

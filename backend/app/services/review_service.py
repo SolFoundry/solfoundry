@@ -1,13 +1,12 @@
 """AI review integration service.
 
-Manages per-model review scores (GPT, Gemini, Grok) from GitHub Actions
-and computes aggregated scores for submissions.
+Manages per-model review scores (GPT, Gemini, Grok, Sonnet, DeepSeek)
+from GitHub Actions and computes aggregated scores for submissions.
 """
 
 from __future__ import annotations
 
 import threading
-from typing import Optional
 from datetime import datetime, timezone
 
 from app.core.audit import audit_event
@@ -55,6 +54,7 @@ def record_review_score(data: ReviewScoreCreate) -> ReviewScoreResponse:
     )
 
     import uuid
+
     return ReviewScoreResponse(
         id=str(uuid.uuid4()),
         submission_id=data.submission_id,
@@ -84,7 +84,9 @@ def get_aggregated_score(submission_id: str, bounty_id: str) -> AggregatedReview
     """Compute aggregated review scores across all models."""
     scores = get_review_scores(submission_id)
     all_models = {m.value for m in ReviewModel}
-    completed_models = {s.model_name for s in scores if s.review_status == ReviewStatus.COMPLETED}
+    completed_models = {
+        s.model_name for s in scores if s.review_status == ReviewStatus.COMPLETED
+    }
     review_complete = completed_models == all_models
 
     if not scores:
@@ -126,12 +128,13 @@ def get_scores_by_model(submission_id: str) -> dict[str, float]:
 
 
 def is_review_complete(submission_id: str) -> bool:
-    """Check whether all three models have submitted scores."""
+    """Check whether all models have submitted scores."""
     with _lock:
         model_map = _review_store.get(submission_id, {})
         all_models = {m.value for m in ReviewModel}
         completed = {
-            name for name, s in model_map.items()
+            name
+            for name, s in model_map.items()
             if s.review_status == ReviewStatus.COMPLETED
         }
         return completed == all_models

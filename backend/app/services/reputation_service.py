@@ -1,12 +1,18 @@
 """Reputation service with PostgreSQL as primary source of truth (Issue #162).
 
-All read operations query the database. All write operations await the
-database commit before returning. The in-memory store is a synchronized
-cache for fast reads and test compatibility.
+Calculates reputation from review scores and bounty tier.  Manages tier
+progression, anti-farming, score history, and badges.
+
+The reputation history itself remains in-memory for this release (a
+dedicated ``reputation_history`` table is the next migration target).
+Contributor stat updates (``reputation_score``) are persisted to
+PostgreSQL via ``contributor_service.update_reputation_score()``.
+
+PostgreSQL migration path: reputation_history table on contributor_id.
 """
 
+import asyncio
 import logging
-import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -30,7 +36,7 @@ from app.services import contributor_service
 logger = logging.getLogger(__name__)
 
 _reputation_store: dict[str, list[ReputationHistoryEntry]] = {}
-_reputation_lock = threading.Lock()
+_reputation_lock = asyncio.Lock()
 
 
 async def hydrate_from_database() -> None:
@@ -43,11 +49,12 @@ async def hydrate_from_database() -> None:
 
     loaded = await load_reputation()
     if loaded:
-        with _reputation_lock:
-            _reputation_store.update(loaded)
+        _reputation_store.update(loaded)
 
 
-async def _load_reputation_from_db() -> Optional[dict[str, list[ReputationHistoryEntry]]]:
+async def _load_reputation_from_db() -> Optional[
+    dict[str, list[ReputationHistoryEntry]]
+]:
     """Load all reputation data from PostgreSQL.
 
     Returns None on DB failure so callers can fall back to the cache.
@@ -66,20 +73,17 @@ def calculate_earned_reputation(
 ) -> float:
     """Calculate reputation points earned from a single bounty completion.
 
-    Points are awarded when the review score exceeds the tier threshold.
-    Higher tiers have higher thresholds but award more points via a
-    tier multiplier. Veterans face a raised T1 threshold to discourage
-    farming easy bounties.
+    Reputation is proportional to how far the review score exceeds the
+    tier's passing threshold, multiplied by the tier's weight.  Veterans
+    face a raised T1 threshold to discourage farming easy bounties.
 
     Args:
-        review_score: The multi-LLM review score (0.0 to 10.0).
+        review_score: The multi-LLM review score (0.0--10.0).
         bounty_tier: The bounty tier (1, 2, or 3).
-        is_veteran_on_tier1: True if the contributor is a veteran
-            completing a T1 bounty (triggers anti-farming penalty).
+        is_veteran_on_tier1: Whether anti-farming applies (veteran on T1).
 
     Returns:
-        The earned reputation as a float, rounded to 2 decimal places.
-        Returns 0.0 if the score is below the tier threshold.
+        Earned reputation points (0.0 if below threshold).
     """
     tier_multiplier = {1: 1.0, 2: 2.0, 3: 3.0}.get(bounty_tier, 1.0)
     tier_threshold = {1: 6.0, 2: 7.0, 3: 8.0}.get(bounty_tier, 6.0)
@@ -95,14 +99,14 @@ def calculate_earned_reputation(
 def determine_badge(reputation_score: float) -> Optional[ReputationBadge]:
     """Return the highest badge earned for the given cumulative score.
 
-    Iterates badge thresholds in descending order so the first match
-    is always the highest earned badge.
+    Iterates thresholds in descending order so the first match is the
+    highest earned badge, independent of enum declaration order.
 
     Args:
-        reputation_score: The contributor's total reputation score.
+        reputation_score: The contributor's cumulative reputation score.
 
     Returns:
-        The highest earned ReputationBadge, or None if no threshold is met.
+        The highest ``ReputationBadge`` earned, or ``None`` if below bronze.
     """
     for badge in sorted(BADGE_THRESHOLDS, key=BADGE_THRESHOLDS.get, reverse=True):
         if reputation_score >= BADGE_THRESHOLDS[badge]:
@@ -110,16 +114,14 @@ def determine_badge(reputation_score: float) -> Optional[ReputationBadge]:
     return None
 
 
-def count_tier_completions(
-    history: list[ReputationHistoryEntry],
-) -> dict[int, int]:
-    """Count the number of bounties completed per tier from history.
+def count_tier_completions(history: list[ReputationHistoryEntry]) -> dict[int, int]:
+    """Count bounties completed per tier from history.
 
     Args:
-        history: The contributor's reputation history entries.
+        history: List of reputation history entries.
 
     Returns:
-        A dict mapping tier number (1, 2, 3) to completion count.
+        Dictionary mapping tier number (1, 2, 3) to completion count.
     """
     counts = {1: 0, 2: 0, 3: 0}
     for entry in history:
@@ -129,20 +131,23 @@ def count_tier_completions(
 
 
 def determine_current_tier(tier_counts: dict[int, int]) -> ContributorTier:
-    """Determine the highest unlocked tier based on completion counts.
-
-    T1 is available to everyone. T2 requires 4 merged T1 bounties.
-    T3 requires 3 merged T2 bounties.
+    """Determine highest tier: T1 (anyone), T2 (4 T1s), T3 (3 T2s).
 
     Args:
-        tier_counts: Mapping of tier number to completion count.
+        tier_counts: Dictionary from ``count_tier_completions()``.
 
     Returns:
-        The highest ContributorTier the contributor has unlocked.
+        The contributor's current maximum access tier.
     """
-    if tier_counts.get(2, 0) >= TIER_REQUIREMENTS[ContributorTier.T3]["merged_bounties"]:
+    if (
+        tier_counts.get(2, 0)
+        >= TIER_REQUIREMENTS[ContributorTier.T3]["merged_bounties"]
+    ):
         return ContributorTier.T3
-    if tier_counts.get(1, 0) >= TIER_REQUIREMENTS[ContributorTier.T2]["merged_bounties"]:
+    if (
+        tier_counts.get(1, 0)
+        >= TIER_REQUIREMENTS[ContributorTier.T2]["merged_bounties"]
+    ):
         return ContributorTier.T2
     return ContributorTier.T1
 
@@ -150,14 +155,14 @@ def determine_current_tier(tier_counts: dict[int, int]) -> ContributorTier:
 def build_tier_progression(
     tier_counts: dict[int, int], current_tier: ContributorTier
 ) -> TierProgressionDetail:
-    """Build a detailed tier progression breakdown including next-tier info.
+    """Build tier progression breakdown with next-tier info.
 
     Args:
-        tier_counts: Mapping of tier number to completion count.
+        tier_counts: Dictionary from ``count_tier_completions()``.
         current_tier: The contributor's current tier.
 
     Returns:
-        A TierProgressionDetail with counts and next-tier requirements.
+        A ``TierProgressionDetail`` with current and next tier data.
     """
     next_tier: Optional[ContributorTier] = None
     bounties_until_next_tier = 0
@@ -182,58 +187,53 @@ def build_tier_progression(
 
 
 def is_veteran(history: list[ReputationHistoryEntry]) -> bool:
-    """Check if a contributor is a veteran (4+ T1 bounties completed).
-
-    Veterans face an increased T1 threshold to discourage farming
-    easy bounties when they could be tackling harder work.
+    """Check if contributor is a veteran (4+ T1 bounties -> anti-farming).
 
     Args:
-        history: The contributor's reputation history entries.
+        history: The contributor's reputation history.
 
     Returns:
-        True if the contributor has completed 4 or more T1 bounties.
+        ``True`` if the contributor has completed enough T1 bounties
+        to trigger the anti-farming threshold.
     """
     return sum(1 for e in history if e.bounty_tier == 1) >= ANTI_FARMING_THRESHOLD
 
 
-def _allowed_tier_for_contributor(
-    history: list[ReputationHistoryEntry],
-) -> int:
+def _allowed_tier_for_contributor(history: list[ReputationHistoryEntry]) -> int:
     """Return the highest bounty tier a contributor is allowed to submit.
 
     Args:
-        history: The contributor's reputation history entries.
+        history: The contributor's reputation history.
 
     Returns:
-        An integer (1, 2, or 3) representing the max allowed tier.
+        An integer (1, 2, or 3) indicating the max allowed tier.
     """
     tier_counts = count_tier_completions(history)
     current = determine_current_tier(tier_counts)
     return {"T1": 1, "T2": 2, "T3": 3}[current.value]
 
 
-async def record_reputation(
-    data: ReputationRecordCreate,
-) -> ReputationHistoryEntry:
+async def record_reputation(data: ReputationRecordCreate) -> ReputationHistoryEntry:
     """Record reputation earned from a completed bounty.
 
-    Thread-safe. Acquires the lock before checking contributor existence
-    to avoid TOCTOU races. Rejects duplicates (same contributor_id +
-    bounty_id) by returning the existing entry. Validates that the
-    contributor has unlocked the requested bounty tier. The DB write
-    is awaited before returning.
+    Uses an ``asyncio.Lock`` for concurrency safety.  Rejects duplicates
+    (same contributor_id + bounty_id) by returning the existing entry.
+    Validates that the contributor has unlocked the requested tier.
+
+    After recording, updates the contributor's ``reputation_score`` in
+    PostgreSQL via ``contributor_service.update_reputation_score()``.
 
     Args:
         data: The reputation record payload.
 
     Returns:
-        The created or existing ReputationHistoryEntry.
+        The created (or existing duplicate) ``ReputationHistoryEntry``.
 
     Raises:
         ContributorNotFoundError: If the contributor does not exist.
         TierNotUnlockedError: If the bounty tier is not yet unlocked.
     """
-    with _reputation_lock:
+    async with _reputation_lock:
         contributor = await contributor_service.get_contributor_db(data.contributor_id)
         if contributor is None:
             raise ContributorNotFoundError(
@@ -277,11 +277,8 @@ async def record_reputation(
 
         _reputation_store.setdefault(data.contributor_id, []).append(entry)
 
-        # Consistent precision
-        total = sum(
-            r.earned_reputation
-            for r in _reputation_store[data.contributor_id]
-        )
+        # Update reputation score in PostgreSQL
+        total = sum(r.earned_reputation for r in _reputation_store[data.contributor_id])
         await contributor_service.update_reputation_score(
             data.contributor_id, round(total, 2)
         )
@@ -307,12 +304,10 @@ async def get_reputation(
 
     Args:
         contributor_id: The contributor to look up.
-        include_history: When True, attach the 10 most recent history
-            entries. Set to False for lightweight summaries used in
-            leaderboard views.
+        include_history: When ``True``, attach recent history (max 10).
 
     Returns:
-        A ReputationSummary if the contributor exists, None otherwise.
+        ``ReputationSummary`` or ``None`` if the contributor does not exist.
     """
     contributor = await contributor_service.get_contributor_db(contributor_id)
     if contributor is None:
@@ -357,21 +352,21 @@ async def get_reputation(
 async def get_reputation_leaderboard(
     limit: int = 20, offset: int = 0
 ) -> list[ReputationSummary]:
-    """Get contributors ranked by reputation score in descending order.
+    """Get contributors ranked by reputation score descending.
 
     Builds lightweight summaries (no per-entry history) for performance.
 
     Args:
-        limit: Maximum number of results.
-        offset: Number of results to skip.
+        limit: Maximum number of entries.
+        offset: Pagination offset.
 
     Returns:
-        A sorted list of ReputationSummary objects.
+        Sorted list of ``ReputationSummary`` objects.
     """
     all_ids = await contributor_service.list_contributor_ids()
     summaries = []
-    for cid in all_ids:
-        summary = await get_reputation(cid, include_history=False)
+    for contributor_id in all_ids:
+        summary = await get_reputation(contributor_id, include_history=False)
         if summary is not None:
             summaries.append(summary)
     summaries.sort(key=lambda s: (-s.reputation_score, s.username))
@@ -379,7 +374,7 @@ async def get_reputation_leaderboard(
 
 
 async def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
-    """Get the full per-bounty reputation history sorted newest first.
+    """Get per-bounty reputation history sorted newest-first.
 
     Queries PostgreSQL first, falling back to the in-memory store.
 
@@ -387,8 +382,7 @@ async def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
         contributor_id: The contributor to look up.
 
     Returns:
-        A list of ReputationHistoryEntry objects sorted by created_at
-        in descending order.
+        List of ``ReputationHistoryEntry`` sorted by ``created_at`` desc.
     """
     db_reputation = await _load_reputation_from_db()
     if db_reputation is not None:

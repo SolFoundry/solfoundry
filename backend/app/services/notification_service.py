@@ -5,9 +5,14 @@ All methods are designed to work with the Unit of Work pattern
 implemented in the database layer.
 """
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from fastapi import BackgroundTasks
 
 from app.models.notification import (
     NotificationDB,
@@ -176,19 +181,22 @@ class NotificationService:
 
         return count
 
-    async def create_notification(self, data: NotificationCreate) -> NotificationDB:
+    async def create_notification(
+        self,
+        data: NotificationCreate,
+        background_tasks: Optional["BackgroundTasks"] = None,
+    ) -> NotificationDB:
         """
-        Create a new notification.
+        Create a new notification and optionally trigger an email.
 
         Args:
             data: Notification creation data.
+            background_tasks: FastAPI background tasks to avoid blocking.
 
         Returns:
             The created notification.
-
-        Raises:
-            ValueError: If notification_type is invalid.
         """
+
         ntype = data.notification_type
         if isinstance(ntype, NotificationType):
             ntype = ntype.value
@@ -208,9 +216,76 @@ class NotificationService:
         )
 
         self.db.add(notification)
-        # Session will auto-commit on exit
+
+        # Trigger email notification in background if applicable
+        if background_tasks:
+            background_tasks.add_task(
+                self._trigger_email_notification,
+                user_id=data.user_id,
+                notification_type=ntype,
+                title=data.title,
+                message=data.message,
+                bounty_id=data.bounty_id,
+                extra_data=data.extra_data,
+            )
 
         return notification
+
+    async def _trigger_email_notification(
+        self,
+        user_id: str,
+        notification_type: str,
+        title: str,
+        message: str,
+        bounty_id: Optional[str] = None,
+        extra_data: Optional[dict] = None,
+    ) -> None:
+        """Background task to send an email notification."""
+        from app.services import contributor_service
+        from app.services.email_service import (
+            can_send_email,
+            increment_email_count,
+            send_notification_email,
+        )
+
+        # 1. Fetch contributor to get email and preferences
+        contributor = await contributor_service.get_contributor(user_id)
+        if not contributor or not contributor.email:
+            return
+
+        # 2. Check preferences
+        if not contributor.email_notifications_enabled:
+            return
+
+        # Check specific preference
+        prefs = contributor.notification_preferences or {}
+        if not prefs.get(notification_type, True):
+            return
+
+        # 3. Check rate limit
+        if not await can_send_email(user_id):
+            return
+
+        # 4. Send email
+        context = {
+            "title": title,
+            "message": message,
+            "bounty_id": bounty_id,
+            "extra_data": extra_data,
+            "unsubscribe_token": contributor.unsubscribe_token,
+            "username": contributor.username,
+        }
+
+        success = await send_notification_email(
+            to=contributor.email,
+            subject=f"[SolFoundry] {title}",
+            template_name="notification",
+            context=context,
+        )
+
+        # 5. Increment count on success
+        if success:
+            await increment_email_count(user_id)
 
     async def delete_notification(self, notification_id: str, user_id: str) -> bool:
         """

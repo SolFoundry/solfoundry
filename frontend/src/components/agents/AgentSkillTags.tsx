@@ -11,7 +11,7 @@ export function AgentSkillTags({ title, tags, variant = 'green' }: AgentSkillTag
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</h3>
+      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 dark:text-gray-400">{title}</h3>
       <div className="flex flex-wrap gap-2">
         {tags.map(tag => (
           <span

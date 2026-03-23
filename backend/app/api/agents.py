@@ -8,8 +8,10 @@ marketplace. This is a core building block for the Phase 2 Agent Marketplace.
 ## Endpoints
 
 - POST /api/agents/register - Register a new agent
-- GET /api/agents/{agent_id} - Get agent profile by ID
+- GET /api/agents/leaderboard - Reputation leaderboard (active agents)
 - GET /api/agents - List agents with pagination and filters
+- GET /api/agents/{agent_id} - Get agent profile by ID
+- POST /api/agents/{agent_id}/activity - Append activity log entry (operator wallet)
 - PATCH /api/agents/{agent_id} - Update agent (authenticated)
 - DELETE /api/agents/{agent_id} - Deactivate agent (soft delete, authenticated)
 
@@ -38,11 +40,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.errors import ErrorResponse
 from app.models.agent import (
+    AgentActivityAppend,
     AgentCreate,
-    AgentUpdate,
-    AgentResponse,
+    AgentLeaderboardResponse,
     AgentListResponse,
+    AgentResponse,
     AgentRole,
+    AgentUpdate,
 )
 from app.services import agent_service
 
@@ -74,6 +78,7 @@ Register a new AI agent on the SolFoundry marketplace.
 | languages | array | No | List of programming languages |
 | apis | array | No | List of APIs the agent can work with |
 | operator_wallet | string | Yes | Solana wallet address for payouts |
+| api_endpoint | string | No | HTTPS base URL for the agent service |
 
 ## Valid Roles
 
@@ -109,44 +114,25 @@ async def register_agent(
 
 
 # ---------------------------------------------------------------------------
-# GET /api/agents/{agent_id} - Get agent by ID
+# GET /api/agents/leaderboard - Reputation leaderboard (before /{agent_id})
 # ---------------------------------------------------------------------------
 
 
 @router.get(
-    "/{agent_id}",
-    response_model=AgentResponse,
-    summary="Get agent profile by ID",
+    "/leaderboard",
+    response_model=AgentLeaderboardResponse,
+    summary="Agent reputation leaderboard",
     description="""
-Retrieve detailed information about a specific agent.
-
-## Path Parameters
-
-- `agent_id`: UUID of the agent
-
-## Response
-
-Returns full agent profile.
-
-## Errors
-
-- 404: Agent not found
+Active agents ranked by `reputation_score`, then `success_rate`, then `bounties_completed`.
+Used by the Agent Marketplace UI alongside the browsable agent grid.
 """,
-    responses={
-        404: {"model": ErrorResponse, "description": "Agent not found"},
-    },
 )
-async def get_agent(
-    agent_id: str,
+async def agent_leaderboard(
+    limit: int = Query(50, ge=1, le=100, description="Max rows to return"),
     db: AsyncSession = Depends(get_db),
-) -> AgentResponse:
-    """Get an agent profile by ID."""
-    result = await agent_service.get_agent(db, agent_id)
-    if not result:
-        raise HTTPException(
-            status_code=404, detail=f"Agent with id '{agent_id}' not found"
-        )
-    return result
+) -> AgentLeaderboardResponse:
+    """Return ranked agents for marketplace leaderboard."""
+    return await agent_service.list_leaderboard(db, limit=limit)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +189,95 @@ async def list_agents(
 
 
 # ---------------------------------------------------------------------------
+# GET /api/agents/{agent_id} - Get agent by ID
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{agent_id}",
+    response_model=AgentResponse,
+    summary="Get agent profile by ID",
+    description="""
+Retrieve detailed information about a specific agent.
+
+## Path Parameters
+
+- `agent_id`: UUID of the agent
+
+## Response
+
+Returns full agent profile including `activity_log`, stats, and optional `api_endpoint`.
+
+## Errors
+
+- 404: Agent not found
+""",
+    responses={
+        404: {"model": ErrorResponse, "description": "Agent not found"},
+    },
+)
+async def get_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AgentResponse:
+    """Get an agent profile by ID."""
+    result = await agent_service.get_agent(db, agent_id)
+    if not result:
+        raise HTTPException(
+            status_code=404, detail=f"Agent with id '{agent_id}' not found"
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# POST /api/agents/{agent_id}/activity - Append activity (operator auth)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{agent_id}/activity",
+    response_model=AgentResponse,
+    summary="Append agent activity log entry",
+    description="""
+Append a timestamped event to the agent's public activity feed (newest first).
+Requires `X-Operator-Wallet` matching the registering wallet.
+""",
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing operator wallet header"},
+        403: {"model": ErrorResponse, "description": "Not the operator"},
+        404: {"model": ErrorResponse, "description": "Agent not found"},
+    },
+)
+async def append_agent_activity(
+    agent_id: str,
+    body: AgentActivityAppend,
+    x_operator_wallet: Optional[str] = Header(
+        None,
+        description="Solana wallet address of the operator",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> AgentResponse:
+    """Append one row to the agent activity log."""
+    if not x_operator_wallet:
+        raise HTTPException(
+            status_code=401,
+            detail="X-Operator-Wallet header is required to append activity",
+        )
+    result, error = await agent_service.append_agent_activity(
+        db, agent_id, x_operator_wallet, body
+    )
+    if error:
+        if "not found" in error.lower() or "invalid" in error.lower():
+            raise HTTPException(
+                status_code=404, detail=f"Agent with id '{agent_id}' not found"
+            )
+        if "unauthorized" in error.lower():
+            raise HTTPException(status_code=403, detail=error)
+        raise HTTPException(status_code=400, detail=error)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # PATCH /api/agents/{agent_id} - Update agent
 # ---------------------------------------------------------------------------
 
@@ -213,8 +288,14 @@ async def list_agents(
     summary="Update agent profile",
     description="Update an existing agent's profile. Requires operator wallet verification.",
     responses={
-        401: {"model": ErrorResponse, "description": "X-Operator-Wallet header missing"},
-        403: {"model": ErrorResponse, "description": "Not authorized (not the operator)"},
+        401: {
+            "model": ErrorResponse,
+            "description": "X-Operator-Wallet header missing",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized (not the operator)",
+        },
         404: {"model": ErrorResponse, "description": "Agent not found"},
     },
 )
