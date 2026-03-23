@@ -78,6 +78,16 @@ class FailingRedis:
         raise RedisError("redis fail")
 
 
+class MockEngine:
+    """Mock SQLAlchemy AsyncEngine whose connect() returns a given context manager."""
+
+    def __init__(self, conn_ctx):
+        self._conn_ctx = conn_ctx
+
+    def connect(self):
+        return self._conn_ctx
+
+
 def _mock_solana_success():
     """Mock httpx client that returns a successful Solana RPC response."""
     mock_resp = MagicMock(spec=Response)
@@ -209,13 +219,13 @@ class TestOverallStatus:
 
 class TestCheckDatabase:
     def test_healthy(self):
-        with patch.object(_db_engine, "connect", return_value=MockConn()):
+        with patch("app.api.health.engine", new=MockEngine(MockConn())):
             result = run_async(_check_database())
         assert result["status"] == "healthy"
         assert "latency_ms" in result
 
     def test_sqlalchemy_error(self):
-        with patch.object(_db_engine, "connect", return_value=FailingConn()):
+        with patch("app.api.health.engine", new=MockEngine(FailingConn())):
             result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "connection_error"
@@ -228,7 +238,7 @@ class TestCheckDatabase:
             async def __aexit__(self, *a):
                 pass
 
-        with patch.object(_db_engine, "connect", return_value=UnexpectedConn()):
+        with patch("app.api.health.engine", new=MockEngine(UnexpectedConn())):
             result = run_async(_check_database())
         assert result["status"] == "unavailable"
         assert result["error"] == "unexpected_error"
@@ -473,7 +483,7 @@ def test_health_all_services_up():
     """Returns 'healthy' when all services are reachable."""
     solana_patch, github_patch = _patch_all_external_healthy()
     with (
-        patch.object(_db_engine, "connect", return_value=MockConn()),
+        patch("app.api.health.engine", new=MockEngine(MockConn())),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,
@@ -502,7 +512,7 @@ def test_health_check_db_down():
     """Returns 'unavailable' when database throws connection exception."""
     solana_patch, github_patch = _patch_all_external_healthy()
     with (
-        patch.object(_db_engine, "connect", return_value=FailingConn()),
+        patch("app.api.health.engine", new=MockEngine(FailingConn())),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,
@@ -526,7 +536,7 @@ def test_health_check_redis_down():
     """Returns 'unavailable' when Redis throws connection exception."""
     solana_patch, github_patch = _patch_all_external_healthy()
     with (
-        patch.object(_db_engine, "connect", return_value=MockConn()),
+        patch("app.api.health.engine", new=MockEngine(MockConn())),
         patch("app.api.health.from_url", return_value=FailingRedis()),
         solana_patch,
         github_patch,
@@ -550,7 +560,7 @@ def test_health_check_both_core_down():
     """Returns 'unavailable' when both DB and Redis are disconnected."""
     solana_patch, github_patch = _patch_all_external_healthy()
     with (
-        patch.object(_db_engine, "connect", return_value=FailingConn()),
+        patch("app.api.health.engine", new=MockEngine(FailingConn())),
         patch("app.api.health.from_url", return_value=FailingRedis()),
         solana_patch,
         github_patch,
@@ -575,7 +585,7 @@ def test_health_response_structure():
     """Verify the full response schema."""
     solana_patch, github_patch = _patch_all_external_healthy()
     with (
-        patch.object(_db_engine, "connect", return_value=MockConn()),
+        patch("app.api.health.engine", new=MockEngine(MockConn())),
         patch("app.api.health.from_url", return_value=MockRedis()),
         solana_patch,
         github_patch,

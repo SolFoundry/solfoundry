@@ -22,7 +22,8 @@ def test_structured_error_404():
     response = client.get("/non-existent-path")
     assert response.status_code == 404
     data = response.json()
-    assert "error" in data
+    # Error responses use "message" key (not "error") per the global exception handler
+    assert "message" in data
     assert "request_id" in data
     assert "code" in data
     assert data["code"] == "HTTP_404"
@@ -43,7 +44,8 @@ def test_structured_error_401_auth_error():
     response = client.get("/test-auth-error")
     assert response.status_code == 401
     data = response.json()
-    assert data["error"] == "Unauthorized specifically"
+    # AuthError handler returns "message" key per the global exception handler
+    assert data["message"] == "Unauthorized specifically"
     assert data["code"] == "AUTH_ERROR"
 
 
@@ -58,7 +60,8 @@ def test_structured_error_400_value_error():
     response = client.get("/test-value-error")
     assert response.status_code == 400
     data = response.json()
-    assert data["error"] == "Invalid input data"
+    # ValueError handler returns "message" key per the global exception handler
+    assert data["message"] == "Invalid input data"
     assert data["code"] == "VALIDATION_ERROR"
 
 
@@ -75,13 +78,12 @@ def test_health_check_format():
 
 def test_audit_log_creation():
     """Verify that audit logs are written for sensitive operations."""
-    # Trigger a payout creation (will log to audit.log)
-    # We need to mock the DB or use the in-memory store if possible.
+    import asyncio
     from app.services.payout_service import create_payout
     from app.models.payout import PayoutCreate
 
-    data = PayoutCreate(
-        recipient="test-user",
+    payload = PayoutCreate(
+        recipient="test-user-audit",
         recipient_wallet="C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS",  # Valid base58 address
         amount=100.0,
         token="FNDRY",
@@ -89,16 +91,30 @@ def test_audit_log_creation():
         bounty_title="Test Bounty",
     )
 
-    # Just call the service method
-    create_payout(data)
+    # create_payout is async — run it in a fresh event loop
+    asyncio.run(create_payout(payload))
 
-    # Check if logs/audit.log exists and has the entry
+    # Check if logs/audit.log exists and has the payout_created entry
     audit_log_path = "logs/audit.log"
-    assert os.path.exists(audit_log_path)
+    assert os.path.exists(audit_log_path), f"Audit log not found at {audit_log_path}"
 
+    payout_entry = None
     with open(audit_log_path, "r") as f:
-        lines = f.readlines()
-        last_line = json.loads(lines[-1])
-        assert last_line["event"] == "payout_created"
-        assert last_line["recipient"] == "test-user"
-        assert last_line["amount"] == 100.0
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                # Find the payout_created event for our test recipient
+                if (
+                    entry.get("event") == "payout_created"
+                    and entry.get("recipient") == "test-user-audit"
+                ):
+                    payout_entry = entry
+            except json.JSONDecodeError:
+                continue
+
+    assert payout_entry is not None, "payout_created audit event not found in log"
+    assert payout_entry["recipient"] == "test-user-audit"
+    assert payout_entry["amount"] == 100.0
