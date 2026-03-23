@@ -5,14 +5,14 @@ contributor webhooks. Outbound payloads are signed with HMAC-SHA256
 so recipients can verify authenticity.
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
 import logging
-import os
 import secrets
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 from fastapi import HTTPException, status
@@ -23,6 +23,7 @@ from app.models.contributor_webhook import (
     ContributorWebhookCreate,
     ContributorWebhookDB,
     ContributorWebhookList,
+    ContributorWebhookRegistrationResponse,
     ContributorWebhookResponse,
 )
 
@@ -42,7 +43,7 @@ VALID_EVENTS = frozenset(
 # Maximum webhooks a single user may register
 MAX_WEBHOOKS_PER_USER = 10
 
-# Retry schedule in seconds
+# Retry schedule in seconds — only applied for transient (5xx / network) errors
 RETRY_DELAYS = (1, 2, 4)
 
 
@@ -69,18 +70,21 @@ class ContributorWebhookService:
         self,
         user_id: str,
         payload: ContributorWebhookCreate,
-    ) -> ContributorWebhookResponse:
+    ) -> ContributorWebhookRegistrationResponse:
         """Register a new webhook for the given user.
 
         Generates a cryptographically random 32-byte secret (64 hex chars)
-        that the caller can use to verify HMAC-SHA256 signatures.
+        that the caller can use to verify HMAC-SHA256 signatures. The
+        secret is returned **only once** in this response and is never
+        surfaced again.
 
         Args:
             user_id: The authenticated user's identifier.
-            payload: Validated registration data (URL + optional event filter).
+            payload: Validated registration data (HTTPS URL + optional event filter).
 
         Returns:
-            ContributorWebhookResponse: The newly created webhook (no secret).
+            ContributorWebhookRegistrationResponse: The newly created webhook
+                including the one-time HMAC secret.
 
         Raises:
             HTTPException 400: If any supplied event name is invalid.
@@ -125,7 +129,14 @@ class ContributorWebhookService:
         await self._db.commit()
         await self._db.refresh(webhook)
 
-        return self._to_response(webhook)
+        return ContributorWebhookRegistrationResponse(
+            id=str(webhook.id),
+            url=webhook.url,
+            events=webhook.events,
+            active=webhook.active,
+            created_at=webhook.created_at,
+            secret=secret,
+        )
 
     async def list_webhooks(self, user_id: str) -> ContributorWebhookList:
         """Return all active webhooks belonging to the given user.
@@ -186,9 +197,12 @@ class ContributorWebhookService:
     ) -> None:
         """Find all active webhooks subscribed to *event_type* and deliver.
 
-        Delivery is attempted up to three times with exponential back-off
-        (1 s, 2 s, 4 s). Failures after all retries are logged as warnings
-        and do not propagate to the caller.
+        Delivery to all matching endpoints is performed concurrently via
+        ``asyncio.gather``. Each individual delivery is attempted up to
+        three times with exponential back-off (1 s, 2 s, 4 s) **only for
+        transient 5xx or network errors**. Client errors (4xx) are treated
+        as permanent failures and are not retried. Failures after all retries
+        are logged as warnings and do not propagate to the caller.
 
         Args:
             event_type: One of the VALID_EVENTS strings (e.g. "bounty.claimed").
@@ -223,6 +237,7 @@ class ContributorWebhookService:
         payload_bytes = json.dumps(raw_payload, separators=(",", ":")).encode("utf-8")
 
         async with httpx.AsyncClient(timeout=10.0) as client:
+            tasks = []
             for webhook in targets:
                 signature = ContributorWebhookService._sign_payload(
                     payload_bytes, webhook.secret
@@ -232,13 +247,18 @@ class ContributorWebhookService:
                     "X-SolFoundry-Signature": signature,
                     "X-SolFoundry-Event": event_type,
                 }
-                await ContributorWebhookService._deliver_with_retry(
-                    client=client,
-                    url=webhook.url,
-                    payload_bytes=payload_bytes,
-                    headers=headers,
-                    webhook_id=str(webhook.id),
+                tasks.append(
+                    ContributorWebhookService._deliver_with_retry(
+                        client=client,
+                        url=webhook.url,
+                        payload_bytes=payload_bytes,
+                        headers=headers,
+                        webhook_id=str(webhook.id),
+                    )
                 )
+
+            # Deliver to all endpoints concurrently; errors are caught per-task
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     @staticmethod
     async def _deliver_with_retry(
@@ -250,6 +270,12 @@ class ContributorWebhookService:
     ) -> None:
         """Attempt delivery with retries and exponential back-off.
 
+        Retry policy:
+        - **5xx responses and network errors**: retried up to 3 times with
+          delays of 1 s, 2 s, and 4 s.
+        - **4xx responses**: treated as permanent client errors; no retries.
+        - **2xx / 3xx responses**: treated as successful delivery.
+
         Args:
             client: Shared httpx async client.
             url: Destination URL.
@@ -257,20 +283,33 @@ class ContributorWebhookService:
             headers: HTTP headers including the HMAC signature.
             webhook_id: Identifier used in log messages.
         """
-        import asyncio
-
         last_error: Optional[Exception] = None
 
         for attempt, delay in enumerate(RETRY_DELAYS, start=1):
             try:
                 response = await client.post(url, content=payload_bytes, headers=headers)
-                if response.status_code < 500:
-                    # Treat anything below 5xx as a successful delivery
+
+                if response.status_code < 400:
+                    # 2xx / 3xx — successful delivery
                     return
+
+                if 400 <= response.status_code < 500:
+                    # 4xx — permanent client error; do not retry
+                    logger.warning(
+                        "Webhook delivery for %s got permanent client error %d; "
+                        "aborting retries",
+                        webhook_id,
+                        response.status_code,
+                    )
+                    return
+
+                # 5xx — transient server error; eligible for retry
                 last_error = Exception(
                     f"HTTP {response.status_code} from {url}"
                 )
+
             except Exception as exc:
+                # Network-level failure (timeout, connection refused, etc.)
                 last_error = exc
 
             if attempt < len(RETRY_DELAYS):
@@ -310,7 +349,7 @@ class ContributorWebhookService:
 
     @staticmethod
     def _to_response(webhook: ContributorWebhookDB) -> ContributorWebhookResponse:
-        """Convert a DB row to the public response schema.
+        """Convert a DB row to the public response schema (no secret).
 
         Args:
             webhook: SQLAlchemy model instance.

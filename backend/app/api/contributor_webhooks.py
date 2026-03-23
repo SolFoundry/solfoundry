@@ -16,7 +16,7 @@ from app.database import get_db
 from app.models.contributor_webhook import (
     ContributorWebhookCreate,
     ContributorWebhookList,
-    ContributorWebhookResponse,
+    ContributorWebhookRegistrationResponse,
 )
 from app.models.errors import ErrorResponse
 from app.services.contributor_webhook_service import ContributorWebhookService
@@ -57,17 +57,17 @@ async def list_webhooks(
 
 @router.post(
     "/register",
-    response_model=ContributorWebhookResponse,
+    response_model=ContributorWebhookRegistrationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a webhook",
     description=(
-        "Register a new webhook URL. A unique HMAC secret is generated per webhook "
-        "and used to sign all outbound payloads via the "
-        "``X-SolFoundry-Signature`` header. "
+        "Register a new webhook URL (HTTPS only). A unique HMAC secret is generated "
+        "per webhook and returned **once** in this response — store it securely. "
+        "All outbound payloads are signed via the ``X-SolFoundry-Signature`` header. "
         "Maximum 10 active webhooks per user."
     ),
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid event type(s)"},
+        400: {"model": ErrorResponse, "description": "Invalid event type(s) or non-HTTPS URL"},
         401: {"model": ErrorResponse, "description": "Authentication required"},
         429: {"model": ErrorResponse, "description": "Webhook limit reached (max 10)"},
     },
@@ -76,19 +76,20 @@ async def register_webhook(
     payload: ContributorWebhookCreate,
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> ContributorWebhookResponse:
+) -> ContributorWebhookRegistrationResponse:
     """Register a webhook endpoint for the authenticated user.
 
     Args:
-        payload: URL and optional event-type filter.
+        payload: HTTPS URL and optional event-type filter.
         user_id: Injected by the auth dependency.
         db: Async database session.
 
     Returns:
-        ContributorWebhookResponse: The newly created webhook record.
+        ContributorWebhookRegistrationResponse: The newly created webhook
+            record including the one-time HMAC secret.
 
     Raises:
-        HTTPException 400: If unknown event names are supplied.
+        HTTPException 400: If unknown event names or a non-HTTPS URL is supplied.
         HTTPException 429: If the user has reached the 10-webhook limit.
     """
     service = ContributorWebhookService(db)

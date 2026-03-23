@@ -5,6 +5,7 @@ review scores, approve, dispute, lifecycle log,
 search, autocomplete, hot bounties, recommended bounties.
 """
 
+import asyncio
 from typing import Optional
 
 from pydantic import BaseModel, Field as PydanticField
@@ -47,6 +48,7 @@ from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
+from app.services.contributor_webhook_service import ContributorWebhookService
 
 
 async def _verify_bounty_ownership(bounty_id: str, user: UserResponse):
@@ -377,6 +379,7 @@ async def submit_solution(
     bounty_id: str,
     data: SubmissionCreate,
     user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Attach a PR submission to an open bounty for review."""
     data.submitted_by = user.wallet_address or str(user.id)
@@ -395,6 +398,20 @@ async def submit_solution(
         actor_id=data.submitted_by,
         actor_type="user",
         details={"pr_url": data.pr_url, "contributor_wallet": data.contributor_wallet},
+    )
+
+    # Notify subscribed webhooks that review has started — fire-and-forget
+    asyncio.create_task(
+        ContributorWebhookService.dispatch_event(
+            event_type="review.started",
+            bounty_id=bounty_id,
+            data={
+                "submission_id": result.id,
+                "pr_url": data.pr_url,
+                "contributor_wallet": data.contributor_wallet,
+            },
+            db=db,
+        )
     )
 
     return result
@@ -438,6 +455,7 @@ async def record_review_score(
     bounty_id: str,
     submission_id: str,
     data: ReviewScoreCreate,
+    db: AsyncSession = Depends(get_db),
 ) -> ReviewScoreResponse:
     sub = bounty_service.get_submission(bounty_id, submission_id)
     if sub is None:
@@ -467,6 +485,24 @@ async def record_review_score(
         review_complete=aggregated.review_complete,
         meets_threshold=aggregated.meets_threshold,
     )
+
+    # When the multi-model review is fully complete, dispatch review outcome webhook
+    if aggregated.review_complete:
+        webhook_event = (
+            "review.passed" if aggregated.meets_threshold else "review.failed"
+        )
+        asyncio.create_task(
+            ContributorWebhookService.dispatch_event(
+                event_type=webhook_event,
+                bounty_id=bounty_id,
+                data={
+                    "submission_id": submission_id,
+                    "overall_score": aggregated.overall_score,
+                    "meets_threshold": aggregated.meets_threshold,
+                },
+                db=db,
+            )
+        )
 
     return score_resp
 
@@ -742,14 +778,26 @@ async def claim_bounty(
     bounty_id: str,
     body: Optional[ClaimRequest] = None,
     user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> BountyResponse:
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
-        return _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        result = _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
+
+    # Notify subscribed webhooks — fire-and-forget (non-blocking)
+    asyncio.create_task(
+        ContributorWebhookService.dispatch_event(
+            event_type="bounty.claimed",
+            bounty_id=bounty_id,
+            data={"claimer_id": claimer_id},
+            db=db,
+        )
+    )
+    return result
 
 
 @router.post(

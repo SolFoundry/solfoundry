@@ -11,10 +11,9 @@ Covers:
 import asyncio
 import hashlib
 import hmac
+import httpx
 import json
-import os
 import uuid
-from datetime import datetime, timezone
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -36,7 +35,6 @@ from app.database import Base, engine as _engine
 # Belt-and-suspenders: ensure the table exists no matter when this module loads.
 def _ensure_table():
     import asyncio as _asyncio
-    from sqlalchemy import inspect as _inspect
 
     async def _create():
         async with _engine.begin() as conn:
@@ -54,12 +52,11 @@ def _ensure_table():
 
 _ensure_table()
 
-from app.database import get_db
-from app.main import app
-from app.services.contributor_webhook_service import (
+from app.database import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.services.contributor_webhook_service import (  # noqa: E402
     ContributorWebhookService,
     MAX_WEBHOOKS_PER_USER,
-    VALID_EVENTS,
 )
 
 # ---------------------------------------------------------------------------
@@ -121,7 +118,9 @@ class TestRegisterWebhook:
         assert body["url"] == SAMPLE_URL
         assert body["active"] is True
         assert body["events"] is None  # all events
-        assert "secret" not in body  # secret must never be exposed
+        # Registration response MUST include the one-time HMAC secret
+        assert "secret" in body
+        assert len(body["secret"]) == 64  # 32 bytes → 64 hex chars
 
     @pytest.mark.asyncio
     async def test_register_webhook_with_events_filter(self, client):
@@ -344,7 +343,7 @@ class TestDispatchEvent:
     async def test_dispatch_sends_correct_payload(self, db_session):
         """Dispatched payload matches the documented format."""
         service = ContributorWebhookService(db_session)
-        webhook = await service.register_webhook(
+        await service.register_webhook(
             USER_A, ContributorWebhookCreate(url="https://example.com/dispatch-test")
         )
 
@@ -493,8 +492,6 @@ class TestDispatchEvent:
 
         async def always_fail(*args, **kwargs):
             raise httpx.ConnectError("connection refused")
-
-        import httpx as _httpx  # noqa: F401 (ensure correct module patched)
 
         with patch("httpx.AsyncClient.post", side_effect=always_fail), \
              patch("asyncio.sleep", new_callable=AsyncMock):
