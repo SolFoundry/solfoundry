@@ -7,6 +7,7 @@ Checks four services:
 - GitHub API rate limit availability
 """
 
+import asyncio
 import logging
 import os
 import time
@@ -84,8 +85,13 @@ async def _check_solana_rpc() -> dict:
                 json={"jsonrpc": "2.0", "id": 1, "method": "getSlot"},
             )
             resp.raise_for_status()
-            data = resp.json()
-            slot = data.get("result")
+            try:
+                data = resp.json()
+                slot = data.get("result")
+            except Exception as exc:
+                logger.warning("Solana RPC malformed response: %s", exc)
+                latency_ms = round((time.monotonic() - start) * 1000)
+                return {"status": "degraded", "latency_ms": latency_ms, "error": "malformed_response"}
         latency_ms = round((time.monotonic() - start) * 1000)
         if slot is not None:
             return {"status": "healthy", "latency_ms": latency_ms, "slot": slot}
@@ -118,16 +124,24 @@ async def _check_github_api() -> dict:
                 headers=headers,
             )
             resp.raise_for_status()
-            data = resp.json()
+            try:
+                data = resp.json()
+            except Exception as exc:
+                logger.warning("GitHub API malformed response: %s", exc)
+                latency_ms = round((time.monotonic() - start) * 1000)
+                return {"status": "degraded", "latency_ms": latency_ms, "error": "malformed_response"}
         latency_ms = round((time.monotonic() - start) * 1000)
         core = data.get("resources", {}).get("core", {})
         remaining = core.get("remaining", 0)
         limit = core.get("limit", 0)
         reset_at = core.get("reset", 0)
 
-        # Consider degraded if less than 10% of rate limit remaining
-        threshold = max(limit * 0.1, 100)
-        status = "healthy" if remaining >= threshold else "degraded"
+        # Consider degraded if less than 10% of rate limit remaining.
+        # When limit is 0 (unexpected), treat as degraded.
+        if limit > 0:
+            status = "healthy" if remaining >= limit * 0.1 else "degraded"
+        else:
+            status = "degraded"
 
         return {
             "status": status,
@@ -186,10 +200,12 @@ async def health_check() -> dict:
         - ``degraded``: service is reachable but impaired (slow, rate-limited)
         - ``unavailable``: service cannot be reached
     """
-    db = await _check_database()
-    redis = await _check_redis()
-    solana = await _check_solana_rpc()
-    github = await _check_github_api()
+    db, redis, solana, github = await asyncio.gather(
+        _check_database(),
+        _check_redis(),
+        _check_solana_rpc(),
+        _check_github_api(),
+    )
 
     services = {
         "database": db,
