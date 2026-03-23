@@ -40,13 +40,16 @@ version_gt() {
     if command -v python3 &> /dev/null; then
         python3 -c "import sys; from packaging.version import parse; sys.exit(0 if parse('$1') > parse('$2') else 1)" 2>/dev/null && return 0 || return 1
     fi
-    # Fallback to GNU sort if available
-    if echo "1.0" | sort -V >/dev/null 2>&1; then
-        test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"
-    else
-        # Very basic string fallback if nothing else exists
-        [ "$1" \> "$2" ]
-    fi
+    # Fallback to pure awk
+    awk -v v1="$1" -v v2="$2" '
+    BEGIN {
+        split(v1, a, "."); split(v2, b, ".");
+        for (i = 1; i <= 3; i++) {
+            if (a[i] + 0 > b[i] + 0) exit 0;
+            if (a[i] + 0 < b[i] + 0) exit 1;
+        }
+        exit 1; # they are equal
+    }'
 }
 
 # Skip actual execution during tests (dry run mode)
@@ -100,16 +103,23 @@ if [ "$SKIP_DEP_CHECKS" -ne 1 ]; then
     print_success "pip3 is installed."
 
     if ! command -v rustc &> /dev/null; then
-        print_error "Rust is not installed. Please install Rust (https://rustup.rs/)."
+        print_error "Rust is not installed. Please install Rust 1.76+ (https://rustup.rs/)."
     fi
     RUST_VERSION=$(rustc --version | awk '{print $2}')
+    if ! version_gt "$RUST_VERSION" "1.75.9"; then
+        print_error "Rust version must be 1.76+. Found $RUST_VERSION."
+    fi
     print_success "Rust is installed ($RUST_VERSION)."
 
     if ! command -v anchor &> /dev/null; then
         print_warning "Anchor is not installed. Smart contract development might fail."
     else
         ANCHOR_VERSION=$(anchor --version | awk '{print $2}')
-        print_success "Anchor is installed ($ANCHOR_VERSION)."
+        if ! version_gt "$ANCHOR_VERSION" "0.29.9"; then
+            print_warning "Anchor version should be 0.30+. Found $ANCHOR_VERSION."
+        else
+            print_success "Anchor is installed ($ANCHOR_VERSION)."
+        fi
     fi
 
     if ! command -v docker &> /dev/null; then
@@ -233,6 +243,7 @@ if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.
     fi
 else
     print_warning "docker-compose.yml not found. Skipping local service startup."
+    SETUP_FAILED=1
 fi
 
 # Final Output
@@ -252,4 +263,3 @@ if [ "$DOCKER_SUCCESS" -eq 1 ]; then
     echo -e "  - Backend API: http://localhost:8000"
     echo -e "  - Backend Docs: http://localhost:8000/docs"
 fi
-

@@ -12,6 +12,15 @@ setup() {
     export DRY_RUN=1
     
     cd "$TEST_DIR"
+    
+    # Mock external tools so tests don't depend on host system
+    mkdir -p bin
+    cat << 'MOCK' > bin/docker-compose
+#!/bin/bash
+exit 0
+MOCK
+    chmod +x bin/docker-compose
+    export PATH="$TEST_DIR/bin:$PATH"
 }
 
 teardown() {
@@ -43,6 +52,7 @@ teardown() {
     
     run ./setup.sh
     
+    [ "$status" -eq 0 ]
     echo "$output" | grep "backend/ directory not found. Skipping backend setup."
 }
 
@@ -54,6 +64,7 @@ teardown() {
     
     run ./setup.sh
     
+    [ "$status" -eq 0 ]
     echo "$output" | grep "frontend/ directory not found. Skipping frontend setup."
 }
 
@@ -65,6 +76,7 @@ teardown() {
     
     run ./setup.sh
     
+    [ "$status" -eq 0 ]
     echo "$output" | grep "docker-compose.yml not found. Skipping local service startup."
     echo "$output" | grep "Setup Completed with Warnings"
 }
@@ -90,6 +102,7 @@ teardown() {
     
     run ./setup.sh
     
+    [ "$status" -eq 0 ]
     echo "$output" | grep "\[DRY RUN\] Would execute: python3 -m venv venv"
     echo "$output" | grep "\[DRY RUN\] Would execute: venv/bin/pip install -r requirements.txt"
 }
