@@ -65,6 +65,11 @@ for arg in "$@"; do
       echo "  --help        Show this message"
       exit 0
       ;;
+    *)
+      error "Unknown option: $arg"
+      echo "Run '$0 --help' for usage"
+      exit 1
+      ;;
   esac
 done
 
@@ -82,7 +87,17 @@ check_cmd() {
   if command -v "$cmd" &>/dev/null; then
     local version
     version=$("$cmd" --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local major minor
+    major=$(echo "${version:-0.0}" | cut -d. -f1)
+    minor=$(echo "${version:-0.0}" | cut -d. -f2)
+    local min_major min_minor
+    min_major=$(echo "${min_version:-0.0}" | cut -d. -f1)
+    min_minor=$(echo "${min_version:-0.0}" | cut -d. -f2)
     success "$cmd found (v${version:-unknown})"
+    if [ "${major:-0}" -lt "${min_major:-0}" ] || \
+       { [ "${major:-0}" -eq "${min_major:-0}" ] && [ "${minor:-0}" -lt "${min_minor:-0}" ]; }; then
+      warn "$cmd v${min_version}+ recommended (found v${version:-unknown})"
+    fi
     return 0
   else
     error "$cmd not found — $install_hint"
@@ -94,9 +109,9 @@ check_cmd() {
 header "🔍 Checking prerequisites..."
 
 check_cmd "git"    "2.0"  "https://git-scm.com/downloads"
-check_cmd "node"   "18"   "https://nodejs.org (v18+ required)"
+check_cmd "node"   "18.0" "https://nodejs.org (v18+ required)"
 check_cmd "python3" "3.10" "https://python.org (v3.10+ required)"
-check_cmd "npm"    "9"    "Comes with Node.js"
+check_cmd "npm"    "9.0"  "Comes with Node.js"
 
 # Check Node version >= 18
 if command -v node &>/dev/null; then
@@ -107,23 +122,28 @@ if command -v node &>/dev/null; then
   fi
 fi
 
-# Check Python version >= 3.10
+# Check Python version >= 3.10 (validate both major and minor)
 if command -v python3 &>/dev/null; then
-  PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.minor}')" 2>/dev/null || echo "0")
-  if [ "${PY_VERSION:-0}" -lt 10 ]; then
-    error "Python 3.10+ required"
+  PY_VERSION=$(python3 -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || echo "0.0")
+  PY_MAJOR="${PY_VERSION%%.*}"
+  PY_MINOR="${PY_VERSION##*.}"
+  if [ "${PY_MAJOR:-0}" -lt 3 ] || { [ "${PY_MAJOR:-0}" -eq 3 ] && [ "${PY_MINOR:-0}" -lt 10 ]; }; then
+    error "Python 3.10+ required (found ${PY_VERSION})"
     ERRORS=$((ERRORS + 1))
   fi
 fi
 
 # Docker (recommended but optional)
+COMPOSE_CMD=""
 if $USE_DOCKER; then
   if command -v docker &>/dev/null; then
     success "docker found"
-    if docker compose version &>/dev/null; then
+    if docker compose version &>/dev/null 2>&1; then
       success "docker compose found"
-    elif docker-compose --version &>/dev/null; then
+      COMPOSE_CMD="docker compose"
+    elif docker-compose --version &>/dev/null 2>&1; then
       success "docker-compose (legacy) found"
+      COMPOSE_CMD="docker-compose"
     else
       warn "docker compose not found — install Docker Compose v2"
       USE_DOCKER=false
@@ -134,11 +154,13 @@ if $USE_DOCKER; then
   fi
 fi
 
-# Optional tools
-for tool in "rust:Rust (optional, for smart contracts)" "anchor:Anchor (optional, for Solana programs)"; do
-  cmd="${tool%%:*}"
-  desc="${tool#*:}"
-  if command -v "$cmd" &>/dev/null 2>&1 || command -v "${cmd}c" &>/dev/null 2>&1; then
+# Optional tools (rust uses 'rustc' binary, anchor uses 'anchor')
+for tool in "rust:rustc:Rust (optional, for smart contracts)" "anchor:anchor:Anchor (optional, for Solana programs)"; do
+  name="${tool%%:*}"
+  rest="${tool#*:}"
+  binary="${rest%%:*}"
+  desc="${rest#*:}"
+  if command -v "$binary" &>/dev/null 2>&1; then
     success "$desc — found"
   else
     info "$desc — not installed (not required for frontend/backend)"
@@ -166,9 +188,21 @@ header "📋 Setting up environment..."
 if [ -f .env ]; then
   info ".env already exists — keeping your settings"
 else
+  if [ ! -f .env.example ]; then
+    error ".env.example not found — cannot create .env"
+    exit 1
+  fi
   cp .env.example .env
   success "Created .env from .env.example"
   info "Edit .env to add GITHUB_TOKEN for full functionality"
+fi
+
+# Source .env so BACKEND_PORT / FRONTEND_PORT are available if set there
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 fi
 
 # ---------------------------------------------------------------------------
@@ -177,6 +211,10 @@ fi
 
 header "🎨 Setting up frontend..."
 
+if [ ! -d "$PROJECT_ROOT/frontend" ]; then
+  error "frontend/ directory not found"
+  exit 1
+fi
 cd "$PROJECT_ROOT/frontend"
 
 if [ -d "node_modules" ]; then
@@ -194,6 +232,10 @@ cd "$PROJECT_ROOT"
 
 header "🐍 Setting up backend..."
 
+if [ ! -d "$PROJECT_ROOT/backend" ]; then
+  error "backend/ directory not found"
+  exit 1
+fi
 cd "$PROJECT_ROOT/backend"
 
 if [ ! -d ".venv" ]; then
@@ -219,7 +261,7 @@ cd "$PROJECT_ROOT"
 if $USE_DOCKER; then
   header "🐳 Starting services with Docker Compose..."
 
-  docker compose up -d --build 2>&1 | tail -5
+  $COMPOSE_CMD up -d --build 2>&1 | tail -5
   success "Docker services started"
 
   # Wait for services to be ready
@@ -234,24 +276,22 @@ if $USE_DOCKER; then
   MAX_RETRIES=10
 
   while [ $RETRIES -lt $MAX_RETRIES ]; do
-    if curl -sf "$HEALTH_URL" &>/dev/null; then
-      HEALTH=$(curl -sf "$HEALTH_URL")
+    HEALTH=$(curl -sf "$HEALTH_URL" 2>/dev/null) && {
       STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
       if [ "$STATUS" = "healthy" ]; then
         success "Health check passed: $STATUS"
-        break
       else
         warn "Health check returned: $STATUS"
-        break
       fi
-    fi
+      break
+    }
     RETRIES=$((RETRIES + 1))
     sleep 2
   done
 
   if [ $RETRIES -eq $MAX_RETRIES ]; then
     warn "Health check timed out — services may still be starting"
-    info "Check logs: docker compose logs -f"
+    info "Check logs: $COMPOSE_CMD logs -f"
   fi
 else
   header "📝 Manual setup instructions"
@@ -278,7 +318,9 @@ echo -e "  ${BOLD}Backend:${NC}   http://localhost:${BACKEND_PORT:-8000}"
 echo -e "  ${BOLD}API Docs:${NC}  http://localhost:${BACKEND_PORT:-8000}/docs"
 echo -e "  ${BOLD}Health:${NC}    http://localhost:${BACKEND_PORT:-8000}/health"
 echo ""
-echo -e "  ${BOLD}Logs:${NC}      docker compose logs -f"
-echo -e "  ${BOLD}Stop:${NC}      docker compose down"
-echo ""
+if $USE_DOCKER; then
+  echo -e "  ${BOLD}Logs:${NC}      $COMPOSE_CMD logs -f"
+  echo -e "  ${BOLD}Stop:${NC}      $COMPOSE_CMD down"
+  echo ""
+fi
 info "Read CONTRIBUTING.md to start building → earn \$FNDRY!"
