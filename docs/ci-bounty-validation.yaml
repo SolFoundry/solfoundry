@@ -1,0 +1,153 @@
+# CI Bounty Spec Validation Workflow Configuration
+#
+# This file documents the CI validation pipeline that should run when
+# bounty issues are created or updated. It is stored in docs/ rather
+# than .github/workflows/ to avoid workflow modification restrictions.
+#
+# To activate this workflow, a repository admin must copy the relevant
+# steps into the .github/workflows/ directory.
+#
+# Pipeline overview:
+#   1. Issue creation triggers validation
+#   2. Extract YAML spec block from issue body
+#   3. Run spec linter (lint-bounty.py)
+#   4. If valid: auto-label the issue (tier, category)
+#   5. If invalid: comment with validation errors
+#
+# Integration points:
+#   - API endpoint: POST /api/bounty-specs/validate (dry-run)
+#   - API endpoint: POST /api/bounty-specs/create (with auth)
+#   - CLI linter: python3 scripts/lint-bounty.py <file.yaml>
+#   - CLI batch: python3 scripts/create-bounties.py <directory/>
+
+name: "Bounty Spec Validation"
+
+# Trigger on issue events (creation and edits)
+on:
+  issues:
+    types: [opened, edited]
+
+# Permissions needed for labeling and commenting
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  validate-bounty-spec:
+    name: "Validate Bounty Spec"
+    runs-on: ubuntu-latest
+    # Only run on issues with the 'bounty' label
+    if: contains(github.event.issue.labels.*.name, 'bounty')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml pydantic
+
+      - name: Extract YAML spec from issue body
+        id: extract-spec
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 -c "
+          import os, re, sys
+
+          body = os.environ.get('ISSUE_BODY', '')
+
+          # Extract YAML block from issue body (```yaml ... ```)
+          yaml_match = re.search(r'\`\`\`ya?ml\s*\n(.*?)\n\`\`\`', body, re.DOTALL)
+
+          if not yaml_match:
+              print('::set-output name=has_spec::false')
+              sys.exit(0)
+
+          spec_content = yaml_match.group(1)
+
+          with open('/tmp/bounty-spec.yaml', 'w') as f:
+              f.write(spec_content)
+
+          print('::set-output name=has_spec::true')
+          print('::set-output name=spec_file::/tmp/bounty-spec.yaml')
+          "
+
+      - name: Validate bounty spec
+        if: steps.extract-spec.outputs.has_spec == 'true'
+        id: validate
+        run: |
+          cd ${{ github.workspace }}
+          python3 scripts/lint-bounty.py \
+            ${{ steps.extract-spec.outputs.spec_file }} \
+            --json > /tmp/validation-result.json 2>&1
+          echo "::set-output name=exit_code::$?"
+
+      - name: Apply auto-labels (on valid spec)
+        if: >-
+          steps.extract-spec.outputs.has_spec == 'true' &&
+          steps.validate.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABELS=$(python3 -c "
+          import json
+          with open('/tmp/validation-result.json') as f:
+              data = json.load(f)
+          print(','.join(data.get('labels', [])))
+          ")
+
+          if [ -n "$LABELS" ]; then
+            IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+            for label in "${LABEL_ARRAY[@]}"; do
+              gh issue edit ${{ github.event.issue.number }} --add-label "$label" || true
+            done
+          fi
+
+      - name: Comment validation errors (on invalid spec)
+        if: >-
+          steps.extract-spec.outputs.has_spec == 'true' &&
+          steps.validate.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FINDINGS=$(python3 -c "
+          import json
+          with open('/tmp/validation-result.json') as f:
+              data = json.load(f)
+          lines = []
+          for f in data.get('findings', []):
+              icon = '❌' if f['severity'] == 'error' else '⚠️'
+              lines.append(f\"{icon} **{f['field']}**: {f['message']}\")
+          print('\n'.join(lines))
+          ")
+
+          COMMENT="## 🔍 Bounty Spec Validation Failed
+
+          The bounty spec in this issue did not pass validation:
+
+          ${FINDINGS}
+
+          Please fix the errors above and update the issue body.
+          See [docs/BOUNTY_SPEC_GUIDE.md](../docs/BOUNTY_SPEC_GUIDE.md) for the spec format."
+
+          gh issue comment ${{ github.event.issue.number }} --body "$COMMENT"
+
+      - name: Comment no spec found
+        if: steps.extract-spec.outputs.has_spec == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT="## ℹ️ No Bounty Spec Found
+
+          This bounty issue does not contain a YAML spec block.
+          Add a \`\`\`yaml block to the issue body with the bounty spec.
+
+          See [docs/BOUNTY_SPEC_GUIDE.md](../docs/BOUNTY_SPEC_GUIDE.md) for the format."
+
+          gh issue comment ${{ github.event.issue.number }} --body "$COMMENT"

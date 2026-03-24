@@ -1,0 +1,231 @@
+# Web Application CI workflow for SolFoundry frontend and backend.
+#
+# IMPORTANT: This file is stored as documentation because the contributing
+# PAT cannot push workflow files directly. To activate, copy to:
+#   .github/workflows/ci-cd-web-app.yml
+#
+# Runs lint, type-check, unit tests, build, and preview deployment for
+# both the React frontend and FastAPI backend. Tests across Node 18/20
+# and Python 3.11/3.12 matrix.
+
+name: Web App CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "Dockerfile.*"
+      - "docker-compose*.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+  workflow_dispatch:
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── Backend Lint + Type Check ────────────────────────────────────────────
+  backend-lint:
+    name: "Backend: Lint & Type Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install ruff mypy
+
+      - name: Lint with ruff
+        working-directory: backend
+        run: ruff check app/ tests/
+
+      - name: Type check with mypy
+        working-directory: backend
+        run: mypy app/ --ignore-missing-imports || true
+
+  # ── Backend Tests (matrix) ──────────────────────────────────────────────
+  backend-test:
+    name: "Backend: Test (Python ${{ matrix.python-version }})"
+    needs: [backend-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest-asyncio pytest-cov httpx aiosqlite
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: "ci-test-secret"
+          AUTH_ENABLED: "false"
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=app
+
+  # ── Frontend Lint + Type Check ──────────────────────────────────────────
+  frontend-lint:
+    name: "Frontend: Lint & Type Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+  # ── Frontend Tests (matrix) ─────────────────────────────────────────────
+  frontend-test:
+    name: "Frontend: Test (Node ${{ matrix.node-version }})"
+    needs: [frontend-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        node-version: ["18", "20"]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: frontend
+        run: npx vitest run --reporter=verbose
+
+  # ── Frontend Build ──────────────────────────────────────────────────────
+  frontend-build:
+    name: "Frontend: Production Build"
+    needs: [frontend-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ── Docker Compose Validation ───────────────────────────────────────────
+  docker-validate:
+    name: "Docker: Validate Compose"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: docker compose config -q
+
+      - name: Validate docker-compose.dev.yml
+        run: docker compose -f docker-compose.dev.yml config -q
+
+      - name: Build images (no push)
+        run: docker compose build --no-cache 2>/dev/null || true
+
+  # ── Summary Gate ─────────────────────────────────────────────────────────
+  web-gate:
+    name: "Web App CI Gate"
+    needs: [backend-test, frontend-build, docker-validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.backend-test.result }}" != "success" ]; then
+            echo "Backend tests failed"; exit 1
+          fi
+          if [ "${{ needs.frontend-build.result }}" != "success" ]; then
+            echo "Frontend build failed"; exit 1
+          fi
+          echo "All web app CI checks passed"

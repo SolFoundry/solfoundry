@@ -1,0 +1,180 @@
+# Bounty Spec Templates
+#
+# This file defines the YAML schema and tier-specific templates for
+# SolFoundry bounty specifications. Use these templates when creating
+# new bounty issues to ensure they meet quality standards.
+#
+# Spec format: YAML with the following fields
+# Validation: python3 scripts/lint-bounty.py <file.yaml>
+# Batch creation: python3 scripts/create-bounties.py <directory/>
+
+# ---------------------------------------------------------------------------
+# Schema definition
+# ---------------------------------------------------------------------------
+schema:
+  fields:
+    title:
+      type: string
+      min_length: 3
+      max_length: 200
+      required: true
+      description: "Short descriptive title for the bounty"
+
+    description:
+      type: string
+      required: true
+      description: "Detailed description of what the bounty requires"
+
+    tier:
+      type: integer
+      allowed_values: [1, 2, 3]
+      required: true
+      description: "Bounty difficulty tier"
+
+    reward:
+      type: number
+      required: true
+      description: "Reward amount in $FNDRY tokens"
+
+    requirements:
+      type: list[string]
+      required_for: [2, 3]
+      description: "List of acceptance criteria (checkboxes)"
+
+    category:
+      type: string
+      required: true
+      allowed_values:
+        - smart-contract
+        - frontend
+        - backend
+        - design
+        - content
+        - security
+        - devops
+        - documentation
+      description: "Bounty category from SolFoundry taxonomy"
+
+    deadline:
+      type: datetime  # ISO 8601 format
+      required_for: [2, 3]
+      description: "Submission deadline (must be in the future)"
+
+    skills:
+      type: list[string]
+      required: false
+      description: "Required skills/technologies (optional but recommended)"
+
+    github_issue_url:
+      type: string
+      required: false
+      description: "Link to existing GitHub issue (optional)"
+
+    created_by:
+      type: string
+      required: false
+      default: "system"
+      description: "Spec author identity"
+
+# ---------------------------------------------------------------------------
+# Tier-specific rules
+# ---------------------------------------------------------------------------
+tier_rules:
+  1:
+    label: "Tier 1 — Starter"
+    reward_range: [50000, 200000]
+    required_fields: [title, description, tier, reward, category]
+    optional_fields: [requirements, deadline, skills, github_issue_url, created_by]
+    min_description_length: 20
+    min_requirements_count: 0
+    review_threshold: 6.0
+
+  2:
+    label: "Tier 2 — Intermediate"
+    reward_range: [200001, 500000]
+    required_fields: [title, description, tier, reward, requirements, category, deadline]
+    optional_fields: [skills, github_issue_url, created_by]
+    min_description_length: 50
+    min_requirements_count: 2
+    review_threshold: 6.5
+
+  3:
+    label: "Tier 3 — Advanced"
+    reward_range: [500001, 1000000]
+    required_fields: [title, description, tier, reward, requirements, category, deadline]
+    optional_fields: [skills, github_issue_url, created_by]
+    min_description_length: 100
+    min_requirements_count: 3
+    review_threshold: 7.0
+
+# ---------------------------------------------------------------------------
+# Example templates
+# ---------------------------------------------------------------------------
+templates:
+  tier_1_example:
+    title: "Fix typo in README contributing section"
+    description: >
+      The CONTRIBUTING.md file has a typo in the setup instructions.
+      The command `npm instal` should be `npm install`. Fix the typo
+      and verify the instructions work end-to-end.
+    tier: 1
+    reward: 100000
+    category: documentation
+    requirements:
+      - "Fix the typo in CONTRIBUTING.md"
+      - "Verify instructions work by following them"
+    skills:
+      - documentation
+
+  tier_2_example:
+    title: "Bounty spec templates + CI validation"
+    description: >
+      Create bounty specification templates and a CI validation pipeline
+      that ensures all bounty issues meet quality standards before going live.
+      Includes YAML spec format, tier-specific templates, a spec linter CLI,
+      batch creation scripts, and comprehensive tests.
+    tier: 2
+    reward: 300000
+    category: devops
+    deadline: "2026-04-01T23:59:59Z"
+    requirements:
+      - "YAML bounty spec format with required fields"
+      - "Templates for each tier"
+      - "CI validation workflow config"
+      - "Reward-within-tier-range checks"
+      - "Auto-labels from spec (tier, category)"
+      - "Spec linter: python3 scripts/lint-bounty.py bounty.yaml"
+      - "Batch creation: python3 scripts/create-bounties.py specs/"
+      - "Documentation on writing bounty specs"
+      - "Tests for validation logic"
+    skills:
+      - python
+      - devops
+
+  tier_3_example:
+    title: "Multi-agent bounty review pipeline with consensus scoring"
+    description: >
+      Build a production-grade multi-LLM review pipeline that scores bounty
+      PR submissions across 6 quality dimensions. Must support GPT-5.4,
+      Gemini 3.1 Pro, and Grok 4 with configurable weights. Includes
+      consensus algorithm, outlier dampening, retry logic, and a dashboard
+      view for review results.
+    tier: 3
+    reward: 750000
+    category: backend
+    deadline: "2026-04-15T23:59:59Z"
+    requirements:
+      - "Multi-LLM review endpoint accepting PR diff + spec"
+      - "Scoring across 6 dimensions"
+      - "Consensus algorithm with outlier dampening"
+      - "Per-tier auto-merge thresholds"
+      - "Retry logic with exponential backoff"
+      - "Review results dashboard component"
+      - "PostgreSQL persistence of review records"
+      - "Tests with mocked LLM responses"
+    skills:
+      - python
+      - fastapi
+      - react
+      - typescript
+      - postgresql

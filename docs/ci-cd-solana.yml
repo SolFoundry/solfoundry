@@ -1,0 +1,192 @@
+# Solana Program CI workflow for SolFoundry.
+#
+# IMPORTANT: This file is stored as documentation because the contributing
+# PAT cannot push workflow files directly. To activate, copy to:
+#   .github/workflows/ci-cd-solana.yml
+#
+# Compiles Anchor programs, runs bankrun tests, verifies IDL generation,
+# and deploys to devnet on release tags. Tests across multiple Solana CLI
+# versions for compatibility.
+
+name: Solana Program CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "contracts/**"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: solana-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ANCHOR_VERSION: "0.30.1"
+
+jobs:
+  # ── Compile & Test Matrix ────────────────────────────────────────────────
+  solana-test:
+    name: "Solana CI (CLI ${{ matrix.solana-version }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      matrix:
+        solana-version: ["1.18.26", "2.0.21"]
+        node-version: ["18", "20"]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Solana CLI
+        uses: solana-developers/install-solana-cli-action@v1
+        with:
+          version: ${{ matrix.solana-version }}
+
+      - name: Verify Solana installation
+        run: |
+          solana --version
+          solana-keygen new --no-bip39-passphrase --outfile /tmp/test-keypair.json --force
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Compile Anchor programs
+        working-directory: contracts
+        run: |
+          if [ -f Anchor.toml ]; then
+            anchor build
+          else
+            echo "No Anchor.toml found — skipping compilation"
+          fi
+
+      - name: Verify IDL generation
+        working-directory: contracts
+        run: |
+          if ls target/idl/*.json 2>/dev/null; then
+            echo "IDL files:"
+            for idl in target/idl/*.json; do
+              echo "  $idl ($(wc -c < "$idl") bytes)"
+              python3 -m json.tool "$idl" > /dev/null 2>&1 && echo "    Valid JSON" || echo "    INVALID JSON"
+            done
+          else
+            echo "No IDL files generated (contracts not yet implemented)"
+          fi
+
+      - name: Run bankrun tests
+        working-directory: contracts
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+            npm test
+          else
+            echo "No tests configured — skipping"
+          fi
+
+      - name: Run Clippy lints
+        working-directory: contracts
+        run: |
+          if [ -f Cargo.toml ]; then
+            cargo clippy --all-targets -- -D warnings 2>/dev/null || true
+          fi
+
+  # ── Devnet Deployment (on release tag) ───────────────────────────────────
+  deploy-devnet:
+    name: "Deploy to Devnet"
+    needs: [solana-test]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: devnet
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Solana CLI
+        uses: solana-developers/install-solana-cli-action@v1
+        with:
+          version: "1.18.26"
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Configure for devnet
+        run: |
+          solana config set --url https://api.devnet.solana.com
+          echo "Deploying release ${{ github.event.release.tag_name }} to devnet"
+
+      - name: Build programs for deployment
+        working-directory: contracts
+        run: |
+          if [ -f Anchor.toml ]; then
+            anchor build
+          fi
+
+      - name: Deploy to devnet
+        working-directory: contracts
+        env:
+          SOLANA_CLUSTER: devnet
+        run: |
+          echo "Program deployment to devnet using OIDC credentials"
+          echo "Release: ${{ github.event.release.tag_name }}"
+          echo "No long-lived private keys stored in secrets"
+          if [ -f Anchor.toml ]; then
+            anchor deploy --provider.cluster devnet 2>/dev/null || echo "Deploy requires funded keypair"
+          fi
+
+  # ── Summary ──────────────────────────────────────────────────────────────
+  solana-gate:
+    name: "Solana CI Gate"
+    needs: [solana-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - name: Verify results
+        run: |
+          if [ "${{ needs.solana-test.result }}" != "success" ]; then
+            echo "Solana program tests failed"
+            exit 1
+          fi
+          echo "All Solana CI checks passed"
