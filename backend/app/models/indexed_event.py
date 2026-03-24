@@ -154,6 +154,7 @@ class IndexedEventTable(Base):
         ),
         Index("ix_indexed_events_block_time", block_time),
         Index("ix_indexed_events_status", status),
+        {"extend_existing": True},
     )
 
 

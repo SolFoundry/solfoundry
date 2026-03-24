@@ -116,6 +116,7 @@ class IndexedEventDB(Base):
             "bounty_id",
             "created_at",
         ),
+        {"extend_existing": True},
     )
 
     def __repr__(self) -> str:
