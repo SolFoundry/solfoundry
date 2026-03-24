@@ -168,9 +168,9 @@ async def lifespan(app: FastAPI):
         from app.seed_data import seed_bounties
 
         seed_bounties()
-        from app.seed_leaderboard import seed_leaderboard
+        from app.seed_leaderboard import async_seed_leaderboard
 
-        seed_leaderboard()
+        await async_seed_leaderboard()
 
     # Start periodic sync in background (every 5 minutes)
     sync_task = asyncio.create_task(periodic_sync())
