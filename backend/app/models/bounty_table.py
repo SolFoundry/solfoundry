@@ -18,7 +18,7 @@ from sqlalchemy import (
     Index,
     JSON,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base
 
@@ -42,7 +42,7 @@ class BountyTable(Base):
     category = Column(String(50), nullable=True)
     creator_type = Column(String(20), nullable=False, server_default="platform")
     github_issue_url = Column(String(512), nullable=True)
-    skills = Column(JSON, nullable=False, default=list)
+    skills = Column(JSONB, nullable=False, default=list)
     deadline = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(String(100), nullable=False, server_default="system")
     submission_count = Column(Integer, nullable=False, server_default="0")
