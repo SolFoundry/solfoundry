@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +46,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _row_to_response(row: EscrowTable) -> EscrowResponse:
     return EscrowResponse(
@@ -112,9 +112,7 @@ async def _record_ledger(
     return entry
 
 
-async def _get_escrow_by_bounty(
-    db: AsyncSession, bounty_id: str
-) -> EscrowTable | None:
+async def _get_escrow_by_bounty(db: AsyncSession, bounty_id: str) -> EscrowTable | None:
     result = await db.execute(
         select(EscrowTable).where(EscrowTable.bounty_id == bounty_id)
     )
@@ -124,6 +122,7 @@ async def _get_escrow_by_bounty(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 async def create_escrow(
     bounty_id: str,
@@ -287,9 +286,7 @@ async def activate_escrow(bounty_id: str) -> EscrowResponse:
         return _row_to_response(escrow)
 
 
-async def release_escrow(
-    bounty_id: str, winner_wallet: str
-) -> EscrowResponse:
+async def release_escrow(bounty_id: str, winner_wallet: str) -> EscrowResponse:
     """Release escrowed $FNDRY to the bounty winner.
 
     Transitions: ACTIVE → RELEASING → COMPLETED (or back to ACTIVE on failure).
@@ -527,6 +524,7 @@ async def get_escrow_status(bounty_id: str) -> EscrowStatusResponse:
 # Auto-refund expired escrows
 # ---------------------------------------------------------------------------
 
+
 async def refund_expired_escrows() -> int:
     """Find and refund all escrows past their expires_at deadline.
 
@@ -540,10 +538,12 @@ async def refund_expired_escrows() -> int:
         result = await db.execute(
             select(EscrowTable).where(
                 EscrowTable.expires_at <= now,
-                EscrowTable.state.in_([
-                    EscrowState.FUNDED.value,
-                    EscrowState.ACTIVE.value,
-                ]),
+                EscrowTable.state.in_(
+                    [
+                        EscrowState.FUNDED.value,
+                        EscrowState.ACTIVE.value,
+                    ]
+                ),
             )
         )
         expired = result.scalars().all()
@@ -553,13 +553,9 @@ async def refund_expired_escrows() -> int:
         try:
             await refund_escrow(bounty_id)
             refunded_count += 1
-            logger.info(
-                "Auto-refunded expired escrow for bounty %s", bounty_id
-            )
+            logger.info("Auto-refunded expired escrow for bounty %s", bounty_id)
         except Exception as exc:
-            logger.error(
-                "Auto-refund failed for bounty %s: %s", bounty_id, exc
-            )
+            logger.error("Auto-refund failed for bounty %s: %s", bounty_id, exc)
 
     return refunded_count
 
@@ -570,7 +566,9 @@ async def periodic_escrow_refund(interval_seconds: int = 60) -> None:
         try:
             count = await refund_expired_escrows()
             if count > 0:
-                logger.info("Periodic escrow refund: refunded %d expired escrows", count)
+                logger.info(
+                    "Periodic escrow refund: refunded %d expired escrows", count
+                )
         except Exception as exc:
             logger.error("Periodic escrow refund error: %s", exc)
         await asyncio.sleep(interval_seconds)

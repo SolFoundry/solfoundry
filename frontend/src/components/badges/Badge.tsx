@@ -129,7 +129,7 @@ export function Badge({ badge, index = 0 }: BadgeProps) {
             'text-xs font-medium shadow-lg',
             'animate-tooltip-reveal',
             earned
-              ? 'bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white'
+              ? 'bg-gradient-to-r from-solana-purple to-solana-green text-white'
               : 'bg-gray-800 border border-gray-700 text-gray-300',
           ].join(' ')}
         >
@@ -138,7 +138,7 @@ export function Badge({ badge, index = 0 }: BadgeProps) {
           <div
             className={[
               'absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45',
-              earned ? 'bg-[#9945FF]' : 'bg-gray-800 border-l border-t border-gray-700',
+              earned ? 'bg-solana-purple' : 'bg-gray-800 border-l border-t border-gray-700',
             ].join(' ')}
             aria-hidden
           />

@@ -142,9 +142,7 @@ def test_search():
     client.post(
         "/api/contributors", json={"username": "alice", "display_name": "Alice"}
     )
-    client.post(
-        "/api/contributors", json={"username": "bob", "display_name": "Bob"}
-    )
+    client.post("/api/contributors", json={"username": "bob", "display_name": "Bob"})
     resp = client.get("/api/contributors?search=alice")
     assert resp.json()["total"] == 1
 
@@ -288,9 +286,7 @@ def test_get_contributor_by_username():
 
 def test_get_contributor_by_username_not_found():
     """get_contributor_by_username returns None for missing username."""
-    result = run_async(
-        contributor_service.get_contributor_by_username("nonexistent")
-    )
+    result = run_async(contributor_service.get_contributor_by_username("nonexistent"))
     assert result is None
 
 

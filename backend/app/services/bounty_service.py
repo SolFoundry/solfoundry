@@ -91,7 +91,9 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
                 pr_url=sr.pr_url,
                 submitted_by=sr.submitted_by,
                 notes=sr.notes,
-                status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                status=SubmissionStatus(sr.status)
+                if isinstance(sr.status, str)
+                else sr.status,
                 ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
                 submitted_at=sr.submitted_at,
             )
@@ -121,7 +123,9 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
             tier=row.tier,
             category=getattr(row, "category", None),
             reward_amount=float(row.reward_amount),
-            status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
+            status=BountyStatus(row.status)
+            if isinstance(row.status, str)
+            else row.status,
             creator_type=getattr(row, "creator_type", "platform"),
             github_issue_url=row.github_issue_url,
             required_skills=row.skills if isinstance(row.skills, list) else [],
@@ -174,30 +178,36 @@ async def _load_all_bounties_from_db(
                     pr_url=sr.pr_url,
                     submitted_by=sr.submitted_by,
                     notes=sr.notes,
-                    status=SubmissionStatus(sr.status) if isinstance(sr.status, str) else sr.status,
+                    status=SubmissionStatus(sr.status)
+                    if isinstance(sr.status, str)
+                    else sr.status,
                     ai_score=float(sr.ai_score) if sr.ai_score else 0.0,
                     submitted_at=sr.submitted_at,
                 )
                 for sr in sub_rows
             ]
-            result.append(BountyDB(
-                id=bounty_id,
-                title=row.title,
-                description=row.description or "",
-                tier=row.tier,
-                category=getattr(row, "category", None),
-                reward_amount=float(row.reward_amount),
-                status=BountyStatus(row.status) if isinstance(row.status, str) else row.status,
-                creator_type=getattr(row, "creator_type", "platform"),
-                github_issue_url=row.github_issue_url,
-                required_skills=row.skills if isinstance(row.skills, list) else [],
-                deadline=row.deadline,
-                created_by=row.created_by,
-                submissions=submissions,
-                milestones=[], # Submissions list view doesn't need full milestones
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-            ))
+            result.append(
+                BountyDB(
+                    id=bounty_id,
+                    title=row.title,
+                    description=row.description or "",
+                    tier=row.tier,
+                    category=getattr(row, "category", None),
+                    reward_amount=float(row.reward_amount),
+                    status=BountyStatus(row.status)
+                    if isinstance(row.status, str)
+                    else row.status,
+                    creator_type=getattr(row, "creator_type", "platform"),
+                    github_issue_url=row.github_issue_url,
+                    required_skills=row.skills if isinstance(row.skills, list) else [],
+                    deadline=row.deadline,
+                    created_by=row.created_by,
+                    submissions=submissions,
+                    milestones=[],
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
+                )
+            )
         return result
     except Exception as exc:
         logger.warning("DB read failed for bounty list: %s", exc)
@@ -401,7 +411,8 @@ async def list_bounties(
         creator_type: Filter by 'platform' or 'community'.
         reward_min: Minimum reward amount.
         reward_max: Maximum reward amount.
-        sort: Sort order (newest, reward_high, reward_low, deadline, submissions).
+        sort: Sort order (newest, oldest, reward_high, reward_low, tier_high,
+            deadline, submissions).
         skip: Number of results to skip for pagination.
         limit: Maximum results per page.
 
@@ -424,9 +435,7 @@ async def list_bounties(
     if skills:
         skill_set = {s.lower() for s in skills}
         results = [
-            b
-            for b in results
-            if skill_set & {s.lower() for s in b.required_skills}
+            b for b in results if skill_set & {s.lower() for s in b.required_skills}
         ]
     if creator_type is not None:
         results = [b for b in results if b.creator_type == creator_type]
@@ -439,12 +448,16 @@ async def list_bounties(
         results.sort(key=lambda b: b.reward_amount, reverse=True)
     elif sort == "reward_low":
         results.sort(key=lambda b: b.reward_amount)
+    elif sort == "tier_high":
+        results.sort(key=lambda b: int(b.tier), reverse=True)
     elif sort == "deadline":
         results.sort(
-            key=lambda b: (b.deadline.timestamp() if b.deadline else float("inf"))
+            key=lambda b: b.deadline.timestamp() if b.deadline else float("inf")
         )
     elif sort == "submissions":
         results.sort(key=lambda b: len(b.submissions), reverse=True)
+    elif sort == "oldest":
+        results.sort(key=lambda b: b.created_at)
     else:
         results.sort(key=lambda b: b.created_at, reverse=True)
 

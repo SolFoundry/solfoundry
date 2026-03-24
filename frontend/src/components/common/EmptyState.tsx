@@ -92,13 +92,13 @@ export function EmptyState({
     md: {
       container: 'py-12',
       icon: 'text-4xl mb-3 opacity-50',
-      title: 'text-lg font-semibold text-white mb-1',
+      title: 'text-lg font-semibold text-gray-900 dark:text-white mb-1',
       description: 'text-sm text-gray-500',
     },
     lg: {
       container: 'py-16',
       icon: 'text-5xl mb-4 opacity-40',
-      title: 'text-xl font-semibold text-white mb-2',
+      title: 'text-xl font-semibold text-gray-900 dark:text-white mb-2',
       description: 'text-base text-gray-500',
     },
   };
@@ -117,7 +117,7 @@ export function EmptyState({
   if (variant === 'card') {
     return (
       <div
-        className={`rounded-xl border border-surface-300 bg-surface-50 ${className}`}
+        className={`rounded-xl border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50 ${className}`}
         data-testid={testId}
         role="status"
       >
@@ -207,10 +207,10 @@ export interface NoBountiesProps {
 export function NoBountiesFound({ onReset, hasFilters = false, className = '' }: NoBountiesProps) {
   return (
     <EmptyState
-      icon="📋"
-      title="No bounties found"
-      description={hasFilters ? "Try adjusting your filters to see more results" : "Check back soon for new opportunities"}
-      actionLabel={hasFilters ? "Clear all filters" : undefined}
+      icon="🔍"
+      title={hasFilters ? 'No bounties match your search' : 'No bounties found'}
+      description={hasFilters ? 'Try adjusting your filters or search terms' : 'Check back soon for new opportunities'}
+      actionLabel={hasFilters ? 'Clear all filters' : undefined}
       onAction={hasFilters ? onReset : undefined}
       className={className}
       testId="empty-bounties"

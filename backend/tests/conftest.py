@@ -15,6 +15,7 @@ import pytest
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
 os.environ["AUTH_ENABLED"] = os.environ.get("AUTH_ENABLED", "false")
+os.environ.setdefault("OBSERVABILITY_ENABLE_BACKGROUND", "false")
 
 # Configure asyncio mode for pytest
 pytest_plugins = ("pytest_asyncio",)
@@ -73,6 +74,7 @@ def reset_rate_limit_counters():
     """
     try:
         from app.middleware.rate_limiter import _global_counter, _endpoint_counter
+
         _global_counter.reset()
         _endpoint_counter.reset()
     except ImportError:
@@ -80,6 +82,7 @@ def reset_rate_limit_counters():
     yield
     try:
         from app.middleware.rate_limiter import _global_counter, _endpoint_counter
+
         _global_counter.reset()
         _endpoint_counter.reset()
     except ImportError:

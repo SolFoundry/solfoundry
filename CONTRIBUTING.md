@@ -75,6 +75,100 @@ Your PR gets a **24-hour warning** if:
 
 ---
 
+## Local Development Setup
+
+### Prerequisites
+
+| Tool | Version | Required? |
+|------|---------|-----------|
+| Node.js | 18+ | ✅ Yes |
+| Python | 3.10+ | ✅ Yes |
+| Docker & Docker Compose | latest | 📦 Recommended |
+| Rust | 1.76+ | ⚙️ Smart contracts only |
+| Anchor | 0.30+ | ⚙️ Smart contracts only |
+
+### Quick Start (Docker — Recommended)
+
+```bash
+git clone https://github.com/SolFoundry/solfoundry.git
+cd solfoundry
+cp .env.example .env
+docker compose up --build
+```
+
+This starts PostgreSQL, Redis, the FastAPI backend, and the Next.js frontend.
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| API Docs (Swagger) | http://localhost:8000/docs |
+
+### Manual Setup (No Docker)
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev    # → http://localhost:3000
+```
+
+**Backend:**
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+> **Tip:** If `scripts/setup.sh` exists, you can run `bash scripts/setup.sh` for a one-command setup.
+
+---
+
+## Code Style & PR Naming Conventions
+
+### Branch Naming
+
+Use descriptive branch names that reference the bounty:
+
+```
+feat/bounty-488-readme-badges
+fix/bounty-476-loading-spinners
+docs/bounty-489-contributing-guide
+```
+
+### PR Titles
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+feat: Add README status badges (Closes #488)
+fix: Resolve wallet validation edge case (Closes #502)
+docs: Write contributing guide (Closes #489)
+```
+
+Prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
+
+### Code Style
+
+- **Python (backend):** Follows [Ruff](https://docs.astral.sh/ruff/) defaults. CI runs `ruff check .` on every PR.
+- **TypeScript (frontend):** Follows ESLint config in the repo. CI runs `eslint` and `tsc --noEmit`.
+- **Rust (contracts):** Follows `clippy` defaults.
+- **General:** No trailing whitespace, files end with a newline, UTF-8 encoding.
+
+Run linters locally before pushing:
+
+```bash
+# Backend
+cd backend && ruff check . --fix
+
+# Frontend
+cd frontend && npx eslint . && npx tsc --noEmit
+```
+
+---
+
 ## Bounty Tier System
 
 ### Tier 1 -- Open Race
@@ -217,11 +311,47 @@ We take this seriously.
 
 ---
 
+## FAQ
+
+**Q: Can I work on multiple bounties at the same time?**
+A: Yes. For T1 and T2, there's no limit on concurrent open PRs. For T3, you can have a maximum of 2 concurrent claims.
+
+**Q: What happens if two people submit passing PRs for the same bounty?**
+A: First one merged wins. Speed matters, especially for T1 bounties.
+
+**Q: My PR scored below the threshold. Can I fix it and resubmit?**
+A: Yes. Push updates to the same PR branch. The review will re-run automatically. You have up to 50 attempts per bounty.
+
+**Q: Do I need to claim a bounty before working on it?**
+A: Only T3 bounties require claiming (comment "claiming" on the issue). T1 and T2 are open races — just submit your PR.
+
+**Q: When do I get paid?**
+A: $FNDRY tokens are sent to your Solana wallet automatically after merge. It usually takes a few minutes.
+
+**Q: Can I use AI tools (Copilot, ChatGPT) to help write code?**
+A: Yes, but the code must be high quality and tailored to the specific bounty. Bulk-dumped AI slop is auto-detected and rejected by the spam filter.
+
+**Q: The review feedback is vague. Can I get more details?**
+A: That's by design. The review points to problem areas without giving exact fixes. Read the feedback carefully, look at the relevant code, and figure it out.
+
+**Q: I found a bug that's not a bounty. Should I submit a PR?**
+A: Sure! Non-bounty contributions are welcome but don't earn $FNDRY or count toward tier progression.
+
+**Q: How do I check my tier progression?**
+A: Look at your merged PRs that reference bounty issues with tier labels. The `claim-guard.yml` action checks your eligibility automatically when you submit to gated tiers.
+
+**Q: My tests pass locally but CI fails. What do I do?**
+A: CI runs linters (`ruff`, `eslint`, `tsc`, `clippy`) and tests on the entire codebase. Make sure you run linters on the full project, not just your changed files.
+
+---
+
 ## Links
 
 - **Repo**: [github.com/SolFoundry/solfoundry](https://github.com/SolFoundry/solfoundry)
+- **Open bounties**: [Issues with bounty label](https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Abounty)
+- **Tier 1 bounties**: [Beginner-friendly tasks](https://github.com/SolFoundry/solfoundry/issues?q=is%3Aissue+is%3Aopen+label%3Atier-1)
 - **X / Twitter**: [@foundrysol](https://x.com/foundrysol)
-- **Token**: $FNDRY on Solana -- `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
+- **Token**: $FNDRY on Solana — `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
 
 ---
 

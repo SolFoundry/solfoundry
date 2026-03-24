@@ -61,7 +61,7 @@ describe('BountyFilters', () => {
     onReset = vi.fn();
   });
 
-  it('renders category filter dropdown', () => {
+  it('renders category filter chips', () => {
     render(
       <BountyFilters
         filters={filters}
@@ -71,9 +71,8 @@ describe('BountyFilters', () => {
         totalCount={50}
       />,
     );
-    const select = screen.getByTestId('category-filter');
-    expect(select).toBeInTheDocument();
-    expect(select).toHaveValue('all');
+    expect(screen.getByTestId('category-chips')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-all')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('changing category calls onFilterChange', async () => {
@@ -86,7 +85,7 @@ describe('BountyFilters', () => {
         totalCount={50}
       />,
     );
-    await userEvent.selectOptions(screen.getByTestId('category-filter'), 'security');
+    await userEvent.click(screen.getByTestId('category-chip-security'));
     expect(onChange).toHaveBeenCalledWith('category', 'security');
   });
 

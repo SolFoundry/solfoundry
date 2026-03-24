@@ -10,7 +10,6 @@ PostgreSQL migration: managed by Alembic (see ``alembic/versions/``).
 
 import uuid
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -68,7 +67,9 @@ class ContributorTable(Base):
         },
         nullable=False,
     )
-    unsubscribe_token = Column(String(100), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    unsubscribe_token = Column(
+        String(100), unique=True, nullable=False, default=lambda: str(uuid.uuid4())
+    )
     total_contributions = Column(Integer, default=0, nullable=False)
     total_bounties_completed = Column(Integer, default=0, nullable=False)
     total_earnings = Column(Numeric(precision=18, scale=2), default=0, nullable=False)
@@ -92,9 +93,7 @@ class ContributorTable(Base):
 
     def __repr__(self) -> str:
         """Return a developer-friendly string representation."""
-        return (
-            f"<ContributorTable(id={self.id!r}, username={self.username!r})>"
-        )
+        return f"<ContributorTable(id={self.id!r}, username={self.username!r})>"
 
 
 # Keep backward-compatible alias so existing imports still work
@@ -136,9 +135,7 @@ class ContributorCreate(ContributorBase):
     ``username`` must be 3-50 alphanumeric characters (plus ``-`` and ``_``).
     """
 
-    username: str = Field(
-        ..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
-    )
+    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
 class ContributorUpdate(BaseModel):

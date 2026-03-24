@@ -91,7 +91,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
       role="alert"
       aria-live="assertive"
       className={[
-        'relative w-80 overflow-hidden rounded-lg border backdrop-blur-md shadow-lg shadow-black/20',
+        'relative w-full sm:w-80 overflow-hidden rounded-lg border backdrop-blur-md shadow-lg shadow-black/20',
         'transition-all duration-200 ease-out',
         config.container,
         isVisible && !isExiting

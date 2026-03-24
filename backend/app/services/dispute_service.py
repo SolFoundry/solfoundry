@@ -166,7 +166,10 @@ class RemoteMediationProvider(MediationProvider):
                 return float(data.get("score", 0)), str(data.get("recommendation", ""))
         except Exception as error:
             logger.error("AI mediation failed: %s", error)
-            return None, f"AI unavailable ({type(error).__name__}). Manual resolution required."
+            return (
+                None,
+                f"AI unavailable ({type(error).__name__}). Manual resolution required.",
+            )
 
 
 class PlaceholderMediationProvider(MediationProvider):
@@ -431,9 +434,7 @@ class DisputeService:
             DisputeNotFoundError: If no dispute with this ID exists.
         """
         result = await self.db.execute(
-            select(DisputeDB)
-            .where(DisputeDB.id == dispute_id)
-            .with_for_update()
+            select(DisputeDB).where(DisputeDB.id == dispute_id).with_for_update()
         )
         dispute = result.scalar_one_or_none()
         if not dispute:
@@ -477,10 +478,12 @@ class DisputeService:
         """
         from app.models.submission import SubmissionDB as SubDB
 
-        parsed_id = uuid.UUID(submission_id) if isinstance(submission_id, str) else submission_id
-        result = await self.db.execute(
-            select(SubDB).where(SubDB.id == parsed_id)
+        parsed_id = (
+            uuid.UUID(submission_id)
+            if isinstance(submission_id, str)
+            else submission_id
         )
+        result = await self.db.execute(select(SubDB).where(SubDB.id == parsed_id))
         submission = result.scalar_one_or_none()
         if not submission:
             raise SubmissionNotFoundError(f"Submission '{submission_id}' not found")
@@ -523,9 +526,7 @@ class DisputeService:
 
         # Check for duplicate disputes on the same submission
         existing = await self.db.execute(
-            select(DisputeDB).where(
-                DisputeDB.submission_id == data.submission_id
-            )
+            select(DisputeDB).where(DisputeDB.submission_id == data.submission_id)
         )
         if existing.scalar_one_or_none():
             raise DuplicateDisputeError(
@@ -556,8 +557,12 @@ class DisputeService:
         )
         self.db.add(dispute)
         self._record_history(
-            dispute.id, "dispute_opened", None, "opened",
-            user_id, f"Opened: {data.reason}",
+            dispute.id,
+            "dispute_opened",
+            None,
+            "opened",
+            user_id,
+            f"Opened: {data.reason}",
         )
         await self.db.commit()
         await self.db.refresh(dispute)
@@ -571,9 +576,7 @@ class DisputeService:
 
         return DisputeResponse.model_validate(dispute)
 
-    async def get_dispute(
-        self, dispute_id: str, user_id: str
-    ) -> DisputeDetailResponse:
+    async def get_dispute(self, dispute_id: str, user_id: str) -> DisputeDetailResponse:
         """Get a dispute with its full audit history.
 
         Enforces access control: only the contributor, creator, or an
@@ -748,9 +751,7 @@ class DisputeService:
         await self.db.refresh(dispute)
         return DisputeResponse.model_validate(dispute)
 
-    async def move_to_mediation(
-        self, dispute_id: str, user_id: str
-    ) -> DisputeResponse:
+    async def move_to_mediation(self, dispute_id: str, user_id: str) -> DisputeResponse:
         """Move a dispute from EVIDENCE to MEDIATION phase.
 
         Triggers AI mediation analysis. If the AI score meets the

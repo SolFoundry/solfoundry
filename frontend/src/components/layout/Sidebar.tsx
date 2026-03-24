@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { SolFoundryLogoMark } from '../common/SolFoundryLogoMark';
 import { useState } from 'react';
 
 interface NavItem {
@@ -92,16 +93,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Logo area */}
       <div className="flex h-14 items-center justify-between border-b border-gray-200 dark:border-gray-800 px-4">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">SF</span>
-            </div>
-            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+        <NavLink
+          to="/"
+          className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          aria-label="SolFoundry home"
+        >
+          <SolFoundryLogoMark size="md" className="shadow-sm shadow-brand-500/15" />
+          {!collapsed && (
+            <span className="truncate text-lg font-bold tracking-tight text-gray-900 dark:text-white">
               SolFoundry
             </span>
-          </div>
-        )}
+          )}
+        </NavLink>
         <button
           type="button"
           onClick={onToggle}

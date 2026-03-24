@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
+
 async def _check_database() -> str:
     try:
         async with engine.connect() as conn:
@@ -28,6 +29,7 @@ async def _check_database() -> str:
     except Exception:
         logger.warning("Health check DB failure: unexpected error")
         return "disconnected"
+
 
 async def _check_redis() -> str:
     try:
@@ -42,6 +44,7 @@ async def _check_redis() -> str:
     except Exception:
         logger.warning("Health check Redis failure: unexpected error")
         return "disconnected"
+
 
 @router.get("/health", summary="Service health check")
 async def health_check() -> dict:

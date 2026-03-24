@@ -12,17 +12,13 @@ Requirement: Issue #196 item 8.
 
 import uuid
 
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.e2e.conftest import advance_bounty_status, create_bounty_via_api
 from tests.e2e.factories import (
-    DEFAULT_WALLET,
-    VALID_TX_HASH,
     build_bounty_create_payload,
     build_payout_create_payload,
     build_submission_payload,
-    past_deadline,
 )
 
 
@@ -140,18 +136,14 @@ class TestInvalidBountyCreation:
 class TestInvalidBountyOperations:
     """Validate error handling for invalid bounty operations."""
 
-    def test_get_nonexistent_bounty_returns_404(
-        self, client: TestClient
-    ) -> None:
+    def test_get_nonexistent_bounty_returns_404(self, client: TestClient) -> None:
         """Verify that fetching a non-existent bounty returns 404."""
         fake_id = str(uuid.uuid4())
         response = client.get(f"/api/bounties/{fake_id}")
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
-    def test_update_nonexistent_bounty_returns_404(
-        self, client: TestClient
-    ) -> None:
+    def test_update_nonexistent_bounty_returns_404(self, client: TestClient) -> None:
         """Verify that updating a non-existent bounty returns 404."""
         fake_id = str(uuid.uuid4())
         response = client.patch(
@@ -160,17 +152,13 @@ class TestInvalidBountyOperations:
         )
         assert response.status_code == 404
 
-    def test_delete_nonexistent_bounty_returns_404(
-        self, client: TestClient
-    ) -> None:
+    def test_delete_nonexistent_bounty_returns_404(self, client: TestClient) -> None:
         """Verify that deleting a non-existent bounty returns 404."""
         fake_id = str(uuid.uuid4())
         response = client.delete(f"/api/bounties/{fake_id}")
         assert response.status_code == 404
 
-    def test_submit_to_nonexistent_bounty_returns_404(
-        self, client: TestClient
-    ) -> None:
+    def test_submit_to_nonexistent_bounty_returns_404(self, client: TestClient) -> None:
         """Verify that submitting to a non-existent bounty returns 404."""
         fake_id = str(uuid.uuid4())
         response = client.post(
@@ -307,9 +295,7 @@ class TestInvalidSubmissions:
         )
         assert response.status_code == 422
 
-    def test_submission_with_missing_pr_url_field(
-        self, client: TestClient
-    ) -> None:
+    def test_submission_with_missing_pr_url_field(self, client: TestClient) -> None:
         """Verify that submissions without a ``pr_url`` field are rejected."""
         bounty = create_bounty_via_api(
             client,
@@ -353,9 +339,7 @@ class TestInvalidSubmissions:
 class TestInvalidPayouts:
     """Validate rejection of malformed payout requests."""
 
-    def test_payout_with_invalid_wallet_format(
-        self, client: TestClient
-    ) -> None:
+    def test_payout_with_invalid_wallet_format(self, client: TestClient) -> None:
         """Verify that invalid Solana wallet addresses are rejected."""
         response = client.post(
             "/api/payouts",
@@ -410,6 +394,7 @@ class TestInvalidPayouts:
         Each payout must have a unique on-chain transaction hash.
         """
         from tests.e2e.factories import unique_tx_hash
+
         unique_hash = unique_tx_hash()
 
         payload = build_payout_create_payload(
@@ -429,16 +414,12 @@ class TestInvalidPayouts:
         second = client.post("/api/payouts", json=duplicate)
         assert second.status_code == 409
 
-    def test_payout_lookup_invalid_tx_hash_format(
-        self, client: TestClient
-    ) -> None:
+    def test_payout_lookup_invalid_tx_hash_format(self, client: TestClient) -> None:
         """Verify that malformed tx hashes return 400 on lookup."""
         response = client.get("/api/payouts/not-a-valid-hash")
         assert response.status_code == 400
 
-    def test_payout_lookup_nonexistent_tx_hash(
-        self, client: TestClient
-    ) -> None:
+    def test_payout_lookup_nonexistent_tx_hash(self, client: TestClient) -> None:
         """Verify that non-existent tx hashes return 404."""
         # Valid format but doesn't exist
         valid_format_hash = "a" * 64
@@ -449,9 +430,7 @@ class TestInvalidPayouts:
 class TestInvalidContributorOperations:
     """Validate rejection of invalid contributor operations."""
 
-    def test_get_nonexistent_contributor_returns_404(
-        self, client: TestClient
-    ) -> None:
+    def test_get_nonexistent_contributor_returns_404(self, client: TestClient) -> None:
         """Verify that fetching a non-existent contributor returns 404."""
         fake_id = str(uuid.uuid4())
         response = client.get(f"/api/contributors/{fake_id}")
@@ -481,9 +460,7 @@ class TestInvalidContributorOperations:
         )
         assert response.status_code == 422
 
-    def test_username_with_invalid_characters(
-        self, client: TestClient
-    ) -> None:
+    def test_username_with_invalid_characters(self, client: TestClient) -> None:
         """Verify that usernames with special characters are rejected."""
         response = client.post(
             "/api/contributors",

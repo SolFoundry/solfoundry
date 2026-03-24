@@ -16,7 +16,6 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.e2e.conftest import create_bounty_via_api
 from tests.e2e.factories import (
     DEFAULT_WALLET,
     build_bounty_create_payload,
@@ -46,9 +45,7 @@ class TestGitHubOAuthFlow:
         assert "state" in data
         assert "github.com" in data["authorize_url"]
 
-    def test_github_authorize_with_custom_state(
-        self, client: TestClient
-    ) -> None:
+    def test_github_authorize_with_custom_state(self, client: TestClient) -> None:
         """Verify custom CSRF state is passed through the authorization URL.
 
         Requires GITHUB_CLIENT_ID to be configured; otherwise skipped.
@@ -173,9 +170,7 @@ class TestJWTTokenLifecycle:
         )
 
         user_id = str(uuid.uuid4())
-        token = create_access_token(
-            user_id, expires_delta=timedelta(seconds=-1)
-        )
+        token = create_access_token(user_id, expires_delta=timedelta(seconds=-1))
 
         with pytest.raises(TokenExpiredError):
             decode_token(token, token_type="access")
@@ -259,9 +254,7 @@ class TestAuthenticatedBountyCreation:
             title="Authenticated bounty creation",
             reward_amount=500.0,
         )
-        response = client.post(
-            "/api/bounties", json=payload, headers=auth_headers
-        )
+        response = client.post("/api/bounties", json=payload, headers=auth_headers)
         assert response.status_code == 201
         bounty = response.json()
         assert bounty["title"] == "Authenticated bounty creation"
@@ -289,9 +282,7 @@ class TestAuthenticatedBountyCreation:
         bounty_id = create_response.json()["id"]
 
         # Retrieve bounty with auth headers
-        get_response = client.get(
-            f"/api/bounties/{bounty_id}", headers=auth_headers
-        )
+        get_response = client.get(f"/api/bounties/{bounty_id}", headers=auth_headers)
         assert get_response.status_code == 200
         assert get_response.json()["title"] == "Full auth flow bounty"
 

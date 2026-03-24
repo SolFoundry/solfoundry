@@ -82,15 +82,14 @@ describe('ContributorDashboard', () => {
   describe('Rendering', () => {
     it('renders the dashboard header after loading', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Should show loading initially
-      expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
-      
+
+      expect(screen.getByRole('status', { name: /loading dashboard/i })).toBeInTheDocument();
+
       // Wait for data to load
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
       });
-      
+
       expect(screen.getByText(/track your progress/i)).toBeInTheDocument();
     });
 
@@ -101,8 +100,8 @@ describe('ContributorDashboard', () => {
         expect(screen.getByText('Total Earned')).toBeInTheDocument();
       });
       
-      // Use more specific selectors
-      expect(screen.getByText('Active Bounties')).toBeInTheDocument();
+      // "Active Bounties" appears on the summary card and as the section heading
+      expect(screen.getAllByText('Active Bounties').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Pending Payouts')).toBeInTheDocument();
       expect(screen.getByText('Reputation Rank')).toBeInTheDocument();
     });
@@ -171,23 +170,21 @@ describe('ContributorDashboard', () => {
 
   // Loading State Tests
   describe('Loading State', () => {
-    it('shows loading spinner initially', () => {
+    it('shows loading skeleton initially', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Should show loading state
-      expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
-      expect(screen.getByRole('status')).toBeInTheDocument();
+
+      const skeleton = screen.getByRole('status', { name: /loading dashboard/i });
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton).toHaveAttribute('aria-label', 'Loading dashboard');
     });
 
-    it('hides loading spinner after data loads', async () => {
+    it('hides loading skeleton after data loads', async () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Wait for loading to complete
+
       await waitFor(() => {
-        expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /loading dashboard/i })).not.toBeInTheDocument();
       });
-      
-      // Should show main content instead
+
       expect(screen.getByRole('heading', { name: 'Contributor Dashboard' })).toBeInTheDocument();
     });
   });
@@ -536,17 +533,19 @@ describe('ContributorDashboard', () => {
 
     it('loading state has correct aria attributes', () => {
       renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
-      
-      // Loading container should have role="status" and aria-live="polite"
-      const loadingContainer = screen.getByRole('status');
+
+      const loadingContainer = screen.getByRole('status', { name: /loading dashboard/i });
       expect(loadingContainer).toHaveAttribute('aria-live', 'polite');
+      expect(loadingContainer).toHaveAttribute('aria-label', 'Loading dashboard');
     });
   });
 
   // Data Formatting Tests
   describe('Data Formatting', () => {
     it('formats large numbers with correct abbreviations', async () => {
-      renderWithQuery(<ContributorDashboard walletAddress={mockWalletAddress} />);
+      renderWithQuery(
+        <ContributorDashboard userId={mockWalletAddress} walletAddress={mockWalletAddress} />,
+      );
 
       await waitFor(() => {
         expect(screen.getByText('Total Earned')).toBeInTheDocument();

@@ -86,7 +86,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`font-mono text-sm ${className}`}
+      className={`font-mono text-base ${className}`}
     >
       {/* Desktop: full breadcrumb list */}
       <ol className="hidden sm:flex items-center flex-wrap gap-1" role="list">
@@ -98,7 +98,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             <li>
               {crumb.isCurrent ? (
                 <span
-                  className="text-gray-300 font-medium"
+                  className="text-gray-900 dark:text-gray-300 font-medium"
                   aria-current="page"
                 >
                   {crumb.label}
@@ -106,7 +106,7 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
               ) : (
                 <Link
                   to={crumb.href}
-                  className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                  className="text-gray-500 transition-colors hover:text-solana-purple max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:py-1"
                 >
                   {crumb.label}
                 </Link>
@@ -128,13 +128,13 @@ export function Breadcrumbs({ className = '' }: BreadcrumbsProps) {
             ) : (
               <li>
                 {item.isCurrent ? (
-                  <span className="text-gray-300 font-medium" aria-current="page">
+                  <span className="text-gray-900 dark:text-gray-300 font-medium" aria-current="page">
                     {item.label}
                   </span>
                 ) : (
                   <Link
                     to={item.href}
-                    className="text-gray-500 hover:text-[#9945FF] transition-colors"
+                    className="text-gray-500 transition-colors hover:text-solana-purple max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:py-1"
                   >
                     {item.label}
                   </Link>

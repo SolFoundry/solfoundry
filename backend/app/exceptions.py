@@ -9,6 +9,7 @@ meaningful HTTP status codes in API endpoints.
 class ContributorNotFoundError(Exception):
     """Raised when a contributor ID does not exist in the store."""
 
+
 class TierNotUnlockedError(Exception):
     """Raised when a contributor attempts a bounty tier they have not unlocked."""
 
@@ -106,6 +107,7 @@ class InvalidPayoutTransitionError(PayoutError):
 # Escrow exceptions
 # ---------------------------------------------------------------------------
 
+
 class EscrowError(Exception):
     """Base class for all escrow-related errors."""
 
@@ -153,3 +155,24 @@ class MilestoneSequenceError(Exception):
 
 class UnauthorizedMilestoneAccessError(Exception):
     """Raised when a non-authorized user attempts a restricted milestone action."""
+
+
+# ---------------------------------------------------------------------------
+# Boost exceptions
+# ---------------------------------------------------------------------------
+
+
+class BoostError(Exception):
+    """Base class for all bounty-boost errors."""
+
+
+class BoostBelowMinimumError(BoostError):
+    """Raised when a boost amount is below the 1,000 $FNDRY minimum."""
+
+
+class BoostInvalidBountyError(BoostError):
+    """Raised when the target bounty does not exist or is not boostable."""
+
+
+class BoostNotFoundError(BoostError):
+    """Raised when a boost ID does not exist."""

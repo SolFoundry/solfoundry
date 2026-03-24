@@ -1,0 +1,62 @@
+# Docker Compose for SolFoundry PRODUCTION on DO droplet.
+# Connects to existing homelab-postgres and homelab-redis.
+# Usage: docker compose -f docker-compose.prod.yml up --build -d
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: solfoundry-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql+asyncpg://solfoundry:${POSTGRES_PASSWORD}@homelab-postgres:5432/solfoundry
+      REDIS_URL: redis://homelab-redis:6379/1
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_REDIRECT_URI: https://solfoundry.org/auth/callback
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
+      SOLANA_RPC_URL: https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}
+      TREASURY_WALLET: "AqqW7hFLau8oH8nDuZp5jPjM3EXUrD7q3SxbcNE8YTN1"
+      TREASURY_KEYPAIR_PATH: /keys/treasury-keypair.json
+      ESCROW_KEYPAIR_PATH: /keys/escrow-keypair.json
+      FNDRY_TOKEN_DECIMALS: "9"
+      ALLOWED_ORIGINS: "https://solfoundry.org,https://www.solfoundry.org"
+    volumes:
+      - /opt/solfoundry/keys:/keys:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - solfoundry
+      - homelab
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: solfoundry-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - solfoundry
+
+networks:
+  solfoundry:
+    name: solfoundry
+  homelab:
+    external: true
+    name: databases

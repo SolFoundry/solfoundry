@@ -90,8 +90,8 @@ export function WalletAddress({
           aria-label={copied ? 'Copied!' : 'Copy to clipboard'}
           className={`h-6 w-6 rounded inline-flex items-center justify-center transition-colors ${
             copied
-              ? 'text-[#00FF88]'
-              : 'text-gray-400 hover:text-[#00FF88]'
+              ? 'text-solana-mint'
+              : 'text-gray-400 hover:text-solana-mint'
           }`}
         >
           {copied ? (
@@ -111,7 +111,7 @@ export function WalletAddress({
         </button>
       )}
       {copied && (
-        <span className="text-xs text-[#00FF88] animate-pulse" role="status" aria-live="polite">
+        <span className="text-xs text-solana-mint animate-pulse" role="status" aria-live="polite">
           Copied!
         </span>
       )}

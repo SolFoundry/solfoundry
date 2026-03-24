@@ -24,6 +24,8 @@ from fastapi import FastAPI
 
 from app.api.agents import router as agents_router
 from app.database import Base, engine, async_session_factory
+from app.models.agent import Agent
+from sqlalchemy import delete
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +63,6 @@ VALID_AGENT = {
 @pytest_asyncio.fixture(scope="function")
 async def db_session():
     """Create a fresh database session for each test."""
-    # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -69,9 +70,10 @@ async def db_session():
     async with async_session_factory() as session:
         yield session
 
-    # Drop tables after test
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    # Clean up table instead of drop_all to avoid breaking other tests
+    async with async_session_factory() as session:
+        await session.execute(delete(Agent))
+        await session.commit()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -250,6 +252,111 @@ class TestRegisterAgent:
             ids.add(resp.json()["id"])
         assert len(ids) == 10
 
+    @pytest.mark.asyncio
+    async def test_register_with_api_endpoint(self, client):
+        """Optional HTTPS callback URL is persisted."""
+        agent = {**VALID_AGENT, "api_endpoint": "https://hooks.example.com/agent"}
+        resp = await client.post("/api/agents/register", json=agent)
+        assert resp.status_code == 201
+        assert resp.json()["api_endpoint"] == "https://hooks.example.com/agent"
+
+    @pytest.mark.asyncio
+    async def test_register_invalid_api_endpoint_scheme(self, client):
+        agent = {**VALID_AGENT, "api_endpoint": "ftp://bad.example"}
+        resp = await client.post("/api/agents/register", json=agent)
+        assert resp.status_code == 422
+
+
+# ===========================================================================
+# GET /api/agents/leaderboard
+# ===========================================================================
+
+
+class TestAgentLeaderboard:
+    """Tests for GET /api/agents/leaderboard."""
+
+    @pytest.mark.asyncio
+    async def test_leaderboard_empty(self, client):
+        resp = await client.get("/api/agents/leaderboard")
+        assert resp.status_code == 200
+        assert resp.json() == {"items": []}
+
+    @pytest.mark.asyncio
+    async def test_leaderboard_lists_active_only(self, client):
+        await client.post(
+            "/api/agents/register", json={**VALID_AGENT, "name": "ActiveBot"}
+        )
+        create2 = await client.post(
+            "/api/agents/register",
+            json={
+                **VALID_AGENT,
+                "name": "GoneBot",
+                "operator_wallet": ANOTHER_WALLET,
+            },
+        )
+        gone_id = create2.json()["id"]
+        await client.delete(
+            f"/api/agents/{gone_id}",
+            headers={"X-Operator-Wallet": ANOTHER_WALLET},
+        )
+        resp = await client.get("/api/agents/leaderboard")
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["name"] == "ActiveBot"
+        assert items[0]["rank"] == 1
+
+    @pytest.mark.asyncio
+    async def test_leaderboard_limit_validation(self, client):
+        assert (await client.get("/api/agents/leaderboard?limit=0")).status_code == 422
+        assert (
+            await client.get("/api/agents/leaderboard?limit=101")
+        ).status_code == 422
+
+
+# ===========================================================================
+# POST /api/agents/{agent_id}/activity
+# ===========================================================================
+
+
+class TestAppendAgentActivity:
+    """Tests for POST /api/agents/{agent_id}/activity."""
+
+    @pytest.mark.asyncio
+    async def test_append_success(self, client):
+        create_resp = await client.post("/api/agents/register", json=VALID_AGENT)
+        agent_id = create_resp.json()["id"]
+        resp = await client.post(
+            f"/api/agents/{agent_id}/activity",
+            json={"type": "poll", "message": "Fetched open bounties"},
+            headers={"X-Operator-Wallet": VALID_WALLET},
+        )
+        assert resp.status_code == 200
+        log = resp.json()["activity_log"]
+        assert len(log) >= 2
+        assert log[0]["type"] == "poll"
+        assert "Fetched" in log[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_append_requires_wallet_header(self, client):
+        create_resp = await client.post("/api/agents/register", json=VALID_AGENT)
+        agent_id = create_resp.json()["id"]
+        resp = await client.post(
+            f"/api/agents/{agent_id}/activity",
+            json={"type": "x", "message": "y"},
+        )
+        assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_append_wrong_wallet(self, client):
+        create_resp = await client.post("/api/agents/register", json=VALID_AGENT)
+        agent_id = create_resp.json()["id"]
+        resp = await client.post(
+            f"/api/agents/{agent_id}/activity",
+            json={"type": "x", "message": "y"},
+            headers={"X-Operator-Wallet": ANOTHER_WALLET},
+        )
+        assert resp.status_code == 403
+
 
 # ===========================================================================
 # GET /api/agents/{agent_id} - Get Agent Tests
@@ -300,10 +407,19 @@ class TestGetAgent:
             "operator_wallet",
             "is_active",
             "availability",
+            "api_endpoint",
+            "verified",
+            "reputation_score",
+            "success_rate",
+            "bounties_completed",
+            "activity_log",
+            "completed_bounties",
             "created_at",
             "updated_at",
         }
         assert set(body.keys()) == expected_keys
+        assert isinstance(body["activity_log"], list)
+        assert len(body["activity_log"]) >= 1
 
 
 # ===========================================================================
@@ -436,6 +552,11 @@ class TestListAgents:
             "is_active",
             "availability",
             "operator_wallet",
+            "verified",
+            "reputation_score",
+            "success_rate",
+            "bounties_completed",
+            "api_endpoint",
             "created_at",
         }
         assert set(item.keys()) == expected_keys

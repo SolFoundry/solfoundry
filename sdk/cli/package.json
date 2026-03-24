@@ -1,0 +1,36 @@
+{
+  "name": "@solfoundry/cli",
+  "version": "1.0.0",
+  "description": "CLI tool for SolFoundry — list bounties, check status, view profiles, verify on-chain completions",
+  "type": "module",
+  "bin": {
+    "solfoundry": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.4",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@solfoundry/sdk": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["solfoundry", "solana", "cli", "bounty"],
+  "license": "MIT"
+}

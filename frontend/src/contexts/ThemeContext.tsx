@@ -2,7 +2,7 @@
  * ThemeContext - Dark/Light/System theme management with localStorage persistence
  * @module contexts/ThemeContext
  */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 
 // ============================================================================
 // Types
@@ -26,8 +26,33 @@ interface ThemeContextValue {
 // Constants
 // ============================================================================
 
-const THEME_STORAGE_KEY = 'solfoundry-theme';
-const DEFAULT_THEME: ThemeMode = 'dark';
+/** Must match the key used in `index.html` inline boot script. */
+export const THEME_STORAGE_KEY = 'solfoundry-theme';
+/** First visit: follow OS preference (`system`). Explicit choice persists in localStorage. */
+const DEFAULT_THEME: ThemeMode = 'system';
+
+function readStoredThemeMode(storageKey: string, defaultTheme: ThemeMode): ThemeMode {
+  if (typeof window === 'undefined') return defaultTheme;
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+      return stored;
+    }
+  } catch {
+    /* localStorage unavailable */
+  }
+  return defaultTheme;
+}
+
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  if (mode === 'system') return getSystemTheme();
+  return mode;
+}
 
 // ============================================================================
 // Context
@@ -49,6 +74,14 @@ export function useTheme(): ThemeContextValue {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
+}
+
+/**
+ * Resolved theme when inside ThemeProvider; defaults to `light` outside the provider
+ * (e.g. SSR or isolated tests) so we do not assume dark mode.
+ */
+export function useResolvedThemeSafe(): ResolvedTheme {
+  return useContext(ThemeContext)?.resolvedTheme ?? 'light';
 }
 
 // ============================================================================
@@ -77,49 +110,38 @@ export function ThemeProvider({
   defaultTheme = DEFAULT_THEME,
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
-  // Initialize theme from localStorage or default
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') {
-      return defaultTheme;
-    }
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        return stored;
-      }
-    } catch {
-      // localStorage might not be available
-    }
-    return defaultTheme;
-  });
+  const hasMounted = useRef(false);
+  const skipTransitionNextApply = useRef(true);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  // Track resolved theme and system preference
+  const [theme, setThemeState] = useState<ThemeMode>(() =>
+    readStoredThemeMode(storageKey, defaultTheme),
+  );
+
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'dark';
-    }
-    return getSystemTheme();
+    if (typeof window === 'undefined') return 'light';
+    return resolveTheme(readStoredThemeMode(storageKey, defaultTheme));
   });
 
-  // Get system preference
-  function getSystemTheme(): ResolvedTheme {
-    if (typeof window === 'undefined') {
-      return 'dark';
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  // Apply theme to document
   const applyTheme = useCallback((resolved: ResolvedTheme) => {
     const root = document.documentElement;
-    
+
+    const allowTransition = hasMounted.current && !skipTransitionNextApply.current;
+    if (allowTransition) {
+      root.classList.add('theme-transitioning');
+      clearTimeout(transitionTimer.current);
+      transitionTimer.current = setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+      }, 300);
+    }
+    skipTransitionNextApply.current = false;
+
     if (resolved === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
-    // Update meta theme-color for mobile browsers
+
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute('content', resolved === 'dark' ? '#0a0a0a' : '#ffffff');
@@ -149,7 +171,7 @@ export function ThemeProvider({
     }
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
       setResolvedTheme(e.matches ? 'dark' : 'light');
     };
@@ -171,7 +193,12 @@ export function ThemeProvider({
     }
   }, [theme]);
 
-  // Apply theme to document when resolved theme changes
+  // Mark mounted after first render so transitions don't fire on page load
+  useEffect(() => {
+    hasMounted.current = true;
+    return () => { clearTimeout(transitionTimer.current); };
+  }, []);
+
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme, applyTheme]);

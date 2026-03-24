@@ -22,7 +22,17 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON, UUID
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Boolean,
+    Text,
+    JSON,
+    UUID,
+    Float,
+    Integer,
+)
 
 from app.database import Base
 
@@ -56,6 +66,8 @@ DESCRIPTION_MAX_LENGTH = 2000
 MAX_CAPABILITIES = 50
 MAX_LANGUAGES = 20
 MAX_APIS = 30
+MAX_ACTIVITY_LOG = 100
+API_ENDPOINT_MAX_LEN = 512
 WALLET_ADDRESS_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
@@ -94,6 +106,12 @@ class Agent(Base):
     operator_wallet = Column(String(64), nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     availability = Column(String(32), default="available", nullable=False)
+    api_endpoint = Column(String(512), nullable=True)
+    verified = Column(Boolean, default=False, nullable=False)
+    reputation_score = Column(Float, default=0.0, nullable=False)
+    success_rate = Column(Integer, default=0, nullable=False)
+    bounties_completed = Column(Integer, default=0, nullable=False)
+    activity_log = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
@@ -105,6 +123,18 @@ class Agent(Base):
 # ---------------------------------------------------------------------------
 # Pydantic Models
 # ---------------------------------------------------------------------------
+
+
+def _validate_api_endpoint(v: Optional[str]) -> Optional[str]:
+    """Optional HTTPS/HTTP callback base URL for autonomous agents."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    s = v.strip()
+    if len(s) > API_ENDPOINT_MAX_LEN:
+        raise ValueError(f"api_endpoint too long (max {API_ENDPOINT_MAX_LEN})")
+    if not s.startswith(("http://", "https://")):
+        raise ValueError("api_endpoint must start with http:// or https://")
+    return s
 
 
 def _validate_wallet_address(v: str) -> str:
@@ -131,21 +161,57 @@ def _validate_list_items(
 class AgentCreate(BaseModel):
     """Payload for registering a new agent."""
 
-    name: str = Field(..., min_length=NAME_MIN_LENGTH, max_length=NAME_MAX_LENGTH, description="Agent display name", examples=["RustBot 3000"])
-    description: Optional[str] = Field(None, max_length=DESCRIPTION_MAX_LENGTH, description="Detailed agent profile and expertise", examples=["Expert Rust and Anchor developer with 5+ years experience."])
-    role: AgentRole = Field(..., description="The primary role of the agent", examples=[AgentRole.SMART_CONTRACT_ENGINEER])
+    name: str = Field(
+        ...,
+        min_length=NAME_MIN_LENGTH,
+        max_length=NAME_MAX_LENGTH,
+        description="Agent display name",
+        examples=["RustBot 3000"],
+    )
+    description: Optional[str] = Field(
+        None,
+        max_length=DESCRIPTION_MAX_LENGTH,
+        description="Detailed agent profile and expertise",
+        examples=["Expert Rust and Anchor developer with 5+ years experience."],
+    )
+    role: AgentRole = Field(
+        ...,
+        description="The primary role of the agent",
+        examples=[AgentRole.SMART_CONTRACT_ENGINEER],
+    )
     capabilities: list[str] = Field(
-        default_factory=list, description="List of technical capabilities", examples=[["Anchor", "Security Audit", "Performance Optimization"]]
+        default_factory=list,
+        description="List of technical capabilities",
+        examples=[["Anchor", "Security Audit", "Performance Optimization"]],
     )
     languages: list[str] = Field(
-        default_factory=list, description="Programming languages supported", examples=[["rust", "typescript", "c++"]]
+        default_factory=list,
+        description="Programming languages supported",
+        examples=[["rust", "typescript", "c++"]],
     )
     apis: list[str] = Field(
-        default_factory=list, description="Supported APIs or protocols", examples=[["solana-rpc", "metaplex", "jupiter"]]
+        default_factory=list,
+        description="Supported APIs or protocols",
+        examples=[["solana-rpc", "metaplex", "jupiter"]],
     )
     operator_wallet: str = Field(
-        ..., min_length=32, max_length=64, description="Solana wallet address for ownership and payouts", examples=["7Pq6..."]
+        ...,
+        min_length=32,
+        max_length=64,
+        description="Solana wallet address for ownership and payouts",
+        examples=["7Pq6..."],
     )
+    api_endpoint: Optional[str] = Field(
+        None,
+        max_length=API_ENDPOINT_MAX_LEN,
+        description="Public HTTPS base URL for your agent (webhooks, health checks)",
+        examples=["https://agent.example.com/v1"],
+    )
+
+    @field_validator("api_endpoint")
+    @classmethod
+    def validate_api_endpoint_create(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_api_endpoint(v)
 
     @field_validator("operator_wallet")
     @classmethod
@@ -184,6 +250,12 @@ class AgentUpdate(BaseModel):
     languages: Optional[list[str]] = None
     apis: Optional[list[str]] = None
     availability: Optional[str] = Field(None, max_length=32)
+    api_endpoint: Optional[str] = Field(None, max_length=API_ENDPOINT_MAX_LEN)
+
+    @field_validator("api_endpoint")
+    @classmethod
+    def validate_api_endpoint_update(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_api_endpoint(v)
 
     @field_validator("capabilities")
     @classmethod
@@ -213,16 +285,34 @@ class AgentUpdate(BaseModel):
 class AgentResponse(BaseModel):
     """Full agent detail returned by GET /agents/{id} and mutations."""
 
-    id: str = Field(..., description="Unique UUID for the agent", examples=["550e8400-e29b-41d4-a716-446655440000"])
+    id: str = Field(
+        ...,
+        description="Unique UUID for the agent",
+        examples=["550e8400-e29b-41d4-a716-446655440000"],
+    )
     name: str = Field(..., description="Agent display name")
     description: Optional[str] = None
     role: str = Field(..., description="Agent role type")
     capabilities: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
     apis: list[str] = Field(default_factory=list)
-    operator_wallet: str = Field(..., description="Solana wallet address of the operator")
-    is_active: bool = Field(True, description="Whether the agent is currently active in the marketplace")
+    operator_wallet: str = Field(
+        ..., description="Solana wallet address of the operator"
+    )
+    is_active: bool = Field(
+        True, description="Whether the agent is currently active in the marketplace"
+    )
     availability: str = Field("available", description="Current availability status")
+    api_endpoint: Optional[str] = None
+    verified: bool = False
+    reputation_score: float = 0.0
+    success_rate: int = Field(0, ge=0, le=100)
+    bounties_completed: int = Field(0, ge=0)
+    activity_log: list[dict] = Field(default_factory=list)
+    completed_bounties: list[dict] = Field(
+        default_factory=list,
+        description="Completed bounty summaries (populated when linked to payouts)",
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -239,6 +329,11 @@ class AgentListItem(BaseModel):
     is_active: bool = True
     availability: str = "available"
     operator_wallet: str
+    verified: bool = False
+    reputation_score: float = 0.0
+    success_rate: int = Field(0, ge=0, le=100)
+    bounties_completed: int = Field(0, ge=0)
+    api_endpoint: Optional[str] = None
     created_at: datetime
 
 
@@ -249,3 +344,28 @@ class AgentListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class AgentLeaderboardItem(BaseModel):
+    """Single row on the agent reputation leaderboard."""
+
+    rank: int
+    id: str
+    name: str
+    role: str
+    reputation_score: float
+    success_rate: int = Field(..., ge=0, le=100)
+    bounties_completed: int = Field(..., ge=0)
+    verified: bool
+    availability: str
+
+
+class AgentLeaderboardResponse(BaseModel):
+    items: list[AgentLeaderboardItem]
+
+
+class AgentActivityAppend(BaseModel):
+    """Append a row to an agent's public activity log (operator-authenticated)."""
+
+    type: str = Field(..., min_length=1, max_length=64)
+    message: str = Field(..., min_length=1, max_length=500)

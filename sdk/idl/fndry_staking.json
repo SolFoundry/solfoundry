@@ -1,0 +1,213 @@
+{
+  "address": "Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET",
+  "metadata": {
+    "name": "fndry_staking",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "FNDRY staking program for SolFoundry"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "config", "writable": true },
+        { "name": "token_mint" },
+        { "name": "reward_pool_vault", "writable": true },
+        { "name": "vault_authority" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" },
+        { "name": "rent", "address": "SysvarRent111111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "stake",
+      "discriminator": [206, 176, 202, 18, 200, 209, 179, 108],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "config" },
+        { "name": "stake_account", "writable": true },
+        { "name": "user_token_account", "writable": true },
+        { "name": "stake_vault", "writable": true },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "unstake_initiate",
+      "discriminator": [98, 110, 123, 213, 89, 143, 56, 201],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "config" },
+        { "name": "stake_account", "writable": true }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "unstake_complete",
+      "discriminator": [155, 34, 194, 197, 88, 213, 64, 17],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "config" },
+        { "name": "stake_account", "writable": true },
+        { "name": "user_token_account", "writable": true },
+        { "name": "stake_vault", "writable": true },
+        { "name": "vault_authority" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_rewards",
+      "discriminator": [4, 144, 132, 71, 116, 23, 151, 80],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "config", "writable": true },
+        { "name": "stake_account", "writable": true },
+        { "name": "user_token_account", "writable": true },
+        { "name": "reward_pool_vault", "writable": true },
+        { "name": "vault_authority" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": []
+    },
+    {
+      "name": "compound",
+      "discriminator": [183, 12, 17, 232, 90, 111, 91, 180],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "config", "writable": true },
+        { "name": "stake_account", "writable": true },
+        { "name": "reward_pool_vault", "writable": true },
+        { "name": "stake_vault", "writable": true },
+        { "name": "vault_authority" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": []
+    },
+    {
+      "name": "slash",
+      "discriminator": [204, 141, 18, 161, 8, 177, 92, 1],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "config", "writable": true },
+        { "name": "stake_account", "writable": true },
+        { "name": "stake_vault", "writable": true },
+        { "name": "reward_pool_vault", "writable": true },
+        { "name": "vault_authority" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": [
+        { "name": "user_pubkey", "type": "pubkey" },
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "toggle_auto_compound",
+      "discriminator": [38, 73, 236, 117, 148, 52, 201, 30],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "stake_account", "writable": true }
+      ],
+      "args": [
+        { "name": "enabled", "type": "bool" }
+      ]
+    },
+    {
+      "name": "update_config",
+      "discriminator": [29, 158, 252, 191, 10, 83, 219, 99],
+      "accounts": [
+        { "name": "admin", "writable": true, "signer": true },
+        { "name": "config", "writable": true }
+      ],
+      "args": [
+        { "name": "params", "type": { "defined": { "name": "ConfigUpdateParams" } } }
+      ]
+    }
+  ],
+  "accounts": [
+    { "name": "StakingConfig", "discriminator": [66, 54, 16, 136, 50, 134, 211, 128] },
+    { "name": "StakeAccount", "discriminator": [36, 140, 235, 212, 118, 42, 34, 163] }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InsufficientStake", "msg": "Stake amount below minimum tier threshold" },
+    { "code": 6001, "name": "CooldownActive", "msg": "An unstake cooldown is already active" },
+    { "code": 6002, "name": "CooldownNotElapsed", "msg": "Cooldown period has not elapsed yet" },
+    { "code": 6003, "name": "NoCooldownActive", "msg": "No cooldown is active for this account" },
+    { "code": 6004, "name": "InsufficientBalance", "msg": "Insufficient staked balance" },
+    { "code": 6005, "name": "ProgramPaused", "msg": "Program is currently paused" },
+    { "code": 6006, "name": "ArithmeticOverflow", "msg": "Arithmetic overflow detected" },
+    { "code": 6007, "name": "Unauthorized", "msg": "Unauthorized: signer is not the admin" }
+  ],
+  "types": [
+    {
+      "name": "StakingConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "admin", "type": "pubkey" },
+          { "name": "token_mint", "type": "pubkey" },
+          { "name": "reward_pool_vault", "type": "pubkey" },
+          { "name": "config_bump", "type": "u8" },
+          { "name": "vault_authority_bump", "type": "u8" },
+          { "name": "tier_thresholds", "type": { "array": ["u64", 3] } },
+          { "name": "tier_apy_bps", "type": { "array": ["u16", 3] } },
+          { "name": "cooldown_seconds", "type": "i64" },
+          { "name": "total_staked", "type": "u64" },
+          { "name": "total_rewards_distributed", "type": "u64" },
+          { "name": "active_stakers", "type": "u64" },
+          { "name": "paused", "type": "bool" }
+        ]
+      }
+    },
+    {
+      "name": "StakeAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "owner", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "staked_at", "type": "i64" },
+          { "name": "last_claim", "type": "i64" },
+          { "name": "rewards_earned", "type": "u64" },
+          { "name": "pending_rewards", "type": "u64" },
+          { "name": "cooldown_active", "type": "bool" },
+          { "name": "cooldown_start", "type": "i64" },
+          { "name": "cooldown_amount", "type": "u64" },
+          { "name": "auto_compound", "type": "bool" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "ConfigUpdateParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "tier_thresholds", "type": { "option": { "array": ["u64", 3] } } },
+          { "name": "tier_apy_bps", "type": { "option": { "array": ["u16", 3] } } },
+          { "name": "cooldown_seconds", "type": { "option": "i64" } },
+          { "name": "paused", "type": { "option": "bool" } }
+        ]
+      }
+    },
+    {
+      "name": "StakingTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Bronze" },
+          { "name": "Silver" },
+          { "name": "Gold" }
+        ]
+      }
+    }
+  ]
+}

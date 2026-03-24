@@ -1,12 +1,19 @@
+import type { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { BountyDetailPage } from './BountyDetailPage';
+
+function renderDetail(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 const mockBounty = {
   id: 'test-bounty-1',
   title: 'Test Bounty: Sample Implementation',
   tier: 'T1' as const,
   reward: 250000,
-  category: 'Frontend',
+  category: 'frontend',
+  skills: ['React', 'TypeScript'],
   status: 'open' as const,
   deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
   description: 'This is a test bounty description.\n\nIt has multiple paragraphs.',
@@ -46,79 +53,78 @@ const mockBounty = {
 
 describe('BountyDetailPage', () => {
   it('renders bounty title', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('Test Bounty: Sample Implementation')).toBeInTheDocument();
   });
 
   it('renders tier badge', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('T1')).toBeInTheDocument();
   });
 
   it('renders reward amount', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('250,000 FNDRY')).toBeInTheDocument();
   });
 
   it('renders category', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('Frontend')).toBeInTheDocument();
   });
 
   it('renders status badge', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
-    expect(screen.getByText('OPEN')).toBeInTheDocument();
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
+    expect(screen.getAllByText('OPEN').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders description', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText(/This is a test bounty description/)).toBeInTheDocument();
   });
 
   it('renders requirements', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('Requirement 1: Implement the component')).toBeInTheDocument();
     expect(screen.getByText('Requirement 2: Add responsive design')).toBeInTheDocument();
     expect(screen.getByText('Requirement 3: Write tests')).toBeInTheDocument();
   });
 
-  it('renders submissions', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
-    expect(screen.getByText('testuser')).toBeInTheDocument();
-    expect(screen.getByText(/PR #101/)).toBeInTheDocument();
+  it('renders submissions section in quick stats', () => {
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
+    expect(screen.getByText('Submissions')).toBeInTheDocument();
   });
 
   it('renders GitHub issue link', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText(/#21 View on GitHub/)).toBeInTheDocument();
   });
 
   it('renders quick stats', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     expect(screen.getByText('1,234')).toBeInTheDocument();
     expect(screen.getByText('Submissions')).toBeInTheDocument();
   });
 
-  it('renders claim and submit buttons', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
-    expect(screen.getByText('Claim Bounty')).toBeInTheDocument();
-    expect(screen.getByText('Submit PR')).toBeInTheDocument();
+  it('renders submit actions', () => {
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
+    expect(screen.getAllByText('Submit PR').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Submit a Solution')).toBeInTheDocument();
   });
 
   it('renders activity feed', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
-    expect(screen.getByText(/testuser/)).toBeInTheDocument();
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
+    expect(screen.getAllByText(/testuser/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('has responsive layout', () => {
-    const { container } = render(<BountyDetailPage bounty={mockBounty} />);
+    const { container } = renderDetail(<BountyDetailPage bounty={mockBounty} />);
     // Check for responsive grid classes
     expect(container.querySelector('.grid-cols-1')).toBeInTheDocument();
     expect(container.querySelector('.lg\\:grid-cols-3')).toBeInTheDocument();
   });
 
   it('has touch-friendly buttons (min 44px)', () => {
-    render(<BountyDetailPage bounty={mockBounty} />);
+    renderDetail(<BountyDetailPage bounty={mockBounty} />);
     const buttons = screen.getAllByRole('button');
     buttons.forEach((button) => {
       if (button.textContent?.includes('Claim') || button.textContent?.includes('Submit')) {

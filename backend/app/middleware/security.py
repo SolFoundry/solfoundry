@@ -26,19 +26,20 @@ References:
 
 import logging
 import os
-from typing import Callable, Optional
+from typing import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse, JSONResponse
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
 # ── SecurityHeadersMiddleware configuration (our hardening — Issue #197) ──
 
 # Maximum request body size in bytes (default 1 MB)
-MAX_REQUEST_BODY_SIZE: int = int(os.getenv("MAX_REQUEST_BODY_SIZE", str(1 * 1024 * 1024)))
+MAX_REQUEST_BODY_SIZE: int = int(
+    os.getenv("MAX_REQUEST_BODY_SIZE", str(1 * 1024 * 1024))
+)
 
 # Whether to enforce HTTPS (disable in local dev)
 ENFORCE_HTTPS: bool = os.getenv("ENFORCE_HTTPS", "true").lower() == "true"
@@ -51,7 +52,9 @@ CSP_DEFAULT_SRC: str = os.getenv("CSP_DEFAULT_SRC", "'self'")
 CSP_SCRIPT_SRC: str = os.getenv("CSP_SCRIPT_SRC", "'self'")
 CSP_STYLE_SRC: str = os.getenv("CSP_STYLE_SRC", "'self' 'unsafe-inline'")
 CSP_IMG_SRC: str = os.getenv("CSP_IMG_SRC", "'self' data: https:")
-CSP_CONNECT_SRC: str = os.getenv("CSP_CONNECT_SRC", "'self' https://api.mainnet-beta.solana.com")
+CSP_CONNECT_SRC: str = os.getenv(
+    "CSP_CONNECT_SRC", "'self' https://api.mainnet-beta.solana.com"
+)
 CSP_FONT_SRC: str = os.getenv("CSP_FONT_SRC", "'self'")
 CSP_FRAME_ANCESTORS: str = os.getenv("CSP_FRAME_ANCESTORS", "'none'")
 
@@ -238,7 +241,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         response.headers["Content-Security-Policy"] = CSP_DEFAULT
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"

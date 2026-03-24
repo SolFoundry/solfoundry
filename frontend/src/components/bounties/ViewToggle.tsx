@@ -2,13 +2,13 @@ export type ViewMode = 'grid' | 'list';
 
 export function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
   return (
-    <div className="flex rounded-lg border border-surface-300 overflow-hidden" data-testid="view-toggle">
+    <div className="flex rounded-lg border border-gray-300 dark:border-surface-300 overflow-hidden" data-testid="view-toggle">
       <button
         type="button"
         onClick={() => onChange('grid')}
         className={
           'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ' +
-          (mode === 'grid' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-400 hover:text-white')
+          (mode === 'grid' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white')
         }
         aria-pressed={mode === 'grid'}
         data-testid="view-grid"
@@ -22,8 +22,8 @@ export function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: V
         type="button"
         onClick={() => onChange('list')}
         className={
-          'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-l border-surface-300 ' +
-          (mode === 'list' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-400 hover:text-white')
+          'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-300 dark:border-surface-300 ' +
+          (mode === 'list' ? 'bg-solana-green/15 text-solana-green' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white')
         }
         aria-pressed={mode === 'list'}
         data-testid="view-list"

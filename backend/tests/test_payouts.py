@@ -73,9 +73,7 @@ def test_create_payout():
 
 def test_pending_without_tx():
     """POST /payouts without tx_hash sets status=pending."""
-    response = client.post(
-        "/api/payouts", json={"recipient": "bob", "amount": 100.0}
-    )
+    response = client.post("/api/payouts", json={"recipient": "bob", "amount": 100.0})
     assert response.status_code == 201
     data = response.json()
     assert data["status"] == "pending"
@@ -99,9 +97,7 @@ def test_create_sol_payout():
 
 def test_payout_has_updated_at():
     """Payout response includes updated_at timestamp."""
-    response = client.post(
-        "/api/payouts", json={"recipient": "dave", "amount": 50.0}
-    )
+    response = client.post("/api/payouts", json={"recipient": "dave", "amount": 50.0})
     data = response.json()
     assert "updated_at" in data
     assert data["updated_at"] is not None
@@ -109,9 +105,7 @@ def test_payout_has_updated_at():
 
 def test_payout_has_retry_count():
     """Payout response includes retry_count field (initially 0)."""
-    response = client.post(
-        "/api/payouts", json={"recipient": "eve", "amount": 75.0}
-    )
+    response = client.post("/api/payouts", json={"recipient": "eve", "amount": 75.0})
     data = response.json()
     assert data["retry_count"] == 0
 
@@ -167,9 +161,7 @@ def test_filter_status():
         "/api/payouts",
         json={"recipient": "a", "amount": 100.0, "tx_hash": TX1},
     )
-    client.post(
-        "/api/payouts", json={"recipient": "b", "amount": 200.0}
-    )
+    client.post("/api/payouts", json={"recipient": "b", "amount": 200.0})
     assert client.get("/api/payouts?status=confirmed").json()["total"] == 1
     assert client.get("/api/payouts?status=pending").json()["total"] == 1
 
@@ -180,9 +172,7 @@ def test_filter_combined():
         "/api/payouts",
         json={"recipient": "alice", "amount": 100.0, "tx_hash": TX1},
     )
-    client.post(
-        "/api/payouts", json={"recipient": "alice", "amount": 50.0}
-    )
+    client.post("/api/payouts", json={"recipient": "alice", "amount": 50.0})
     client.post(
         "/api/payouts",
         json={"recipient": "bob", "amount": 200.0, "tx_hash": TX2},
@@ -225,12 +215,16 @@ def test_filter_by_date_range():
     )
     # Query with a future start_date should return zero results
     # Use 'Z' suffix instead of '+00:00' to avoid URL-encoding issues with '+'
-    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
     result = client.get(f"/api/payouts?start_date={future}").json()
     assert result["total"] == 0
 
     # Query with a past start_date should return the record
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
     result = client.get(f"/api/payouts?start_date={past}").json()
     assert result["total"] == 1
 
@@ -242,12 +236,16 @@ def test_filter_by_end_date():
         json={"recipient": "a", "amount": 100.0, "tx_hash": TX1},
     )
     # end_date in the past should exclude the record
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
     result = client.get(f"/api/payouts?end_date={past}").json()
     assert result["total"] == 0
 
     # end_date in the future should include the record
-    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
     result = client.get(f"/api/payouts?end_date={future}").json()
     assert result["total"] == 1
 
@@ -375,8 +373,12 @@ def test_buyback_dup_tx():
         "price_per_fndry": 0.0005,
         "tx_hash": TX1,
     }
-    assert client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 201
-    assert client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 409
+    assert (
+        client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 201
+    )
+    assert (
+        client.post("/api/payouts/treasury/buybacks", json=payload).status_code == 409
+    )
 
 
 # =========================================================================
@@ -591,13 +593,23 @@ class TestDoublePay:
         assert (
             client.post(
                 "/api/payouts",
-                json={"recipient": "a", "amount": 500.0, "bounty_id": "b-42", "tx_hash": TX1},
+                json={
+                    "recipient": "a",
+                    "amount": 500.0,
+                    "bounty_id": "b-42",
+                    "tx_hash": TX1,
+                },
             ).status_code
             == 201
         )
         response = client.post(
             "/api/payouts",
-            json={"recipient": "b", "amount": 500.0, "bounty_id": "b-42", "tx_hash": TX2},
+            json={
+                "recipient": "b",
+                "amount": 500.0,
+                "bounty_id": "b-42",
+                "tx_hash": TX2,
+            },
         )
         assert response.status_code == 409
         assert "already has an active payout" in response.json()["message"]
@@ -607,14 +619,24 @@ class TestDoublePay:
         assert (
             client.post(
                 "/api/payouts",
-                json={"recipient": "a", "amount": 500.0, "bounty_id": "b-1", "tx_hash": TX1},
+                json={
+                    "recipient": "a",
+                    "amount": 500.0,
+                    "bounty_id": "b-1",
+                    "tx_hash": TX1,
+                },
             ).status_code
             == 201
         )
         assert (
             client.post(
                 "/api/payouts",
-                json={"recipient": "b", "amount": 300.0, "bounty_id": "b-2", "tx_hash": TX2},
+                json={
+                    "recipient": "b",
+                    "amount": 300.0,
+                    "bounty_id": "b-2",
+                    "tx_hash": TX2,
+                },
             ).status_code
             == 201
         )
@@ -705,7 +727,11 @@ class TestAdminApproval:
         ).json()["id"]
         client.post(
             f"/api/payouts/{payout_id}/approve",
-            json={"approved": False, "admin_id": "admin-2", "reason": "Spam submission"},
+            json={
+                "approved": False,
+                "admin_id": "admin-2",
+                "reason": "Spam submission",
+            },
         )
         payout = client.get(f"/api/payouts/id/{payout_id}").json()
         assert payout["failure_reason"] == "Spam submission"
@@ -808,7 +834,7 @@ class TestPayoutExecution:
         created_time = create_response["updated_at"]
 
         payout_id = create_response["id"]
-        approve_response = client.post(
+        _approve_response = client.post(
             f"/api/payouts/{payout_id}/approve",
             json={"approved": True, "admin_id": "admin-1"},
         ).json()
@@ -931,7 +957,5 @@ def test_solscan_url_format():
 
 def test_pending_payout_no_solscan():
     """Pending payouts without tx_hash have no Solscan URL."""
-    response = client.post(
-        "/api/payouts", json={"recipient": "b", "amount": 50.0}
-    )
+    response = client.post("/api/payouts", json={"recipient": "b", "amount": 50.0})
     assert response.json()["solscan_url"] is None

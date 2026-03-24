@@ -153,12 +153,14 @@ class InMemoryPubSubAdapter:
 @dataclass
 class _RateBucket:
     """Token bucket for per-user rate limiting."""
+
     timestamps: list = field(default_factory=list)
 
 
 @dataclass
 class _Connection:
     """Authenticated WebSocket connection state."""
+
     ws: WebSocket
     user_id: str
     channels: Set[str] = field(default_factory=set)
@@ -219,6 +221,7 @@ class WebSocketManager:
         # Try JWT access token first
         try:
             from app.services.auth_service import decode_token
+
             return decode_token(token, "access")
         except Exception:
             pass
@@ -430,7 +433,10 @@ class WebSocketManager:
     # -- typed event emission --
 
     async def emit_event(
-        self, event_type: str, channel: str, payload: Dict[str, Any],
+        self,
+        event_type: str,
+        channel: str,
+        payload: Dict[str, Any],
     ) -> int:
         """Emit a validated typed event to a channel and buffer it.
 
@@ -452,12 +458,13 @@ class WebSocketManager:
         )
         buffer.append(event_dict)
 
-        return await self.broadcast(
-            channel, event_dict, sender_user_id="system"
-        )
+        return await self.broadcast(channel, event_dict, sender_user_id="system")
 
     def get_buffered_events(
-        self, channel: str, since: Optional[datetime] = None, limit: int = 50,
+        self,
+        channel: str,
+        since: Optional[datetime] = None,
+        limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """Retrieve buffered events for polling fallback.
 

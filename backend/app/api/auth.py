@@ -120,8 +120,7 @@ async def get_github_authorize(state: Optional[str] = None):
     },
 )
 async def github_oauth_callback(
-    data: GitHubOAuthRequest,
-    db: AsyncSession = Depends(get_db)
+    data: GitHubOAuthRequest, db: AsyncSession = Depends(get_db)
 ) -> GitHubOAuthResponse:
     """
     Complete GitHub OAuth flow.
@@ -176,8 +175,7 @@ async def get_wallet_auth_message(wallet_address: str):
     },
 )
 async def wallet_authenticate(
-    request: WalletAuthRequest,
-    db: AsyncSession = Depends(get_db)
+    request: WalletAuthRequest, db: AsyncSession = Depends(get_db)
 ):
     """
     Authenticate with Solana wallet signature.
@@ -212,6 +210,7 @@ async def wallet_authenticate(
 @router.post("/link-wallet", response_model=LinkWalletResponse)
 async def link_wallet(
     request: LinkWalletRequest,
+    db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user_id),
 ):
     """
@@ -223,7 +222,8 @@ async def link_wallet(
     Requires authentication (GitHub OAuth or existing wallet auth).
     """
     try:
-        result = await auth_service.link_wallet(
+        result = await auth_service.link_wallet_to_user(
+            db,
             user_id,
             request.wallet_address,
             request.signature,
@@ -244,8 +244,7 @@ async def link_wallet(
 
 @router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh_token(
-    request: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db)
+    request: RefreshTokenRequest, db: AsyncSession = Depends(get_db)
 ) -> RefreshTokenResponse:
     """
     Refresh an access token.
@@ -271,8 +270,7 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
-    db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)
 ) -> UserResponse:
     """Dependency to get the full current user object."""
     try:

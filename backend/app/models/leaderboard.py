@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class TimePeriod(str, Enum):
     """TimePeriod."""
+
     week = "week"
     month = "month"
     all = "all"
@@ -16,6 +17,7 @@ class TimePeriod(str, Enum):
 
 class TierFilter(str, Enum):
     """TierFilter."""
+
     t1 = "1"
     t2 = "2"
     t3 = "3"
@@ -23,6 +25,7 @@ class TierFilter(str, Enum):
 
 class CategoryFilter(str, Enum):
     """CategoryFilter."""
+
     frontend = "frontend"
     backend = "backend"
     security = "security"
@@ -36,11 +39,23 @@ class LeaderboardEntry(BaseModel):
     rank: int = Field(..., description="Current rank (1-indexed)", examples=[1])
     username: str = Field(..., description="GitHub username", examples=["codemaster"])
     display_name: str = Field(..., description="Display name", examples=["Code Master"])
-    avatar_url: Optional[str] = Field(None, description="URL to user avatar", examples=["https://github.com/avatar.png"])
-    total_earned: float = Field(0.0, description="Total $FNDRY earned", examples=[1250.5])
-    bounties_completed: int = Field(0, description="Number of bounties completed", examples=[12])
-    reputation_score: int = Field(0, description="Internal reputation score based on quality", examples=[450])
-    wallet_address: Optional[str] = Field(None, description="Linked Solana wallet", examples=["BSz85..."])
+    avatar_url: Optional[str] = Field(
+        None,
+        description="URL to user avatar",
+        examples=["https://github.com/avatar.png"],
+    )
+    total_earned: float = Field(
+        0.0, description="Total $FNDRY earned", examples=[1250.5]
+    )
+    bounties_completed: int = Field(
+        0, description="Number of bounties completed", examples=[12]
+    )
+    reputation_score: int = Field(
+        0, description="Internal reputation score based on quality", examples=[450]
+    )
+    wallet_address: Optional[str] = Field(
+        None, description="Linked Solana wallet", examples=["BSz85..."]
+    )
 
     model_config = {"from_attributes": True}
 
