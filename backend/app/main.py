@@ -56,19 +56,31 @@ from app.database import init_db, close_db
 from app.api.og import router as og_router
 from app.api.contributor_webhooks import router as contributor_webhooks_router
 from app.api.siws import router as siws_router
-from app.api.analytics import router as analytics_router
-from app.api.anti_sybil import router as anti_sybil_router
-from app.api.bounty_specs import router as bounty_specs_router
-from app.api.codebase_map import router as codebase_map_router
-from app.api.event_indexer import router as event_indexer_router
-from app.api.indexer import router as indexer_router
-from app.api.indexer_websocket import router as indexer_ws_router
-from app.api.migration import router as migration_router
-from app.api.onchain import router as onchain_router
-from app.api.pipelines import router as pipelines_router
-from app.api.staking import router as staking_router
-from app.api.users import router as users_router
-from app.api.wallet_connect import router as wallet_connect_router
+# Phase 3 routers — loaded gracefully so server boots even if some have issues
+import importlib as _il
+
+_PHASE3_ROUTERS: list[tuple[str, str, str | None]] = [
+    ("app.api.analytics", "analytics_router", "/api"),
+    ("app.api.anti_sybil", "anti_sybil_router", "/api"),
+    ("app.api.bounty_specs", "bounty_specs_router", None),
+    ("app.api.codebase_map", "codebase_map_router", None),
+    ("app.api.event_indexer", "event_indexer_router", "/api"),
+    ("app.api.indexer", "indexer_router", "/api"),
+    ("app.api.indexer_websocket", "indexer_ws_router", "/api"),
+    ("app.api.migration", "migration_router", None),
+    ("app.api.onchain", "onchain_router", "/api"),
+    ("app.api.pipelines", "pipelines_router", "/api"),
+    ("app.api.staking", "staking_router", "/api"),
+    ("app.api.users", "users_router", "/api"),
+    ("app.api.wallet_connect", "wallet_connect_router", "/api"),
+]
+_phase3_loaded: dict[str, tuple] = {}  # var_name -> (router, prefix)
+for _mod_path, _var, _prefix in _PHASE3_ROUTERS:
+    try:
+        _m = _il.import_module(_mod_path)
+        _phase3_loaded[_var] = (getattr(_m, "router"), _prefix)
+    except Exception as _e:
+        logging.getLogger(__name__).warning("Phase 3 skip %s: %s", _mod_path, _e)
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets
@@ -431,19 +443,12 @@ app.include_router(health_router)
 app.include_router(metrics_router)
 
 # Phase 3: Analytics, Staking, Migration, Indexer, etc.
-app.include_router(analytics_router, prefix="/api")
-app.include_router(anti_sybil_router, prefix="/api")
-app.include_router(bounty_specs_router)
-app.include_router(codebase_map_router)
-app.include_router(event_indexer_router, prefix="/api")
-app.include_router(indexer_router, prefix="/api")
-app.include_router(indexer_ws_router, prefix="/api")
-app.include_router(migration_router)
-app.include_router(onchain_router, prefix="/api")
-app.include_router(pipelines_router, prefix="/api")
-app.include_router(staking_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
-app.include_router(wallet_connect_router, prefix="/api")
+# Register Phase 3 routers that loaded successfully
+for _var, (_rtr, _pfx) in _phase3_loaded.items():
+    if _pfx:
+        app.include_router(_rtr, prefix=_pfx)
+    else:
+        app.include_router(_rtr)
 
 # Admin Dashboard: /api/admin/* (protected by ADMIN_API_KEY)
 app.include_router(admin_router)
