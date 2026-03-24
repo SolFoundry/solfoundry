@@ -183,9 +183,23 @@ async def init_db() -> None:
 
             # NOTE: create_all is idempotent (skips existing tables). For
             # production schema changes use ``alembic upgrade head`` instead.
-            await conn.run_sync(Base.metadata.create_all)
-
-            logger.info("Database schema initialized successfully")
+            try:
+                await conn.run_sync(Base.metadata.create_all)
+                logger.info("Database schema initialized successfully")
+            except Exception as schema_err:
+                logger.warning(
+                    "Bulk create_all failed (%s) — trying tables individually",
+                    schema_err,
+                )
+                # Try each table individually so one bad index doesn't block all
+                for table in Base.metadata.sorted_tables:
+                    try:
+                        await conn.run_sync(
+                            lambda sync_conn, t=table: t.create(sync_conn, checkfirst=True)
+                        )
+                    except Exception as table_err:
+                        logger.warning("Skip table %s: %s", table.name, table_err)
+                logger.info("Database schema initialized (partial — see warnings)")
     except Exception as e:
         logger.error(f"Database init failed: {e}")
         raise
