@@ -5,7 +5,7 @@ review scores, approve, dispute, lifecycle log,
 search, autocomplete, hot bounties, recommended bounties.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field as PydanticField
 from fastapi import APIRouter, Depends, HTTPException, Query, status
