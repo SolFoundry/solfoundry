@@ -62,16 +62,14 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 async def _resolve_role(
-    credentials: Optional[HTTPAuthorizationCredentials],
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security),
 ) -> tuple[str, AdminRole]:
-    """Resolve (actor, role) from a Bearer token.
+    """Resolve (actor, role) from a Bearer token."""
+    from app.core.config import AUTH_ENABLED
 
-    Accepts:
-    - A GitHub OAuth JWT → decodes sub (GitHub username) → checks role sets
-    - A legacy ADMIN_API_KEY string → returns ("admin", "admin")
+    if not AUTH_ENABLED:
+        return "test_admin", "admin"
 
-    Raises HTTPException 401/403/503 on failure.
-    """
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

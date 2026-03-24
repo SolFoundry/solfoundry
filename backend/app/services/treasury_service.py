@@ -76,9 +76,9 @@ async def get_treasury_stats() -> TreasuryStats:
         treasury_wallet=TREASURY_WALLET,
         total_paid_out_fndry=total_fndry_paid,
         total_paid_out_sol=total_sol_paid,
-        total_payouts=await _count_confirmed_payouts(),
+        total_payouts=_count_confirmed_payouts(),
         total_buyback_amount=total_buyback_sol,
-        total_buybacks=await _count_buybacks(),
+        total_buybacks=_count_buybacks(),
         last_updated=datetime.now(timezone.utc),
     )
 

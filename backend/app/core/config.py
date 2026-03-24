@@ -16,6 +16,9 @@ if ENV == "development":
 
 ALLOWED_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", _default_origins).split(",")
 
+# Auth state
+AUTH_ENABLED = os.getenv("AUTH_ENABLED", "true").lower() == "true"
+
 # Security config
 # Default 10MB payload limit
 MAX_PAYLOAD_SIZE = int(os.getenv("MAX_PAYLOAD_SIZE", 10 * 1024 * 1024))

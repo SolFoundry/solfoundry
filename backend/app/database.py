@@ -114,36 +114,26 @@ class GUID(TypeDecorator):
         return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
-        """Convert a Python value to a database-compatible format.
-
-        Args:
-            value: The Python value to bind.
-            dialect: The SQLAlchemy dialect in use.
-
-        Returns:
-            The value formatted for the database.
-        """
         if value is None:
             return value
         if dialect.name == "postgresql":
-            return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+            if isinstance(value, uuid.UUID):
+                return value
+            try:
+                return uuid.UUID(str(value))
+            except ValueError:
+                return str(value)
         return str(value)
 
     def process_result_value(self, value, dialect):
-        """Convert a database value back to a Python UUID.
-
-        Args:
-            value: The raw value from the database.
-            dialect: The SQLAlchemy dialect in use.
-
-        Returns:
-            A Python ``uuid.UUID`` instance, or None.
-        """
         if value is None:
             return value
         if isinstance(value, uuid.UUID):
             return value
-        return uuid.UUID(str(value))
+        try:
+            return uuid.UUID(str(value))
+        except ValueError:
+            return str(value)
 
 
 class Base(DeclarativeBase):

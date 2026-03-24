@@ -23,6 +23,7 @@ from app.models.payout import (
     AdminApprovalResponse,
 )
 from app.services import pg_store
+from app.services.transfer_service import send_spl_transfer, confirm_transaction
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ def _payout_to_response(record: PayoutRecord) -> PayoutResponse:
         tx_hash=record.tx_hash,
         status=record.status,
         solscan_url=record.solscan_url,
+        retry_count=getattr(record, "retry_count", 0),
+        failure_reason=getattr(record, "failure_reason", None),
         created_at=record.created_at,
         updated_at=getattr(record, "updated_at", record.created_at),
     )
@@ -78,17 +81,17 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
             for existing in _payout_store.values():
                 if existing.tx_hash == data.tx_hash:
                     raise HTTPException(
-                        status_code=400, detail="Payout with tx_hash already exists"
+                        status_code=409, detail="Payout with tx_hash already exists"
                     )
 
     # Double-pay check (bounty level)
     if data.bounty_id:
         all_payouts = await pg_store.load_payouts(limit=100000)
         for p in all_payouts.values():
-            if str(p.bounty_id) == str(data.bounty_id):
+            if str(p.bounty_id) == str(data.bounty_id) and p.status != PayoutStatus.FAILED:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Bounty {data.bounty_id} already has a payout.",
+                    status_code=409,
+                    detail=f"Bounty {data.bounty_id} already has an active payout.",
                 )
 
     record = PayoutRecord(
@@ -137,9 +140,13 @@ async def list_payouts(
     if token:
         items = [p for p in items if p.token == token]
     if start_date:
-        items = [p for p in items if p.created_at >= start_date]
+        if not start_date.tzinfo:
+            start_date = start_date.replace(tzinfo=timezone.utc)
+        items = [p for p in items if (p.created_at.replace(tzinfo=timezone.utc) if not p.created_at.tzinfo else p.created_at) >= start_date]
     if end_date:
-        items = [p for p in items if p.created_at <= end_date]
+        if not end_date.tzinfo:
+            end_date = end_date.replace(tzinfo=timezone.utc)
+        items = [p for p in items if (p.created_at.replace(tzinfo=timezone.utc) if not p.created_at.tzinfo else p.created_at) <= end_date]
 
     total = len(items)
     page = items[skip : skip + limit]
@@ -187,7 +194,7 @@ async def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse
         raise HTTPException(status_code=404, detail="Payout not found")
     if record.status != PayoutStatus.PENDING:
         raise HTTPException(
-            status_code=400, detail=f"Cannot approve payout in {record.status} state"
+            status_code=409, detail=f"Cannot act on payout in {record.status} state"
         )
 
     record.status = PayoutStatus.APPROVED
@@ -211,10 +218,19 @@ async def reject_payout(
     if not record:
         raise HTTPException(status_code=404, detail="Payout not found")
 
+    if record.status != PayoutStatus.PENDING:
+        raise HTTPException(
+            status_code=409, detail=f"Cannot act on payout in {record.status} state"
+        )
+
     record.status = PayoutStatus.FAILED
     record.failure_reason = reason
     record.updated_at = datetime.now(timezone.utc)
     await pg_store.persist_payout(record)
+
+    # Sync memory cache
+    with _store_lock:
+        _payout_store[record.id] = record
 
     return AdminApprovalResponse(
         payout_id=payout_id,
@@ -234,7 +250,7 @@ async def process_payout(payout_id: str) -> PayoutResponse:
         raise HTTPException(status_code=404, detail="Payout not found")
     if record.status != PayoutStatus.APPROVED:
         raise HTTPException(
-            status_code=400, detail="Payout must be APPROVED before execution"
+            status_code=409, detail="Payout must be APPROVED before execution"
         )
 
     record.status = PayoutStatus.PROCESSING
@@ -276,7 +292,7 @@ async def create_buyback(data: BuybackCreate) -> BuybackResponse:
         all_b = await pg_store.load_buybacks(limit=1000)
         for b in all_b.values():
             if b.tx_hash == data.tx_hash:
-                raise HTTPException(status_code=400, detail="Buyback already exists")
+                raise HTTPException(status_code=409, detail="Buyback already exists")
 
     record = BuybackRecord(
         amount_sol=data.amount_sol,

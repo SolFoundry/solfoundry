@@ -265,7 +265,7 @@ async def health_check(
     if credentials:
         try:
             _, role = await _resolve_role(credentials)
-            is_admin = (role == "admin")
+            is_admin = role == "admin"
         except Exception:
             pass
 
@@ -323,7 +323,7 @@ async def health_check(
             "redis": redis_result,
             "solana_rpc": solana_result,
             "github_api": github_result,
-        }
+        },
     }
 
     # System telemetry only for admins

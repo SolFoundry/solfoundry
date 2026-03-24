@@ -13,10 +13,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.api.admin import _resolve_role
 from app.services.payout_service import reset_stores
 from app.services.treasury_service import invalidate_cache
 
 client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def override_admin_auth():
+    """Mock admin authentication for all tests in this file."""
+    app.dependency_overrides[_resolve_role] = lambda: ("test_admin", "admin")
+    yield
+    app.dependency_overrides.pop(_resolve_role, None)
+
 
 # Deterministic test fixtures for base-58-like transaction hashes (88 chars)
 TX1: str = chr(52) * 88

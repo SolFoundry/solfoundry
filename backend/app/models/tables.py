@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
 from app.database import Base, GUID
 
 
@@ -124,6 +125,8 @@ class BountySubmissionTable(Base):
     submitted_at = Column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )
+
+    bounty = relationship("BountyTable", back_populates="submissions")
 
     __table_args__ = (Index("ix_bsub_bounty_pr", "bounty_id", "pr_url", unique=True),)
 
