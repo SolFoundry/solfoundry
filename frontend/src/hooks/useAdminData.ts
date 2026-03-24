@@ -45,7 +45,7 @@ export function clearAdminToken(): void {
 // Base fetch helper
 // ---------------------------------------------------------------------------
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAdminToken();

@@ -14,7 +14,7 @@ import { useAdminWebSocket, type AdminWsEvent } from '../../hooks/useAdminWebSoc
 import { getAdminToken, setAdminToken, clearAdminToken } from '../../hooks/useAdminData';
 import type { AdminSection } from '../../types/admin';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 interface NavItem {
   id: AdminSection;

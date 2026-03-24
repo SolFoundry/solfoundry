@@ -30,7 +30,9 @@ export class ApiError extends Error {
  * Endpoints already include the /api prefix, so this is just the host.
  */
 const API_BASE: string =
-  (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
+  import.meta.env?.VITE_API_URL != null && import.meta.env.VITE_API_URL !== ''
+    ? (import.meta.env.VITE_API_URL as string)
+    : '';
 
 let authToken: string | null = null;
 
