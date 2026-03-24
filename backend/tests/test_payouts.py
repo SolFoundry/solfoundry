@@ -23,6 +23,8 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def override_admin_auth():
     """Mock admin authentication for all tests in this file."""
+    from app.api.admin import _resolve_role
+
     app.dependency_overrides[_resolve_role] = lambda: ("test_admin", "admin")
     yield
     app.dependency_overrides.pop(_resolve_role, None)
