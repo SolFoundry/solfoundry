@@ -7,11 +7,33 @@ export const FNDRY_DECIMALS = 9;
 export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
+// Phase 3: Escrow program ID (deployed to devnet — update for mainnet)
+const escrowProgramAddress = import.meta.env.VITE_ESCROW_PROGRAM_ID as string | undefined;
+export const ESCROW_PROGRAM_ID = new PublicKey(
+  escrowProgramAddress || 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS',
+);
+
 // Configure via VITE_ESCROW_WALLET. In production, derive a PDA from the escrow program.
 const escrowAddress = import.meta.env.VITE_ESCROW_WALLET as string | undefined;
 export const ESCROW_WALLET = new PublicKey(
   escrowAddress || 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS',
 );
+
+// Phase 3: Staking wallet (configure via VITE_STAKING_WALLET)
+const stakingAddress = import.meta.env.VITE_STAKING_WALLET as string | undefined;
+export const STAKING_WALLET = new PublicKey(
+  stakingAddress || 'C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS',
+);
+
+/** Derive the escrow PDA for a given bounty ID. */
+export async function deriveEscrowPda(
+  bountyId: string,
+): Promise<[PublicKey, number]> {
+  return PublicKey.findProgramAddress(
+    [Buffer.from('escrow'), Buffer.from(bountyId)],
+    ESCROW_PROGRAM_ID,
+  );
+}
 
 export function solscanTxUrl(
   signature: string,

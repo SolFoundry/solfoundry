@@ -328,7 +328,7 @@ export function ReviewScoreTrendChart({
               color: '#E5E7EB',
               fontSize: '12px',
             }}
-            formatter={(value: number) => [value.toFixed(1), 'Score']}
+            formatter={(value) => [`${Number(value).toFixed(1)}`, 'Score']}
           />
           <Line
             type="monotone"
