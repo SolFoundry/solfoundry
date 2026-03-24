@@ -11,7 +11,7 @@ import type { BountyTier } from '../types/bounty';
 interface RecentBounty {
   title: string;
   issueUrl: string;
-  tier: 1 | 2 | 3;
+  tier: BountyTier;
   earned: number;
   completedAt: string;
 }
@@ -111,10 +111,6 @@ function formatJoinDate(isoDate: string): string {
   if (Number.isNaN(d.getTime())) return '';
   const month = d.toLocaleString('en-US', { month: 'long' });
   return `Member since ${month} ${d.getFullYear()}`;
-}
-
-function tierLabel(tier: 1 | 2 | 3): string {
-  return `T${tier}`;
 }
 
 export const ContributorProfile: React.FC<ContributorProfileProps> = ({
@@ -280,7 +276,7 @@ export const ContributorProfile: React.FC<ContributorProfileProps> = ({
                     <p className="text-sm text-white truncate">{bounty.title}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <BountyTags
-                        tier={`T${bounty.tier}` as BountyTier}
+                        tier={bounty.tier}
                         skills={[]}
                         showTier
                         className="inline-flex"
