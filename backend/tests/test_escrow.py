@@ -25,7 +25,8 @@ def _create_escrow_tables():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    asyncio.run(_create())
+    from conftest import run_async
+    run_async(_create())
 
 
 # Valid base-58 wallet addresses (44 chars)

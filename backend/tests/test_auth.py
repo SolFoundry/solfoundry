@@ -41,24 +41,27 @@ def auth_headers(client):
     """Create auth headers by doing GitHub OAuth login (simulated)."""
     import uuid
     from app.models.user import User
+    from conftest import get_test_loop
 
     user_uuid = uuid.uuid4()
     user_id = str(user_uuid)
+    # Use unique github_id per fixture call to avoid UNIQUE constraint failures
+    unique_github_id = f"test_github_{user_uuid.hex[:12]}"
 
     async def _create_user():
         """Create user."""
         async with async_session_factory() as session:
             user = User(
                 id=user_uuid,
-                github_id="test_github_123",
-                username="testuser",
-                email="test@example.com",
+                github_id=unique_github_id,
+                username=f"testuser_{user_uuid.hex[:8]}",
+                email=f"test_{user_uuid.hex[:8]}@example.com",
                 avatar_url="https://example.com/avatar.png",
             )
             session.add(user)
             await session.commit()
 
-    asyncio.run(_create_user())
+    get_test_loop().run_until_complete(_create_user())
 
     # Generate token
     token = auth_service.create_access_token(user_id)
@@ -270,7 +273,7 @@ class TestProtectedRoutes:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["username"] == "testuser"
+        assert data["username"].startswith("testuser_")
         assert "id" in data
         assert "username" in data
         assert "created_at" in data
