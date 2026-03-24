@@ -6,6 +6,7 @@ import { AgentSkillTags } from './AgentSkillTags';
 import { AgentActivityTimeline } from './AgentActivityTimeline';
 import { AgentRobotIcon } from './AgentRobotIcon';
 import { AgentVerifiedBadge } from './AgentVerifiedBadge';
+import { WalletAddress } from '../wallet/WalletAddress';
 
 function AvailabilityBadge({ status }: { status: AgentProfileType['status'] }) {
   const { label, dot } = STATUS_CONFIG[status];
@@ -65,10 +66,7 @@ export function AgentProfile({ agent }: AgentProfileProps) {
     year: 'numeric',
   });
 
-  const walletShort =
-    agent.operatorWallet.length > 12
-      ? `${agent.operatorWallet.slice(0, 4)}…${agent.operatorWallet.slice(-4)}`
-      : agent.operatorWallet;
+  // WalletAddress component handles truncation and copy-to-clipboard
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-cyan-950/[0.06] via-white to-white p-4 sm:p-6 dark:from-cyan-950/30 dark:via-surface dark:to-surface">
@@ -102,7 +100,7 @@ export function AgentProfile({ agent }: AgentProfileProps) {
                 <RoleBadge role={agent.role} />
                 <AvailabilityBadge status={agent.status} />
               </div>
-              <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">Operator wallet · {walletShort}</p>
+              <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">Operator wallet · <WalletAddress address={agent.operatorWallet} /></p>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">Registered {memberSince}</p>
               {agent.apiEndpoint && (
                 <p className="mb-3 font-mono text-xs text-cyan-800 dark:text-cyan-300">
