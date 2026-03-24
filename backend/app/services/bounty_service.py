@@ -27,6 +27,8 @@ from app.models.bounty import (
     VALID_SUBMISSION_TRANSITIONS,
     VALID_STATUS_TRANSITIONS,
 )
+from app.exceptions import MilestoneValidationError
+from app.models.milestone import MilestoneResponse, MilestoneStatus
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,11 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
         A BountyDB instance with submissions attached, or None if not found.
     """
     try:
-        from app.services.pg_store import get_bounty_by_id, load_submissions_for_bounty
+        from app.services.pg_store import (
+            get_bounty_by_id,
+            load_submissions_for_bounty,
+            load_milestones_for_bounty,
+        )
 
         row = await get_bounty_by_id(bounty_id)
         if row is None:
@@ -94,6 +100,22 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
             for sr in sub_rows
         ]
 
+        milestone_rows = await load_milestones_for_bounty(bounty_id)
+        milestones = [
+            MilestoneResponse(
+                id=mr.id,
+                bounty_id=mr.bounty_id,
+                milestone_number=mr.milestone_number,
+                description=mr.description,
+                percentage=float(mr.percentage),
+                status=MilestoneStatus(mr.status),
+                submitted_at=mr.submitted_at,
+                approved_at=mr.approved_at,
+                payout_tx_hash=mr.payout_tx_hash,
+            )
+            for mr in milestone_rows
+        ]
+
         return BountyDB(
             id=str(row.id),
             title=row.title,
@@ -110,6 +132,7 @@ async def _load_bounty_from_db(bounty_id: str) -> Optional[BountyDB]:
             deadline=row.deadline,
             created_by=row.created_by,
             submissions=submissions,
+            milestones=milestones,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -137,7 +160,11 @@ async def _load_all_bounties_from_db(
         A list of BountyDB Pydantic models, or None on failure.
     """
     try:
-        from app.services.pg_store import load_bounties, load_submissions_for_bounty
+        from app.services.pg_store import (
+            load_bounties,
+            load_submissions_for_bounty,
+            load_milestones_for_bounty,
+        )
 
         rows = await load_bounties(offset=offset, limit=limit)
         result = []
@@ -176,6 +203,7 @@ async def _load_all_bounties_from_db(
                     deadline=row.deadline,
                     created_by=row.created_by,
                     submissions=submissions,
+                    milestones=[],
                     created_at=row.created_at,
                     updated_at=row.updated_at,
                 )
@@ -237,6 +265,10 @@ def _to_bounty_response(bounty: BountyDB) -> BountyResponse:
         created_by=bounty.created_by,
         submissions=subs,
         submission_count=len(subs),
+        milestones=bounty.milestones,
+        claimed_by=bounty.claimed_by,
+        claimed_at=bounty.claimed_at,
+        claim_deadline=bounty.claim_deadline,
         created_at=bounty.created_at,
         updated_at=bounty.updated_at,
     )
@@ -266,6 +298,7 @@ def _to_list_item(bounty: BountyDB) -> BountyListItem:
         created_by=bounty.created_by,
         submissions=subs,
         submission_count=len(bounty.submissions),
+        claimed_by=bounty.claimed_by,
         created_at=bounty.created_at,
     )
 
@@ -295,6 +328,14 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
     Returns:
         The newly created bounty as a BountyResponse.
     """
+    if data.milestones:
+        if data.tier != 3: # BountyTier.T3
+            raise MilestoneValidationError("Milestones can only be added to T3 (Large) bounties")
+        
+        total_percentage = sum(m.percentage for m in data.milestones)
+        if abs(total_percentage - 100.0) > 0.001:
+            raise MilestoneValidationError(f"Total milestone percentage must be 100, got {total_percentage:.2f}")
+
     bounty = BountyDB(
         title=data.title,
         description=data.description,
@@ -308,6 +349,17 @@ async def create_bounty(data: BountyCreate) -> BountyResponse:
         created_by=data.created_by,
     )
     await _persist_to_db(bounty)
+    
+    # If milestones are provided in creation, save them
+    if data.milestones:
+        from app.services.milestone_service import MilestoneService
+        from app.database import get_db_session
+        async with get_db_session() as session:
+            svc = MilestoneService(session)
+            await svc.create_milestones(bounty.id, data.milestones, data.created_by)
+            # Re-load to get updated milestones with proper IDs and fields
+            bounty = await _load_bounty_from_db(bounty.id)
+
     _bounty_store[bounty.id] = bounty
     return _to_bounty_response(bounty)
 

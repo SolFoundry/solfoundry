@@ -127,7 +127,38 @@ async def persist_bounty(bounty: Any) -> None:
         # Persist attached submissions as first-class rows
         for sub in getattr(bounty, "submissions", []):
             await _persist_bounty_submission(session, bounty.id, sub)
+        # Persist attached milestones
+        for m in getattr(bounty, "milestones", []):
+            await _persist_bounty_milestone(session, bounty.id, m)
         await session.commit()
+
+
+async def _persist_bounty_milestone(
+    session: AsyncSession, bounty_id: str, m: Any
+) -> None:
+    """Persist a single milestone as a row in the bounties_milestones table."""
+    from app.models.tables import MilestoneTable
+
+    status = m.status.value if hasattr(m.status, "value") else m.status
+    pk = _to_uuid(m.id)
+    existing = await session.get(MilestoneTable, pk)
+    if existing is None:
+        session.add(MilestoneTable(
+            id=pk,
+            bounty_id=_to_uuid(bounty_id),
+            milestone_number=m.milestone_number,
+            description=m.description,
+            percentage=m.percentage,
+            status=status,
+            submitted_at=m.submitted_at,
+            approved_at=m.approved_at,
+            payout_tx_hash=m.payout_tx_hash,
+        ))
+    else:
+        existing.status = status
+        existing.submitted_at = m.submitted_at
+        existing.approved_at = m.approved_at
+        existing.payout_tx_hash = m.payout_tx_hash
 
 
 async def _persist_bounty_submission(
@@ -247,6 +278,20 @@ async def load_submissions_for_bounty(bounty_id: str) -> list[Any]:
             select(BountySubmissionTable)
             .where(BountySubmissionTable.bounty_id == bounty_id)
             .order_by(BountySubmissionTable.submitted_at.asc())
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
+async def load_milestones_for_bounty(bounty_id: str) -> list[Any]:
+    """Load all milestones for a specific bounty from PostgreSQL."""
+    from app.models.tables import MilestoneTable
+
+    async with get_db_session() as session:
+        stmt = (
+            select(MilestoneTable)
+            .where(MilestoneTable.bounty_id == _to_uuid(bounty_id))
+            .order_by(MilestoneTable.milestone_number.asc())
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())

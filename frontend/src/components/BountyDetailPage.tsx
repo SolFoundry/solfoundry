@@ -10,6 +10,7 @@ import ReviewScoresPanel from './bounties/ReviewScoresPanel';
 import SubmissionForm from './bounties/SubmissionForm';
 import CreatorApprovalPanel from './bounties/CreatorApprovalPanel';
 import LifecycleTimeline from './bounties/LifecycleTimeline';
+import { MilestoneProgress } from './bounties/MilestoneProgress';
 import { BountyTags } from './bounties/BountyTags';
 import { BoostPanel } from './bounties/BoostPanel';
 
@@ -40,6 +41,7 @@ interface BountyDetail {
   winner_wallet?: string;
   payout_tx_hash?: string;
   payout_at?: string;
+  milestones?: any[];
 }
 
 interface Activity {
@@ -81,6 +83,8 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
     approveSubmission,
     disputeSubmission,
     fetchLifecycle,
+    submitMilestone,
+    approveMilestone,
   } = useBountySubmission(bounty.id);
 
   useEffect(() => {
@@ -122,6 +126,22 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [bounty.deadline]);
+
+  const [localMilestones, setLocalMilestones] = useState(bounty.milestones || []);
+
+  const handleMilestoneSubmit = async (id: string) => {
+    const updated = await submitMilestone(id);
+    if (updated) {
+      setLocalMilestones((prev: any[]) => prev.map(m => m.id === id ? updated : m));
+    }
+  };
+
+  const handleMilestoneApprove = async (id: string) => {
+    const updated = await approveMilestone(id);
+    if (updated) {
+      setLocalMilestones((prev: any[]) => prev.map(m => m.id === id ? updated : m));
+    }
+  };
 
   const currentUserWallet = localStorage.getItem('wallet_address') || '';
   const isCreator = bounty.created_by === currentUserWallet || false;
@@ -209,6 +229,17 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                   {timeRemaining}
                 </p>
               </div>
+            )}
+
+            {/* Milestone Progress */}
+            {localMilestones && localMilestones.length > 0 && (
+              <MilestoneProgress
+                milestones={localMilestones}
+                isCreator={isCreator}
+                onApprove={handleMilestoneApprove}
+                onSubmit={handleMilestoneSubmit}
+                loading={loading}
+              />
             )}
 
             {/* Description */}

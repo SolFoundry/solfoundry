@@ -152,6 +152,22 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                             <span>
                                 Submissions: <strong className="text-white">{bounty.submission_count}</strong>
                             </span>
+                            {bounty.tier === 'T3' && bounty.milestones && bounty.milestones.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs">Milestones:</span>
+                                    <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-blue-500" 
+                                            style={{ 
+                                                width: `${(bounty.milestones.filter((m: any) => m.status === 'approved').length / bounty.milestones.length) * 100}%` 
+                                            }} 
+                                        />
+                                    </div>
+                                    <span className="text-white text-xs font-bold">
+                                        {bounty.milestones.filter((m: any) => m.status === 'approved').length}/{bounty.milestones.length}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -17,6 +17,7 @@ interface BountyFormData {
   skills: string[];
   rewardAmount: number;
   deadline: string;
+  milestones?: { milestone_number: number; description: string; percentage: number }[];
 }
 
 // Validation function for draft data from localStorage
@@ -105,6 +106,7 @@ const initialFormData: BountyFormData = {
   skills: [],
   rewardAmount: 100000,
   deadline: '',
+  milestones: [],
 };
 
 const DRAFT_KEY = 'bounty_creation_draft';
@@ -477,7 +479,122 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
   );
 };
 
-// Step 6: Preview
+// New Step: Milestones Builder
+const MilestonesBuilder: React.FC<StepProps> = ({ formData, updateFormData, errors }) => {
+  if (formData.tier !== 'T3') {
+    return (
+      <div className="space-y-6 text-center py-12">
+        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-500">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-white">Milestones Not Applicable</h2>
+        <p className="text-gray-400">Milestones are only supported for Tier 3 bounties.</p>
+        <p className="text-gray-500 text-sm mt-2">Currently selecting: {formData.tier || 'None'}</p>
+      </div>
+    );
+  }
+
+  const addMilestone = () => {
+    const nextNum = (formData.milestones?.length || 0) + 1;
+    updateFormData({
+      milestones: [...(formData.milestones || []), { milestone_number: nextNum, description: '', percentage: 0 }]
+    });
+  };
+
+  const removeMilestone = (index: number) => {
+    const newMs = (formData.milestones || []).filter((_, i) => i !== index);
+    updateFormData({ milestones: newMs });
+  };
+
+  const updateMilestone = (index: number, updates: Partial<{ description: string, percentage: number }>) => {
+    const newMs = [...(formData.milestones || [])];
+    newMs[index] = { ...newMs[index], ...updates };
+    updateFormData({ milestones: newMs });
+  };
+
+  const totalPercentage = (formData.milestones || []).reduce((acc, m) => acc + m.percentage, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Project Milestones</h2>
+          <p className="text-gray-400">Define checkpoints and partial payouts.</p>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-bold border ${Math.abs(totalPercentage - 100) < 0.01 ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
+          Total: {totalPercentage}%
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {(formData.milestones || []).map((ms, index) => (
+          <div key={index} className="flex gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="flex-1 space-y-3">
+              <div className="flex gap-3">
+                <div className="w-10">
+                  <label className="text-[10px] text-gray-500 uppercase block mb-1">#</label>
+                  <div className="bg-gray-700 rounded-md py-1.5 text-center text-sm font-mono text-white">
+                    {ms.milestone_number}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] text-gray-500 uppercase block mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={ms.description}
+                    onChange={(e) => updateMilestone(index, { description: e.target.value })}
+                    placeholder="Milestone goal..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div className="w-24">
+                  <label className="text-[10px] text-gray-500 uppercase block mb-1">Payout %</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={ms.percentage}
+                      onChange={(e) => updateMilestone(index, { percentage: parseFloat(e.target.value) || 0 })}
+                      min="0"
+                      max="100"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500 pr-6"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]">%</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeMilestone(index)}
+                  className="mt-5 p-2 text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addMilestone}
+        className="w-full py-2 border-2 border-dashed border-gray-700 rounded-lg text-gray-500 hover:text-white hover:border-gray-500 transition-all text-sm font-medium"
+      >
+        + Add Milestone
+      </button>
+
+      {errors.milestones && <p className="text-red-400 text-sm">{errors.milestones}</p>}
+      {Math.abs(totalPercentage - 100) > 0.01 && (formData.milestones?.length || 0) > 0 && (
+        <p className="text-yellow-500 text-xs mt-2 italic">
+          Total percentage must sum to exactly 100% to continue.
+        </p>
+      )}
+    </div>
+  );
+};
+
+// Step 7: Preview
 const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
   const tierInfo = TIER_INFO[formData.tier as keyof typeof TIER_INFO];
   
@@ -533,6 +650,24 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
             ))}
           </ul>
         </div>
+        
+        {/* Milestones Preview */}
+        {formData.tier === 'T3' && formData.milestones && formData.milestones.length > 0 && (
+          <div>
+            <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Milestones</h4>
+            <div className="space-y-2">
+              {formData.milestones.map((ms, idx) => (
+                <div key={idx} className="flex justify-between items-center p-2 bg-gray-800 rounded text-sm">
+                  <span className="text-gray-300">
+                    <span className="text-gray-500 font-mono mr-2">#{ms.milestone_number}</span>
+                    {ms.description}
+                  </span>
+                  <span className="text-purple-400 font-bold">{ms.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Skills */}
         {formData.skills.length > 0 && (
@@ -728,12 +863,13 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
   const [formData, setFormData] = useState<BountyFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const totalSteps = 7;
+  const totalSteps = 8;
   const progressPercent = (currentStep / totalSteps) * 100;
   const stepTitles = [
     'Select Tier',
     'Title & Description',
     'Requirements',
+    'Milestones',
     'Category & Skills',
     'Reward & Deadline',
     'Preview',
@@ -798,11 +934,27 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
           newErrors.requirements = 'At least one requirement is required';
         }
         break;
+        break;
       case 4:
+        if (formData.tier === 'T3') {
+          if (!formData.milestones || formData.milestones.length === 0) {
+            newErrors.milestones = 'T3 bounties require at least one milestone';
+          } else {
+            const totalPerc = formData.milestones.reduce((acc, m) => acc + m.percentage, 0);
+            if (Math.abs(totalPerc - 100) > 0.01) {
+              newErrors.milestones = `Total percentage must be 100% (currently ${totalPerc}%)`;
+            }
+            if (formData.milestones.some(m => !m.description.trim())) {
+              newErrors.milestones = 'All milestones must have a description';
+            }
+          }
+        }
+        break;
+      case 5:
         if (!formData.category) newErrors.category = 'Please select a category';
         if (formData.skills.length === 0) newErrors.skills = 'Select at least one skill';
         break;
-      case 5:
+      case 6:
         // Base validation
         if (formData.rewardAmount < 1000) newErrors.rewardAmount = 'Minimum reward is 1,000 $FNDRY';
         if (!formData.deadline) newErrors.deadline = 'Please set a deadline';
@@ -871,6 +1023,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
           deadline: formData.deadline
             ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
             : undefined,
+          milestones: formData.milestones?.length ? formData.milestones : undefined,
         }),
       });
       if (!resp.ok) {
@@ -888,10 +1041,11 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       case 1: return <TierSelection {...props} />;
       case 2: return <TitleDescription {...props} />;
       case 3: return <RequirementsBuilder {...props} />;
-      case 4: return <CategorySkills {...props} />;
-      case 5: return <RewardDeadline {...props} />;
-      case 6: return <PreviewBounty {...props} />;
-      case 7: return (
+      case 4: return <MilestonesBuilder {...props} />;
+      case 5: return <CategorySkills {...props} />;
+      case 6: return <RewardDeadline {...props} />;
+      case 7: return <PreviewBounty {...props} />;
+      case 8: return (
         <ConfirmPublish
           {...props}
           onPublish={handlePublish}
@@ -946,7 +1100,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       </div>
       
       {/* Navigation */}
-      {currentStep < 7 && (
+  {currentStep < 8 && (
         <div className="flex items-center justify-between mt-6">
           <button
             onClick={prevStep}
@@ -959,7 +1113,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
             onClick={nextStep}
             className="px-6 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-500 transition-all"
           >
-            {currentStep === 6 ? 'Continue to Publish' : 'Next →'}
+            {currentStep === 7 ? 'Continue to Publish' : 'Next →'}
           </button>
         </div>
       )}

@@ -147,3 +147,44 @@ class AdminAuditLogTable(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )
+
+
+class MilestoneTable(Base):
+    """Stores milestone definitions and progress for T3 bounties.
+    
+    Milestones allow for incremental payouts on long-form projects.
+    The sum of percentages must equal 100 for a bounty.
+    """
+
+    __tablename__ = "bounties_milestones"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bounty_id = Column(
+        UUID(as_uuid=True),
+        sa.ForeignKey("bounties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    milestone_number = Column(Integer, nullable=False)
+    description = Column(Text, nullable=False)
+    percentage = Column(sa.Numeric(precision=5, scale=2), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending")
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    payout_tx_hash = Column(String(128), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_now,
+        index=True,
+        onupdate=_now,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_bmilestone_bounty_num", "bounty_id", "milestone_number", unique=True
+        ),
+    )

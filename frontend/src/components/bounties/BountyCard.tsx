@@ -50,6 +50,11 @@ export function BountyCard({ bounty: b, onClick }: { bounty: Bounty; onClick: (i
           <div className="flex items-center gap-2">
             <TierBadge tier={b.tier} />
             <CreatorBadge type={b.creatorType || 'platform'} />
+            {b.tier === 'T3' && b.milestones && b.milestones.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+                Milestones
+              </span>
+            )}
           </div>
           <StatusIndicator status={b.status} />
         </div>

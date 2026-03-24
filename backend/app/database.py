@@ -171,6 +171,7 @@ async def init_db() -> None:
                 BuybackTable,
                 ReputationHistoryTable,
                 BountySubmissionTable,
+                MilestoneTable,
             )
             from app.models.review import AIReviewScoreDB  # noqa: F401
             from app.models.lifecycle import BountyLifecycleLogDB  # noqa: F401

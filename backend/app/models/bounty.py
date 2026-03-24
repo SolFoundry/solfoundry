@@ -8,9 +8,11 @@ import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field, field_validator
+
+from app.models.milestone import MilestoneResponse, MilestoneCreate
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +290,7 @@ class BountyCreate(BountyBase):
         "", max_length=DESCRIPTION_MAX_LENGTH
     )  # Override default for creation
     tier: BountyTier = BountyTier.T2  # Override default for creation
+    milestones: Optional[List[MilestoneCreate]] = None
 
 
 class BountyUpdate(BaseModel):
@@ -337,6 +340,7 @@ class BountyDB(BaseModel):
     claim_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    milestones: list[MilestoneResponse] = Field(default_factory=list)
 
 
 class BountyResponse(BountyBase):
@@ -389,6 +393,7 @@ class BountyResponse(BountyBase):
     model_config = {"from_attributes": True}
     submissions: list[SubmissionResponse] = Field(default_factory=list)
     submission_count: int = 0
+    milestones: list[MilestoneResponse] = Field(default_factory=list)
 
 
 class BountyListItem(BaseModel):

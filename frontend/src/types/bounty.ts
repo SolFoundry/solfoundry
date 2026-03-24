@@ -74,6 +74,18 @@ export interface LifecycleLogEntry {
 }
 
 export type CreatorType = 'platform' | 'community';
+export type MilestoneStatus = 'pending' | 'submitted' | 'approved';
+
+export interface Milestone {
+  id: string;
+  milestone_number: number;
+  description: string;
+  percentage: number;
+  status: MilestoneStatus;
+  submitted_at?: string;
+  approved_at?: string;
+  payout_tx_hash?: string;
+}
 
 export interface Bounty {
   id: string;
@@ -99,6 +111,7 @@ export interface Bounty {
   winner_wallet?: string;
   payout_tx_hash?: string;
   payout_at?: string;
+  milestones?: Milestone[];
 }
 
 export type BountyCategory = 'smart-contract' | 'frontend' | 'backend' | 'design' | 'content' | 'security' | 'devops' | 'documentation';

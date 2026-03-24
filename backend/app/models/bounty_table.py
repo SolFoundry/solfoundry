@@ -58,6 +58,11 @@ class BountyTable(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    # Claim fields (T2/T3)
+    claimed_by = Column(String(100), nullable=True)
+    claimed_at = Column(DateTime(timezone=True), nullable=True)
+    claim_deadline = Column(DateTime(timezone=True), nullable=True)
+    
     search_vector = Column(
         Text, nullable=True
     )  # Fallback for SQLite; TSVECTOR is PG-only

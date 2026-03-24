@@ -68,7 +68,7 @@ def _get_bounty_db(bounty_id: str) -> BountyDB:
 # ---------------------------------------------------------------------------
 
 
-def transition_status(
+async def transition_status(
     bounty_id: str,
     target_status: BountyStatus,
     *,
@@ -102,10 +102,11 @@ def transition_status(
         actor=actor_id,
     )
 
+    await bounty_service._persist_to_db(bounty)
     return bounty_service._to_bounty_response(bounty)
 
 
-def publish_bounty(
+async def publish_bounty(
     bounty_id: str,
     *,
     actor_id: str = "system",
@@ -118,7 +119,7 @@ def publish_bounty(
             code="INVALID_STATE",
         )
 
-    resp = transition_status(
+    resp = await transition_status(
         bounty_id,
         BountyStatus.OPEN,
         actor_id=actor_id,
@@ -142,7 +143,7 @@ def publish_bounty(
 # ---------------------------------------------------------------------------
 
 
-def claim_bounty(
+async def claim_bounty(
     bounty_id: str,
     claimer_id: str,
     *,
@@ -196,10 +197,11 @@ def claim_bounty(
         deadline=bounty.claim_deadline.isoformat(),
     )
 
+    await bounty_service._persist_to_db(bounty)
     return bounty_service._to_bounty_response(bounty)
 
 
-def unclaim_bounty(
+async def unclaim_bounty(
     bounty_id: str,
     *,
     actor_id: str = "system",
@@ -241,6 +243,7 @@ def unclaim_bounty(
         reason=reason,
     )
 
+    await bounty_service._persist_to_db(bounty)
     return bounty_service._to_bounty_response(bounty)
 
 
@@ -308,7 +311,7 @@ def handle_t1_auto_win(
 # ---------------------------------------------------------------------------
 
 
-def check_deadlines() -> dict:
+async def check_deadlines() -> dict:
     """Check all claimed bounties for deadline enforcement.
 
     - At 80% elapsed: emit a warning event.
@@ -338,7 +341,7 @@ def check_deadlines() -> dict:
         # 100% — auto-release
         if progress >= 1.0:
             try:
-                unclaim_bounty(
+                await unclaim_bounty(
                     bounty_id,
                     actor_id="system",
                     reason="deadline_expired",
@@ -379,7 +382,7 @@ async def periodic_deadline_check(interval_seconds: int = 60) -> None:
     """Background task that runs deadline enforcement periodically."""
     while True:
         try:
-            result = check_deadlines()
+            result = await check_deadlines()
             if result["warned"] or result["released"]:
                 logger.info("Deadline check: %s", result)
         except Exception:

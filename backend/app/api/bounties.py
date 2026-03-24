@@ -55,6 +55,13 @@ from app.services import bounty_service
 from app.services import review_service
 from app.services import lifecycle_service
 from app.services.bounty_search_service import BountySearchService
+from app.services.milestone_service import MilestoneService
+from app.models.milestone import (
+    MilestoneCreate,
+    MilestoneResponse,
+    MilestoneSubmit,
+    MilestoneListResponse,
+)
 from app.services.contributor_webhook_service import ContributorWebhookService
 
 
@@ -756,7 +763,7 @@ async def publish_bounty(
     await _verify_bounty_ownership(bounty_id, user)
     actor_id = user.wallet_address or str(user.id)
     try:
-        return _publish_bounty(bounty_id, actor_id=actor_id)
+        return await _publish_bounty(bounty_id, actor_id=actor_id)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
@@ -789,7 +796,7 @@ async def claim_bounty(
     claimer_id = user.wallet_address or str(user.id)
     duration = body.claim_duration_hours if body else 168
     try:
-        result = _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
+        result = await _claim_bounty(bounty_id, claimer_id, claim_duration_hours=duration)
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
@@ -826,7 +833,7 @@ async def unclaim_bounty(
 ) -> BountyResponse:
     actor_id = user.wallet_address or str(user.id)
     try:
-        return _unclaim_bounty(bounty_id, actor_id=actor_id, reason="manual")
+        return await _unclaim_bounty(bounty_id, actor_id=actor_id, reason="manual")
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
@@ -863,6 +870,99 @@ async def transition_bounty(
     except LifecycleError as exc:
         code = 404 if exc.code == "NOT_FOUND" else 400
         raise HTTPException(status_code=code, detail=exc.message)
+
+
+# ---------------------------------------------------------------------------
+# Milestone endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{bounty_id}/milestones",
+    response_model=MilestoneListResponse,
+    summary="List milestones for a bounty",
+)
+async def list_milestones(
+    bounty_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> MilestoneListResponse:
+    """Return all milestones for a specific bounty."""
+    svc = MilestoneService(db)
+    milestones = await svc.get_milestones(bounty_id)
+    total_perc = sum(float(m.percentage) for m in milestones)
+    return MilestoneListResponse(
+        bounty_id=bounty_id,
+        milestones=milestones,
+        total_percentage=total_perc,
+    )
+
+
+@router.post(
+    "/{bounty_id}/milestones",
+    response_model=List[MilestoneResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Define milestones for a bounty",
+)
+async def create_milestones(
+    bounty_id: str,
+    data: List[MilestoneCreate],
+    db: AsyncSession = Depends(get_db),
+    user: UserResponse = Depends(get_current_user),
+) -> List[MilestoneResponse]:
+    """Register milestone checkpoints for a T3 bounty. Total must be 100%."""
+    svc = MilestoneService(db)
+    try:
+        user_id = user.wallet_address or str(user.id)
+        return await svc.create_milestones(bounty_id, data, user_id)
+    except (ValueError, UnauthorizedDisputeAccessError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except BountyNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post(
+    "/{bounty_id}/milestones/{milestone_id}/submit",
+    response_model=MilestoneResponse,
+    summary="Submit a milestone for review",
+)
+async def submit_milestone(
+    bounty_id: str,
+    milestone_id: str,
+    data: MilestoneSubmit,
+    db: AsyncSession = Depends(get_db),
+    user: UserResponse = Depends(get_current_user),
+) -> MilestoneResponse:
+    """Contributor submits a completed milestone for verification."""
+    svc = MilestoneService(db)
+    try:
+        user_id = user.wallet_address or str(user.id)
+        return await svc.submit_milestone(bounty_id, milestone_id, data, user_id)
+    except (ValueError, UnauthorizedDisputeAccessError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except BountyNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post(
+    "/{bounty_id}/milestones/{milestone_id}/approve",
+    response_model=MilestoneResponse,
+    summary="Approve a milestone and release payout",
+)
+async def approve_milestone(
+    bounty_id: str,
+    milestone_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: UserResponse = Depends(get_current_user),
+) -> MilestoneResponse:
+    """Owner approves a milestone, triggering proportional token transfer."""
+    svc = MilestoneService(db)
+    try:
+        user_id = user.wallet_address or str(user.id)
+        return await svc.approve_milestone(bounty_id, milestone_id, user_id)
+    except (ValueError, UnauthorizedDisputeAccessError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except BountyNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # ---------------------------------------------------------------------------
