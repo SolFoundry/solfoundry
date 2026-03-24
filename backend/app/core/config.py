@@ -36,6 +36,16 @@ RATE_LIMITS = {
 # Redis
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+# Persistence & Performance
+MAX_DB_LOAD_LIMIT = int(os.getenv("MAX_DB_LOAD_LIMIT", "100000"))
+
+# Blockchain & External URLs
+SOLSCAN_BASE_URL = os.getenv("SOLSCAN_BASE_URL", "https://solscan.io/tx/")
+
+# Token Names
+TOKEN_FNDRY = "FNDRY"
+TOKEN_SOL = "SOL"
+
 # Email (Resend)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 DEFAULT_FROM_EMAIL = os.getenv(

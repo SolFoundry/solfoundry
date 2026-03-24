@@ -895,7 +895,9 @@ async def get_system_health_admin(
 
     # Redis probe
     try:
-        redis_url = _os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        from app.core.config import REDIS_URL
+
+        redis_url = REDIS_URL
         client = redis_from_url(redis_url, decode_responses=True)
         async with client:
             await client.ping()
@@ -1113,7 +1115,7 @@ async def get_treasury_dashboard(
     from app.services.payout_service import (
         _payout_store,
         _buyback_store,
-        _lock as _store_lock,
+        _store_lock,
     )
     from app.models.payout import PayoutStatus as PS
 

@@ -22,8 +22,8 @@ from app.models.payout import (
     BuybackListResponse,
     AdminApprovalResponse,
 )
+from app.core.config import MAX_DB_LOAD_LIMIT, SOLSCAN_BASE_URL, TOKEN_FNDRY, TOKEN_SOL
 from app.services import pg_store
-from app.services.transfer_service import send_spl_transfer, confirm_transaction
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ _buyback_store: Dict[str, BuybackRecord] = {}
 
 
 def _solscan_url(tx_hash: Optional[str]) -> Optional[str]:
-    return f"https://solscan.io/tx/{tx_hash}" if tx_hash else None
+    return f"{SOLSCAN_BASE_URL}{tx_hash}" if tx_hash else None
 
 
 def _payout_to_response(record: PayoutRecord) -> PayoutResponse:
@@ -86,7 +86,7 @@ async def create_payout(data: PayoutCreate) -> PayoutResponse:
 
     # Double-pay check (bounty level)
     if data.bounty_id:
-        all_payouts = await pg_store.load_payouts(limit=100000)
+        all_payouts = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
         for p in all_payouts.values():
             if str(p.bounty_id) == str(data.bounty_id) and p.status != PayoutStatus.FAILED:
                 raise HTTPException(
@@ -165,7 +165,7 @@ async def get_payout_by_id(payout_id: str) -> Optional[PayoutResponse]:
             return _payout_to_response(_payout_store[payout_id])
 
     # DB Fallback
-    all_payouts = await pg_store.load_payouts(limit=100000)
+    all_payouts = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
     if payout_id in all_payouts:
         return _payout_to_response(all_payouts[payout_id])
     return None
@@ -187,7 +187,7 @@ async def approve_payout(payout_id: str, admin_id: str) -> AdminApprovalResponse
 
     if not record:
         # Final attempt to load from DB before failing
-        all_p = await pg_store.load_payouts(limit=100000)
+        all_p = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
         record = all_p.get(payout_id)
 
     if not record:
@@ -213,7 +213,7 @@ async def reject_payout(
     payout_id: str, admin_id: str, reason: Optional[str] = None
 ) -> AdminApprovalResponse:
     """Admin rejection gate."""
-    all_p = await pg_store.load_payouts(limit=100000)
+    all_p = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
     record = all_p.get(payout_id)
     if not record:
         raise HTTPException(status_code=404, detail="Payout not found")
@@ -244,7 +244,7 @@ async def process_payout(payout_id: str) -> PayoutResponse:
     """Execute on-chain SPL transfer."""
     from app.services.transfer_service import send_spl_transfer, confirm_transaction
 
-    all_p = await pg_store.load_payouts(limit=100000)
+    all_p = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
     record = all_p.get(payout_id)
     if not record:
         raise HTTPException(status_code=404, detail="Payout not found")
@@ -329,29 +329,29 @@ async def get_total_buybacks() -> Tuple[float, float]:
 
 async def get_total_paid_out() -> tuple[float, float]:
     """Calculate total confirmed payouts for both FNDRY and SOL."""
-    payouts = await pg_store.load_payouts(limit=10000)
+    payouts = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
     fndry = sum(
         p.amount
         for p in payouts.values()
-        if p.status == PayoutStatus.CONFIRMED and p.token == "FNDRY"
+        if p.status == PayoutStatus.CONFIRMED and p.token == TOKEN_FNDRY
     )
     sol = sum(
         p.amount
         for p in payouts.values()
-        if p.status == PayoutStatus.CONFIRMED and p.token == "SOL"
+        if p.status == PayoutStatus.CONFIRMED and p.token == TOKEN_SOL
     )
     return fndry, sol
 
 
 async def _count_confirmed_payouts() -> int:
     """Count payouts with CONFIRMED status."""
-    payouts = await pg_store.load_payouts(limit=10000)
+    payouts = await pg_store.load_payouts(limit=MAX_DB_LOAD_LIMIT)
     return sum(1 for p in payouts.values() if p.status == PayoutStatus.CONFIRMED)
 
 
 async def _count_buybacks() -> int:
     """Return the total number of recorded buyback events."""
-    buybacks = await pg_store.load_buybacks(limit=10000)
+    buybacks = await pg_store.load_buybacks(limit=MAX_DB_LOAD_LIMIT)
     return len(buybacks)
 
 
