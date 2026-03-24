@@ -381,28 +381,82 @@ KNOWN_PAYOUTS: dict[str, dict] = {
         "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
     },
     "KodeSage": {
-        "total_fndry": 0,
+        "total_fndry": 1_050_000,
         "bounties_completed": 17,  # Phase 2-3: prolific contributor
         "skills": ["React", "TypeScript", "FastAPI", "Python", "Solana"],
         "bio": "Full-stack developer. Marketplace, staking, dashboards.",
     },
     "codebestia": {
-        "total_fndry": 0,
+        "total_fndry": 850_000,
         "bounties_completed": 15,  # Phase 2-3
         "skills": ["Python", "FastAPI", "React", "TypeScript"],
         "bio": "Backend + frontend contributor. Onboarding, lifecycle, logging.",
     },
     "LaphoqueRC": {
-        "total_fndry": 150_000,
+        "total_fndry": 350_000,
         "bounties_completed": 7,
         "skills": ["Frontend", "React", "TypeScript"],
         "bio": "Frontend contributor. Landing page & animations.",
+    },
+    "brutusworker-arch": {
+        "total_fndry": 300_000,
+        "bounties_completed": 6,
+        "skills": [],
+        "bio": "Active contributor. Phase 2-3 bounties.",
+    },
+    "orgy272": {
+        "total_fndry": 300_000,
+        "bounties_completed": 6,
+        "skills": [],
+        "bio": "Active contributor. Phase 2-3 bounties.",
+    },
+    "0xDeon": {
+        "total_fndry": 200_000,
+        "bounties_completed": 4,
+        "skills": [],
+        "bio": "Contributor. Phase 2 bounties.",
+    },
+    "damiehttp": {
+        "total_fndry": 200_000,
+        "bounties_completed": 4,
+        "skills": [],
+        "bio": "Contributor. Phase 2 bounties.",
+    },
+    "yuzengbaao": {
+        "total_fndry": 100_000,
+        "bounties_completed": 2,
+        "skills": [],
+        "bio": "Contributor.",
+    },
+    "12liu21": {
+        "total_fndry": 100_000,
+        "bounties_completed": 2,
+        "skills": [],
+        "bio": "Contributor.",
     },
     "zhaog100": {
         "total_fndry": 150_000,
         "bounties_completed": 1,
         "skills": ["Backend", "Python", "FastAPI"],
         "bio": "Backend contributor. API development.",
+    },
+    "597226617": {
+        "total_fndry": 50_000,
+        "bounties_completed": 1,
+        "skills": [],
+        "bio": "Contributor.",
+    },
+    "davidweb3-ctrl": {
+        "total_fndry": 50_000,
+        "bounties_completed": 1,
+        "skills": [],
+        "bio": "Contributor.",
+    },
+    "denaev-dev": {
+        "total_fndry": 50_000,
+        "bounties_completed": 1,
+        "skills": [],
+        "bio": "Contributor.",
     },
 }
 
