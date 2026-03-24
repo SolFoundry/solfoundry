@@ -86,7 +86,7 @@ class SybilAppealTable(Base):
     flag_id = Column(GUID(), nullable=False, index=True)
     reason = Column(Text, nullable=False)
     status = Column(
-        SAEnum(AppealStatus, name="appeal_status_enum"),
+        SAEnum(AppealStatus, name="appeal_status_enum", values_callable=lambda e: [x.value for x in e]),
         nullable=False,
         server_default="pending",
     )

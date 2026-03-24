@@ -21,6 +21,7 @@ from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Index, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.database import Base
@@ -82,9 +83,9 @@ class EscrowTable(Base):
 
     __tablename__ = "escrows"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        String(36),
+        UUID(as_uuid=True),
         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -119,9 +120,9 @@ class EscrowLedgerTable(Base):
 
     __tablename__ = "escrow_ledger"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     escrow_id = Column(
-        String(36),
+        UUID(as_uuid=True),
         sa.ForeignKey("escrows.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

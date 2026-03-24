@@ -109,9 +109,9 @@ class BountySubmissionTable(Base):
 
     __tablename__ = "bounty_submissions"
 
-    id = Column(String(36), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bounty_id = Column(
-        String(36),
+        UUID(as_uuid=True),
         sa.ForeignKey("bounties.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
