@@ -55,7 +55,11 @@ _session_factory = async_sessionmaker(
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    loop = asyncio.get_event_loop()
+    if loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 
 @pytest.fixture(scope="module", autouse=True)
