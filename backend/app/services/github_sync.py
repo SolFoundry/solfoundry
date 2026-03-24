@@ -352,21 +352,9 @@ async def sync_bounties() -> int:
 # Phase 2 data is computed dynamically from merged PRs → closed bounty issues.
 # This only covers Phase 1 payouts that can't be derived from GitHub.
 KNOWN_PAYOUTS: dict[str, dict] = {
-    "HuiNeng6": {
-        "total_fndry": 1_800_000,  # Phase 1 on-chain payouts
-        "skills": [
-            "Python",
-            "FastAPI",
-            "React",
-            "TypeScript",
-            "WebSocket",
-            "Redis",
-            "PostgreSQL",
-        ],
-        "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
-    },
     "ItachiDevv": {
-        "total_fndry": 1_750_000,  # Phase 1 on-chain payouts
+        "total_fndry": 1_750_000,
+        "bounties_completed": 20,  # Phase 1-3: most prolific contributor
         "skills": [
             "React",
             "TypeScript",
@@ -378,25 +366,43 @@ KNOWN_PAYOUTS: dict[str, dict] = {
         ],
         "bio": "Full-stack specialist. React, TypeScript, Solana, CI/CD, WebSocket.",
     },
+    "HuiNeng6": {
+        "total_fndry": 1_800_000,
+        "bounties_completed": 18,  # Phase 1-3: highest earner
+        "skills": [
+            "Python",
+            "FastAPI",
+            "React",
+            "TypeScript",
+            "WebSocket",
+            "Redis",
+            "PostgreSQL",
+        ],
+        "bio": "Full-stack developer. Python, React, FastAPI, WebSocket, Redis.",
+    },
+    "KodeSage": {
+        "total_fndry": 0,
+        "bounties_completed": 17,  # Phase 2-3: prolific contributor
+        "skills": ["React", "TypeScript", "FastAPI", "Python", "Solana"],
+        "bio": "Full-stack developer. Marketplace, staking, dashboards.",
+    },
+    "codebestia": {
+        "total_fndry": 0,
+        "bounties_completed": 15,  # Phase 2-3
+        "skills": ["Python", "FastAPI", "React", "TypeScript"],
+        "bio": "Backend + frontend contributor. Onboarding, lifecycle, logging.",
+    },
     "LaphoqueRC": {
         "total_fndry": 150_000,
+        "bounties_completed": 7,
         "skills": ["Frontend", "React", "TypeScript"],
         "bio": "Frontend contributor. Landing page & animations.",
     },
     "zhaog100": {
         "total_fndry": 150_000,
+        "bounties_completed": 1,
         "skills": ["Backend", "Python", "FastAPI"],
         "bio": "Backend contributor. API development.",
-    },
-    "KodeSage": {
-        "total_fndry": 0,  # Phase 2 only — computed from merged PRs
-        "skills": ["React", "TypeScript", "FastAPI", "Python", "Solana"],
-        "bio": "Full-stack developer. Marketplace, staking, dashboards.",
-    },
-    "codebestia": {
-        "total_fndry": 0,  # Phase 2 only
-        "skills": ["Python", "FastAPI", "React", "TypeScript"],
-        "bio": "Backend + frontend contributor. Onboarding, lifecycle, logging.",
     },
 }
 
@@ -519,7 +525,8 @@ async def sync_contributors() -> int:
         )
         synced_count += 1
 
-    # Core team member (doesn't earn bounties)
+    # Core team / owner account — excluded from leaderboard ranking
+    # but kept in DB for contributor profile page.
     await contributor_service.upsert_contributor(
         {
             "id": uuid.uuid5(uuid.NAMESPACE_DNS, "solfoundry-mtarcure"),
@@ -528,11 +535,11 @@ async def sync_contributors() -> int:
             "avatar_url": "https://avatars.githubusercontent.com/u/mtarcure",
             "bio": "SolFoundry core team. Architecture, security, DevOps.",
             "skills": ["Python", "Solana", "Security", "DevOps", "Rust", "Anchor"],
-            "badges": ["core-team", "tier-3", "architect"],
+            "badges": ["core-team", "founder"],
             "total_contributions": 50,
-            "total_bounties_completed": 15,
+            "total_bounties_completed": 0,
             "total_earnings": Decimal("0"),
-            "reputation_score": 100.0,
+            "reputation_score": 0.0,
             "created_at": now - timedelta(days=60),
             "updated_at": now,
         }

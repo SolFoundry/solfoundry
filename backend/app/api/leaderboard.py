@@ -80,27 +80,46 @@ async def leaderboard(
         offset=offset,
     )
 
+    # Owner/platform accounts excluded from ranking
+    EXCLUDED_USERNAMES = {"mtarcure", "SolFoundry", "solfoundry-bot"}
+
     # Return frontend-friendly format: array of Contributor objects
     contributors = []
     for entry in result.entries:
+        if entry.username in EXCLUDED_USERNAMES:
+            continue
+
+        # Points formula: bounties are the primary signal
+        # 100k per bounty completed + earnings/10 (so FNDRY payouts boost but don't dominate)
+        # + reputation * 1000 (on-chain reputation as multiplier)
+        bounties = entry.bounties_completed or 0
+        earnings = float(entry.total_earned) if entry.total_earned else 0.0
+        rep_score = entry.reputation_score if entry.reputation_score else 0
+        points = (bounties * 100_000) + int(earnings / 10) + (rep_score * 1000)
+
         contributors.append(
             {
-                "rank": entry.rank,
+                "rank": 0,  # re-ranked after sorting
                 "username": entry.username,
                 "avatarUrl": entry.avatar_url
                 or f"https://api.dicebear.com/7.x/identicon/svg?seed={entry.username}",
-                "points": int(entry.total_earned) if entry.total_earned else 0,
-                "bountiesCompleted": entry.bounties_completed,
-                "earningsFndry": entry.total_earned,
+                "points": points,
+                "bountiesCompleted": bounties,
+                "earningsFndry": earnings,
                 "earningsSol": 0,
-                "streak": max(1, entry.bounties_completed // 2),
+                "streak": max(1, bounties // 2),
                 "topSkills": [],
                 # Phase 3: on-chain reputation + staking
-                "reputation": 0,
+                "reputation": rep_score,
                 "stakedFndry": 0,
                 "reputationBoost": 1.0,
             }
         )
+
+    # Sort by points descending, then bounties as tiebreaker
+    contributors.sort(key=lambda c: (c["points"], c["bountiesCompleted"]), reverse=True)
+    for i, c in enumerate(contributors, start=1):
+        c["rank"] = i
 
     # Enrich with skills from the contributor cache
     from app.services.contributor_service import _store
