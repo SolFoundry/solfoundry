@@ -282,7 +282,7 @@ function SummaryCard({ label, value, suffix, icon, trend, trendValue, tooltip }:
         <div
           id={tooltipId}
           role="tooltip"
-          className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg whitespace-nowrap pointer-events-none"
+          className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg max-w-[220px] text-center pointer-events-none"
         >
           {tooltip}
           <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900 dark:border-t-gray-700" />
@@ -816,7 +816,7 @@ export function ContributorDashboard({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <SummaryCard
                 label="Total Earned"
-                tooltip="Total $FNDRY tokens earned from completed bounties"
+                tooltip="Total $FNDRY tokens earned from completed and paid bounties across all tiers."
                 value={formatNumber(stats.totalEarned)}
                 suffix="$FNDRY"
                 trend="up"
@@ -829,7 +829,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Active Bounties"
-                tooltip="Bounties currently in progress or claimed by you"
+                tooltip="Bounties you've claimed or are currently working on. Submit a PR to complete."
                 value={stats.activeBounties}
                 icon={
                   <svg className="w-5 h-5 text-solana-purple" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -839,7 +839,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Pending Payouts"
-                tooltip="Approved bounties awaiting on-chain payout to your wallet"
+                tooltip="$FNDRY waiting to be released from escrow. Payouts are sent automatically after merge."
                 value={formatNumber(stats.pendingPayouts)}
                 suffix="$FNDRY"
                 icon={
@@ -850,7 +850,7 @@ export function ContributorDashboard({
               />
               <SummaryCard
                 label="Reputation Rank"
-                tooltip="Your rank among all contributors based on on-chain reputation score"
+                tooltip="Your rank among all contributors. Higher rank unlocks T2/T3 bounties and lowers review thresholds."
                 value={`#${stats.reputationRank}`}
                 suffix={`of ${stats.totalContributors}`}
                 trend="up"
