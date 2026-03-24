@@ -128,6 +128,26 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
   }, [bounty.deadline]);
 
   const [localMilestones, setLocalMilestones] = useState(bounty.milestones || []);
+  const [currentUserWallet, setCurrentUserWallet] = useState<string>('');
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUserWallet(data.wallet_address || data.user_id || '');
+        }
+      } catch {
+        // Silently fail
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   const handleMilestoneSubmit = async (id: string) => {
     const updated = await submitMilestone(id);
@@ -143,7 +163,6 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
     }
   };
 
-  const currentUserWallet = localStorage.getItem('wallet_address') || '';
   const isCreator = bounty.created_by === currentUserWallet || false;
   const canSubmit = ['open', 'in_progress'].includes(bounty.status);
   const isPaidOrComplete = ['paid', 'completed'].includes(bounty.status);

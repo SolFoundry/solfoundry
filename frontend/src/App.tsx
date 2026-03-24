@@ -38,6 +38,17 @@ const DisputePage = lazy(() => import('./pages/DisputePage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 
+// ── Phase 3 pages ──────────────────────────────────────────────────────────
+const StakingPage = lazy(() => import('./pages/StakingPage'));
+const ReputationPage = lazy(() => import('./pages/ReputationPage'));
+const AnalyticsLeaderboardPage = lazy(() => import('./pages/AnalyticsLeaderboardPage'));
+const BountyAnalyticsPage = lazy(() => import('./pages/BountyAnalyticsPage'));
+const ContributorAnalyticsPage = lazy(() => import('./pages/ContributorAnalyticsPage'));
+const PlatformHealthPage = lazy(() => import('./pages/PlatformHealthPage'));
+const PipelineDashboardPage = lazy(() => import('./pages/PipelineDashboardPage'));
+const CodebaseMapPage = lazy(() => import('./pages/CodebaseMapPage'));
+const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
+
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
   return (
@@ -97,6 +108,21 @@ function AppLayout() {
           <Route path="/profile/:username" element={<ContributorProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
+
+          {/* Phase 3: Staking & Reputation */}
+          <Route path="/staking" element={<StakingPage />} />
+          <Route path="/reputation" element={<ReputationPage />} />
+
+          {/* Phase 3: Analytics */}
+          <Route path="/analytics" element={<AnalyticsLeaderboardPage />} />
+          <Route path="/analytics/bounties" element={<BountyAnalyticsPage />} />
+          <Route path="/analytics/contributors" element={<ContributorAnalyticsPage />} />
+          <Route path="/analytics/health" element={<PlatformHealthPage />} />
+
+          {/* Phase 3: Pipelines, Codebase Map, Settings */}
+          <Route path="/pipelines" element={<PipelineDashboardPage />} />
+          <Route path="/codebase-map" element={<CodebaseMapPage />} />
+          <Route path="/settings" element={<ProfileSettingsPage />} />
 
           {/* 404 Not Found */}
           <Route path="*" element={<NotFoundPage />} />

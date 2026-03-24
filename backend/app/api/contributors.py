@@ -123,7 +123,9 @@ async def get_contributor(contributor_id: str) -> ContributorResponse:
 
 @router.patch("/{contributor_id}", response_model=ContributorResponse)
 async def update_contributor(
-    contributor_id: str, data: ContributorUpdate
+    contributor_id: str,
+    data: ContributorUpdate,
+    user_id: str = Depends(get_current_user_id),
 ) -> ContributorResponse:
     """Partially update a contributor profile.
 
@@ -146,7 +148,10 @@ async def update_contributor(
 
 
 @router.delete("/{contributor_id}", status_code=204)
-async def delete_contributor(contributor_id: str) -> None:
+async def delete_contributor(
+    contributor_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> None:
     """Delete a contributor profile by ID.
 
     Args:

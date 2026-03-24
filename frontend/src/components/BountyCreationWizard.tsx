@@ -6,6 +6,7 @@ import { useFndryBalance } from '../hooks/useFndryToken';
 import { FundBountyButton } from './wallet/FundBountyFlow';
 import { solscanTxUrl } from '../config/constants';
 import { useNetwork } from './wallet/WalletProvider';
+import { MarkdownRenderer } from './common/MarkdownRenderer';
 
 // Types
 interface BountyFormData {
@@ -249,14 +250,13 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
           </div>
           
           {showPreview ? (
-            <div 
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 min-h-[200px] text-gray-700 dark:text-gray-300 prose prose-gray prose-sm max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ 
-                __html: formData.description 
-                  ? renderMarkdown(formData.description) 
-                  : '<p class="text-gray-500 dark:text-gray-500 italic">No description yet...</p>' 
-              }}
-            />
+            <div className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 min-h-[200px] text-gray-700 dark:text-gray-300 prose prose-gray prose-sm max-w-none dark:prose-invert">
+              {formData.description ? (
+                <MarkdownRenderer content={formData.description} />
+              ) : (
+                <p className="text-gray-500 dark:text-gray-500 italic">No description yet...</p>
+              )}
+            </div>
           ) : (
             <textarea
               value={formData.description}
@@ -628,14 +628,13 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
         {/* Description */}
         <div>
           <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Description</h4>
-          <div 
-            className="text-gray-700 dark:text-gray-300 prose prose-gray prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ 
-              __html: formData.description 
-                ? renderMarkdown(formData.description) 
-                : '<p class="text-gray-500 italic">No description provided.</p>' 
-            }}
-          />
+          <div className="text-gray-700 dark:text-gray-300 prose prose-gray prose-sm max-w-none dark:prose-invert">
+            {formData.description ? (
+              <MarkdownRenderer content={formData.description} />
+            ) : (
+              <p className="text-gray-500 italic">No description provided.</p>
+            )}
+          </div>
         </div>
         
         {/* Requirements */}

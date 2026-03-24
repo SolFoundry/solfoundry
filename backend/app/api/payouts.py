@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 
+from app.auth import get_admin_user_id, get_internal_or_user
 from app.exceptions import (
     DoublePayError,
     InvalidPayoutTransitionError,
@@ -138,7 +139,10 @@ async def get_payouts(
         },
     },
 )
-async def record_payout(data: PayoutCreate) -> PayoutResponse:
+async def record_payout(
+    data: PayoutCreate,
+    _caller: str = Depends(get_internal_or_user),
+) -> PayoutResponse:
     """Record a new payout with per-bounty lock to prevent double-pay.
 
     If ``tx_hash`` is provided, the payout is immediately ``confirmed``;
@@ -192,7 +196,10 @@ async def treasury_buybacks(
     status_code=201,
     summary="Record a buyback",
 )
-async def record_buyback(data: BuybackCreate) -> BuybackResponse:
+async def record_buyback(
+    data: BuybackCreate,
+    _admin: str = Depends(get_admin_user_id),
+) -> BuybackResponse:
     """Record a new buyback event. Invalidates the treasury cache on success.
 
     Rejects duplicate ``tx_hash`` values with HTTP 409.
@@ -299,7 +306,9 @@ async def get_payout_by_internal_id(payout_id: str) -> PayoutResponse:
     },
 )
 async def admin_approve_payout(
-    payout_id: str, body: AdminApprovalRequest
+    payout_id: str,
+    body: AdminApprovalRequest,
+    admin_id: str = Depends(get_admin_user_id),
 ) -> AdminApprovalResponse:
     """Approve or reject a pending payout.
 
@@ -332,7 +341,9 @@ async def admin_approve_payout(
     },
 )
 async def execute_payout(
-    payout_id: str, db: AsyncSession = Depends(get_db)
+    payout_id: str,
+    _admin: str = Depends(get_admin_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> PayoutResponse:
     """Execute the on-chain SPL token transfer for an approved payout.
 

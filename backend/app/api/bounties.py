@@ -50,6 +50,7 @@ from app.models.review import (
 )
 from app.models.lifecycle import LifecycleLogResponse, LifecycleEventType
 from app.api.auth import get_current_user
+from app.auth import get_internal_or_user
 from app.models.user import UserResponse
 from app.services import bounty_service
 from app.services import review_service
@@ -467,6 +468,7 @@ async def record_review_score(
     bounty_id: str,
     submission_id: str,
     data: ReviewScoreCreate,
+    _caller: str = Depends(get_internal_or_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReviewScoreResponse:
     sub = bounty_service.get_submission(bounty_id, submission_id)

@@ -17,7 +17,7 @@ from app.models.notification import (
 from app.models.errors import ErrorResponse
 from app.services.notification_service import NotificationService
 from app.database import get_db
-from app.auth import get_current_user_id, get_authenticated_user, AuthenticatedUser
+from app.auth import get_current_user_id, get_authenticated_user, get_internal_or_user, AuthenticatedUser
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -173,9 +173,12 @@ async def create_notification(
     notification: NotificationCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    _caller: str = Depends(get_internal_or_user),
 ):
     """
     Create a new notification and trigger delivery channels.
+
+    Requires authentication (JWT or internal API key).
     """
     service = NotificationService(db)
 

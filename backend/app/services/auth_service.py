@@ -34,7 +34,20 @@ GITHUB_REDIRECT_URI = os.getenv(
     "GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback"
 )
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or secrets.token_urlsafe(32)
+_jwt_key_from_env = os.getenv("JWT_SECRET_KEY")
+if not _jwt_key_from_env:
+    if os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod"):
+        raise RuntimeError(
+            "FATAL: JWT_SECRET_KEY must be set in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        )
+    logger.critical(
+        "JWT_SECRET_KEY environment variable is NOT set. "
+        "Generating a random key — all JWTs will be invalidated on restart. "
+        "Set JWT_SECRET_KEY in production!"
+    )
+    _jwt_key_from_env = secrets.token_urlsafe(32)
+JWT_SECRET_KEY = _jwt_key_from_env
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -185,8 +198,9 @@ def verify_oauth_state(state: str) -> bool:
 
 async def exchange_github_code(code: str, state: Optional[str] = None) -> Dict:
     """Exchange a GitHub OAuth code for user profile."""
-    if state:
-        verify_oauth_state(state)
+    if not state:
+        raise GitHubOAuthError("OAuth state parameter is required for CSRF protection")
+    verify_oauth_state(state)
     if not GITHUB_CLIENT_SECRET:
         raise GitHubOAuthError("GITHUB_CLIENT_SECRET not configured")
 
@@ -338,11 +352,19 @@ async def wallet_authenticate(
     wallet: str,
     signature: str,
     message: str,
-    nonce: Optional[str] = None,
+    nonce: str = "",
 ) -> Dict:
-    """Authenticate via wallet signature."""
-    if nonce:
-        verify_auth_challenge(nonce, wallet, message)
+    """Authenticate via wallet signature.
+
+    The nonce parameter is mandatory — it binds the signature to a
+    server-issued challenge and prevents replay attacks.
+    """
+    if not nonce:
+        raise InvalidNonceError(
+            "Nonce is required for wallet authentication — "
+            "call /auth/wallet/message first to obtain a challenge"
+        )
+    verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
 
     result = await db.execute(select(User).where(User.wallet_address == wallet.lower()))
@@ -380,11 +402,17 @@ async def link_wallet_to_user(
     wallet: str,
     signature: str,
     message: str,
-    nonce: Optional[str] = None,
+    nonce: str = "",
 ) -> Dict:
-    """Link a verified wallet to an existing user."""
-    if nonce:
-        verify_auth_challenge(nonce, wallet, message)
+    """Link a verified wallet to an existing user.
+
+    Nonce is mandatory to prevent replay attacks.
+    """
+    if not nonce:
+        raise InvalidNonceError(
+            "Nonce is required — call /auth/wallet/message first"
+        )
+    verify_auth_challenge(nonce, wallet, message)
     verify_wallet_signature(wallet, message, signature)
 
     result = await db.execute(select(User).where(User.wallet_address == wallet.lower()))

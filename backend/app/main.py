@@ -30,7 +30,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -75,6 +75,7 @@ from app.services.config_validator import install_log_filter, validate_secrets
 from app.services.observability_metrics import periodic_refresh
 from app.services.auth_service import AuthError
 from app.services.websocket_manager import manager as ws_manager
+from app.auth import get_admin_user_id
 from app.services.github_sync import sync_all, periodic_sync
 from app.services.auto_approve_service import periodic_auto_approve
 from app.services.bounty_lifecycle_service import periodic_deadline_check
@@ -300,7 +301,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization", "X-User-ID"],
+    allow_headers=["Content-Type", "Authorization", "X-Operator-Wallet", "X-Internal-Key"],
 )
 
 # Layer 5: Structured request/response logging with correlation IDs
@@ -449,12 +450,13 @@ app.include_router(admin_router)
 
 
 @app.post("/api/sync", tags=["admin"])
-async def trigger_sync():
+async def trigger_sync(
+    _admin: str = Depends(get_admin_user_id),
+):
     """Manually trigger a GitHub to bounty and leaderboard sync.
 
-    This endpoint should be protected by admin authentication in production.
-    It forces an immediate resync of all bounty and contributor data from
-    the GitHub Issues API.
+    Requires admin authentication. Forces an immediate resync of all
+    bounty and contributor data from the GitHub Issues API.
 
     Returns:
         dict: Sync results including counts of updated bounties and contributors.

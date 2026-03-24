@@ -199,8 +199,9 @@ _connection_lock = threading.Lock()
 def _get_client_ip(request: Request) -> str:
     """Extract the client IP address from the request.
 
-    Checks the X-Forwarded-For header first (for reverse proxy setups),
-    falling back to the direct client address.
+    Only trusts X-Forwarded-For when the request comes from a known
+    reverse-proxy (configured via TRUSTED_PROXIES env var).  This prevents
+    attackers from spoofing their IP to bypass rate limits.
 
     Args:
         request: The incoming HTTP request.
@@ -208,11 +209,19 @@ def _get_client_ip(request: Request) -> str:
     Returns:
         str: The client's IP address string.
     """
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Take the first IP in the chain (client's actual IP)
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    direct_ip = request.client.host if request.client else "unknown"
+
+    # Only trust X-Forwarded-For from known proxies (e.g. nginx, CloudFlare)
+    trusted_proxies = os.getenv("TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
+    trusted_proxies = [p.strip() for p in trusted_proxies]
+
+    if direct_ip in trusted_proxies:
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Take the first IP in the chain (client's actual IP)
+            return forwarded_for.split(",")[0].strip()
+
+    return direct_ip
 
 
 def _get_rate_limit_tier(request: Request) -> tuple[str, int]:
@@ -234,10 +243,20 @@ def _get_rate_limit_tier(request: Request) -> tuple[str, int]:
 
     # Presence of a valid-looking bearer token = authenticated tier
     # Actual token validation happens in the auth dependency
+    # NOTE: We do NOT trust X-Admin-Role header — it's client-spoofable.
+    # Admin rate limit tier is only applied if the JWT can be verified
+    # and the user_id is in the ADMIN_USER_IDS set.
     if auth_header.startswith("Bearer "):
-        # Check for admin role (set by auth middleware or header)
-        if request.headers.get("X-Admin-Role") == "true":
-            return "admin", ADMIN_RATE_LIMIT
+        try:
+            from app.services.auth_service import decode_token
+            from app.auth import ADMIN_USER_IDS
+
+            token = auth_header[7:]
+            user_id = decode_token(token, token_type="access")
+            if user_id in ADMIN_USER_IDS:
+                return "admin", ADMIN_RATE_LIMIT
+        except Exception:
+            pass  # Invalid token — still allow through at auth tier, auth dep will reject
         return "authenticated", AUTHENTICATED_RATE_LIMIT
 
     return "anonymous", ANONYMOUS_RATE_LIMIT
@@ -465,10 +484,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         capacity, rate = LIMIT_GROUPS.get(group_name, LIMIT_GROUPS["default"])
 
         # Determine identifiers (IP and User)
-        ip = request.client.host
-        user_id = request.headers.get("X-User-ID") or getattr(
-            request.state, "user_id", None
-        )
+        # Use the same trusted-proxy-aware IP extraction as the in-memory limiter
+        ip = _get_client_ip(request)
+        # Only trust user_id from request.state (set by auth middleware after
+        # JWT verification), NEVER from client-provided X-User-ID header
+        user_id = getattr(request.state, "user_id", None)
 
         # Check IP Limit
         ip_key = f"rl:ip:{ip}:{group_name}"

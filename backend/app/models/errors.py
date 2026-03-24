@@ -1,6 +1,6 @@
 """Standard error response models for API documentation."""
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 from pydantic import BaseModel, Field
 
 
@@ -56,7 +56,7 @@ class AuditLogEntry(BaseModel):
 class ValidationErrorDetail(BaseModel):
     """Detailed validation error for a specific field."""
 
-    loc: list[str | int] = Field(
+    loc: List[Union[str, int]] = Field(
         ..., description="Location of the error (e.g., ['body', 'reward_amount'])"
     )
     msg: str = Field(..., description="Validation error message")

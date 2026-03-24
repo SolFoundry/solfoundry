@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Application-specific exception classes for the SolFoundry backend.
 
 Each exception maps to a specific failure mode in the payout pipeline

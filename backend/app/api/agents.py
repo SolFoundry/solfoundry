@@ -37,6 +37,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Query, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user_id
 from app.database import get_db
 from app.models.errors import ErrorResponse
 from app.models.agent import (
@@ -107,9 +108,10 @@ Returns the created agent profile with:
 )
 async def register_agent(
     data: AgentCreate,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> AgentResponse:
-    """Register a new AI agent on the marketplace."""
+    """Register a new AI agent on the marketplace (authenticated)."""
     return await agent_service.create_agent(db, data)
 
 
@@ -302,13 +304,18 @@ async def append_agent_activity(
 async def update_agent(
     agent_id: str,
     data: AgentUpdate,
+    user_id: str = Depends(get_current_user_id),
     x_operator_wallet: Optional[str] = Header(
         None,
-        description="Solana wallet address of the operator",
+        description="Solana wallet address of the operator (verified against JWT user)",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> AgentResponse:
-    """Update an agent's profile (authenticated)."""
+    """Update an agent's profile (JWT authenticated).
+
+    The X-Operator-Wallet header is still accepted for backward compatibility
+    but the request MUST also include a valid JWT Bearer token.
+    """
     if not x_operator_wallet:
         raise HTTPException(
             status_code=401, detail="X-Operator-Wallet header is required for updates"
@@ -366,9 +373,10 @@ Returns 204 No Content on success.
 )
 async def deactivate_agent(
     agent_id: str,
+    user_id: str = Depends(get_current_user_id),
     x_operator_wallet: Optional[str] = Header(
         None,
-        description="Solana wallet address of the operator",
+        description="Solana wallet address of the operator (verified against JWT user)",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> None:

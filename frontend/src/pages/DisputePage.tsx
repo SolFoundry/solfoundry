@@ -89,9 +89,29 @@ export default function DisputePage() {
 
   const [pageError, setPageError] = useState<string | null>(null);
 
-  // Determine current user context
-  const currentUserId = localStorage.getItem('user_id') || '';
-  const isAdmin = localStorage.getItem('is_admin') === 'true';
+  // Fetch current user context from server instead of trusting localStorage
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUserId(data.user_id || '');
+          setIsAdmin(data.is_admin === true);
+        }
+      } catch {
+        // Silently fail — user will see non-admin view
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   const loadDispute = useCallback(async () => {
     if (!id) return;

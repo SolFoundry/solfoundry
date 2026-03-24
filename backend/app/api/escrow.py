@@ -10,8 +10,9 @@ Provides REST endpoints for the escrow lifecycle:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.auth import get_current_user_id, get_internal_or_user
 from app.exceptions import (
     EscrowAlreadyExistsError,
     EscrowDoubleSpendError,
@@ -51,7 +52,10 @@ router = APIRouter(prefix="/escrow", tags=["escrow"])
         502: {"model": ErrorResponse, "description": "On-chain transfer failed"},
     },
 )
-async def fund_escrow(body: EscrowFundRequest) -> EscrowResponse:
+async def fund_escrow(
+    body: EscrowFundRequest,
+    _user: str = Depends(get_current_user_id),
+) -> EscrowResponse:
     """Lock $FNDRY in escrow when a bounty is created.
 
     Transfers tokens from the creator's wallet to the treasury,
@@ -89,7 +93,10 @@ async def fund_escrow(body: EscrowFundRequest) -> EscrowResponse:
         502: {"model": ErrorResponse, "description": "On-chain transfer failed"},
     },
 )
-async def release_escrow_endpoint(body: EscrowReleaseRequest) -> EscrowResponse:
+async def release_escrow_endpoint(
+    body: EscrowReleaseRequest,
+    _caller: str = Depends(get_internal_or_user),
+) -> EscrowResponse:
     """Release escrowed $FNDRY to the approved bounty winner.
 
     Transfers tokens from the treasury to the winner's wallet and
@@ -120,7 +127,10 @@ async def release_escrow_endpoint(body: EscrowReleaseRequest) -> EscrowResponse:
         502: {"model": ErrorResponse, "description": "On-chain transfer failed"},
     },
 )
-async def refund_escrow_endpoint(body: EscrowRefundRequest) -> EscrowResponse:
+async def refund_escrow_endpoint(
+    body: EscrowRefundRequest,
+    _caller: str = Depends(get_internal_or_user),
+) -> EscrowResponse:
     """Return escrowed $FNDRY to the bounty creator on timeout or cancellation."""
     try:
         return await refund_escrow(bounty_id=body.bounty_id)
