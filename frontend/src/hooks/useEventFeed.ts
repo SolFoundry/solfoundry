@@ -71,7 +71,7 @@ export interface EventFilters {
 }
 
 /** WebSocket connection URL for the event feed channel. */
-const WS_BASE = (import.meta.env?.VITE_WS_URL as string) || 'ws://localhost:8000';
+const WS_BASE = (import.meta.env?.VITE_WS_URL as string) || `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
 
 /**
  * Hook for querying indexed on-chain events with filtering and pagination.

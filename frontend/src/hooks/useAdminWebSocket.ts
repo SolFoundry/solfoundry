@@ -14,7 +14,7 @@ export interface AdminWsEvent {
   timestamp: string;
 }
 
-const WS_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000')
+const WS_BASE = (import.meta.env.VITE_API_URL || `${location.protocol === 'https:' ? 'https:' : 'http:'}//${location.host}`)
   .replace(/^http/, 'ws');
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
