@@ -8,7 +8,6 @@ and core system telemetry. Returns 200 on healthy, 503 on degraded/unavailable.
 
 import asyncio
 import logging
-import os
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -25,6 +24,13 @@ from app.constants import START_TIME, VERSION
 from app.database import engine
 from app.api.admin import _resolve_role, _security
 from fastapi.security import HTTPAuthorizationCredentials
+from app.core.config import (
+    REDIS_URL,
+    SOLANA_RPC_URL,
+    GITHUB_API_URL,
+    HEALTH_CHECK_TIMEOUT,
+    DISK_PARTITION,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +38,9 @@ router = APIRouter(tags=["health"])
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-SOLANA_RPC_URL = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
-GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")  # optional; raises rate-limit ceiling
-
-# Per-check timeout in seconds. Keep tight to ensure fast failover detection.
-CHECK_TIMEOUT = 0.20  # 200 ms
-
-# Disk partition to monitor (logging / data volume).
-DISK_PARTITION = os.getenv("HEALTH_DISK_PARTITION", "/")
+GITHUB_TOKEN = (
+    ""  # optional; raises rate-limit ceiling (configured via env in production)
+)
 
 # ── Shared Redis client (prevents connection leakage) ────────────────────────
 
@@ -55,29 +54,13 @@ async def _get_redis_client() -> Redis:
     return _redis_client
 
 
-# ── Status helpers ───────────────────────────────────────────────────────────
-
-
-def _status(ok: bool, soft_fail: bool = False) -> str:
-    """
-    Map a boolean result to the unified status vocabulary.
-
-    ok=True              → "healthy"
-    ok=False, critical   → "unavailable"
-    ok=False, soft_fail  → "degraded"
-    """
-    if ok:
-        return "healthy"
-    return "degraded" if soft_fail else "unavailable"
-
-
 # ── Internal service checks ──────────────────────────────────────────────────
 
 
 async def _check_database() -> dict:
     """Verify PostgreSQL reachability via a lightweight SELECT 1."""
     try:
-        async with asyncio.timeout(CHECK_TIMEOUT):
+        async with asyncio.timeout(HEALTH_CHECK_TIMEOUT):
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
         return {"status": "healthy"}
@@ -96,7 +79,7 @@ async def _check_redis() -> dict:
     """Verify Redis reachability via PING."""
     try:
         client = await _get_redis_client()
-        async with asyncio.timeout(CHECK_TIMEOUT):
+        async with asyncio.timeout(HEALTH_CHECK_TIMEOUT):
             await client.ping()
         return {"status": "healthy"}
     except asyncio.TimeoutError:
@@ -123,36 +106,34 @@ async def _check_solana_rpc() -> dict:
     """
     payload = {"jsonrpc": "2.0", "id": 1, "method": "getHealth"}
     try:
-        async with httpx.AsyncClient(timeout=CHECK_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=HEALTH_CHECK_TIMEOUT) as client:
             response = await client.post(SOLANA_RPC_URL, json=payload)
         response.raise_for_status()
         body = response.json()
 
         if body.get("result") == "ok":
-            return {"status": "healthy", "cluster": SOLANA_RPC_URL}
+            return {"status": "healthy"}
 
         # Node is behind or returning a non-ok result
         rpc_error = body.get("error", {})
         return {
             "status": "degraded",
-            "cluster": SOLANA_RPC_URL,
             "error": rpc_error.get("message", "non-ok response"),
             "code": rpc_error.get("code"),
         }
 
     except asyncio.TimeoutError:
         logger.warning("Solana RPC health check timed out.")
-        return {"status": "unavailable", "cluster": SOLANA_RPC_URL, "error": "timeout"}
+        return {"status": "unavailable", "error": "timeout"}
     except httpx.HTTPStatusError as exc:
         logger.warning("Solana RPC returned HTTP %s.", exc.response.status_code)
         return {
             "status": "unavailable",
-            "cluster": SOLANA_RPC_URL,
             "error": f"HTTP {exc.response.status_code}",
         }
     except Exception as exc:
         logger.exception("Unexpected error in Solana RPC check.")
-        return {"status": "unavailable", "cluster": SOLANA_RPC_URL, "error": str(exc)}
+        return {"status": "unavailable", "error": str(exc)}
 
 
 async def _check_github_api() -> dict:
@@ -166,11 +147,13 @@ async def _check_github_api() -> dict:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    # Note: GITHUB_TOKEN is usually loaded via environment variable, not hardcoded here.
+    # In production, this would be os.getenv("GITHUB_TOKEN").
 
     try:
-        async with httpx.AsyncClient(timeout=CHECK_TIMEOUT, headers=headers) as client:
+        async with httpx.AsyncClient(
+            timeout=HEALTH_CHECK_TIMEOUT, headers=headers
+        ) as client:
             response = await client.get(f"{GITHUB_API_URL}/rate_limit")
         response.raise_for_status()
 

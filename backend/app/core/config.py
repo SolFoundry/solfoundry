@@ -40,11 +40,23 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 MAX_DB_LOAD_LIMIT = int(os.getenv("MAX_DB_LOAD_LIMIT", "100000"))
 
 # Blockchain & External URLs
+SOLANA_RPC_URL = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 SOLSCAN_BASE_URL = os.getenv("SOLSCAN_BASE_URL", "https://solscan.io/tx/")
+
+# Health Check Settings
+HEALTH_CHECK_TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "0.20"))
+DISK_PARTITION = os.getenv("HEALTH_DISK_PARTITION", "/")
 
 # Token Names
 TOKEN_FNDRY = "FNDRY"
 TOKEN_SOL = "SOL"
+
+# Reputation & Quality Scoring
+QUALITY_SCORE_MIN_BASE = 5.0
+QUALITY_SCORE_THRESHOLD = 80.0
+QUALITY_SCORE_WEIGHT_BOOST = 2.0
+QUALITY_SCORE_REPUTATION_WEIGHT = 20.0
 
 # Email (Resend)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")

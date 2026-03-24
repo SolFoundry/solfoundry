@@ -231,11 +231,18 @@ def _contributor_to_dict(c: Any) -> Dict[str, Any]:
 
 def _calculate_quality_score(c: Any) -> float:
     """Derive a 0–100 quality score from reputation + completion rate."""
+    from app.core.config import (
+        QUALITY_SCORE_MIN_BASE,
+        QUALITY_SCORE_THRESHOLD,
+        QUALITY_SCORE_WEIGHT_BOOST,
+        QUALITY_SCORE_REPUTATION_WEIGHT,
+    )
+
     rep = float(getattr(c, "reputation_score", 0.0))
     completed = int(getattr(c, "total_bounties_completed", 0))
     # Simple formula: blend reputation (max ~500) and completion volume
-    rep_component = min(rep / 5.0, 80.0)
-    volume_component = min(completed * 2.0, 20.0)
+    rep_component = min(rep / QUALITY_SCORE_MIN_BASE, QUALITY_SCORE_THRESHOLD)
+    volume_component = min(completed * QUALITY_SCORE_WEIGHT_BOOST, QUALITY_SCORE_REPUTATION_WEIGHT)
     return round(rep_component + volume_component, 1)
 
 
@@ -882,7 +889,6 @@ async def get_system_health_admin(
     from app.database import engine
     from sqlalchemy import text, select as sa_select, func
     from sqlalchemy.exc import SQLAlchemyError
-    import os as _os
     from redis.asyncio import from_url as redis_from_url, RedisError
 
     # Database probe

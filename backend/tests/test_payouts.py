@@ -19,6 +19,7 @@ from app.services.treasury_service import invalidate_cache
 
 client = TestClient(app)
 
+
 @pytest.fixture(autouse=True)
 def override_admin_auth():
     """Mock admin authentication for all tests in this file."""

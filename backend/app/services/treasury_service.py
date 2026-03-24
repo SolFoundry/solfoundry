@@ -20,7 +20,6 @@ from app.services.payout_service import (
     _buyback_store,
     PayoutStatus,
 )
-from app.core.config import TOKEN_FNDRY, TOKEN_SOL
 from app.services.solana_client import (
     FNDRY_TOKEN_CA,
     TREASURY_WALLET,
