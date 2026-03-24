@@ -390,3 +390,26 @@ async def get_history(contributor_id: str) -> list[ReputationHistoryEntry]:
     else:
         history = _reputation_store.get(contributor_id, [])
     return sorted(history, key=lambda e: e.created_at, reverse=True)
+
+
+async def get_reputation_scores_by_usernames(
+    usernames: list[str],
+) -> dict[str, int]:
+    """Batch lookup reputation scores by GitHub usernames.
+
+    Returns a dict mapping username → reputation_score (0–100) for any
+    contributors who have earned on-chain reputation through completed bounties.
+    """
+    scores: dict[str, int] = {}
+    db_reputation = await _load_reputation_from_db()
+    store = db_reputation if db_reputation is not None else _reputation_store
+
+    for uname in usernames:
+        history = store.get(uname, [])
+        if history:
+            total = sum(
+                calculate_earned_reputation(e.tier, e.review_score) for e in history
+            )
+            scores[uname] = min(int(total), 100)
+
+    return scores

@@ -69,6 +69,9 @@ async function fetchGitHubContributors(): Promise<Contributor[]> {
       earningsSol: 0,
       streak: Math.max(1, Math.floor(bounties / 2)),
       topSkills: skills.slice(0, 3),
+      reputation: 0,
+      stakedFndry: 0,
+      reputationBoost: 1.0,
     });
   }
 
@@ -106,9 +109,16 @@ export function useLeaderboard() {
     let list = [...contributors];
     if (search) list = list.filter(contributor => contributor.username.toLowerCase().includes(search.toLowerCase()));
     list.sort((left, right) => {
-      const leftValue = sortBy === 'bounties' ? left.bountiesCompleted : sortBy === 'earnings' ? left.earningsFndry : left.points;
-      const rightValue = sortBy === 'bounties' ? right.bountiesCompleted : sortBy === 'earnings' ? right.earningsFndry : right.points;
-      return rightValue - leftValue;
+      const getValue = (c: typeof left) => {
+        switch (sortBy) {
+          case 'bounties': return c.bountiesCompleted;
+          case 'earnings': return c.earningsFndry;
+          case 'reputation': return c.reputation;
+          case 'staked': return c.stakedFndry;
+          default: return c.points;
+        }
+      };
+      return getValue(right) - getValue(left);
     });
     return list.map((contributor, index) => ({ ...contributor, rank: index + 1 }));
   }, [contributors, sortBy, search]);

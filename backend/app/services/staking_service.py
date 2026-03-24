@@ -400,3 +400,18 @@ async def get_platform_stats() -> StakingStats:
             avg_apy=avg_apy,
             tier_distribution=tier_dist,
         )
+
+
+async def get_staking_positions_by_usernames(
+    usernames: list[str],
+) -> dict[str, dict]:
+    """Batch lookup staking positions by GitHub usernames.
+
+    Returns a dict mapping username → {amount, boost} for any users
+    who have linked a wallet and staked $FNDRY.  Returns an empty dict
+    when no wallet-link table exists yet (Phase 4 prerequisite).
+    """
+    # TODO Phase 4: query wallet_links table to map usernames → wallets,
+    # then batch-fetch staking_positions for those wallets.
+    # For now return empty — no user has connected wallet + staked yet.
+    return {}

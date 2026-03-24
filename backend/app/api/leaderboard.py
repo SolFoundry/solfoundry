@@ -95,6 +95,10 @@ async def leaderboard(
                 "earningsSol": 0,
                 "streak": max(1, entry.bounties_completed // 2),
                 "topSkills": [],
+                # Phase 3: on-chain reputation + staking
+                "reputation": 0,
+                "stakedFndry": 0,
+                "reputationBoost": 1.0,
             }
         )
 
@@ -106,5 +110,27 @@ async def leaderboard(
             if db_contrib.username == contributor_entry["username"]:
                 contributor_entry["topSkills"] = (db_contrib.skills or [])[:3]
                 break
+
+    # Phase 3: Enrich with staking positions and reputation scores
+    try:
+        from app.services.staking_service import get_staking_positions_by_usernames
+        from app.services.reputation_service import get_reputation_scores_by_usernames
+
+        usernames = [c["username"] for c in contributors]
+
+        staking_map = await get_staking_positions_by_usernames(usernames)
+        reputation_map = await get_reputation_scores_by_usernames(usernames)
+
+        for contributor_entry in contributors:
+            uname = contributor_entry["username"]
+            if uname in staking_map:
+                pos = staking_map[uname]
+                contributor_entry["stakedFndry"] = float(pos.get("amount", 0))
+                contributor_entry["reputationBoost"] = float(pos.get("boost", 1.0))
+            if uname in reputation_map:
+                contributor_entry["reputation"] = int(reputation_map[uname])
+    except (ImportError, Exception):
+        # Phase 3 services may not be fully wired yet — graceful fallback
+        pass
 
     return JSONResponse(content=contributors)

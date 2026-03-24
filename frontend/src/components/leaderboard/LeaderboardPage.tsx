@@ -16,7 +16,8 @@ const RANGES: { label: string; value: TimeRange }[] = [
 ];
 const SORTS: { label: string; value: SortField }[] = [
   { label: 'Points', value: 'points' }, { label: 'Bounties', value: 'bounties' },
-  { label: 'Earnings', value: 'earnings' },
+  { label: 'Earnings', value: 'earnings' }, { label: 'Reputation', value: 'reputation' },
+  { label: 'Staked', value: 'staked' },
 ];
 
 export function LeaderboardPage() {
@@ -36,7 +37,7 @@ export function LeaderboardPage() {
             </div>
             <Skeleton height="2.5rem" width="7rem" rounded="lg" />
           </div>
-          <SkeletonTable rows={10} columns={6} showAvatar />
+          <SkeletonTable rows={10} columns={8} showAvatar />
         </div>
       </div>
     );
@@ -121,6 +122,8 @@ export function LeaderboardPage() {
               <th className="py-2 text-right">Points</th>
               <th className="py-2 text-right">Bounties</th>
               <th className="py-2 text-right">Earned (FNDRY)</th>
+              <th className="py-2 text-right hidden lg:table-cell">Reputation</th>
+              <th className="py-2 text-right hidden lg:table-cell">Staked (FNDRY)</th>
               <th className="py-2 text-right hidden md:table-cell">Streak</th>
             </tr>
           </thead>
@@ -151,6 +154,18 @@ export function LeaderboardPage() {
                 </td>
                 <td className="py-3 text-right text-gray-700 tabular-nums dark:text-gray-300">{c.bountiesCompleted}</td>
                 <td className="py-3 text-right text-gray-700 tabular-nums dark:text-gray-300">{c.earningsFndry.toLocaleString()}</td>
+                <td className="py-3 text-right tabular-nums hidden lg:table-cell">
+                  <span className={c.reputation >= 70 ? 'text-emerald-600 dark:text-solana-green font-semibold' : c.reputation >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-500'}>
+                    {c.reputation}
+                  </span>
+                </td>
+                <td className="py-3 text-right text-solana-purple tabular-nums hidden lg:table-cell dark:text-solana-purple/80">
+                  {c.stakedFndry > 0 ? (
+                    <span>{c.stakedFndry.toLocaleString()}{c.reputationBoost > 1 ? <span className="ml-1 text-xs text-emerald-600 dark:text-solana-green">×{c.reputationBoost.toFixed(1)}</span> : null}</span>
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-600">—</span>
+                  )}
+                </td>
                 <td className="py-3 text-right text-gray-600 tabular-nums hidden md:table-cell dark:text-gray-400">{c.streak}d</td>
               </tr>
             ))}
