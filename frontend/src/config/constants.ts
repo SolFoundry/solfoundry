@@ -36,10 +36,10 @@ export async function deriveEscrowPda(
 ): Promise<[PublicKey, number]> {
   const id = typeof bountyId === 'string' ? parseInt(bountyId, 10) : bountyId;
   // Encode as u64 little-endian (8 bytes) to match Rust's u64.to_le_bytes()
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(BigInt(id));
+  const buf = new Uint8Array(8);
+  new DataView(buf.buffer).setBigUint64(0, BigInt(id), true);
   return PublicKey.findProgramAddress(
-    [Buffer.from('escrow'), buf],
+    [new TextEncoder().encode('escrow'), buf],
     ESCROW_PROGRAM_ID,
   );
 }
@@ -52,7 +52,7 @@ export async function deriveVaultPda(
   escrowPda: PublicKey,
 ): Promise<[PublicKey, number]> {
   return PublicKey.findProgramAddress(
-    [Buffer.from('vault'), escrowPda.toBuffer()],
+    [new TextEncoder().encode('vault'), escrowPda.toBytes()],
     ESCROW_PROGRAM_ID,
   );
 }

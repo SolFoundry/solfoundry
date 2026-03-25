@@ -3,7 +3,7 @@
  * Provides login (token storage), logout, and the authenticated user object.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { setAuthToken } from '../services/apiClient';
+import { setAuthToken, setOnAuthExpired } from '../services/apiClient';
 
 export interface AuthUser {
   id: string;
@@ -81,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
   }, []);
+
+  // Wire apiClient's auth-expired callback to logout
+  useEffect(() => {
+    setOnAuthExpired(logout);
+    return () => setOnAuthExpired(null);
+  }, [logout]);
 
   const updateUser = useCallback((updates: Partial<AuthUser>) => {
     setState(prev => {

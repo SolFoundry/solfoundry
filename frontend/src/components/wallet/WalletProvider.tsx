@@ -5,8 +5,10 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adap
 import { clusterApiUrl } from '@solana/web3.js';
 import type { SolanaNetwork, NetworkOption } from '../../types/wallet';
 
+const MAINNET_RPC = import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl('mainnet-beta');
+
 export const NETWORK_OPTIONS: NetworkOption[] = [
-  { label: 'Mainnet', value: 'mainnet-beta', endpoint: clusterApiUrl('mainnet-beta') },
+  { label: 'Mainnet', value: 'mainnet-beta', endpoint: MAINNET_RPC },
   { label: 'Devnet', value: 'devnet', endpoint: clusterApiUrl('devnet') },
 ];
 const DEFAULT_NETWORK: SolanaNetwork = 'devnet';
