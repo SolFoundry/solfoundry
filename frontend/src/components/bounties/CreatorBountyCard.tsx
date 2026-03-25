@@ -1,5 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getAuthToken } from '../../services/apiClient';
 import { useToast } from '../../hooks/useToast';
+
+function useCountdown(deadline: string | null) {
+    const [timeLeft, setTimeLeft] = useState('');
+    const [isExpired, setIsExpired] = useState(false);
+
+    useEffect(() => {
+        if (!deadline) return;
+        const update = () => {
+            const diff = new Date(deadline).getTime() - Date.now();
+            if (diff <= 0) {
+                setTimeLeft('Expired');
+                setIsExpired(true);
+                return;
+            }
+            setIsExpired(false);
+            const d = Math.floor(diff / 86400000);
+            const h = Math.floor((diff % 86400000) / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            if (d > 0) setTimeLeft(`${d}d ${h}h left`);
+            else if (h > 0) setTimeLeft(`${h}h ${m}m left`);
+            else setTimeLeft(`${m}m left`);
+        };
+        update();
+        const interval = setInterval(update, 60000);
+        return () => clearInterval(interval);
+    }, [deadline]);
+
+    return { timeLeft, isExpired };
+}
 
 interface Submission {
     id: string;
@@ -21,15 +51,21 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
     const [expanded, setExpanded] = useState(false);
     const [isExtending, setIsExtending] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
-    const [extendDays, setExtendDays] = useState(7);
+    // extendDays removed -- now uses fixed +24h via API endpoint
     const bountyId = bounty.id;
+    const [isReporting, setIsReporting] = useState(false);
     const toast = useToast();
+    const { timeLeft, isExpired } = useCountdown(bounty.deadline);
 
     const handleCancel = async () => {
         if (!window.confirm("Are you sure you want to cancel this bounty? This will trigger a refund.")) return;
         setIsCancelling(true);
         try {
-            const res = await fetch(`/api/bounties/${bountyId}/cancel`, { method: 'POST' });
+            const token = getAuthToken();
+            const res = await fetch(`/api/bounties/${bountyId}/cancel`, {
+                method: 'POST',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
             if (res.ok) {
                 onUpdate();
             } else {
@@ -44,20 +80,25 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
 
     const handleExtendDeadline = async () => {
         if (!bounty?.deadline) return;
+        const extensionFee = Math.ceil((bounty.reward_amount || 0) * 0.01);
+        if (!window.confirm(`Extend deadline by 24 hours?\nCost: ${extensionFee.toLocaleString()} $FNDRY (1% of bounty reward)`)) return;
         setIsExtending(true);
-        const newDeadline = new Date(bounty.deadline);
-        newDeadline.setDate(newDeadline.getDate() + extendDays);
 
         try {
-            const res = await fetch(`/api/bounties/${bountyId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deadline: newDeadline.toISOString() }),
+            const token = getAuthToken();
+            const res = await fetch(`/api/bounties/${bountyId}/extend-deadline`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
             });
             if (res.ok) {
+                toast.success('Deadline extended by 24 hours');
                 onUpdate();
             } else {
-                toast.error("Failed to extend deadline");
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.detail || "Failed to extend deadline");
             }
         } catch (err) {
             console.error(err);
@@ -68,9 +109,13 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
 
     const handleUpdateSubmission = async (submissionId: string, status: string) => {
         try {
+            const token = getAuthToken();
             const res = await fetch(`/api/bounties/${bountyId}/submissions/${submissionId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ status }),
             });
             if (res.ok) {
@@ -80,6 +125,33 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
             }
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const [reportingId, setReportingId] = useState<string | null>(null);
+
+    const handleReport = async (submissionId: string, reason: string) => {
+        setReportingId(submissionId);
+        try {
+            const token = getAuthToken();
+            const res = await fetch(`/api/bounties/${bountyId}/submissions/${submissionId}/report`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ reason, notes: '' }),
+            });
+            if (res.ok) {
+                toast.success('Submission reported');
+            } else {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.detail || 'Failed to report');
+            }
+        } catch {
+            toast.error('Network error');
+        } finally {
+            setReportingId(null);
         }
     };
 
@@ -146,13 +218,32 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                             <span className="flex items-center gap-1">
                                 Escrowed: <strong className="text-white">{formatNumber(bounty.reward_amount)} FNDRY</strong>
                             </span>
+                            {bounty.fee_amount > 0 && (
+                                <span className="text-xs text-gray-500">
+                                    Fee: {formatNumber(bounty.fee_amount)} FNDRY
+                                </span>
+                            )}
                             <span>
-                                Deadline: <strong className="text-white">{bounty.deadline ? new Date(bounty.deadline).toLocaleDateString() : 'N/A'}</strong>
+                                Deadline: <strong className={isExpired ? 'text-red-400' : 'text-white'}>
+                                    {bounty.deadline ? `${new Date(bounty.deadline).toLocaleDateString()} (${timeLeft})` : 'N/A'}
+                                </strong>
                             </span>
                             <span>
                                 Submissions: <strong className="text-white">{bounty.submission_count}</strong>
                             </span>
-                            {bounty.tier === 'T3' && bounty.milestones && bounty.milestones.length > 0 && (
+                            {bounty.auto_tags && bounty.auto_tags.length > 0 && (
+                                <div className="flex gap-1 flex-wrap">
+                                    {bounty.auto_tags.slice(0, 4).map((tag: string, i: number) => (
+                                        <span key={i} className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs border border-purple-500/20">
+                                            {tag}
+                                        </span>
+                                    ))}
+                                    {bounty.auto_tags.length > 4 && (
+                                        <span className="text-gray-500 text-xs">+{bounty.auto_tags.length - 4}</span>
+                                    )}
+                                </div>
+                            )}
+                            {bounty.tier === 3 || bounty.tier === 'T3' && bounty.milestones && bounty.milestones.length > 0 && (
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs">Milestones:</span>
                                     <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -193,7 +284,7 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                         disabled={isExtending}
                                         className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-md"
                                     >
-                                        Extend Deadline (+7d)
+                                        Extend +24h (1% fee)
                                     </button>
                                     <button
                                         onClick={handleCancel}
@@ -264,6 +355,13 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                                 className="px-3 py-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
                                             >
                                                 Dispute
+                                            </button>
+                                            <button
+                                                onClick={() => handleReport(sub.id, 'spam')}
+                                                disabled={reportingId === sub.id || sub.status === 'paid'}
+                                                className="px-3 py-1 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/30 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
+                                            >
+                                                {reportingId === sub.id ? '...' : 'Report Spam'}
                                             </button>
                                         </div>
                                     </div>

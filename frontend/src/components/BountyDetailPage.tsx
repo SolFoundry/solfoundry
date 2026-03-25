@@ -13,11 +13,13 @@ import LifecycleTimeline from './bounties/LifecycleTimeline';
 import { MilestoneProgress } from './bounties/MilestoneProgress';
 import { BountyTags } from './bounties/BountyTags';
 import { BoostPanel } from './bounties/BoostPanel';
+import { ProposalForm } from './bounties/ProposalForm';
+import { ProposalList } from './bounties/ProposalList';
 
 interface BountyDetail {
   id: string;
   title: string;
-  tier: 'T1' | 'T2' | 'T3';
+  tier: number | 'T1' | 'T2' | 'T3';
   reward: number;
   reward_amount?: number;
   category: string;
@@ -42,6 +44,10 @@ interface BountyDetail {
   payout_tx_hash?: string;
   payout_at?: string;
   milestones?: any[];
+  auto_tags?: string[];
+  fee_amount?: number;
+  fee_paid?: boolean;
+  extend_count?: number;
 }
 
 interface Activity {
@@ -62,10 +68,15 @@ const statusColors: Record<string, string> = {
   expired: 'bg-red-500/20 text-red-800 dark:text-red-400',
 };
 
-export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty }) => {
+const TIER_MAP: Record<number | string, 'T1' | 'T2' | 'T3'> = { 1: 'T1', 2: 'T2', 3: 'T3', T1: 'T1', T2: 'T2', T3: 'T3' };
+
+export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty: rawBounty }) => {
+  // Normalize tier from integer (API) to string (display components expect 'T1'|'T2'|'T3')
+  const bounty = { ...rawBounty, tier: TIER_MAP[rawBounty.tier] || 'T2' } as BountyDetail & { tier: 'T1' | 'T2' | 'T3' };
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [selectedReviewSub, setSelectedReviewSub] = useState<string | null>(null);
+  const [proposalRefresh, setProposalRefresh] = useState(0);
 
   const rewardAmount = bounty.reward_amount ?? bounty.reward;
   const githubUrl = bounty.github_issue_url ?? bounty.githubIssueUrl;
@@ -132,7 +143,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('sf_access_token');
       if (!token) return;
       try {
         const res = await fetch('/api/auth/me', {
@@ -219,6 +230,17 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                 </a>
               )}
 
+
+              {/* Auto-detected tags */}
+              {bounty.auto_tags && bounty.auto_tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {bounty.auto_tags.map((tag: string, i: number) => (
+                    <span key={i} className="px-2 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full text-xs font-medium border border-purple-500/20">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
               {/* Winner badge */}
               {bounty.winner_wallet && (
                 <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -293,7 +315,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
             )}
 
             {/* Submission Form */}
-            {canSubmit && (
+            {canSubmit && (bounty.tier !== 'T3' || bounty.status === 'in_progress') && (
               showSubmitForm ? (
                 <SubmissionForm
                   bountyId={bounty.id}
@@ -311,6 +333,26 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                   </button>
                 </div>
               )
+            )}
+
+
+            {/* T3 Proposals Section */}
+            {bounty.tier === 'T3' && (
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none space-y-6">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300">Proposals</h2>
+                {bounty.status === 'open' && !isCreator && (
+                  <ProposalForm
+                    bountyId={bounty.id}
+                    onSubmitted={() => setProposalRefresh(prev => prev + 1)}
+                  />
+                )}
+                <ProposalList
+                  bountyId={bounty.id}
+                  isCreator={isCreator}
+                  onAssigned={() => { setProposalRefresh(prev => prev + 1); }}
+                  key={proposalRefresh}
+                />
+              </div>
             )}
 
             {/* Creator Approval Panel / Submissions List */}
@@ -368,6 +410,12 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Time Left</span>
                     <span className="font-medium text-yellow-700 dark:text-yellow-400">{timeRemaining}</span>
+                  </div>
+                )}
+                {bounty.tier === 'T3' && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Proposals</span>
+                    <span className="font-medium text-purple-600 dark:text-purple-400">--</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">

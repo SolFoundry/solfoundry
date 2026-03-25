@@ -21,7 +21,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /** Build authentication headers from stored auth token. */
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('sf_access_token');
   const userId = localStorage.getItem('user_id');
   return {
     'Content-Type': 'application/json',

@@ -4,7 +4,7 @@ import type { BountySubmission, AggregatedReviewScore, LifecycleLogEntry } from 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('sf_access_token');
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

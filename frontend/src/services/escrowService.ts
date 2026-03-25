@@ -1,11 +1,14 @@
 /**
- * Escrow API service — fetches escrow account data and records transactions.
- * All on-chain interactions happen in the useEscrow hook via Anchor program
- * instructions; this service handles only the backend REST API communication
- * for escrow state persistence and transaction recording.
+ * Escrow API service — communicates with the backend PDA endpoints.
  *
- * The backend validates transaction signatures against the Solana cluster
- * before recording them, ensuring consistency between on-chain and off-chain state.
+ * Two operation modes:
+ * 1. Frontend-signed: Backend builds unsigned tx → frontend wallet signs → submit
+ *    (create_escrow + deposit)
+ * 2. Backend-signed: Backend signs with authority keypair → returns tx signature
+ *    (assign, release, refund, dispute, resolve)
+ *
+ * Also handles legacy REST API communication for escrow state persistence
+ * and transaction recording.
  *
  * @module services/escrowService
  */
@@ -13,13 +16,14 @@
 import { apiClient } from './apiClient';
 import type { EscrowAccount, EscrowTransaction } from '../types/escrow';
 
+// ---------------------------------------------------------------------------
+// Legacy REST API (escrow state persistence + tx recording)
+// ---------------------------------------------------------------------------
+
 /**
  * Fetch the escrow account details for a given bounty.
  * Returns the current escrow state, locked amount, PDA address,
  * transaction history, and expiration information.
- *
- * @param bountyId - The unique identifier of the bounty.
- * @returns The escrow account data including state, locked amount, and transactions.
  */
 export async function fetchEscrowAccount(
   bountyId: string,
@@ -29,13 +33,6 @@ export async function fetchEscrowAccount(
 
 /**
  * Record a deposit transaction in the backend after on-chain confirmation.
- * The backend validates the transaction signature against the Solana cluster
- * and updates the escrow state from 'unfunded' to 'funded'.
- *
- * @param bountyId - The bounty whose escrow was funded.
- * @param signature - The confirmed Solana transaction signature.
- * @param amount - The deposited amount in display units.
- * @returns The updated escrow account data reflecting the deposit.
  */
 export async function recordDeposit(
   bountyId: string,
@@ -50,13 +47,6 @@ export async function recordDeposit(
 
 /**
  * Record a release transaction in the backend after on-chain confirmation.
- * The backend validates the signature and updates escrow state to 'released'.
- * The actual token transfer is handled by the Anchor escrow program's PDA authority.
- *
- * @param bountyId - The bounty whose escrow is being released.
- * @param signature - The confirmed Solana transaction signature.
- * @param contributorWallet - The wallet address receiving the funds.
- * @returns The updated escrow account data reflecting the release.
  */
 export async function recordRelease(
   bountyId: string,
@@ -71,12 +61,6 @@ export async function recordRelease(
 
 /**
  * Record a refund transaction in the backend after on-chain confirmation.
- * The backend validates the signature and updates escrow state to 'refunded'.
- * The actual token transfer is handled by the Anchor escrow program's PDA authority.
- *
- * @param bountyId - The bounty whose escrow is being refunded.
- * @param signature - The confirmed Solana transaction signature.
- * @returns The updated escrow account data reflecting the refund.
  */
 export async function recordRefund(
   bountyId: string,
@@ -90,11 +74,6 @@ export async function recordRefund(
 
 /**
  * Fetch the transaction history for a bounty's escrow account.
- * Returns all deposit, release, and refund transactions sorted
- * by confirmation time descending (most recent first).
- *
- * @param bountyId - The bounty whose escrow transactions to fetch.
- * @returns Array of escrow transactions sorted by confirmation time descending.
  */
 export async function fetchEscrowTransactions(
   bountyId: string,
@@ -102,4 +81,162 @@ export async function fetchEscrowTransactions(
   return apiClient<EscrowTransaction[]>(
     `/api/bounties/${bountyId}/escrow/transactions`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// PDA Program API (Solana on-chain operations)
+// ---------------------------------------------------------------------------
+
+/** Response from create escrow endpoint — unsigned tx for wallet signing */
+export interface CreateEscrowResponse {
+  transaction: string; // base64-encoded unsigned Message
+  escrow_pda: string;
+  vault_pda: string;
+  blockhash: string;
+}
+
+/** Response from backend-signed operations */
+export interface TxResponse {
+  signature: string;
+  message: string;
+}
+
+/** On-chain escrow state read from Solana */
+export interface OnChainEscrowState {
+  bounty_id: number;
+  creator: string;
+  winner: string;
+  authority: string;
+  token_mint: string;
+  amount: number;
+  state: string; // Created | Funded | Active | Completed | Refunded | Disputed
+  created_at: number;
+  deadline: number;
+}
+
+/** PDA addresses for a bounty */
+export interface EscrowPdaInfo {
+  escrow_pda: string;
+  escrow_bump: number;
+  vault_pda: string;
+  vault_bump: number;
+  program_id: string;
+}
+
+/**
+ * Build an unsigned create_escrow + deposit transaction via the backend.
+ * The frontend wallet will sign and submit this transaction.
+ */
+export async function buildCreateEscrowTx(
+  bountyId: number,
+  amount: number,
+  deadline: number,
+  creatorWallet: string,
+  authorityWallet?: string,
+): Promise<CreateEscrowResponse> {
+  return apiClient<CreateEscrowResponse>('/api/pda/escrow/create', {
+    method: 'POST',
+    body: {
+      bounty_id: bountyId,
+      amount,
+      deadline,
+      creator_wallet: creatorWallet,
+      authority_wallet: authorityWallet,
+    },
+  });
+}
+
+/**
+ * Assign a contributor to the escrow (backend-signed by authority).
+ */
+export async function assignContributor(
+  bountyId: number,
+  contributorWallet: string,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/assign', {
+    method: 'POST',
+    body: { bounty_id: bountyId, contributor_wallet: contributorWallet },
+  });
+}
+
+/**
+ * Release escrow funds to the winner (backend-signed by authority).
+ */
+export async function releaseEscrow(
+  bountyId: number,
+  winnerWallet: string,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/release', {
+    method: 'POST',
+    body: { bounty_id: bountyId, winner_wallet: winnerWallet },
+  });
+}
+
+/**
+ * Refund escrow funds to the creator (backend-signed by authority).
+ */
+export async function refundEscrow(
+  bountyId: number,
+  creatorWallet: string,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/refund', {
+    method: 'POST',
+    body: { bounty_id: bountyId, creator_wallet: creatorWallet },
+  });
+}
+
+/**
+ * Open a dispute on the escrow (backend-signed by authority).
+ */
+export async function disputeEscrow(
+  bountyId: number,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/dispute', {
+    method: 'POST',
+    body: { bounty_id: bountyId },
+  });
+}
+
+/**
+ * Resolve a dispute by releasing funds to the winner (backend-signed).
+ */
+export async function resolveDisputeRelease(
+  bountyId: number,
+  winnerWallet: string,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/resolve-release', {
+    method: 'POST',
+    body: { bounty_id: bountyId, winner_wallet: winnerWallet },
+  });
+}
+
+/**
+ * Resolve a dispute by refunding to the creator (backend-signed).
+ */
+export async function resolveDisputeRefund(
+  bountyId: number,
+  creatorWallet: string,
+): Promise<TxResponse> {
+  return apiClient<TxResponse>('/api/pda/escrow/resolve-refund', {
+    method: 'POST',
+    body: { bounty_id: bountyId, creator_wallet: creatorWallet },
+  });
+}
+
+/**
+ * Read the on-chain escrow state directly from Solana (via backend RPC).
+ */
+export async function fetchOnChainEscrowState(
+  bountyId: number,
+): Promise<OnChainEscrowState> {
+  return apiClient<OnChainEscrowState>(`/api/pda/escrow/${bountyId}`);
+}
+
+/**
+ * Get PDA addresses for a bounty (useful before escrow creation).
+ */
+export async function fetchEscrowPdaInfo(
+  bountyId: number,
+): Promise<EscrowPdaInfo> {
+  return apiClient<EscrowPdaInfo>(`/api/pda/escrow/${bountyId}/pda`);
 }

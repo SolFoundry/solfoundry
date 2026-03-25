@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiClient } from '../services/apiClient';
 import { CreatorBountyCard } from './bounties/CreatorBountyCard';
 import { Skeleton, SkeletonStatCard, SkeletonCard } from './common/Skeleton';
 
@@ -12,6 +13,10 @@ interface EscrowStats {
     staked: number;
     paid: number;
     refunded: number;
+    total_fees?: number;
+    completion_rate?: number;
+    active_count?: number;
+    total_count?: number;
 }
 
 export function CreatorDashboard({
@@ -25,7 +30,7 @@ export function CreatorDashboard({
     const [error, setError] = useState<string | null>(null);
 
     const [escrowStats, setEscrowStats] = useState<EscrowStats>({ staked: 0, paid: 0, refunded: 0 });
-    const [notifications, setNotifications] = useState({ pending: 0, disputed: 0 });
+    const [notifications, setNotifications] = useState({ pending: 0, disputed: 0, proposals: 0, reports: 0 });
 
     const fetchBounties = useCallback(async () => {
         if (!walletAddress) {
@@ -36,33 +41,41 @@ export function CreatorDashboard({
         setIsLoading(true);
         setError(null);
         try {
-            // Fetch bounties and stats in parallel
-            const [bountiesRes, statsRes] = await Promise.all([
-                fetch(`/api/bounties?created_by=${walletAddress}&limit=100`),
-                fetch(`/api/bounties/creator/${walletAddress}/stats`)
-            ]);
-
-            if (!bountiesRes.ok) throw new Error('Failed to fetch bounties');
-            if (!statsRes.ok) throw new Error('Failed to fetch stats');
-
+            // Fetch bounties and stats in parallel using authenticated apiClient
             const [bountiesData, statsData] = await Promise.all([
-                bountiesRes.json(),
-                statsRes.json()
+                apiClient<{ items?: any[] }>('/api/bounties', { params: { created_by: walletAddress, limit: 100 } }),
+                apiClient<EscrowStats>(`/api/bounties/creator/${walletAddress}/stats`),
             ]);
 
             setBounties(bountiesData.items || []);
             setEscrowStats(statsData);
 
-            // Calculate notification counts
+            // Calculate notification counts and extra stats
             let pendingCount = 0;
             let disputedCount = 0;
-            (bountiesData.items || []).forEach((b: any) => {
+            let proposalCount = 0;
+            let totalFees = 0;
+            let completedCount = 0;
+            const items = bountiesData.items || [];
+            items.forEach((b: any) => {
                 b.submissions?.forEach((s: any) => {
                     if (s.status === 'pending') pendingCount++;
                     if (s.status === 'disputed') disputedCount++;
                 });
+                if (b.fee_amount) totalFees += b.fee_amount;
+                if (['completed', 'paid'].includes(b.status)) completedCount++;
+                // T3 bounties may have pending proposals
+                if (b.tier === 3 && b.status === 'open') proposalCount++;
             });
-            setNotifications({ pending: pendingCount, disputed: disputedCount });
+            const completionRate = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
+            setNotifications({ pending: pendingCount, disputed: disputedCount, proposals: proposalCount, reports: 0 });
+            setEscrowStats({
+                ...statsData,
+                total_fees: totalFees,
+                completion_rate: completionRate,
+                active_count: items.filter((b: any) => !['completed', 'paid', 'cancelled'].includes(b.status)).length,
+                total_count: items.length,
+            });
 
         } catch (err: any) {
             setError(err.message);
@@ -138,7 +151,13 @@ export function CreatorDashboard({
                         <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your bounties, review submissions, and track your escrowed funds.</p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
+                        <a
+                            href="/bounties/create"
+                            className="px-4 py-2 bg-gradient-to-r from-solana-purple to-solana-green text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
+                        >
+                            + Create Bounty
+                        </a>
                         {notifications.pending > 0 && (
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-solana-green/10 border border-solana-green/20 rounded-full">
                                 <span className="w-2 h-2 bg-solana-green rounded-full animate-pulse" />
@@ -149,6 +168,12 @@ export function CreatorDashboard({
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full">
                                 <span className="w-2 h-2 bg-red-500 rounded-full" />
                                 <span className="text-red-500 text-sm font-bold">{notifications.disputed} Disputes</span>
+                            </div>
+                        )}
+                        {notifications.proposals > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-full">
+                                <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                                <span className="text-purple-400 text-sm font-bold">{notifications.proposals} T3 Open</span>
                             </div>
                         )}
                     </div>
@@ -167,6 +192,26 @@ export function CreatorDashboard({
                     <div className="bg-white dark:bg-surface-100 rounded-xl p-5 border border-gray-200 dark:border-white/5 border-l-4 border-l-gray-500 shadow-sm dark:shadow-none">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">Total Refunded</p>
                         <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.refunded)} <span className="text-gray-600 dark:text-gray-400 text-lg">$FNDRY</span></p>
+                    </div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-4 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Active Bounties</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{escrowStats.active_count ?? 0}</p>
+                    </div>
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-4 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Total Bounties</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{escrowStats.total_count ?? 0}</p>
+                    </div>
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-4 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Completion Rate</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{escrowStats.completion_rate ?? 0}%</p>
+                    </div>
+                    <div className="bg-white dark:bg-surface-100 rounded-xl p-4 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Platform Fees Paid</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatNumber(escrowStats.total_fees ?? 0)} <span className="text-gray-500 text-sm">$FNDRY</span></p>
                     </div>
                 </div>
 
@@ -201,12 +246,12 @@ export function CreatorDashboard({
                     {filteredBounties.length === 0 ? (
                         <div className="text-center bg-white dark:bg-surface-100 rounded-xl p-10 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
                             <p className="text-gray-600 dark:text-gray-400">No bounties found for this status.</p>
-                            <button
-                                onClick={onNavigateBounties}
-                                className="mt-4 px-4 py-2 bg-solana-purple text-white rounded-lg hover:bg-solana-purple/80 transition-colors"
+                            <a
+                                href="/bounties/create"
+                                className="mt-4 inline-block px-4 py-2 bg-solana-purple text-white rounded-lg hover:bg-solana-purple/80 transition-colors"
                             >
-                                Browse All Bounties
-                            </button>
+                                Create a Bounty
+                            </a>
                         </div>
                     ) : (
                         filteredBounties.map(bounty => (

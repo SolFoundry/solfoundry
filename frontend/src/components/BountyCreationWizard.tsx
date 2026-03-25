@@ -6,6 +6,7 @@ import { useFndryBalance } from '../hooks/useFndryToken';
 import { FundBountyButton } from './wallet/FundBountyFlow';
 import { solscanTxUrl } from '../config/constants';
 import { useNetwork } from './wallet/WalletProvider';
+import { getAuthToken } from '../services/apiClient';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
 
 // Types
@@ -19,6 +20,8 @@ interface BountyFormData {
   rewardAmount: number;
   deadline: string;
   milestones?: { milestone_number: number; description: string; percentage: number }[];
+  /** Optional GitHub repo URL for community-submitted bounties. */
+  githubRepo: string;
 }
 
 // Validation function for draft data from localStorage
@@ -51,7 +54,10 @@ function isValidBountyFormData(data: unknown): data is BountyFormData {
   
   // Validate rewardAmount
   if (d.rewardAmount !== undefined && typeof d.rewardAmount !== 'number') return false;
-  
+
+  // Validate githubRepo
+  if (d.githubRepo !== undefined && typeof d.githubRepo !== 'string') return false;
+
   return true;
 }
 
@@ -108,6 +114,7 @@ const initialFormData: BountyFormData = {
   rewardAmount: 100000,
   deadline: '',
   milestones: [],
+  githubRepo: '',
 };
 
 const DRAFT_KEY = 'bounty_creation_draft';
@@ -268,6 +275,8 @@ const TitleDescription: React.FC<StepProps> = ({ formData, updateFormData, error
           )}
           {errors.description && <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.description}</p>}
         </div>
+
+        {/* GitHub repo field removed — creators describe what they want, builders submit their own repos */}
       </div>
     </div>
   );
@@ -459,12 +468,66 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$FNDRY</span>
           </div>
           {errors.rewardAmount && <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.rewardAmount}</p>}
+
+          {/* Fee breakdown */}
+          {formData.rewardAmount > 0 && (
+            <div className="mt-3 bg-gray-100 dark:bg-gray-800/60 rounded-lg p-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Escrow amount</span>
+                <span className="text-green-600 dark:text-green-400 font-medium">
+                  {Math.floor(formData.rewardAmount * 0.95).toLocaleString()} $FNDRY
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Platform fee (5%)</span>
+                <span className="text-orange-500 dark:text-orange-400">
+                  {Math.ceil(formData.rewardAmount * 0.05).toLocaleString()} $FNDRY
+                </span>
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between text-sm font-medium">
+                <span className="text-gray-700 dark:text-gray-300">Total cost</span>
+                <span className="text-white">{formData.rewardAmount.toLocaleString()} $FNDRY</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                The 5% fee is non-refundable and covers AI judge scoring and platform operations.
+              </p>
+            </div>
+          )}
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Deadline *
           </label>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mb-2">
+            How long should the bounty stay open? You can extend later (+24h for 1% of reward).
+          </p>
+          <div className="flex gap-2 mb-3">
+            {[
+              { label: '3 days', days: 3 },
+              { label: '7 days', days: 7 },
+              { label: '14 days', days: 14 },
+              { label: '30 days', days: 30 },
+            ].map(({ label, days }) => {
+              const targetDate = new Date();
+              targetDate.setDate(targetDate.getDate() + days);
+              const val = targetDate.toISOString().split('T')[0];
+              return (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => updateFormData({ deadline: val })}
+                  className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                    formData.deadline === val
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
           <input
             type="date"
             value={formData.deadline}
@@ -474,6 +537,13 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
           />
           {errors.deadline && <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.deadline}</p>}
         </div>
+      </div>
+
+      {/* Auto-tagging notice (replaces manual skill picker) */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+        <p className="text-sm text-blue-700 dark:text-blue-300">
+          Skills and categories will be automatically detected from your description using AI. No manual tagging needed.
+        </p>
       </div>
     </div>
   );
@@ -637,6 +707,22 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
           </div>
         </div>
         
+        {/* GitHub Repository */}
+        {formData.githubRepo && (
+          <div>
+            <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Repository</h4>
+            <a
+              href={formData.githubRepo}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 underline text-sm"
+            >
+              {formData.githubRepo}
+            </a>
+            <span className="ml-2 text-xs text-gray-500 dark:text-gray-500">Community bounty</span>
+          </div>
+        )}
+
         {/* Requirements */}
         <div>
           <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Requirements</h4>
@@ -686,46 +772,52 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
   );
 };
 
-// Step 7: Fund & Publish — real wallet integration
+// Step 7: Fund & Publish — PDA escrow integration
 interface ConfirmPublishProps extends StepProps {
-  onPublish: () => Promise<void>;
+  onPublish: () => Promise<string>; // Returns bounty ID
 }
+
+type PublishPhase = 'idle' | 'publishing' | 'published' | 'funding' | 'funded' | 'error';
 
 const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) => {
   const { connected, publicKey } = useWallet();
   const { balance, loading: balanceLoading } = useFndryBalance();
   const { network } = useNetwork();
   const [agreed, setAgreed] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [phase, setPhase] = useState<PublishPhase>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [bountyId, setBountyId] = useState<string | null>(null);
   const [fundingSignature, setFundingSignature] = useState<string | null>(null);
 
   const isWalletConnected = connected && !!publicKey;
   const walletBalance = balance ?? 0;
   const hasSufficientBalance = walletBalance >= formData.rewardAmount;
-  const isFunded = !!fundingSignature;
-  const canPublish = agreed && isWalletConnected && isFunded;
 
-  const handleFunded = (signature: string) => {
-    setFundingSignature(signature);
-  };
-
-  const handlePublish = async () => {
-    if (!canPublish) return;
-    setIsPublishing(true);
+  /** Phase 1: Publish bounty to DB, get bounty ID */
+  /** Phase 2: Fund escrow via FundBountyButton (uses old custodial flow for now,
+   *  will be replaced with PDA deposit once create_escrow is wired) */
+  const handlePublishAndFund = async () => {
+    if (!agreed || !isWalletConnected) return;
     setError(null);
+
+    // Phase 1: Create bounty in DB
+    setPhase('publishing');
     try {
-      await onPublish();
-      setSuccess(true);
+      const id = await onPublish();
+      setBountyId(id);
+      setPhase('published');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to publish bounty');
-    } finally {
-      setIsPublishing(false);
+      setPhase('error');
     }
   };
 
-  if (success) {
+  const handleFunded = (signature: string) => {
+    setFundingSignature(signature);
+    setPhase('funded');
+  };
+
+  if (phase === 'funded') {
     return (
       <div className="space-y-6 text-center">
         <div className="text-green-600 dark:text-green-400 text-6xl mb-4">✓</div>
@@ -741,6 +833,14 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
             className="inline-flex items-center gap-1.5 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 text-sm"
           >
             View funding transaction on Solscan ↗
+          </a>
+        )}
+        {bountyId && (
+          <a
+            href={`/bounties/${bountyId}`}
+            className="inline-block mt-4 px-6 py-2 bg-solana-purple hover:bg-violet-600 text-white rounded-lg font-medium transition-colors"
+          >
+            View Your Bounty
           </a>
         )}
       </div>
@@ -774,8 +874,8 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Escrow Funding</span>
-          <span className={isFunded ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-yellow-400'}>
-            {isFunded ? '✓ Funded' : '○ Pending'}
+          <span className={(phase as string) === 'funded' ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-yellow-400'}>
+            {(phase as string) === 'funded' ? '✓ Funded' : phase === 'published' ? '○ Ready to fund' : '○ Pending'}
           </span>
         </div>
       </div>
@@ -824,22 +924,34 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
         </span>
       </label>
 
-      {/* Two-phase flow: fund first, then publish */}
-      {!isFunded ? (
-        <FundBountyButton
-          amount={formData.rewardAmount}
-          onFunded={handleFunded}
-          disabled={!agreed || !isWalletConnected}
-        />
-      ) : (
+      {/* Two-phase flow: publish first (get bounty ID), then fund escrow */}
+      {phase === 'idle' || phase === 'error' ? (
         <button
-          onClick={handlePublish}
-          disabled={!canPublish || isPublishing}
+          onClick={handlePublishAndFund}
+          disabled={!agreed || !isWalletConnected}
           className="w-full py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-linear-to-r from-purple-600 to-green-500 text-white hover:from-purple-500 hover:to-green-400"
         >
-          {isPublishing ? 'Publishing…' : 'Publish Bounty'}
+          Create & Fund Bounty
         </button>
-      )}
+      ) : phase === 'published' || phase === 'publishing' ? (
+        <>
+          {phase === 'publishing' && (
+            <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-3">Creating bounty...</div>
+          )}
+          {phase === 'published' && (
+            <>
+              <div className="text-center text-green-600 dark:text-green-400 text-sm mb-3">
+                ✓ Bounty created! Now fund the escrow:
+              </div>
+              <FundBountyButton
+                amount={formData.rewardAmount}
+                onFunded={handleFunded}
+                disabled={false}
+              />
+            </>
+          )}
+        </>
+      ) : null}
 
       {!isWalletConnected && (
         <p className="text-amber-700 dark:text-yellow-400 text-sm text-center">
@@ -862,7 +974,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
   const [formData, setFormData] = useState<BountyFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const totalSteps = 8;
+  const totalSteps = 7;
   const progressPercent = (currentStep / totalSteps) * 100;
   const stepTitles = [
     'Select Tier',
@@ -950,14 +1062,10 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
         }
         break;
       case 5:
-        if (!formData.category) newErrors.category = 'Please select a category';
-        if (formData.skills.length === 0) newErrors.skills = 'Select at least one skill';
-        break;
-      case 6:
-        // Base validation
+        // Reward & Deadline (category/skills now auto-tagged)
         if (formData.rewardAmount < 1000) newErrors.rewardAmount = 'Minimum reward is 1,000 $FNDRY';
         if (!formData.deadline) newErrors.deadline = 'Please set a deadline';
-        
+
         // Tier 2 specific validation
         if (formData.tier === 'T2') {
           if (formData.rewardAmount < 500000) {
@@ -987,50 +1095,58 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
     setCurrentStep((s) => Math.max(s - 1, 1));
   };
   
-  const handlePublish = async () => {
+  const handlePublish = async (): Promise<string> => {
     if (onPublishBounty) {
       await onPublishBounty(formData);
-    } else {
-      const categoryMap: Record<string, string> = {
-        'Frontend': 'frontend',
-        'Backend': 'backend',
-        'Smart Contracts': 'smart-contract',
-        'DevOps': 'devops',
-        'Documentation': 'documentation',
-        'Design': 'design',
-        'Security': 'security',
-        'Testing': 'backend',
-      };
-      const tierMap: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
-      const requirementsBlock = formData.requirements
-        .filter(Boolean)
-        .map((r) => `- ${r}`)
-        .join('\n');
-      const fullDescription = formData.description +
-        (requirementsBlock ? `\n\n## Requirements\n${requirementsBlock}` : '');
-
-      const resp = await fetch('/api/bounties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          description: fullDescription,
-          tier: tierMap[formData.tier] ?? 2,
-          category: categoryMap[formData.category] ?? formData.category.toLowerCase(),
-          reward_amount: formData.rewardAmount,
-          required_skills: formData.skills.map((s) => s.toLowerCase()),
-          deadline: formData.deadline
-            ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
-            : undefined,
-          milestones: formData.milestones?.length ? formData.milestones : undefined,
-        }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: 'Failed to create bounty' }));
-        throw new Error(err.detail || 'Failed to create bounty');
-      }
-      localStorage.removeItem(DRAFT_KEY);
+      return 'external'; // External handler doesn't return ID
     }
+
+    const categoryMap: Record<string, string> = {
+      'Frontend': 'frontend',
+      'Backend': 'backend',
+      'Smart Contracts': 'smart-contract',
+      'DevOps': 'devops',
+      'Documentation': 'documentation',
+      'Design': 'design',
+      'Security': 'security',
+      'Testing': 'backend',
+    };
+    const tierMap: Record<string, number> = { T1: 1, T2: 2, T3: 3 };
+    const requirementsBlock = formData.requirements
+      .filter(Boolean)
+      .map((r) => `- ${r}`)
+      .join('\n');
+    const fullDescription = formData.description +
+      (requirementsBlock ? `\n\n## Requirements\n${requirementsBlock}` : '');
+
+    const token = getAuthToken();
+    const resp = await fetch('/api/bounties', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        title: formData.title,
+        description: fullDescription,
+        tier: tierMap[formData.tier] ?? 2,
+        category: categoryMap[formData.category] ?? formData.category.toLowerCase(),
+        reward_amount: formData.rewardAmount,
+        required_skills: formData.skills.map((s) => s.toLowerCase()),
+        deadline: formData.deadline
+          ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
+          : undefined,
+        milestones: formData.milestones?.length ? formData.milestones : undefined,
+        creator_type: 'community',
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to create bounty' }));
+      throw new Error(err.detail || 'Failed to create bounty');
+    }
+    const bountyData = await resp.json();
+    localStorage.removeItem(DRAFT_KEY);
+    return bountyData.id;
   };
   
   const renderStep = () => {
@@ -1041,10 +1157,9 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       case 2: return <TitleDescription {...props} />;
       case 3: return <RequirementsBuilder {...props} />;
       case 4: return <MilestonesBuilder {...props} />;
-      case 5: return <CategorySkills {...props} />;
-      case 6: return <RewardDeadline {...props} />;
-      case 7: return <PreviewBounty {...props} />;
-      case 8: return (
+      case 5: return <RewardDeadline {...props} />;
+      case 6: return <PreviewBounty {...props} />;
+      case 7: return (
         <ConfirmPublish
           {...props}
           onPublish={handlePublish}
@@ -1099,7 +1214,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
       </div>
       
       {/* Navigation */}
-  {currentStep < 8 && (
+  {currentStep < 7 && (
         <div className="flex items-center justify-between mt-6">
           <button
             onClick={prevStep}
@@ -1112,7 +1227,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
             onClick={nextStep}
             className="px-6 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-500 transition-all"
           >
-            {currentStep === 7 ? 'Continue to Publish' : 'Next →'}
+            {currentStep === 6 ? 'Continue to Publish' : 'Next →'}
           </button>
         </div>
       )}

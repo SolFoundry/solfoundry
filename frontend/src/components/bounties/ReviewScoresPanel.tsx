@@ -5,7 +5,11 @@ const MODEL_LABELS: Record<string, { label: string; color: string; icon: string 
   gpt: { label: 'GPT-4', color: 'bg-emerald-500', icon: '🟢' },
   gemini: { label: 'Gemini', color: 'bg-blue-500', icon: '🔵' },
   grok: { label: 'Grok', color: 'bg-orange-500', icon: '🟠' },
+  sonnet: { label: 'Sonnet', color: 'bg-purple-500', icon: '🟣' },
+  deepseek: { label: 'DeepSeek', color: 'bg-cyan-500', icon: '🔷' },
 };
+
+const TOTAL_MODELS = Object.keys(MODEL_LABELS).length;
 
 const SCORE_CATEGORIES = [
   { key: 'quality_score', label: 'Quality' },
@@ -131,12 +135,12 @@ export const ReviewScoresPanel: React.FC<ReviewScoresPanelProps> = ({ scores, lo
 
       {scores.review_complete ? (
         <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-          <span className="text-green-400 text-sm">All 3 models reviewed</span>
+          <span className="text-green-400 text-sm">All {TOTAL_MODELS} models reviewed</span>
         </div>
       ) : (
         <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <span className="text-yellow-400 text-sm">
-            {scores.model_scores.length}/3 models completed
+            {scores.model_scores.length}/{TOTAL_MODELS} models completed
           </span>
         </div>
       )}
@@ -161,7 +165,7 @@ export const ReviewScoresPanel: React.FC<ReviewScoresPanelProps> = ({ scores, lo
       </div>
 
       {/* Per-model cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {scores.model_scores.map((ms) => (
           <ModelCard key={ms.model_name} score={ms} />
         ))}

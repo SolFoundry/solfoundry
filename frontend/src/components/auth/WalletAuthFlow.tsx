@@ -47,7 +47,7 @@ export function WalletAuthFlow() {
     })();
   }, [connected, publicKey, signMessage, isAuthenticated, user, login]);
 
-  // When wallet disconnects, clear the session
+  // When wallet disconnects (or is not connected on mount), clear the session
   useEffect(() => {
     if (!connected && isAuthenticated) {
       logout();

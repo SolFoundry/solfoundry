@@ -9,6 +9,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletProvider } from './components/wallet/WalletProvider';
 import { SiteLayout } from './components/layout/SiteLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 import { ToastProvider } from './contexts/ToastContext';
@@ -48,6 +49,11 @@ const PlatformHealthPage = lazy(() => import('./pages/PlatformHealthPage'));
 const PipelineDashboardPage = lazy(() => import('./pages/PipelineDashboardPage'));
 const CodebaseMapPage = lazy(() => import('./pages/CodebaseMapPage'));
 const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
+const GitHubCallbackPage = lazy(() => import('./pages/GitHubCallbackPage'));
+
+// ── Auth flow components (must be at module level to avoid remounting) ────────
+const WalletAuthFlow = lazy(() => import('./components/auth/WalletAuthFlow').then(m => ({ default: m.WalletAuthFlow })));
+const GitHubLinkPrompt = lazy(() => import('./components/auth/GitHubLinkPrompt').then(m => ({ default: m.GitHubLinkPrompt })));
 
 // ── Loading spinner ──────────────────────────────────────────────────────────
 function LoadingSpinner() {
@@ -64,17 +70,34 @@ function LoadingSpinner() {
 
 // ── Layout wrapper that reads wallet state ───────────────────────────────────
 function AppLayout() {
+  return (
+    <AuthProvider>
+      <AppLayoutInner />
+    </AuthProvider>
+  );
+}
+
+function AppLayoutInner() {
   const location = useLocation();
   const { publicKey, connect, disconnect } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
+
+  // Read auth context for user info to pass to SiteLayout
+  const { user, logout } = useAuthContext();
 
   return (
     <SiteLayout
       currentPath={location.pathname}
       walletAddress={walletAddress}
       onConnectWallet={() => connect().catch(console.error)}
-      onDisconnectWallet={() => disconnect().catch(console.error)}
+      onDisconnectWallet={() => { logout(); disconnect().catch(console.error); }}
+      userName={user?.github_id ? user.username : undefined}
+      avatarUrl={user?.avatar_url ?? undefined}
     >
+      <Suspense fallback={null}>
+        <WalletAuthFlow />
+        {walletAddress && <GitHubLinkPrompt />}
+      </Suspense>
       <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
@@ -123,6 +146,7 @@ function AppLayout() {
           <Route path="/pipelines" element={<PipelineDashboardPage />} />
           <Route path="/codebase-map" element={<CodebaseMapPage />} />
           <Route path="/settings" element={<ProfileSettingsPage />} />
+          <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
 
           {/* 404 Not Found */}
           <Route path="*" element={<NotFoundPage />} />

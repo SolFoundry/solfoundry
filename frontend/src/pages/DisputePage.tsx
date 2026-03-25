@@ -95,7 +95,7 @@ export default function DisputePage() {
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('sf_access_token');
       if (!token) return;
       try {
         const res = await fetch('/api/auth/me', {

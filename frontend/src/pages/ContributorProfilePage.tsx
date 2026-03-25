@@ -5,6 +5,7 @@
  * @module pages/ContributorProfilePage
  */
 import { useParams } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import ContributorProfile from '../components/ContributorProfile';
 import { SkeletonContributorProfile } from '../components/common/Skeleton';
@@ -73,6 +74,8 @@ class ApiError extends Error {
  */
 export default function ContributorProfilePage() {
   const { username } = useParams<{ username: string }>();
+  const { user: authUser } = useAuthContext();
+  const isOwnProfile = authUser?.username === username;
 
   const { data: contributor, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['contributor', username],
@@ -103,13 +106,43 @@ export default function ContributorProfilePage() {
 
   // 404 state — contributor not found
   if (isError && queryError instanceof ApiError && queryError.status === 404) {
+    if (isOwnProfile) {
+      // User is viewing their own profile but hasn't set it up yet
+      return (
+        <div className="p-6 max-w-3xl mx-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center space-y-4 border border-gray-200 dark:border-gray-800">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-green-500 flex items-center justify-center">
+              <span className="text-3xl text-white font-bold">{authUser?.username?.[0]?.toUpperCase() || 'U'}</span>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Welcome to SolFoundry!</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Your wallet is connected. Complete your profile to start contributing to bounties.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a
+                href="/settings"
+                className="inline-block px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-green-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Set Up Profile
+              </a>
+              <a
+                href="/bounties"
+                className="inline-block px-6 py-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                Browse Bounties
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="p-6 max-w-3xl mx-auto" data-testid="contributor-not-found">
-        <div className="bg-gray-900 rounded-xl p-8 text-center space-y-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center space-y-4 border border-gray-200 dark:border-gray-800">
           <div className="text-5xl">👤</div>
-          <h2 className="text-xl font-bold text-white">Contributor not found</h2>
-          <p className="text-sm text-gray-400">
-            No contributor with the username <span className="font-mono text-gray-300">@{username}</span> exists yet.
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contributor not found</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            No contributor with the username <span className="font-mono text-gray-300 dark:text-gray-300">@{username}</span> exists yet.
           </p>
           <a
             href="/leaderboard"
