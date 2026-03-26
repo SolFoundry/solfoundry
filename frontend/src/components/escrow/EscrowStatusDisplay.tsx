@@ -17,7 +17,7 @@ const STATE_CONFIG: Record<
   EscrowState,
   { label: string; dotColor: string; textColor: string; bgColor: string }
 > = {
-  unfunded: {
+  pending: {
     label: 'Awaiting Funding',
     dotColor: 'bg-yellow-400 animate-pulse',
     textColor: 'text-yellow-400',
@@ -29,13 +29,19 @@ const STATE_CONFIG: Record<
     textColor: 'text-green-400',
     bgColor: 'bg-green-900/10',
   },
-  locked: {
-    label: 'Locked in Escrow',
+  active: {
+    label: 'Active — In Escrow',
     dotColor: 'bg-purple-400',
     textColor: 'text-purple-400',
     bgColor: 'bg-purple-900/10',
   },
-  released: {
+  releasing: {
+    label: 'Releasing Funds…',
+    dotColor: 'bg-amber-400 animate-pulse',
+    textColor: 'text-amber-400',
+    bgColor: 'bg-amber-900/10',
+  },
+  completed: {
     label: 'Released to Contributor',
     dotColor: 'bg-emerald-400',
     textColor: 'text-emerald-400',
@@ -46,12 +52,6 @@ const STATE_CONFIG: Record<
     dotColor: 'bg-blue-400',
     textColor: 'text-blue-400',
     bgColor: 'bg-blue-900/10',
-  },
-  expired: {
-    label: 'Expired — Refund Available',
-    dotColor: 'bg-red-400 animate-pulse',
-    textColor: 'text-red-400',
-    bgColor: 'bg-red-900/10',
   },
 };
 
@@ -128,7 +128,7 @@ export function EscrowStatusDisplay({
   }
 
   /** Use a default unfunded state if no escrow account exists yet. */
-  const state: EscrowState = escrowAccount?.state ?? 'unfunded';
+  const state: EscrowState = escrowAccount?.state ?? 'pending';
   const config = STATE_CONFIG[state];
   const lockedAmount = escrowAccount?.lockedAmount ?? 0;
   const transactions = escrowAccount?.transactions ?? [];
@@ -189,7 +189,7 @@ export function EscrowStatusDisplay({
           </span>
         </div>
 
-        {/* Escrow PDA address link */}
+        {/* Escrow address link */}
         {escrowAccount?.escrowAddress && (
           <a
             href={solscanAddressUrl(escrowAccount.escrowAddress, network)}
@@ -198,7 +198,7 @@ export function EscrowStatusDisplay({
             className="block text-center py-1.5 text-xs text-gray-500 hover:text-gray-400 transition-colors min-h-[44px] flex items-center justify-center touch-manipulation"
             data-testid="escrow-address-link"
           >
-            Escrow PDA: {escrowAccount.escrowAddress.slice(0, 8)}...
+            Escrow: {escrowAccount.escrowAddress.slice(0, 8)}...
             {escrowAccount.escrowAddress.slice(-4)}
           </a>
         )}
@@ -222,7 +222,7 @@ export function EscrowStatusDisplay({
         )}
 
         {/* Expiration notice */}
-        {escrowAccount?.expiresAt && state !== 'released' && state !== 'refunded' && (
+        {escrowAccount?.expiresAt && state !== 'completed' && state !== 'refunded' && (
           <div className="pt-2 border-t border-gray-800">
             <p className="text-xs text-gray-500">
               Expires: {new Date(escrowAccount.expiresAt).toLocaleDateString('en-US', {

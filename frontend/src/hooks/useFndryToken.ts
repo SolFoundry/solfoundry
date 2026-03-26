@@ -40,7 +40,7 @@ function buildCreateAtaInstruction(
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-    data: Buffer.alloc(0),
+    data: new Uint8Array(0) as Buffer,
   });
 }
 
@@ -50,9 +50,10 @@ function buildTransferInstruction(
   owner: PublicKey,
   amount: bigint,
 ): TransactionInstruction {
-  const data = Buffer.alloc(9);
-  data.writeUInt8(3, 0);
-  data.writeBigUInt64LE(amount, 1);
+  const data = new Uint8Array(9);
+  const view = new DataView(data.buffer);
+  data[0] = 3; // SPL Transfer instruction discriminator
+  view.setBigUint64(1, amount, true); // little-endian u64
 
   return new TransactionInstruction({
     keys: [
@@ -61,7 +62,7 @@ function buildTransferInstruction(
       { pubkey: owner, isSigner: true, isWritable: false },
     ],
     programId: TOKEN_PROGRAM_ID,
-    data,
+    data: data as Buffer,
   });
 }
 

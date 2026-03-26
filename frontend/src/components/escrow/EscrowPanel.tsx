@@ -74,7 +74,6 @@ export function EscrowPanel({
     isLoading,
     queryError,
     transactionProgress,
-    isRealtimeConnected,
     deposit,
     release,
     refund,
@@ -84,33 +83,33 @@ export function EscrowPanel({
   /** Use wallet adapter as single source of truth for wallet identity. */
   const walletAddress = publicKey?.toBase58() ?? '';
   const isOwner = Boolean(ownerWallet && walletAddress === ownerWallet);
-  const escrowState: EscrowState = escrowAccount?.state ?? 'unfunded';
+  const escrowState: EscrowState = escrowAccount?.state ?? 'pending';
   const lockedAmount = escrowAccount?.lockedAmount ?? rewardAmount;
 
   /** Determine whether the deposit action should be available. */
   const canDeposit =
     connected &&
     isOwner &&
-    (escrowState === 'unfunded') &&
+    (escrowState === 'pending') &&
     ['open', 'in_progress', 'in-progress'].includes(bountyStatus);
 
   /** Determine whether the release action should be available. */
   const canRelease =
     connected &&
     isOwner &&
-    ['funded', 'locked'].includes(escrowState) &&
+    ['funded', 'active'].includes(escrowState) &&
     Boolean(contributorWallet);
 
   /** Determine whether the refund action should be available. */
   const canRefund =
     connected &&
     isOwner &&
-    ['funded', 'locked', 'expired'].includes(escrowState) &&
+    ['funded', 'active'].includes(escrowState) &&
     ['expired', 'cancelled'].includes(bountyStatus);
 
   /**
-   * Handle deposit confirmation. Closes the modal and initiates the on-chain deposit
-   * via the Anchor escrow program.
+   * Handle deposit confirmation. Closes the modal and initiates the SPL transfer
+   * to the treasury wallet (custodial escrow).
    */
   const handleDeposit = useCallback(async () => {
     setActiveModal('none');
@@ -123,8 +122,8 @@ export function EscrowPanel({
   }, [deposit, rewardAmount, onDepositComplete]);
 
   /**
-   * Handle release confirmation. Closes the modal and initiates the on-chain release
-   * via the Anchor escrow program's PDA authority.
+   * Handle release confirmation. Closes the modal and initiates the release
+   * via the backend REST API.
    */
   const handleRelease = useCallback(async () => {
     setActiveModal('none');
@@ -138,8 +137,8 @@ export function EscrowPanel({
   }, [release, contributorWallet, onReleaseComplete]);
 
   /**
-   * Handle refund confirmation. Closes the modal and initiates the on-chain refund
-   * via the Anchor escrow program's PDA authority.
+   * Handle refund confirmation. Closes the modal and initiates the refund
+   * via the backend REST API.
    */
   const handleRefund = useCallback(async () => {
     setActiveModal('none');
@@ -165,13 +164,12 @@ export function EscrowPanel({
 
   return (
     <div className="space-y-4" data-testid="escrow-panel">
-      {/* Escrow status display with real-time connection indicator */}
+      {/* Escrow status display */}
       <EscrowStatusDisplay
         escrowAccount={escrowAccount}
         isLoading={isLoading}
         errorMessage={queryError}
         network={network}
-        isRealtimeConnected={isRealtimeConnected}
       />
 
       {/* Action buttons — only shown to the bounty owner via wallet adapter check */}
@@ -216,7 +214,7 @@ export function EscrowPanel({
 
           {!canDeposit && !canRelease && !canRefund && (
             <p className="text-xs text-gray-500 text-center py-2">
-              {escrowState === 'released'
+              {escrowState === 'completed'
                 ? 'Funds have been released to the contributor.'
                 : escrowState === 'refunded'
                   ? 'Funds have been refunded to your wallet.'
@@ -227,7 +225,7 @@ export function EscrowPanel({
       )}
 
       {/* Wallet connection prompt for non-owners viewing unfunded escrow */}
-      {!connected && escrowState === 'unfunded' && (
+      {!connected && escrowState === 'pending' && (
         <div className="bg-gray-900 rounded-lg p-4 text-center">
           <p className="text-sm text-gray-400">
             Connect your wallet to fund this bounty.

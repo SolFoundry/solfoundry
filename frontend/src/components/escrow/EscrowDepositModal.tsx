@@ -33,8 +33,8 @@ export interface EscrowDepositModalProps {
  * an escrow deposit transaction. Shows balance information and prevents
  * deposits when the wallet has insufficient funds.
  *
- * Uses the Anchor escrow program for deposits — funds go to a
- * per-bounty PDA, not a global wallet.
+ * Deposits go to the SolFoundry treasury wallet via standard SPL transfer.
+ * The backend manages all escrow state (custodial mode).
  */
 export function EscrowDepositModal({
   isOpen,
@@ -138,10 +138,9 @@ export function EscrowDepositModal({
         {/* Escrow information notice */}
         <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3 mb-6">
           <p className="text-yellow-400 text-xs leading-relaxed">
-            Funds will be locked in a per-bounty Solana escrow PDA managed by the
-            SolFoundry Escrow Program until the bounty is completed or cancelled.
-            You can reclaim funds if the bounty expires without a winner.
-            This transaction requires wallet approval.
+            Funds will be transferred to the SolFoundry treasury and held in escrow
+            until the bounty is completed or cancelled. You can reclaim funds if the
+            bounty expires without a winner. This transaction requires wallet approval.
           </p>
         </div>
 

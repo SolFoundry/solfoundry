@@ -812,8 +812,25 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
     }
   };
 
-  const handleFunded = (signature: string) => {
+  const handleFunded = async (signature: string) => {
     setFundingSignature(signature);
+    // Publish: move bounty from draft → open now that escrow is funded
+    if (bountyId && bountyId !== 'external') {
+      try {
+        const token = getAuthToken();
+        await fetch(`/api/bounties/${bountyId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ status: 'open' }),
+        });
+      } catch {
+        // Non-fatal: bounty is funded on-chain regardless
+        console.warn('Failed to publish bounty status to open');
+      }
+    }
     setPhase('funded');
   };
 
@@ -1138,6 +1155,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
           : undefined,
         milestones: formData.milestones?.length ? formData.milestones : undefined,
         creator_type: 'community',
+        status: 'draft',
       }),
     });
     if (!resp.ok) {

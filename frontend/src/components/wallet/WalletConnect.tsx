@@ -9,7 +9,7 @@ export const SOLFOUNDRY_GREEN = '#00FF88';
 export const SOLANA_PURPLE = '#9945FF';
 
 /** Wallet selector modal with SolFoundry branding. */
-function WalletModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function WalletModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { wallets, select } = useSolanaWallet();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

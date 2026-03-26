@@ -60,7 +60,6 @@ let mockEscrowData: Partial<ReturnType<typeof import('../../../hooks/useEscrow')
   transactionProgress: { step: 'idle', signature: null, errorMessage: null, operationType: null },
   transactions: [],
   transactionsLoading: false,
-  isRealtimeConnected: false,
   deposit: mockDeposit,
   release: mockRelease,
   refund: mockRefund,
@@ -86,12 +85,12 @@ vi.mock('../../../hooks/useFndryToken', () => ({
 vi.mock('../../../config/constants', () => ({
   solscanTxUrl: (sig: string, net: string) => `https://solscan.io/tx/${sig}?cluster=${net}`,
   solscanAddressUrl: (addr: string, net: string) => `https://solscan.io/account/${addr}?cluster=${net}`,
-  ESCROW_PROGRAM_ID: { toBase58: () => 'FNDRYEscrow11111111111111111111111111111111' },
+  TREASURY_WALLET: { toBase58: () => 'TreasuryWallet1111111111111111111111111111' },
+  ESCROW_WALLET: { toBase58: () => 'TreasuryWallet1111111111111111111111111111' },
   FNDRY_TOKEN_MINT: { toBuffer: () => Buffer.alloc(32) },
   FNDRY_DECIMALS: 9,
   TOKEN_PROGRAM_ID: { toBuffer: () => Buffer.alloc(32) },
   ASSOCIATED_TOKEN_PROGRAM_ID: { toBuffer: () => Buffer.alloc(32) },
-  deriveEscrowPda: vi.fn().mockResolvedValue([{ toBase58: () => 'PDA111' }, 255]),
   findAssociatedTokenAddress: vi.fn().mockResolvedValue({ toBase58: () => 'ATA1111' }),
 }));
 
@@ -143,7 +142,6 @@ describe('EscrowPanel', () => {
       transactionProgress: { step: 'idle', signature: null, errorMessage: null, operationType: null },
       transactions: [],
       transactionsLoading: false,
-      isRealtimeConnected: false,
       deposit: mockDeposit,
       release: mockRelease,
       refund: mockRefund,
@@ -260,7 +258,7 @@ describe('EscrowPanel', () => {
   });
 
   it('opens release modal on release button click', async () => {
-    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'locked' });
+    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'active' });
 
     renderWithProviders(
       <EscrowPanel
@@ -279,7 +277,7 @@ describe('EscrowPanel', () => {
   });
 
   it('opens refund modal on refund button click', async () => {
-    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'expired' });
+    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'active' });
 
     renderWithProviders(
       <EscrowPanel
@@ -297,7 +295,7 @@ describe('EscrowPanel', () => {
   });
 
   it('shows message when escrow is released and no actions available', () => {
-    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'released' });
+    mockEscrowData.escrowAccount = createMockEscrowAccount({ state: 'completed' });
 
     renderWithProviders(
       <EscrowPanel
@@ -425,14 +423,14 @@ describe('EscrowStatusDisplay', () => {
   });
 
   it('renders all escrow states correctly', () => {
-    const states = ['unfunded', 'funded', 'locked', 'released', 'refunded', 'expired'] as const;
+    const states = ['pending', 'funded', 'active', 'releasing', 'completed', 'refunded'] as const;
     const expectedLabels = [
       'Awaiting Funding',
       'Funded',
-      'Locked in Escrow',
+      'Active — In Escrow',
+      'Releasing Funds…',
       'Released to Contributor',
       'Refunded to Owner',
-      'Expired — Refund Available',
     ];
 
     states.forEach((state, index) => {
@@ -481,7 +479,7 @@ describe('EscrowStatusDisplay', () => {
     expect(indicator).toHaveTextContent('Polling');
   });
 
-  it('renders escrow PDA address link', () => {
+  it('renders escrow address link', () => {
     const account = createMockEscrowAccount();
 
     render(
@@ -495,7 +493,7 @@ describe('EscrowStatusDisplay', () => {
 
     const link = screen.getByTestId('escrow-address-link');
     expect(link).toBeInTheDocument();
-    expect(link).toHaveTextContent('Escrow PDA:');
+    expect(link).toHaveTextContent('Escrow:');
   });
 });
 
@@ -666,7 +664,7 @@ describe('EscrowReleaseModal', () => {
     expect(screen.queryByText('Release Escrow Funds')).not.toBeInTheDocument();
   });
 
-  it('describes Anchor program release in the warning notice', () => {
+  it('describes escrow release in the warning notice', () => {
     render(
       <EscrowReleaseModal
         isOpen={true}
@@ -677,7 +675,7 @@ describe('EscrowReleaseModal', () => {
       />,
     );
 
-    expect(screen.getByText(/Escrow Program/i)).toBeInTheDocument();
+    expect(screen.getByText(/Escrow Service/i)).toBeInTheDocument();
   });
 });
 
@@ -712,7 +710,7 @@ describe('EscrowRefundModal', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  it('describes Anchor program refund in the notice', () => {
+  it('describes escrow refund in the notice', () => {
     render(
       <EscrowRefundModal
         isOpen={true}
@@ -722,7 +720,7 @@ describe('EscrowRefundModal', () => {
       />,
     );
 
-    expect(screen.getByText(/Escrow Program/i)).toBeInTheDocument();
+    expect(screen.getByText(/treasury/i)).toBeInTheDocument();
   });
 });
 

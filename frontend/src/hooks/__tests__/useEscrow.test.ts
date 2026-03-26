@@ -15,10 +15,10 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../../config/constants', () => ({
   FNDRY_TOKEN_MINT: { toBuffer: () => Buffer.alloc(32) },
   FNDRY_DECIMALS: 9,
-  ESCROW_PROGRAM_ID: { toBase58: () => 'FNDRYEscrow11111111111111111111111111111111' },
+  TREASURY_WALLET: { toBase58: () => 'TreasuryWallet1111111111111111111111111111' },
+  ESCROW_WALLET: { toBase58: () => 'TreasuryWallet1111111111111111111111111111' },
   TOKEN_PROGRAM_ID: { toBuffer: () => Buffer.alloc(32) },
   ASSOCIATED_TOKEN_PROGRAM_ID: { toBuffer: () => Buffer.alloc(32) },
-  deriveEscrowPda: vi.fn().mockResolvedValue([{ toBase58: () => 'PdaAddress1111' }, 255]),
   findAssociatedTokenAddress: vi.fn().mockResolvedValue({ toBase58: () => 'ATA1111' }),
   solscanTxUrl: vi.fn(),
   solscanAddressUrl: vi.fn(),

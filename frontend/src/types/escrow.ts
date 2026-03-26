@@ -1,25 +1,26 @@
 /**
- * Escrow types for bounty escrow integration with the SolFoundry Anchor program.
+ * Escrow types for the SolFoundry custodial escrow system.
  * Covers all escrow states, transaction flows, API response shapes, and
  * client-side transaction progress tracking.
  *
- * The escrow program uses per-bounty PDA accounts derived from
- * seeds ["escrow", bounty_id_bytes]. The PDA authority signs all
- * release and refund token transfers.
+ * In custodial mode, the backend manages all escrow state. There are no
+ * PDA accounts — deposits go to the treasury wallet via standard SPL transfer,
+ * and the backend handles release/refund from the treasury.
  *
  * @module types/escrow
  */
 
-/** Possible states for an escrow account throughout its lifecycle. */
+/** Possible states for an escrow account throughout its lifecycle.
+ *  Matches backend EscrowState enum exactly. */
 export type EscrowState =
-  | 'unfunded'
+  | 'pending'
   | 'funded'
-  | 'locked'
-  | 'released'
-  | 'refunded'
-  | 'expired';
+  | 'active'
+  | 'releasing'
+  | 'completed'
+  | 'refunded';
 
-/** A single escrow transaction event recorded on-chain or in the backend. */
+/** A single escrow transaction event recorded by the backend. */
 export interface EscrowTransaction {
   /** Unique identifier for the transaction record. */
   readonly id: string;
@@ -39,7 +40,7 @@ export interface EscrowTransaction {
 
 /** Full escrow account information returned from the backend API. */
 export interface EscrowAccount {
-  /** The on-chain PDA address for this escrow account (derived from bounty ID). */
+  /** The escrow identifier (backend-managed, not a PDA address). */
   readonly escrowAddress: string;
   /** The bounty ID this escrow is associated with. */
   readonly bountyId: string;

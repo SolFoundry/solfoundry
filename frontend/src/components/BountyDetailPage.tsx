@@ -175,7 +175,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty: r
   };
 
   const isCreator = bounty.created_by === currentUserWallet || false;
-  const canSubmit = ['open', 'in_progress'].includes(bounty.status);
+  const canSubmit = ['open', 'in_progress'].includes(bounty.status) && !isCreator;
   const isPaidOrComplete = ['paid', 'completed'].includes(bounty.status);
 
   return (
@@ -314,25 +314,14 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty: r
               />
             )}
 
-            {/* Submission Form */}
-            {canSubmit && (bounty.tier !== 'T3' || bounty.status === 'in_progress') && (
-              showSubmitForm ? (
-                <SubmissionForm
-                  bountyId={bounty.id}
-                  onSubmit={submitSolution}
-                  loading={loading}
-                  error={error}
-                />
-              ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 text-center border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
-                  <button
-                    onClick={() => setShowSubmitForm(true)}
-                    className="px-6 py-3 bg-solana-purple hover:bg-violet-600 text-white rounded-lg font-medium transition-colors min-h-[44px]"
-                  >
-                    Submit a Solution
-                  </button>
-                </div>
-              )
+            {/* Submission Form (shown when user clicks "Submit PR" in sidebar) */}
+            {canSubmit && showSubmitForm && (bounty.tier !== 'T3' || bounty.status === 'in_progress') && (
+              <SubmissionForm
+                bountyId={bounty.id}
+                onSubmit={submitSolution}
+                loading={loading}
+                error={error}
+              />
             )}
 
 
@@ -459,9 +448,9 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty: r
               walletAddress={currentUserWallet}
             />
 
-            {/* Escrow Status */}
+            {/* Escrow Status — bounties are draft until funded, so open/in_progress/completed/paid = funded */}
             <EscrowStatus
-              funded={bounty.escrowFunded ?? isPaidOrComplete}
+              funded={bounty.escrowFunded ?? (bounty.status !== 'draft' && bounty.status !== 'cancelled')}
               amount={bounty.escrowAmount ?? rewardAmount}
               signature={bounty.escrowSignature ?? bounty.payout_tx_hash}
             />

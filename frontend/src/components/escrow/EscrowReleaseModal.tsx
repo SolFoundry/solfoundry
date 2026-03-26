@@ -1,9 +1,9 @@
 /**
  * EscrowReleaseModal — Confirmation modal for releasing escrowed $FNDRY
- * from the bounty escrow PDA to the winning contributor's wallet.
+ * to the winning contributor's wallet.
  *
  * Only shown to bounty owners. Displays the contributor wallet, locked amount,
- * and requires explicit confirmation before signing the Anchor release instruction.
+ * and requires explicit confirmation. The backend handles the actual transfer.
  *
  * Mobile-responsive with touch-friendly targets and bottom-sheet layout on small screens.
  *
@@ -28,11 +28,8 @@ export interface EscrowReleaseModalProps {
 
 /**
  * EscrowReleaseModal shows a confirmation dialog before releasing
- * escrowed funds to a contributor. The bounty owner must approve
- * the Anchor program release instruction in their wallet.
- *
- * The escrow program's PDA authority handles the actual token transfer —
- * the owner's wallet only authorizes the instruction.
+ * escrowed funds to a contributor. The backend handles the token
+ * transfer from the treasury wallet (custodial mode).
  */
 export function EscrowReleaseModal({
   isOpen,
@@ -134,9 +131,9 @@ export function EscrowReleaseModal({
         {/* Warning notice */}
         <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3 mb-6">
           <p className="text-yellow-400 text-xs leading-relaxed">
-            This action is irreversible. The SolFoundry Escrow Program will transfer
-            the $FNDRY tokens from the escrow PDA to the contributor's wallet.
-            Only proceed if you are satisfied with the submitted work.
+            This action is irreversible. The SolFoundry Escrow Service will transfer
+            the $FNDRY tokens from the treasury to the contributor's wallet
+            (5% platform fee applies). Only proceed if you are satisfied with the submitted work.
           </p>
         </div>
 

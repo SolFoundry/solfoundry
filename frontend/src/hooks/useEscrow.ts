@@ -1,35 +1,38 @@
 /**
- * useEscrow — React Query hook for escrow state management and PDA program transactions.
+ * useEscrow — React Query hook for custodial escrow state management.
  *
  * Provides:
- * - Escrow account data with automatic polling and WebSocket real-time balance updates
- * - Deposit flow: backend builds unsigned tx → wallet signs → send + confirm
- * - Release/Refund: backend-signed authority operations via PDA API
- * - Dispute + resolve: backend-signed authority operations
+ * - Escrow account data with automatic polling
+ * - Deposit flow: standard SPL transfer (user wallet -> treasury) + POST to backend
+ * - Release/Refund/Dispute: REST calls to backend (backend signs with treasury keypair)
  * - Transaction progress tracking with full step-by-step UI state
  * - Automatic transaction history and account cache invalidation
  *
- * Architecture:
- * - User-signed ops (create+deposit): Backend builds unsigned Message via /api/pda/escrow/create,
- *   frontend deserializes, wallet signs, frontend submits to Solana.
- * - Authority-signed ops (assign, release, refund, dispute, resolve): Backend signs
- *   with PDA authority keypair, submits directly, returns tx signature.
+ * Architecture (custodial mode):
+ * - Deposit: User signs a standard SPL token transfer to the treasury wallet,
+ *   then frontend records the deposit via POST /escrow/fund.
+ * - Release/Refund/Dispute/Resolve: Backend handles everything — signs with
+ *   the treasury keypair and submits directly. Frontend just POSTs to REST endpoints.
  *
  * @module hooks/useEscrow
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
   PublicKey,
   Transaction,
-  Message,
+  TransactionInstruction,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import {
   FNDRY_TOKEN_MINT,
   FNDRY_DECIMALS,
-  deriveEscrowPda,
+  TREASURY_WALLET,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   findAssociatedTokenAddress,
 } from '../config/constants';
 import {
@@ -38,14 +41,11 @@ import {
   recordDeposit,
   recordRelease,
   recordRefund,
-  buildCreateEscrowTx,
   releaseEscrow,
   refundEscrow,
   disputeEscrow,
   resolveDisputeRelease,
   resolveDisputeRefund,
-  assignContributor,
-  fetchOnChainEscrowState,
 } from '../services/escrowService';
 import type {
   EscrowAccount,
@@ -54,15 +54,59 @@ import type {
   EscrowTransactionStep,
 } from '../types/escrow';
 
+/* ── SPL helpers (inline, no @solana/spl-token dependency) ───────────────── */
+
+function buildCreateAtaInstruction(
+  payer: PublicKey,
+  ata: PublicKey,
+  owner: PublicKey,
+  mint: PublicKey,
+): TransactionInstruction {
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: ata, isSigner: false, isWritable: true },
+      { pubkey: owner, isSigner: false, isWritable: false },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+    data: new Uint8Array(0) as Buffer,
+  });
+}
+
+function buildTransferInstruction(
+  source: PublicKey,
+  dest: PublicKey,
+  owner: PublicKey,
+  amount: bigint,
+): TransactionInstruction {
+  const data = new Uint8Array(9);
+  const view = new DataView(data.buffer);
+  data[0] = 3; // SPL Transfer instruction discriminator
+  view.setBigUint64(1, amount, true); // little-endian u64
+
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: source, isSigner: false, isWritable: true },
+      { pubkey: dest, isSigner: false, isWritable: true },
+      { pubkey: owner, isSigner: true, isWritable: false },
+    ],
+    programId: TOKEN_PROGRAM_ID,
+    data: data as Buffer,
+  });
+}
+
 /** Query key factory for escrow-related queries to ensure cache consistency. */
 export const escrowKeys = {
   all: ['escrow'] as const,
   account: (bountyId: string) => [...escrowKeys.all, 'account', bountyId] as const,
   transactions: (bountyId: string) => [...escrowKeys.all, 'transactions', bountyId] as const,
-  onchain: (bountyId: string) => [...escrowKeys.all, 'onchain', bountyId] as const,
 };
 
-/** Polling interval in milliseconds for real-time escrow balance updates. */
+/** Polling interval in milliseconds for escrow balance updates. */
 const ESCROW_POLL_INTERVAL_MS = 10_000;
 
 /**
@@ -89,12 +133,6 @@ function categorizeTransactionError(error: unknown): string {
   if (message.includes('already been processed') || message.includes('AlreadyProcessed')) {
     return 'This transaction has already been processed.';
   }
-  if (message.includes('custom program error') || message.includes('InstructionError')) {
-    return 'The escrow program rejected this transaction. Please check your permissions and try again.';
-  }
-  if (message.includes('authority') || message.includes('PDA_AUTHORITY')) {
-    return 'Backend authority not configured. Please contact support.';
-  }
 
   return message || 'An unexpected transaction error occurred. Please try again.';
 }
@@ -107,12 +145,8 @@ export interface UseEscrowReturn {
   readonly transactionProgress: EscrowTransactionProgress;
   readonly transactions: EscrowTransaction[];
   readonly transactionsLoading: boolean;
-  readonly isRealtimeConnected: boolean;
-  /** On-chain escrow state (from Solana directly) */
-  readonly onChainState: OnChainState | null;
-  readonly onChainLoading: boolean;
-  /** Initiate a deposit: create escrow PDA + fund it in one transaction. */
-  readonly deposit: (amount: number, deadline?: number) => Promise<string>;
+  /** Initiate a deposit: SPL transfer to treasury + record in backend. */
+  readonly deposit: (amount: number) => Promise<string>;
   /** Release escrowed funds to the winner (backend-signed). */
   readonly release: (contributorWallet: string) => Promise<string>;
   /** Refund escrowed funds back to the bounty owner (backend-signed). */
@@ -123,38 +157,22 @@ export interface UseEscrowReturn {
   readonly resolveRelease: (winnerWallet: string) => Promise<string>;
   /** Resolve dispute by refunding to creator (backend-signed). */
   readonly resolveRefund: () => Promise<string>;
-  /** Assign a contributor to the escrow (backend-signed). */
-  readonly assign: (contributorWallet: string) => Promise<string>;
   readonly resetTransaction: () => void;
 }
 
-interface OnChainState {
-  bounty_id: number;
-  creator: string;
-  winner: string;
-  authority: string;
-  token_mint: string;
-  amount: number;
-  state: string;
-  created_at: number;
-  deadline: number;
-}
-
 /**
- * Hook for managing escrow state and performing PDA program transactions.
+ * Hook for managing escrow state and performing custodial escrow transactions.
+ * Deposits are standard SPL transfers; all other operations go through the backend.
  */
 export function useEscrow(
   bountyId: string,
-  options?: { pollingEnabled?: boolean; realtimeEnabled?: boolean },
+  options?: { pollingEnabled?: boolean },
 ): UseEscrowReturn {
   const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
   const queryClient = useQueryClient();
 
   const pollingEnabled = options?.pollingEnabled ?? true;
-  const realtimeEnabled = options?.realtimeEnabled ?? true;
-  const websocketRef = useRef<{ close: () => void } | null>(null);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   const bountyIdNum = parseInt(bountyId, 10);
 
@@ -179,19 +197,6 @@ export function useEscrow(
     staleTime: 5_000,
   });
 
-  /** Fetch on-chain escrow state from Solana via backend PDA API. */
-  const {
-    data: onChainState,
-    isLoading: onChainLoading,
-  } = useQuery({
-    queryKey: escrowKeys.onchain(bountyId),
-    queryFn: () => fetchOnChainEscrowState(bountyIdNum),
-    enabled: Boolean(bountyId) && !isNaN(bountyIdNum),
-    refetchInterval: pollingEnabled ? ESCROW_POLL_INTERVAL_MS : false,
-    staleTime: 5_000,
-    retry: false, // 404 is expected when escrow not yet created
-  });
-
   /** Fetch transaction history. */
   const {
     data: transactions,
@@ -202,53 +207,6 @@ export function useEscrow(
     enabled: Boolean(bountyId),
     staleTime: 10_000,
   });
-
-  /**
-   * WebSocket subscription for real-time escrow balance updates.
-   */
-  useEffect(() => {
-    if (!realtimeEnabled || !bountyId) return;
-
-    let cancelled = false;
-
-    async function setupWebSocket(): Promise<void> {
-      try {
-        const [escrowPda] = await deriveEscrowPda(bountyId);
-        const escrowAta = await findAssociatedTokenAddress(escrowPda, FNDRY_TOKEN_MINT);
-
-        const subscriptionId = connection.onAccountChange(
-          escrowAta,
-          () => {
-            if (!cancelled) {
-              queryClient.invalidateQueries({ queryKey: escrowKeys.account(bountyId) });
-              queryClient.invalidateQueries({ queryKey: escrowKeys.transactions(bountyId) });
-              queryClient.invalidateQueries({ queryKey: escrowKeys.onchain(bountyId) });
-            }
-          },
-          'confirmed',
-        );
-
-        if (!cancelled) {
-          setIsRealtimeConnected(true);
-        }
-
-        websocketRef.current = {
-          close: () => connection.removeAccountChangeListener(subscriptionId),
-        };
-      } catch {
-        if (!cancelled) setIsRealtimeConnected(false);
-      }
-    }
-
-    setupWebSocket();
-
-    return () => {
-      cancelled = true;
-      setIsRealtimeConnected(false);
-      websocketRef.current?.close();
-      websocketRef.current = null;
-    };
-  }, [bountyId, connection, queryClient, realtimeEnabled]);
 
   const queryError = fetchError
     ? fetchError instanceof Error
@@ -267,16 +225,20 @@ export function useEscrow(
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: escrowKeys.account(bountyId) }),
       queryClient.invalidateQueries({ queryKey: escrowKeys.transactions(bountyId) }),
-      queryClient.invalidateQueries({ queryKey: escrowKeys.onchain(bountyId) }),
     ]);
   }, [queryClient, bountyId]);
 
   /**
-   * Create escrow + deposit $FNDRY tokens.
-   * Backend builds the unsigned transaction, wallet signs, frontend submits.
+   * Deposit $FNDRY tokens into the custodial treasury via standard SPL transfer.
+   *
+   * Flow:
+   * 1. Build a standard SPL token transfer (user wallet -> treasury wallet)
+   * 2. User signs with Phantom
+   * 3. Wait for on-chain confirmation
+   * 4. POST to backend /escrow/fund with the tx signature
    */
   const deposit = useCallback(
-    async (amount: number, deadline?: number): Promise<string> => {
+    async (amount: number): Promise<string> => {
       if (!publicKey) throw new Error('Wallet not connected');
       if (!signTransaction) throw new Error('Wallet does not support signing');
       if (amount <= 0) throw new Error('Deposit amount must be greater than zero');
@@ -289,31 +251,37 @@ export function useEscrow(
       });
 
       try {
-        const rawAmount = Math.floor(amount * 10 ** FNDRY_DECIMALS);
-        const deadlineTs = deadline || Math.floor(Date.now() / 1000) + 30 * 24 * 3600; // 30 days default
+        const rawAmount = BigInt(Math.floor(amount * 10 ** FNDRY_DECIMALS));
 
-        // 1. Backend builds the unsigned transaction
-        const { transaction: txBase64, escrow_pda, vault_pda, blockhash } =
-          await buildCreateEscrowTx(
-            bountyIdNum,
-            rawAmount,
-            deadlineTs,
-            publicKey.toBase58(),
-          );
+        // Derive ATAs for source (user) and destination (treasury)
+        const sourceAta = await findAssociatedTokenAddress(publicKey, FNDRY_TOKEN_MINT);
+        const destAta = await findAssociatedTokenAddress(TREASURY_WALLET, FNDRY_TOKEN_MINT);
+
+        const tx = new Transaction();
+
+        // Create treasury ATA if it doesn't exist yet (payer = user)
+        const destInfo = await connection.getAccountInfo(destAta);
+        if (!destInfo) {
+          tx.add(buildCreateAtaInstruction(publicKey, destAta, TREASURY_WALLET, FNDRY_TOKEN_MINT));
+        }
+
+        // Standard SPL token transfer
+        tx.add(buildTransferInstruction(sourceAta, destAta, publicKey, rawAmount));
+
+        // Get recent blockhash
+        const { blockhash, lastValidBlockHeight } =
+          await connection.getLatestBlockhash('confirmed');
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
 
         updateProgress('approving');
 
-        // 2. Deserialize the message into a legacy Transaction for wallet signing
-        const messageBytes = Buffer.from(txBase64, 'base64');
-        const message = Message.from(messageBytes);
-        const tx = Transaction.populate(message);
-
-        // 3. Wallet signs
+        // User signs with wallet
         const signedTx = await signTransaction(tx);
 
         updateProgress('sending');
 
-        // 4. Submit to Solana
+        // Submit to Solana
         const signature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
@@ -321,14 +289,17 @@ export function useEscrow(
 
         updateProgress('confirming', { signature });
 
-        // 5. Confirm
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        // Confirm
+        const confirmation = await connection.confirmTransaction(
+          { signature, blockhash, lastValidBlockHeight },
+          'confirmed',
+        );
 
         if (confirmation.value.err) {
           throw new Error('Deposit transaction failed on-chain. Please check the explorer for details.');
         }
 
-        // 6. Record deposit in backend (non-fatal)
+        // Record deposit in backend (non-fatal — on-chain tx already confirmed)
         try {
           await recordDeposit(bountyId, signature, amount);
         } catch {
@@ -344,11 +315,11 @@ export function useEscrow(
         throw new Error(errorMessage);
       }
     },
-    [publicKey, signTransaction, connection, bountyId, bountyIdNum, updateProgress, invalidateEscrowQueries],
+    [publicKey, signTransaction, connection, bountyId, updateProgress, invalidateEscrowQueries],
   );
 
   /**
-   * Release escrow to contributor. Backend-signed by authority.
+   * Release escrow to contributor. Backend-signed via REST API.
    */
   const release = useCallback(
     async (contributorWallet: string): Promise<string> => {
@@ -370,7 +341,7 @@ export function useEscrow(
         try {
           await recordRelease(bountyId, result.signature, contributorWallet);
         } catch {
-          console.warn('Backend release recording failed; on-chain tx confirmed.');
+          console.warn('Backend release recording failed; backend tx confirmed.');
         }
 
         await invalidateEscrowQueries();
@@ -386,7 +357,7 @@ export function useEscrow(
   );
 
   /**
-   * Refund escrow to creator. Backend-signed by authority.
+   * Refund escrow to creator. Backend-signed via REST API.
    */
   const refund = useCallback(async (): Promise<string> => {
     if (!publicKey) throw new Error('Wallet not connected');
@@ -406,7 +377,7 @@ export function useEscrow(
       try {
         await recordRefund(bountyId, result.signature);
       } catch {
-        console.warn('Backend refund recording failed; on-chain tx confirmed.');
+        console.warn('Backend refund recording failed; backend tx confirmed.');
       }
 
       await invalidateEscrowQueries();
@@ -420,7 +391,7 @@ export function useEscrow(
   }, [publicKey, bountyId, bountyIdNum, updateProgress, invalidateEscrowQueries]);
 
   /**
-   * Open a dispute. Backend-signed by authority.
+   * Open a dispute. Backend-signed via REST API.
    */
   const dispute = useCallback(async (): Promise<string> => {
     setTransactionProgress({
@@ -444,7 +415,7 @@ export function useEscrow(
   }, [bountyIdNum, updateProgress, invalidateEscrowQueries]);
 
   /**
-   * Resolve dispute by releasing to winner. Backend-signed.
+   * Resolve dispute by releasing to winner. Backend-signed via REST API.
    */
   const resolveReleaseHandler = useCallback(
     async (winnerWallet: string): Promise<string> => {
@@ -471,7 +442,7 @@ export function useEscrow(
   );
 
   /**
-   * Resolve dispute by refunding to creator. Backend-signed.
+   * Resolve dispute by refunding to creator. Backend-signed via REST API.
    */
   const resolveRefundHandler = useCallback(async (): Promise<string> => {
     if (!publicKey) throw new Error('Wallet not connected');
@@ -496,22 +467,6 @@ export function useEscrow(
     }
   }, [publicKey, bountyIdNum, updateProgress, invalidateEscrowQueries]);
 
-  /**
-   * Assign a contributor to the escrow. Backend-signed.
-   */
-  const assign = useCallback(
-    async (contributorWallet: string): Promise<string> => {
-      try {
-        const result = await assignContributor(bountyIdNum, contributorWallet);
-        await invalidateEscrowQueries();
-        return result.signature;
-      } catch (error: unknown) {
-        throw new Error(categorizeTransactionError(error));
-      }
-    },
-    [bountyIdNum, invalidateEscrowQueries],
-  );
-
   const resetTransaction = useCallback(() => {
     setTransactionProgress({
       step: 'idle',
@@ -528,16 +483,12 @@ export function useEscrow(
     transactionProgress,
     transactions: transactions ?? [],
     transactionsLoading,
-    isRealtimeConnected,
-    onChainState: onChainState ?? null,
-    onChainLoading,
     deposit,
     release,
     refund,
     dispute,
     resolveRelease: resolveReleaseHandler,
     resolveRefund: resolveRefundHandler,
-    assign,
     resetTransaction,
   };
 }

@@ -3,10 +3,10 @@
  * All pages wrapped in ThemeProvider + WalletProvider + SiteLayout.
  * @module App
  */
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletProvider } from './components/wallet/WalletProvider';
+import { WalletProvider, WalletModal } from './components/wallet';
 import { SiteLayout } from './components/layout/SiteLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
@@ -79,8 +79,9 @@ function AppLayout() {
 
 function AppLayoutInner() {
   const location = useLocation();
-  const { publicKey, connect, disconnect } = useWallet();
+  const { publicKey, disconnect, connecting } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   // Read auth context for user info to pass to SiteLayout
   const { user, logout } = useAuthContext();
@@ -89,11 +90,13 @@ function AppLayoutInner() {
     <SiteLayout
       currentPath={location.pathname}
       walletAddress={walletAddress}
-      onConnectWallet={() => connect().catch(console.error)}
+      onConnectWallet={() => setWalletModalOpen(true)}
       onDisconnectWallet={() => { logout(); disconnect().catch(console.error); }}
+      isConnecting={connecting}
       userName={user?.github_id ? user.username : undefined}
       avatarUrl={user?.avatar_url ?? undefined}
     >
+      <WalletModal open={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
       <Suspense fallback={null}>
         <WalletAuthFlow />
         {walletAddress && <GitHubLinkPrompt />}

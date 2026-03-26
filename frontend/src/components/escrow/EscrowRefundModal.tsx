@@ -3,7 +3,7 @@
  * when a bounty expires without a winner or is cancelled by the owner.
  *
  * Only shown to the bounty owner. Displays the locked amount and confirms
- * the Anchor program refund will return tokens to the owner's wallet via the PDA.
+ * the refund will return tokens to the owner's wallet via the backend.
  *
  * Mobile-responsive with touch-friendly targets and bottom-sheet layout on small screens.
  *
@@ -29,8 +29,8 @@ export interface EscrowRefundModalProps {
  * a refund of escrowed funds back to the bounty owner's wallet.
  * Available when the bounty has expired or been cancelled.
  *
- * The Anchor escrow program validates eligibility (expired/cancelled state)
- * and its PDA authority signs the token transfer back to the owner.
+ * The backend validates eligibility (expired/cancelled state) and
+ * signs the token transfer back to the owner from the treasury.
  */
 export function EscrowRefundModal({
   isOpen,
@@ -119,10 +119,9 @@ export function EscrowRefundModal({
         {/* Information notice */}
         <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3 mb-6">
           <p className="text-blue-400 text-xs leading-relaxed">
-            The full escrow balance will be returned to your wallet via the SolFoundry
-            Escrow Program. This is available because the bounty has expired or was
-            cancelled without a successful submission. The program PDA validates
-            eligibility before authorizing the transfer.
+            The full escrow balance will be returned to your wallet from the SolFoundry
+            treasury. This is available because the bounty has expired or was
+            cancelled without a successful submission.
           </p>
         </div>
 
