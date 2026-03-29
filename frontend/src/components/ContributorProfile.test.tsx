@@ -162,16 +162,16 @@ describe('ContributorProfile', () => {
 
   it('does not render copy button when wallet is empty', () => {
     render(<ContributorProfile {...defaultProps} walletAddress="" />);
-    expect(screen.queryByTestId('copy-wallet-btn')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-wallet')).not.toBeInTheDocument();
   });
 
-  it('calls clipboard API when copy button is clicked', () => {
+  it('calls clipboard API when copy button is clicked', async () => {
     const writeText = jest.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
     render(<ContributorProfile {...defaultProps} />);
     fireEvent.click(screen.getByTestId('copy-wallet-btn'));
-    expect(writeText).toHaveBeenCalledWith(defaultProps.walletAddress);
+    await expect(writeText).toHaveBeenCalledWith(defaultProps.walletAddress);
   });
 
   // ── Recent bounties tests ──────────────────────────────────────────────────

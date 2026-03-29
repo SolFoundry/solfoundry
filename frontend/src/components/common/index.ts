@@ -44,3 +44,5 @@ export { SolFoundryLogoMark } from './SolFoundryLogoMark';
 export type { SolFoundryLogoMarkProps, SolFoundryLogoMarkSize } from './SolFoundryLogoMark';
 export { LoadingButton, Spinner } from './LoadingButton';
 export type { LoadingButtonProps } from './LoadingButton';
+export { CopyAddress, truncateAddress } from './CopyAddress';
+export type { CopyAddressProps } from './CopyAddress';
