@@ -30,7 +30,7 @@ export function useBountySubmission(bountyId: string) {
     }
   }, [bountyId]);
 
-  const submitSolution = useCallback(async (prUrl: string, wallet: string, notes?: string) => {
+  const submitSolution = useCallback(async (prUrl: string, wallet: string, notes?: string, reviewFeeSignature?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -41,6 +41,7 @@ export function useBountySubmission(bountyId: string) {
           pr_url: prUrl,
           contributor_wallet: wallet,
           notes,
+          ...(reviewFeeSignature ? { review_fee_signature: reviewFeeSignature } : {}),
         }),
       });
       if (!res.ok) {

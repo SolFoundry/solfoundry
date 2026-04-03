@@ -174,7 +174,7 @@ export function useEscrow(
 
   const pollingEnabled = options?.pollingEnabled ?? true;
 
-  const bountyIdNum = parseInt(bountyId, 10);
+  // bountyId is passed as string throughout — service functions accept string.
 
   const [transactionProgress, setTransactionProgress] =
     useState<EscrowTransactionProgress>({
@@ -335,7 +335,7 @@ export function useEscrow(
       try {
         updateProgress('confirming');
 
-        const result = await releaseEscrow(bountyIdNum, contributorWallet);
+        const result = await releaseEscrow(bountyId, contributorWallet);
 
         // Record in backend (non-fatal)
         try {
@@ -353,7 +353,7 @@ export function useEscrow(
         throw new Error(errorMessage);
       }
     },
-    [bountyId, bountyIdNum, updateProgress, invalidateEscrowQueries],
+    [bountyId, updateProgress, invalidateEscrowQueries],
   );
 
   /**
@@ -372,7 +372,7 @@ export function useEscrow(
     try {
       updateProgress('confirming');
 
-      const result = await refundEscrow(bountyIdNum, publicKey.toBase58());
+      const result = await refundEscrow(bountyId, publicKey.toBase58());
 
       try {
         await recordRefund(bountyId, result.signature);
@@ -388,7 +388,7 @@ export function useEscrow(
       setTransactionProgress((prev) => ({ ...prev, step: 'error', errorMessage }));
       throw new Error(errorMessage);
     }
-  }, [publicKey, bountyId, bountyIdNum, updateProgress, invalidateEscrowQueries]);
+  }, [publicKey, bountyId, updateProgress, invalidateEscrowQueries]);
 
   /**
    * Open a dispute. Backend-signed via REST API.
@@ -403,7 +403,7 @@ export function useEscrow(
 
     try {
       updateProgress('confirming');
-      const result = await disputeEscrow(bountyIdNum);
+      const result = await disputeEscrow(bountyId);
       await invalidateEscrowQueries();
       updateProgress('confirmed', { signature: result.signature });
       return result.signature;
@@ -412,7 +412,7 @@ export function useEscrow(
       setTransactionProgress((prev) => ({ ...prev, step: 'error', errorMessage }));
       throw new Error(errorMessage);
     }
-  }, [bountyIdNum, updateProgress, invalidateEscrowQueries]);
+  }, [bountyId, updateProgress, invalidateEscrowQueries]);
 
   /**
    * Resolve dispute by releasing to winner. Backend-signed via REST API.
@@ -428,7 +428,7 @@ export function useEscrow(
 
       try {
         updateProgress('confirming');
-        const result = await resolveDisputeRelease(bountyIdNum, winnerWallet);
+        const result = await resolveDisputeRelease(bountyId, winnerWallet);
         await invalidateEscrowQueries();
         updateProgress('confirmed', { signature: result.signature });
         return result.signature;
@@ -438,7 +438,7 @@ export function useEscrow(
         throw new Error(errorMessage);
       }
     },
-    [bountyIdNum, updateProgress, invalidateEscrowQueries],
+    [bountyId, updateProgress, invalidateEscrowQueries],
   );
 
   /**
@@ -456,7 +456,7 @@ export function useEscrow(
 
     try {
       updateProgress('confirming');
-      const result = await resolveDisputeRefund(bountyIdNum, publicKey.toBase58());
+      const result = await resolveDisputeRefund(bountyId, publicKey.toBase58());
       await invalidateEscrowQueries();
       updateProgress('confirmed', { signature: result.signature });
       return result.signature;
@@ -465,7 +465,7 @@ export function useEscrow(
       setTransactionProgress((prev) => ({ ...prev, step: 'error', errorMessage }));
       throw new Error(errorMessage);
     }
-  }, [publicKey, bountyIdNum, updateProgress, invalidateEscrowQueries]);
+  }, [publicKey, bountyId, updateProgress, invalidateEscrowQueries]);
 
   const resetTransaction = useCallback(() => {
     setTransactionProgress({

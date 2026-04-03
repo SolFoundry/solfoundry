@@ -83,7 +83,7 @@ describe('SiteLayout', () => {
       const marks = screen.getAllByTestId('solfoundry-logo-mark');
       expect(marks.length).toBeGreaterThanOrEqual(2);
       marks.forEach((img) => {
-        expect(img).toHaveAttribute('src', '/logo-icon.svg');
+        expect(img).toHaveAttribute('src', '/logo-icon.png');
       });
     });
 

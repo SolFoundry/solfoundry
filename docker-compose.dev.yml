@@ -107,17 +107,8 @@ services:
       start_period: 10s
       retries: 3
 
-  # ── React Frontend ───────────────────────────────────────────────────────
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
+  # Frontend: run locally with `cd frontend && npm run dev`
+  # Not containerized — deployed as static files via SCP
 
   # ── Solana Indexer ───────────────────────────────────────────────────────
   # Watches the Solana validator for transaction events and syncs them

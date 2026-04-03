@@ -63,7 +63,7 @@ const STEPS: Step[] = [
     number: 5,
     title: 'Get Paid',
     description:
-      'Once your PR is approved and merged, the $FNDRY reward is sent directly to your connected Solana wallet. No invoices, no delays — just code and earn.',
+      'Once your PR is approved and merged, the USDC reward is sent directly to your Solana wallet. Platform bounties funded by SolFoundry are paid in $FNDRY. Creator bounties posted via the website are funded and paid in USDC.',
     icon: (
       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
@@ -109,7 +109,12 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'How do payouts work?',
     answer:
-      'Payouts are sent in $FNDRY tokens directly to the Solana wallet you connected when submitting your PR. Once your pull request is approved and merged, the reward is transferred automatically via an on-chain transaction. You can verify the transaction on Solscan. No invoices or manual steps required.',
+      'Creator bounties (posted via the website) pay out in USDC directly to your Solana wallet once your PR is approved and merged. Platform bounties funded by SolFoundry pay out in $FNDRY. You can verify all transactions on Solscan. No invoices or manual steps required.',
+  },
+  {
+    question: 'What is the review fee?',
+    answer:
+      'Contributors pay a small review fee in $FNDRY (10% of bounty value) when submitting work on USDC bounties. This ensures quality submissions and gives $FNDRY real utility. Platform bounties funded in $FNDRY have no review fee.',
   },
   {
     question: 'What are the bounty tiers?',
@@ -272,7 +277,7 @@ export function HowItWorksPage() {
           </h1>
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
             SolFoundry connects open-source contributors with paid bounties.
-            Pick a task, write great code, and get rewarded in $FNDRY — all reviewed by AI in minutes.
+            Pick a task, write great code, and get rewarded in USDC — all reviewed by AI in minutes.
           </p>
         </div>
       </section>

@@ -6,6 +6,7 @@
 export { EscrowPanel } from './EscrowPanel';
 export { EscrowStatusDisplay } from './EscrowStatusDisplay';
 export { EscrowDepositModal } from './EscrowDepositModal';
+export { SendToAddress } from './SendToAddress';
 export { EscrowReleaseModal } from './EscrowReleaseModal';
 export { EscrowRefundModal } from './EscrowRefundModal';
 export { TransactionConfirmation } from './TransactionConfirmation';

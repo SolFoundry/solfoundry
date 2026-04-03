@@ -216,11 +216,11 @@ export function CreatorBountyCard({ bounty, onUpdate }: CreatorBountyCardProps) 
                                 {bounty.status.replace(/_/g, ' ')}
                             </span>
                             <span className="flex items-center gap-1">
-                                Escrowed: <strong className="text-white">{formatNumber(bounty.reward_amount)} FNDRY</strong>
+                                Escrowed: <strong className="text-white">{formatNumber(bounty.reward_amount)} {bounty.funding_token || 'FNDRY'}</strong>
                             </span>
                             {bounty.fee_amount > 0 && (
                                 <span className="text-xs text-gray-500">
-                                    Fee: {formatNumber(bounty.fee_amount)} FNDRY
+                                    Fee: {formatNumber(bounty.fee_amount)} {bounty.funding_token || 'FNDRY'}
                                 </span>
                             )}
                             <span>

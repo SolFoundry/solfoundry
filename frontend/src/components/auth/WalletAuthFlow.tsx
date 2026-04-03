@@ -76,14 +76,14 @@ export function WalletAuthFlow() {
 
     (async () => {
       try {
-        const { message } = await getWalletAuthMessage(address);
+        const { message, nonce } = await getWalletAuthMessage(address);
         if (cancelled) return;
         const encoded = new TextEncoder().encode(message);
         const sigBytes = await signMessage(encoded);
         if (cancelled) return;
         // Backend expects base64-encoded signature
         const signature = btoa(String.fromCharCode(...sigBytes));
-        const result = await authenticateWithWallet({ wallet_address: address, signature, message });
+        const result = await authenticateWithWallet({ wallet_address: address, signature, message, nonce });
         if (cancelled) return;
         lastAuthAddress.current = address;
         loginRef.current(result.access_token, result.refresh_token, result.user);

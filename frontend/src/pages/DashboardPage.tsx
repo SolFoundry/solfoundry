@@ -19,7 +19,7 @@ export default function DashboardPage() {
       githubUsername={user?.github_id ? user.username : undefined}
       onBrowseBounties={() => navigate('/bounties')}
       onViewLeaderboard={() => navigate('/leaderboard')}
-      onCheckTreasury={() => navigate('/tokenomics')}
+      onCheckTreasury={() => navigate('/bounties')}
       onConnectAccount={(type) => {
         if (type === 'github') {
           const clientId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GITHUB_CLIENT_ID) || '';

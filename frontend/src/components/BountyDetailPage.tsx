@@ -211,7 +211,7 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty: r
                 <div className="flex items-center gap-2" data-testid="bounty-reward">
                   <span className="text-gray-600 dark:text-gray-400">Reward:</span>
                   <span className="text-green-700 dark:text-green-400 font-bold text-lg sm:text-xl">
-                    {rewardAmount.toLocaleString()} $FNDRY
+                    {rewardAmount.toLocaleString()} {(bounty as any).funding_token === 'USDC' ? 'USDC' : '$FNDRY'}
                   </span>
                 </div>
               </div>

@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useFndryBalance } from '../hooks/useFndryToken';
-import { FundBountyButton } from './wallet/FundBountyFlow';
-import { solscanTxUrl } from '../config/constants';
-import { useNetwork } from './wallet/WalletProvider';
-import { getAuthToken } from '../services/apiClient';
+import { getAuthToken, apiClient } from '../services/apiClient';
+import { useAuth } from '../hooks/useAuth';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
+import { SendToAddress } from './escrow/SendToAddress';
 
 // Types
 interface BountyFormData {
@@ -18,6 +16,7 @@ interface BountyFormData {
   category: string;
   skills: string[];
   rewardAmount: number;
+  fundingToken: 'USDC';
   deadline: string;
   milestones?: { milestone_number: number; description: string; percentage: number }[];
   /** Optional GitHub repo URL for community-submitted bounties. */
@@ -54,6 +53,9 @@ function isValidBountyFormData(data: unknown): data is BountyFormData {
   
   // Validate rewardAmount
   if (d.rewardAmount !== undefined && typeof d.rewardAmount !== 'number') return false;
+
+  // Validate fundingToken (user-created bounties are always USDC)
+  if (d.fundingToken !== undefined && d.fundingToken !== 'USDC') return false;
 
   // Validate githubRepo
   if (d.githubRepo !== undefined && typeof d.githubRepo !== 'string') return false;
@@ -111,7 +113,8 @@ const initialFormData: BountyFormData = {
   requirements: [''],
   category: '',
   skills: [],
-  rewardAmount: 100000,
+  rewardAmount: 50,
+  fundingToken: 'USDC',
   deadline: '',
   milestones: [],
   githubRepo: '',
@@ -428,17 +431,26 @@ const CategorySkills: React.FC<StepProps> = ({ formData, updateFormData, errors 
 
 // Step 5: Reward & Deadline
 const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors }) => {
-  const presetAmounts = [50000, 100000, 250000, 500000, 1000000];
-  
+  const presetAmounts = [10, 20, 50, 100, 200];
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Reward & Deadline</h2>
-      <p className="text-gray-600 dark:text-gray-400">Set the $FNDRY reward amount and deadline.</p>
-      
+      <p className="text-gray-600 dark:text-gray-400">Set the USDC reward amount and deadline.</p>
+
       <div className="space-y-6">
+        {/* Token info (USDC only for user-created bounties) */}
+        <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">$</div>
+          <div>
+            <div className="font-medium text-gray-900 dark:text-white">Funded in USDC</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">5% platform fee applies. Contributors pay a 10% review fee in $FNDRY to submit work.</div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Reward Amount ($FNDRY) *
+            Reward Amount (USDC) *
           </label>
           <div className="flex gap-2 mb-3">
             {presetAmounts.map((amount) => (
@@ -448,11 +460,11 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
                 onClick={() => updateFormData({ rewardAmount: amount })}
                 className={`px-3 py-2 rounded-lg text-sm transition-all ${
                   formData.rewardAmount === amount
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
                 }`}
               >
-                {(amount / 1000).toFixed(0)}K
+                ${amount}
               </button>
             ))}
           </div>
@@ -460,12 +472,12 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
             <input
               type="number"
               value={formData.rewardAmount}
-              onChange={(e) => updateFormData({ rewardAmount: parseInt(e.target.value) || 0 })}
-              min={1000}
-              step={1000}
-              className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none pr-20"
+              onChange={(e) => updateFormData({ rewardAmount: parseFloat(e.target.value) || 0 })}
+              min={1}
+              step={1}
+              className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none pr-20"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$FNDRY</span>
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">USDC</span>
           </div>
           {errors.rewardAmount && <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.rewardAmount}</p>}
 
@@ -473,23 +485,23 @@ const RewardDeadline: React.FC<StepProps> = ({ formData, updateFormData, errors 
           {formData.rewardAmount > 0 && (
             <div className="mt-3 bg-gray-100 dark:bg-gray-800/60 rounded-lg p-3 space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Escrow amount</span>
+                <span className="text-gray-500 dark:text-gray-400">Bounty reward</span>
                 <span className="text-green-600 dark:text-green-400 font-medium">
-                  {Math.floor(formData.rewardAmount * 0.95).toLocaleString()} $FNDRY
+                  {formData.rewardAmount.toLocaleString()} USDC
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Platform fee (5%)</span>
                 <span className="text-orange-500 dark:text-orange-400">
-                  {Math.ceil(formData.rewardAmount * 0.05).toLocaleString()} $FNDRY
+                  {(formData.rewardAmount * 0.05).toFixed(2)} USDC
                 </span>
               </div>
               <div className="border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between text-sm font-medium">
                 <span className="text-gray-700 dark:text-gray-300">Total cost</span>
-                <span className="text-white">{formData.rewardAmount.toLocaleString()} $FNDRY</span>
+                <span className="text-white">{(formData.rewardAmount * 1.05).toFixed(2)} USDC</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                The 5% fee is non-refundable and covers AI judge scoring and platform operations.
+                Contributors pay a 10% review fee in $FNDRY when submitting work for AI review.
               </p>
             </div>
           )}
@@ -687,7 +699,7 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.title || 'Untitled Bounty'}</h3>
           <div className="flex items-center gap-4 mt-3 text-sm">
             <span className="text-green-700 dark:text-green-400 font-bold">
-              {formData.rewardAmount.toLocaleString()} $FNDRY
+              {formData.rewardAmount.toLocaleString()} USDC
             </span>
             <span className="text-gray-600 dark:text-gray-400">
               Deadline: {formData.deadline || 'Not set'}
@@ -772,63 +784,73 @@ const PreviewBounty: React.FC<StepProps> = ({ formData }) => {
   );
 };
 
-// Step 7: Fund & Publish — PDA escrow integration
+// Step 7: Fund & Publish -- send-to-address model
 interface ConfirmPublishProps extends StepProps {
   onPublish: () => Promise<string>; // Returns bounty ID
 }
 
-type PublishPhase = 'idle' | 'publishing' | 'published' | 'funding' | 'funded' | 'error';
+interface DepositInfo {
+  treasury_wallet: string;
+  token: string;
+  token_mint: string;
+  amount_required: number;
+  fee_breakdown: {
+    bounty_reward: number;
+    creator_fee_pct: number;
+    creator_fee_amount: number;
+    total: number;
+  };
+}
+
+type PublishPhase = 'idle' | 'publishing' | 'published' | 'loading-deposit' | 'awaiting-payment' | 'funded' | 'error';
 
 const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) => {
   const { connected, publicKey } = useWallet();
-  const { balance, loading: balanceLoading } = useFndryBalance();
-  const { network } = useNetwork();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [agreed, setAgreed] = useState(false);
   const [phase, setPhase] = useState<PublishPhase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [bountyId, setBountyId] = useState<string | null>(null);
-  const [fundingSignature, setFundingSignature] = useState<string | null>(null);
+  const [depositInfo, setDepositInfo] = useState<DepositInfo | null>(null);
 
   const isWalletConnected = connected && !!publicKey;
-  const walletBalance = balance ?? 0;
-  const hasSufficientBalance = walletBalance >= formData.rewardAmount;
+  const isFullyAuthenticated = isWalletConnected && isAuthenticated;
 
-  /** Phase 1: Publish bounty to DB, get bounty ID */
-  /** Phase 2: Fund escrow via FundBountyButton (uses old custodial flow for now,
-   *  will be replaced with PDA deposit once create_escrow is wired) */
-  const handlePublishAndFund = async () => {
-    if (!agreed || !isWalletConnected) return;
+  /** Create bounty as draft, then fetch deposit info */
+  const handlePublish = async (): Promise<void> => {
+    if (!agreed || !isFullyAuthenticated) return;
     setError(null);
 
-    // Phase 1: Create bounty in DB
     setPhase('publishing');
     try {
       const id = await onPublish();
       setBountyId(id);
-      setPhase('published');
+      setPhase('loading-deposit');
+
+      // Fetch deposit info from backend
+      const info = await apiClient<DepositInfo>('/api/treasury/deposit-info', {
+        params: { bounty_id: id },
+      });
+      setDepositInfo(info);
+      setPhase('awaiting-payment');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to publish bounty');
+      setError(err instanceof Error ? err.message : 'Failed to create bounty');
       setPhase('error');
     }
   };
 
-  const handleFunded = async (signature: string) => {
-    setFundingSignature(signature);
-    // Publish: move bounty from draft → open now that escrow is funded
+  /** Called after SendToAddress verifies the payment */
+  const handlePaymentVerified = async (signature: string): Promise<void> => {
+    // Activate the bounty (move from draft -> open)
     if (bountyId && bountyId !== 'external') {
       try {
-        const token = getAuthToken();
-        await fetch(`/api/bounties/${bountyId}`, {
+        await apiClient(`/api/bounties/${bountyId}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ status: 'open' }),
+          body: { status: 'open' },
         });
       } catch {
         // Non-fatal: bounty is funded on-chain regardless
-        console.warn('Failed to publish bounty status to open');
+        console.warn('Failed to activate bounty to open status');
       }
     }
     setPhase('funded');
@@ -837,21 +859,11 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
   if (phase === 'funded') {
     return (
       <div className="space-y-6 text-center">
-        <div className="text-green-600 dark:text-green-400 text-6xl mb-4">✓</div>
+        <div className="text-green-400 text-6xl mb-4">&#10003;</div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bounty Published & Funded!</h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Your bounty has been created and {formData.rewardAmount.toLocaleString()} $FNDRY is held in escrow.
+          Your bounty has been created and {formData.rewardAmount.toLocaleString()} USDC is held in escrow.
         </p>
-        {fundingSignature && (
-          <a
-            href={solscanTxUrl(fundingSignature, network)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 text-sm"
-          >
-            View funding transaction on Solscan ↗
-          </a>
-        )}
         {bountyId && (
           <a
             href={`/bounties/${bountyId}`}
@@ -867,32 +879,26 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Fund & Publish</h2>
-      <p className="text-gray-600 dark:text-gray-400">Stake $FNDRY to fund the bounty escrow, then publish.</p>
+      <p className="text-gray-600 dark:text-gray-400">
+        Create your bounty, then send USDC to the treasury to fund it.
+      </p>
 
-      {/* Wallet & Funding Status */}
+      {/* Auth Status */}
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 space-y-3 border border-gray-200 dark:border-transparent">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Wallet</span>
           <span className={isWalletConnected ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-            {isWalletConnected ? '✓ Connected' : '✗ Not connected'}
+            {isWalletConnected ? 'Connected' : 'Not connected'}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">$FNDRY Balance</span>
-          <span className={!balanceLoading && !hasSufficientBalance && isWalletConnected ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}>
-            {balanceLoading
-              ? 'Loading…'
-              : isWalletConnected
-                ? `${walletBalance.toLocaleString()} $FNDRY`
-                : '—'}
-            {!balanceLoading && !hasSufficientBalance && isWalletConnected &&
-              ` (Need ${formData.rewardAmount.toLocaleString()})`}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Escrow Funding</span>
-          <span className={(phase as string) === 'funded' ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-yellow-400'}>
-            {(phase as string) === 'funded' ? '✓ Funded' : phase === 'published' ? '○ Ready to fund' : '○ Pending'}
+          <span className="text-gray-600 dark:text-gray-400">Authentication</span>
+          <span className={isAuthenticated ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+            {authLoading
+              ? 'Checking...'
+              : isAuthenticated
+                ? 'Authenticated'
+                : 'Not authenticated'}
           </span>
         </div>
       </div>
@@ -908,16 +914,20 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
           <span className="text-gray-900 dark:text-white font-medium truncate ml-4">{formData.title}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Staking Amount</span>
-          <span className="text-green-700 dark:text-green-400 font-bold">{formData.rewardAmount.toLocaleString()} $FNDRY</span>
+          <span className="text-gray-600 dark:text-gray-400">Reward</span>
+          <span className="text-green-700 dark:text-green-400 font-bold">{formData.rewardAmount.toLocaleString()} USDC</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-600 dark:text-gray-400">Platform fee (5%)</span>
+          <span className="text-orange-500 dark:text-orange-400">{(formData.rewardAmount * 0.05).toFixed(2)} USDC</span>
+        </div>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex items-center justify-between text-sm font-bold">
+          <span className="text-gray-700 dark:text-gray-300">Total to fund</span>
+          <span className="text-white">{(formData.rewardAmount * 1.05).toFixed(2)} USDC</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Deadline</span>
           <span className="text-gray-900 dark:text-white font-medium">{formData.deadline}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Requirements</span>
-          <span className="text-gray-900 dark:text-white font-medium">{formData.requirements.filter(Boolean).length} items</span>
         </div>
       </div>
 
@@ -928,52 +938,78 @@ const ConfirmPublish: React.FC<ConfirmPublishProps> = ({ formData, onPublish }) 
         </div>
       )}
 
-      <label className="flex items-start gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-1 accent-purple-500"
-        />
-        <span className="text-gray-700 dark:text-gray-300 text-sm">
-          I confirm this bounty is accurate and authorize the staking of{' '}
-          {formData.rewardAmount.toLocaleString()} $FNDRY into escrow.
-        </span>
-      </label>
-
-      {/* Two-phase flow: publish first (get bounty ID), then fund escrow */}
-      {phase === 'idle' || phase === 'error' ? (
-        <button
-          onClick={handlePublishAndFund}
-          disabled={!agreed || !isWalletConnected}
-          className="w-full py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-linear-to-r from-purple-600 to-green-500 text-white hover:from-purple-500 hover:to-green-400"
-        >
-          Create & Fund Bounty
-        </button>
-      ) : phase === 'published' || phase === 'publishing' ? (
+      {/* Phase: idle / error -- show checkbox + create button */}
+      {(phase === 'idle' || phase === 'error') && (
         <>
-          {phase === 'publishing' && (
-            <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-3">Creating bounty...</div>
-          )}
-          {phase === 'published' && (
-            <>
-              <div className="text-center text-green-600 dark:text-green-400 text-sm mb-3">
-                ✓ Bounty created! Now fund the escrow:
-              </div>
-              <FundBountyButton
-                amount={formData.rewardAmount}
-                onFunded={handleFunded}
-                disabled={false}
-              />
-            </>
-          )}
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-1 accent-purple-500"
+            />
+            <span className="text-gray-700 dark:text-gray-300 text-sm">
+              I confirm this bounty is accurate and authorize funding{' '}
+              {(formData.rewardAmount * 1.05).toFixed(2)} USDC into escrow.
+            </span>
+          </label>
+
+          <button
+            onClick={handlePublish}
+            disabled={!agreed || !isFullyAuthenticated}
+            className="w-full py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-600 to-green-500 text-white hover:from-purple-500 hover:to-green-400"
+          >
+            Create Bounty & Get Payment Address
+          </button>
         </>
-      ) : null}
+      )}
+
+      {/* Phase: publishing */}
+      {phase === 'publishing' && (
+        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-3">
+          Creating bounty...
+        </div>
+      )}
+
+      {/* Phase: loading deposit info */}
+      {phase === 'loading-deposit' && (
+        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-3">
+          Fetching payment details...
+        </div>
+      )}
+
+      {/* Phase: awaiting payment -- show SendToAddress */}
+      {phase === 'awaiting-payment' && depositInfo && bountyId && (
+        <>
+          <div className="text-center text-green-600 dark:text-green-400 text-sm mb-3">
+            Bounty created! Now fund the escrow:
+          </div>
+          <SendToAddress
+            treasuryWallet={depositInfo.treasury_wallet}
+            token={depositInfo.token}
+            amount={depositInfo.amount_required}
+            feeBreakdown={depositInfo.fee_breakdown}
+            onVerified={handlePaymentVerified}
+            bountyId={bountyId}
+            type="funding"
+          />
+        </>
+      )}
 
       {!isWalletConnected && (
         <p className="text-amber-700 dark:text-yellow-400 text-sm text-center">
-          Please connect your Solana wallet to fund and publish.
+          Please connect your Solana wallet to create and fund a bounty.
         </p>
+      )}
+
+      {isWalletConnected && !isAuthenticated && !authLoading && (
+        <div className="bg-amber-50 dark:bg-yellow-900/20 border border-amber-200 dark:border-yellow-700/30 rounded-lg p-3">
+          <p className="text-amber-900 dark:text-yellow-400 text-sm">
+            Wallet connected but not authenticated. Please sign the authentication
+            message in your wallet to continue. If the prompt does not appear,
+            try disconnecting and reconnecting your wallet.
+          </p>
+        </div>
       )}
     </div>
   );
@@ -1079,14 +1115,15 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
         }
         break;
       case 5:
-        // Reward & Deadline (category/skills now auto-tagged)
-        if (formData.rewardAmount < 1000) newErrors.rewardAmount = 'Minimum reward is 1,000 $FNDRY';
+        // Reward & Deadline (USDC only for user-created bounties)
+        if (formData.rewardAmount < 1)
+          newErrors.rewardAmount = 'Minimum reward is 1 USDC';
         if (!formData.deadline) newErrors.deadline = 'Please set a deadline';
 
         // Tier 2 specific validation
         if (formData.tier === 'T2') {
-          if (formData.rewardAmount < 500000) {
-            newErrors.rewardAmount = 'Tier 2 requires minimum reward of 500,000 $FNDRY';
+          if (formData.rewardAmount < 500) {
+            newErrors.rewardAmount = 'Tier 2 requires minimum reward of 500 USDC';
           }
           const deadlineDate = new Date(formData.deadline);
           const minDeadline = new Date();
@@ -1154,6 +1191,7 @@ export const BountyCreationWizard: React.FC<BountyCreationWizardProps> = ({
           ? new Date(formData.deadline + 'T23:59:59Z').toISOString()
           : undefined,
         milestones: formData.milestones?.length ? formData.milestones : undefined,
+        funding_token: formData.fundingToken,
         creator_type: 'community',
         status: 'draft',
       }),

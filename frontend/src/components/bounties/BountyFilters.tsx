@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { BountyBoardFilters, BountyTier, BountyStatus, BountyCategory, AutocompleteItem } from '../../types/bounty';
-import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS, CREATOR_TYPE_OPTIONS, CATEGORY_OPTIONS } from '../../types/bounty';
+import { SKILL_OPTIONS, TIER_OPTIONS, STATUS_OPTIONS, CATEGORY_OPTIONS } from '../../types/bounty';
 
 interface Props {
   filters: BountyBoardFilters;
@@ -10,25 +10,8 @@ interface Props {
   totalCount: number;
 }
 
-// Compact chip labels (shorter than full option labels)
-const TIER_CHIP_LABELS: Record<string, string> = {
-  all: 'All', T1: 'T1', T2: 'T2', T3: 'T3',
-};
-
-const STATUS_CHIP_LABELS: Record<string, string> = {
-  all: 'All', open: 'Open', 'in-progress': 'In Progress',
-  under_review: 'Under Review', completed: 'Completed',
-  disputed: 'Disputed', paid: 'Paid', cancelled: 'Cancelled',
-};
-
-const CATEGORY_CHIP_LABELS: Record<string, string> = {
-  all: 'All', 'smart-contract': 'Smart Contract', frontend: 'Frontend',
-  backend: 'Backend', design: 'Design', content: 'Content',
-  security: 'Security', devops: 'DevOps', documentation: 'Docs',
-};
-
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-const SHORTCUT_LABEL = isMac ? '⌘K' : 'Ctrl+K';
+const SHORTCUT_LABEL = isMac ? '\u2318K' : 'Ctrl+K';
 
 export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount, totalCount }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -106,11 +89,6 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
     setShowSuggestions(false);
   }, [f.skills, onFilterChange]);
 
-  const toggleSkill = useCallback((s: string) => {
-    const current = f.skills;
-    onFilterChange('skills', current.includes(s) ? current.filter(x => x !== s) : [...current, s]);
-  }, [f.skills, onFilterChange]);
-
   // Close suggestions on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -126,11 +104,10 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
     f.searchQuery.trim() !== '' || f.rewardMin !== '' || f.rewardMax !== '' ||
     f.creatorType !== 'all' || f.category !== 'all' || f.deadlineBefore !== '';
 
-  const chipBase = 'inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors';
-  const chipActive = 'bg-solana-green/15 text-solana-green border-solana-green/30';
-  const chipInactive =
-    'bg-gray-100 text-gray-600 border-gray-300 hover:text-gray-900 hover:border-gray-400 ' +
-    'dark:bg-surface-50 dark:text-gray-400 dark:border-surface-300 dark:hover:text-white dark:hover:border-surface-200';
+  const selectClass =
+    'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 ' +
+    'focus:outline-none focus:border-solana-green/50 transition-colors cursor-pointer ' +
+    'dark:border-surface-300 dark:bg-surface-50 dark:text-white';
 
   return (
     <div className="space-y-3" data-testid="bounty-filters">
@@ -138,7 +115,6 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
       {/* Search bar */}
       <div className="relative" ref={suggestionsRef}>
         <div className="relative flex items-center">
-          {/* Search icon */}
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -150,7 +126,7 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search bounties by title, description, tags..."
+            placeholder="Search bounties..."
             value={localQuery}
             onChange={e => handleSearch(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
@@ -159,14 +135,12 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             data-testid="bounty-search"
           />
 
-          {/* Keyboard shortcut hint (hidden when typing) */}
           {!localQuery && (
             <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 rounded border border-gray-300 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 pointer-events-none select-none dark:border-surface-300 dark:bg-surface-100 dark:text-gray-500">
               {SHORTCUT_LABEL}
             </kbd>
           )}
 
-          {/* Clear (X) button */}
           {localQuery && (
             <button
               type="button"
@@ -205,103 +179,68 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
         )}
       </div>
 
-      {/* Filter chip groups: Tier, Status, Category */}
-      <div className="space-y-2">
-
-        {/* Tier chips */}
-        <div className="flex flex-wrap items-center gap-1.5" data-testid="tier-chips">
-          <span className="text-xs text-gray-500 shrink-0 w-14">Tier:</span>
-          {TIER_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onFilterChange('tier', o.value)}
-              className={`${chipBase} ${f.tier === o.value ? chipActive : chipInactive}`}
-              aria-pressed={f.tier === o.value}
-              title={o.label}
-              data-testid={`tier-chip-${o.value}`}
-            >
-              {TIER_CHIP_LABELS[o.value] ?? o.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Status chips */}
-        <div className="flex flex-wrap items-center gap-1.5" data-testid="status-chips">
-          <span className="text-xs text-gray-500 shrink-0 w-14">Status:</span>
-          {STATUS_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onFilterChange('status', o.value as BountyStatus | 'all')}
-              className={`${chipBase} ${f.status === o.value ? chipActive : chipInactive}`}
-              aria-pressed={f.status === o.value}
-              data-testid={`status-chip-${o.value}`}
-            >
-              {STATUS_CHIP_LABELS[o.value] ?? o.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Category chips */}
-        <div className="flex flex-wrap items-center gap-1.5" data-testid="category-chips">
-          <span className="text-xs text-gray-500 shrink-0 w-14">Category:</span>
-          {CATEGORY_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onFilterChange('category', o.value as BountyCategory | 'all')}
-              className={`${chipBase} ${f.category === o.value ? chipActive : chipInactive}`}
-              aria-pressed={f.category === o.value}
-              title={o.label}
-              data-testid={`category-chip-${o.value}`}
-            >
-              {CATEGORY_CHIP_LABELS[o.value] ?? o.label}
-            </button>
-          ))}
-        </div>
-
-      </div>
-
-      {/* Controls row: creator type, more filters, clear all, result count */}
+      {/* Compact filter row: dropdowns + controls */}
       <div className="flex flex-wrap items-center gap-2">
         <select
-          value={f.creatorType}
-          onChange={e => onFilterChange('creatorType', e.target.value as 'all' | 'platform' | 'community')}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-50 dark:text-white"
-          aria-label="Filter by creator type"
-          data-testid="creator-type-filter"
+          value={f.status}
+          onChange={e => onFilterChange('status', e.target.value as BountyStatus | 'all')}
+          className={selectClass}
+          aria-label="Filter by status"
+          data-testid="status-filter"
         >
-          {CREATOR_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={f.tier}
+          onChange={e => onFilterChange('tier', e.target.value as BountyTier | 'all')}
+          className={selectClass}
+          aria-label="Filter by tier"
+          data-testid="tier-filter"
+        >
+          {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={f.category}
+          onChange={e => onFilterChange('category', e.target.value as BountyCategory | 'all')}
+          className={selectClass}
+          aria-label="Filter by category"
+          data-testid="category-filter"
+        >
+          {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className={'rounded-lg border px-3 py-1.5 text-sm transition-colors ' +
+          className={'rounded-lg border px-3 py-2 text-sm transition-colors ' +
             (showAdvanced ? 'border-solana-green/40 text-solana-green' : 'border-gray-300 text-gray-600 hover:text-gray-900 dark:border-surface-300 dark:text-gray-400 dark:hover:text-white')}
           data-testid="toggle-advanced"
         >
-          {showAdvanced ? 'Less' : 'More'} Filters
+          <svg className="w-4 h-4 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          Filters
         </button>
 
         {hasActive && (
           <button
             type="button"
             onClick={() => { onReset(); setSuggestions([]); }}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors dark:border-surface-300 dark:text-gray-400 dark:hover:text-white"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors dark:border-surface-300 dark:text-gray-400 dark:hover:text-white"
             data-testid="reset-filters"
           >
-            Clear all
+            Clear
           </button>
         )}
 
         <span className="ml-auto text-xs text-gray-500" data-testid="result-count">
-          Showing {resultCount} of {totalCount} bounties
+          {resultCount} of {totalCount} bounties
         </span>
       </div>
 
-      {/* Advanced filters: reward range + deadline */}
+      {/* Advanced filters panel */}
       {showAdvanced && (
         <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white dark:border-surface-300 dark:bg-surface-50" data-testid="advanced-filters">
           <span className="text-xs text-gray-500">Reward:</span>
@@ -310,56 +249,45 @@ export function BountyFilters({ filters: f, onFilterChange, onReset, resultCount
             placeholder="Min"
             value={f.rewardMin}
             onChange={e => onFilterChange('rewardMin', e.target.value)}
-            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
+            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
             aria-label="Minimum reward"
             data-testid="reward-min"
           />
-          <span className="text-xs text-gray-500">—</span>
+          <span className="text-xs text-gray-500">&mdash;</span>
           <input
             type="number"
             placeholder="Max"
             value={f.rewardMax}
             onChange={e => onFilterChange('rewardMax', e.target.value)}
-            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
+            className="w-24 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white"
             aria-label="Maximum reward"
             data-testid="reward-max"
           />
-          <span className="text-xs text-gray-500 ml-1">$FNDRY</span>
+          <span className="text-xs text-gray-500">USDC</span>
 
-          <span className="text-xs text-gray-500 ml-3">Deadline before:</span>
+          <span className="text-xs text-gray-500 ml-3">Deadline:</span>
           <input
             type="date"
             value={f.deadlineBefore}
             onChange={e => onFilterChange('deadlineBefore', e.target.value)}
-            className="rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white dark:scheme-dark"
+            className="rounded-lg border border-gray-300 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white dark:scheme-dark"
             aria-label="Deadline before date"
             data-testid="deadline-filter"
           />
+
+          <select
+            value={f.creatorType}
+            onChange={e => onFilterChange('creatorType', e.target.value as 'all' | 'platform' | 'community')}
+            className="rounded-lg border border-gray-300 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-solana-green/50 dark:border-surface-300 dark:bg-surface-100 dark:text-white ml-auto"
+            aria-label="Filter by creator type"
+            data-testid="creator-type-filter"
+          >
+            <option value="all">All Creators</option>
+            <option value="platform">Platform</option>
+            <option value="community">Community</option>
+          </select>
         </div>
       )}
-
-      {/* Skill pills */}
-      <div className="flex flex-wrap gap-1.5" data-testid="skill-filters">
-        {SKILL_OPTIONS.map(s => {
-          const active = f.skills.includes(s);
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => toggleSkill(s)}
-              className={
-                'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ' +
-                (active ? 'bg-solana-green/15 text-solana-green' : 'bg-gray-200 text-gray-600 hover:text-gray-900 dark:bg-surface-200 dark:text-gray-400 dark:hover:text-white')
-              }
-              aria-pressed={active}
-              data-testid={'skill-filter-' + s}
-            >
-              {s}
-            </button>
-          );
-        })}
-      </div>
-
     </div>
   );
 }

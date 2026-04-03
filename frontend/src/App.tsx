@@ -25,30 +25,12 @@ const BountiesPage = lazy(() => import('./pages/BountiesPage'));
 const BountyDetailPage = lazy(() => import('./pages/BountyDetailPage'));
 const BountyCreatePage = lazy(() => import('./pages/BountyCreatePage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
-const AgentMarketplacePage = lazy(() => import('./pages/AgentMarketplacePage'));
-const AgentRegisterPage = lazy(() => import('./pages/AgentRegisterPage'));
-const AgentApiDocsPage = lazy(() => import('./pages/AgentApiDocsPage'));
-const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage'));
-const TokenomicsPage = lazy(() => import('./pages/TokenomicsPage'));
+// TokenomicsPage removed in Phase 2 refactor
 const ContributorProfilePage = lazy(() => import('./pages/ContributorProfilePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
-const DisputeListPage = lazy(() => import('./pages/DisputeListPage'));
-const DisputePage = lazy(() => import('./pages/DisputePage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
-
-// ── Phase 3 pages ──────────────────────────────────────────────────────────
-const StakingPage = lazy(() => import('./pages/StakingPage'));
-const ReputationPage = lazy(() => import('./pages/ReputationPage'));
-const AnalyticsLeaderboardPage = lazy(() => import('./pages/AnalyticsLeaderboardPage'));
-const BountyAnalyticsPage = lazy(() => import('./pages/BountyAnalyticsPage'));
-const ContributorAnalyticsPage = lazy(() => import('./pages/ContributorAnalyticsPage'));
-const PlatformHealthPage = lazy(() => import('./pages/PlatformHealthPage'));
-const PipelineDashboardPage = lazy(() => import('./pages/PipelineDashboardPage'));
-const CodebaseMapPage = lazy(() => import('./pages/CodebaseMapPage'));
-const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
 const GitHubCallbackPage = lazy(() => import('./pages/GitHubCallbackPage'));
 
 // ── Auth flow components (must be at module level to avoid remounting) ────────
@@ -113,21 +95,8 @@ function AppLayoutInner() {
           {/* Leaderboard */}
           <Route path="/leaderboard" element={<LeaderboardPage />} />
 
-          {/* Agents — static paths before :agentId */}
-          <Route path="/agents/register" element={<AgentRegisterPage />} />
-          <Route path="/agents/docs" element={<AgentApiDocsPage />} />
-          <Route path="/agents" element={<AgentMarketplacePage />} />
-          <Route path="/agents/:agentId" element={<AgentProfilePage />} />
-
-          {/* Tokenomics */}
-          <Route path="/tokenomics" element={<TokenomicsPage />} />
-
           {/* How It Works */}
           <Route path="/how-it-works" element={<HowItWorksPage />} />
-
-          {/* Disputes */}
-          <Route path="/disputes" element={<DisputeListPage />} />
-          <Route path="/disputes/:id" element={<DisputePage />} />
 
           {/* Contributor and Creator */}
           <Route path="/contributor/:username" element={<ContributorProfilePage />} />
@@ -135,20 +104,7 @@ function AppLayoutInner() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/creator" element={<CreatorDashboardPage />} />
 
-          {/* Phase 3: Staking & Reputation */}
-          <Route path="/staking" element={<StakingPage />} />
-          <Route path="/reputation" element={<ReputationPage />} />
-
-          {/* Phase 3: Analytics */}
-          <Route path="/analytics" element={<AnalyticsLeaderboardPage />} />
-          <Route path="/analytics/bounties" element={<BountyAnalyticsPage />} />
-          <Route path="/analytics/contributors" element={<ContributorAnalyticsPage />} />
-          <Route path="/analytics/health" element={<PlatformHealthPage />} />
-
-          {/* Phase 3: Pipelines, Codebase Map, Settings */}
-          <Route path="/pipelines" element={<PipelineDashboardPage />} />
-          <Route path="/codebase-map" element={<CodebaseMapPage />} />
-          <Route path="/settings" element={<ProfileSettingsPage />} />
+          {/* Auth */}
           <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
 
           {/* 404 Not Found */}
@@ -157,19 +113,6 @@ function AppLayoutInner() {
       </Suspense>
       </ErrorBoundary>
     </SiteLayout>
-  );
-}
-
-// ── Admin layout (bypasses SiteLayout — has its own shell) ───────────────────
-function AdminRoutes() {
-  return (
-    <ErrorBoundary>
-      <Suspense fallback={<LoadingSpinner />}>
-        <Routes>
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
-      </Suspense>
-    </ErrorBoundary>
   );
 }
 
@@ -182,9 +125,6 @@ export default function App() {
           <ToastProvider>
             <WalletProvider defaultNetwork="mainnet-beta">
               <Routes>
-                {/* Admin section — own layout, no wallet/site shell needed */}
-                <Route path="/admin*" element={<AdminRoutes />} />
-                {/* Everything else */}
                 <Route path="/*" element={<AppLayout />} />
               </Routes>
             </WalletProvider>

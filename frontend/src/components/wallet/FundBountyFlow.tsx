@@ -1,10 +1,11 @@
 /** $FNDRY bounty staking UI — approval modal, transaction status tracker, and fund button. */
 import { useState, useRef, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useFndryBalance, useBountyEscrow } from '../../hooks/useFndryToken';
+import { useFndryBalance } from '../../hooks/useFndryToken';
+import { useEscrow } from '../../hooks/useEscrow';
 import { solscanTxUrl } from '../../config/constants';
 import { useNetwork } from './WalletProvider';
-import type { TransactionStatus } from '../../types/wallet';
+import type { EscrowTransactionStep } from '../../types/escrow';
 
 /* ── Approval Modal ─────────────────────────────────────────────────────────── */
 
@@ -112,12 +113,13 @@ function ApprovalModal({
 /* ── Transaction Status Tracker ─────────────────────────────────────────────── */
 
 const TX_STEPS = [
+  { key: 'building' as const, label: 'Building', desc: 'Preparing transaction' },
   { key: 'approving' as const, label: 'Wallet Approval', desc: 'Approve in your wallet' },
-  { key: 'pending' as const, label: 'Sending', desc: 'Submitting to Solana' },
+  { key: 'sending' as const, label: 'Sending', desc: 'Submitting to Solana' },
   { key: 'confirming' as const, label: 'Confirming', desc: 'Waiting for confirmation' },
   { key: 'confirmed' as const, label: 'Confirmed', desc: 'Transaction confirmed' },
 ];
-const STATUS_ORDER: TransactionStatus[] = ['approving', 'pending', 'confirming', 'confirmed'];
+const STATUS_ORDER: EscrowTransactionStep[] = ['building', 'approving', 'sending', 'confirming', 'confirmed'];
 
 function TransactionStatusTracker({
   status,
@@ -127,7 +129,7 @@ function TransactionStatusTracker({
   onRetry,
   onClose,
 }: {
-  status: TransactionStatus;
+  status: EscrowTransactionStep;
   signature: string | null;
   error: string | null;
   network: 'mainnet-beta' | 'devnet';
@@ -251,15 +253,16 @@ function TransactionStatusTracker({
 /* ── Fund Bounty Button ─────────────────────────────────────────────────────── */
 
 interface FundBountyButtonProps {
+  bountyId: string;
   amount: number;
   onFunded: (signature: string) => void;
   disabled?: boolean;
 }
 
-export function FundBountyButton({ amount, onFunded, disabled }: FundBountyButtonProps) {
+export function FundBountyButton({ bountyId, amount, onFunded, disabled }: FundBountyButtonProps) {
   const { connected } = useWallet();
   const { balance, loading: balanceLoading } = useFndryBalance();
-  const { fundBounty, transaction, reset } = useBountyEscrow();
+  const { deposit, transactionProgress, resetTransaction } = useEscrow(bountyId, { pollingEnabled: false });
   const { network } = useNetwork();
   const [showApproval, setShowApproval] = useState(false);
   const [funded, setFunded] = useState(false);
@@ -267,21 +270,21 @@ export function FundBountyButton({ amount, onFunded, disabled }: FundBountyButto
   const handleConfirm = async () => {
     setShowApproval(false);
     try {
-      const sig = await fundBounty(amount);
+      const sig = await deposit(amount);
       setFunded(true);
       onFunded(sig);
     } catch {
-      // Error state is tracked inside useBountyEscrow
+      // Error state is tracked inside useEscrow
     }
   };
 
   const handleRetry = () => {
-    reset();
+    resetTransaction();
     setShowApproval(true);
   };
 
   const handleStatusClose = () => {
-    reset();
+    resetTransaction();
   };
 
   const insufficient = balance !== null && balance < amount;
@@ -327,11 +330,11 @@ export function FundBountyButton({ amount, onFunded, disabled }: FundBountyButto
         balance={balance}
       />
 
-      {transaction.status !== 'idle' && (
+      {transactionProgress.step !== 'idle' && (
         <TransactionStatusTracker
-          status={transaction.status}
-          signature={transaction.signature}
-          error={transaction.error}
+          status={transactionProgress.step}
+          signature={transactionProgress.signature}
+          error={transactionProgress.errorMessage}
           network={network}
           onRetry={handleRetry}
           onClose={handleStatusClose}

@@ -80,8 +80,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm">
-              Autonomous AI software factory on Solana — ship bounties, earn $FNDRY, and grow with the
-              community.
+              Autonomous AI software factory on Solana — ship bounties, earn USDC rewards and $FNDRY, and
+              grow with the community.
             </p>
           </div>
 

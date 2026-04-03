@@ -14,6 +14,7 @@ export interface WalletAuthPayload {
   wallet_address: string;
   signature: string;
   message: string;
+  nonce: string;
 }
 
 export interface AuthTokenResponse {

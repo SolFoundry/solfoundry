@@ -29,7 +29,7 @@ describe('NotFoundPage', () => {
     renderWithRouter(<NotFoundPage />);
     expect(screen.getByText('SolFoundry')).toBeTruthy();
     const mark = screen.getByTestId('solfoundry-logo-mark');
-    expect(mark).toHaveAttribute('src', '/logo-icon.svg');
+    expect(mark).toHaveAttribute('src', '/logo-icon.png');
   });
 
   it('renders a "Browse open bounties" primary link pointing to /bounties', () => {
