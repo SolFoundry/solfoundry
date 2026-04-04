@@ -43,9 +43,9 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
         #{rank}
       </span>
 
-      {entry.avatar_url ? (
+      {entry.avatarUrl ? (
         <img
-          src={entry.avatar_url}
+          src={entry.avatarUrl}
           alt={entry.username}
           className={`${avatarSize} rounded-full border-2 ${avatarBorderClass}`}
         />
@@ -56,9 +56,9 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
       )}
 
       <span className="mt-3 font-sans text-sm font-semibold text-text-primary">{entry.username}</span>
-      <span className="mt-1 font-mono text-xs text-text-muted">{entry.bounties_completed} bounties</span>
+      <span className="mt-1 font-mono text-xs text-text-muted">{entry.bountiesCompleted} bounties</span>
       <span className="mt-1 font-mono text-lg font-semibold text-emerald">
-        ${entry.total_earned.toLocaleString()}
+        ${entry.earningsFndry.toLocaleString()}
       </span>
     </motion.div>
   );
@@ -87,7 +87,7 @@ export function PodiumCards({ entries }: PodiumCardsProps) {
       className="flex items-end justify-center gap-4 md:gap-6 mb-12"
     >
       {ordered.map((entry, i) => (
-        <PodiumCard key={entry.user_id} entry={entry} rank={ranks[i]} />
+        <PodiumCard key={entry.username} entry={entry} rank={ranks[i]} />
       ))}
     </motion.div>
   );

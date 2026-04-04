@@ -1,12 +1,16 @@
 export interface LeaderboardEntry {
   rank: number;
-  user_id: string;
   username: string;
-  avatar_url?: string | null;
-  total_earned: number;
-  bounties_completed: number;
-  skills: string[];
+  avatarUrl?: string | null;
+  points: number;
+  bountiesCompleted: number;
+  earningsFndry: number;
+  earningsSol: number;
   streak?: number | null;
+  topSkills: string[];
+  reputation: number;
+  stakedFndry: number;
+  reputationBoost: number;
 }
 
 export interface PlatformStats {
