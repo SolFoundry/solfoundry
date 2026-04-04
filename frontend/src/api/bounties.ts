@@ -24,19 +24,30 @@ export interface BountiesListResponse {
   offset: number;
 }
 
+// Map backend field names to frontend types (funding_token -> reward_token)
+function mapBounty(b: Bounty): Bounty {
+  const raw = b as Bounty & { funding_token?: string };
+  if (!raw.reward_token && raw.funding_token) {
+    raw.reward_token = raw.funding_token as Bounty['reward_token'];
+  }
+  if (!raw.reward_token) raw.reward_token = 'FNDRY';
+  return raw;
+}
+
 export async function listBounties(params?: BountiesListParams): Promise<BountiesListResponse> {
   const response = await apiClient<BountiesListResponse | Bounty[]>('/api/bounties', {
     params: params as Record<string, string | number | boolean | undefined>,
   });
   // Handle both array and paginated response shapes
   if (Array.isArray(response)) {
-    return { items: response, total: response.length, limit: params?.limit ?? 20, offset: params?.offset ?? 0 };
+    return { items: response.map(mapBounty), total: response.length, limit: params?.limit ?? 20, offset: params?.offset ?? 0 };
   }
-  return response;
+  return { ...response, items: response.items.map(mapBounty) };
 }
 
 export async function getBounty(id: string): Promise<Bounty> {
-  return apiClient<Bounty>(`/api/bounties/${id}`);
+  const raw = await apiClient<Bounty>(`/api/bounties/${id}`);
+  return mapBounty(raw);
 }
 
 export async function createBounty(payload: BountyCreatePayload): Promise<Bounty> {
