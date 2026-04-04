@@ -8,23 +8,46 @@ export interface Bounty {
   description: string;
   status: BountyStatus;
   tier: BountyTier;
-  reward_amount: number;
-  reward_token: RewardToken;
+  skills: string[];
+  deadline?: string | null;
+  category?: string | null;
+  // snake_case API fields
+  reward_amount?: number;
+  reward_token?: RewardToken;
   github_issue_url?: string | null;
   github_repo_url?: string | null;
   org_name?: string | null;
   repo_name?: string | null;
   org_avatar_url?: string | null;
   issue_number?: number | null;
-  category?: string | null;
-  skills: string[];
-  deadline?: string | null;
-  submission_count: number;
-  created_at: string;
+  submission_count?: number;
+  created_at?: string;
   creator_id?: string | null;
   creator_username?: string | null;
   has_repo?: boolean;
+  // camelCase frontend fields (BountyBoard components)
+  rewardAmount?: number;
+  currency?: 'USDC' | 'FNDRY';
+  submissionCount?: number;
+  createdAt?: string;
+  projectName?: string;
+  creatorType?: 'community' | 'platform';
 }
+
+export interface BountyBoardFilters {
+  category: string;
+  skills: string[];
+  tier: string;
+  deadlineBefore?: string;
+  rewardMin?: number;
+  rewardMax?: number;
+}
+
+export const DEFAULT_FILTERS: BountyBoardFilters = {
+  category: 'all',
+  skills: [],
+  tier: 'all',
+};
 
 export interface Submission {
   id: string;

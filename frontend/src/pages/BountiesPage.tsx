@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { PageLayout } from '../components/layout/PageLayout';
-import { BountyGrid } from '../components/bounty/BountyGrid';
+import { BountyBoard } from '../components/bounties/BountyBoard';
 import { pageTransition } from '../lib/animations';
 
 export function BountiesPage() {
@@ -14,8 +14,10 @@ export function BountiesPage() {
         exit="exit"
         className="pt-16"
       >
-        <BountyGrid />
+        <BountyBoard />
       </motion.div>
     </PageLayout>
   );
 }
+
+export default BountiesPage;
