@@ -11,8 +11,9 @@ export interface AuthUser {
   email?: string | null;
   avatar_url?: string | null;
   wallet_address?: string | null;
-  wallet_verified: boolean;
+  wallet_verified?: boolean;
   github_id?: string | null;
+  created_at?: string | null;
 }
 
 interface AuthState {

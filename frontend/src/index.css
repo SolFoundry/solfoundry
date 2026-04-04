@@ -3,346 +3,143 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================================
-   SolFoundry Theme — Tailwind v4 CSS-based config
+   SolFoundry Design System — Forge Theme
    ============================================================================ */
 @theme {
-  /* Solana brand colors */
-  --color-solana-green: #14F195;
-  --color-solana-purple: #9945FF;
+  /* === BACKGROUNDS / SURFACES === */
+  --color-forge-950: #050505;
+  --color-forge-900: #0A0A0F;
+  --color-forge-850: #0F0F18;
+  --color-forge-800: #16161F;
+  --color-forge-700: #1E1E2A;
+  --color-forge-600: #2A2A3A;
 
-  /* Surface colors — Dark theme defaults
-     NOTE: For light mode support, components should use Tailwind's dark: prefix
-     or the CSS variables defined below (:root / .dark) */
-  --color-surface: #0a0a0a;
-  --color-surface-50: #111111;
-  --color-surface-100: #1a1a1a;
-  --color-surface-200: #222222;
-  --color-surface-300: #2a2a2a;
-  --color-surface-400: #333333;
+  /* === BORDERS === */
+  --color-border: #1E1E2E;
+  --color-border-hover: #2E2E42;
+  --color-border-active: #3E3E56;
 
-  /* Light surface colors (for components that need explicit light mode) */
-  --color-surface-light: #ffffff;
-  --color-surface-light-50: #fafafa;
-  --color-surface-light-100: #f5f5f5;
-  --color-surface-light-200: #eeeeee;
-  --color-surface-light-300: #e0e0e0;
-  --color-surface-light-400: #d0d0d0;
+  /* === EMERALD (primary actions, success, money) === */
+  --color-emerald: #00E676;
+  --color-emerald-light: #69F0AE;
+  --color-emerald-dim: rgba(0,230,118,0.7);
+  --color-emerald-glow: rgba(0,230,118,0.15);
+  --color-emerald-bg: rgba(0,230,118,0.08);
+  --color-emerald-border: rgba(0,230,118,0.25);
 
-  /* Accent colors */
-  --color-accent-green: #14F195;
-  --color-accent-purple: #9945FF;
-  --color-accent-gold: #FFD700;
-  --color-accent-red: #FF6B6B;
-  --color-accent-blue: #4DA8FF;
+  /* === PURPLE (Solana, crypto, depth) === */
+  --color-purple: #7C3AED;
+  --color-purple-light: #A78BFA;
+  --color-purple-dim: rgba(124,58,237,0.7);
+  --color-purple-glow: rgba(124,58,237,0.15);
+  --color-purple-bg: rgba(124,58,237,0.08);
+  --color-purple-border: rgba(124,58,237,0.25);
 
-  /* Mainnet / live indicator (wallet network UI) */
-  --color-solana-mint: #00ff88;
+  /* === MAGENTA (AI/review, logo accent) === */
+  --color-magenta: #E040FB;
+  --color-magenta-light: #EA80FC;
+  --color-magenta-dim: rgba(224,64,251,0.7);
+  --color-magenta-glow: rgba(224,64,251,0.15);
+  --color-magenta-bg: rgba(224,64,251,0.08);
+  --color-magenta-border: rgba(224,64,251,0.25);
+
+  /* === TEXT === */
+  --color-text-primary: #F0F0F5;
+  --color-text-secondary: #A0A0B8;
+  --color-text-muted: #5C5C78;
+  --color-text-inverse: #050505;
+
+  /* === STATUS === */
+  --color-status-success: #00E676;
+  --color-status-warning: #FFB300;
+  --color-status-error: #FF5252;
+  --color-status-info: #40C4FF;
+
+  /* === TIER BADGES === */
+  --color-tier-t1: #00E676;
+  --color-tier-t2: #40C4FF;
+  --color-tier-t3: #7C3AED;
+
+  /* === FONTS === */
+  --font-display: 'Orbitron', sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* === BACKGROUND IMAGES === */
+  --background-image-grid-forge:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  --background-image-gradient-navbar: linear-gradient(90deg, #00E676, #7C3AED, #E040FB);
+  --background-image-gradient-hero: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.15) 0%, rgba(224,64,251,0.08) 40%, transparent 70%);
+  --background-image-gradient-footer: linear-gradient(90deg, #E040FB, #7C3AED, #00E676);
+
+  /* === ANIMATIONS === */
+  --animate-typewriter: typewriter 2.5s steps(44) 0.5s forwards;
+  --animate-blink: blink 1s step-end infinite;
+  --animate-ember: ember-float 3s ease-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --animate-gradient-shift: gradient-shift 6s ease infinite;
+
+  @keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  @keyframes ember-float {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    30% { opacity: 0.8; }
+    100% { opacity: 0; transform: translateY(-80px) scale(0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 }
 
 /* ============================================================================
-   Global styles
+   Global base styles
    ============================================================================ */
 html {
   scroll-behavior: smooth;
   font-size: 16px;
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
-  font-size: 1rem;
-  line-height: 1.5;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg-color, #0a0a0a);
-  color: var(--text-color, #e5e5e5);
-}
-
-/* Light mode overrides */
-:root:not(.dark) {
-  --bg-color: #ffffff;
-  --text-color: #1a1a1a;
-  --surface-color: #f5f5f5;
-  --border-color: #e5e5e5;
-}
-
-:root.dark {
-  --bg-color: #0a0a0a;
-  --text-color: #e5e5e5;
-  --surface-color: #1a1a1a;
-  --border-color: #333333;
-}
-
-/* Solana gradient utility */
-.gradient-solana {
-  background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
+  background-color: #050505;
+  color: #F0F0F5;
 }
 
 /* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-color, #0a0a0a);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-400);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-surface-400) 72%, white);
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #050505; }
+::-webkit-scrollbar-thumb { background: #2A2A3A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3E3E56; }
+
+/* Date input dark override */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
 }
 
-/* Light mode scrollbar */
-:root:not(.dark) ::-webkit-scrollbar-track {
-  background: var(--color-surface-light-100);
-}
-:root:not(.dark) ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-light-300);
-}
-:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-surface-light-300) 75%, black);
-}
-
-/* Activity feed entry animation */
-@keyframes feed-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-feed-in {
-  animation: feed-in 0.3s ease-out forwards;
-}
-
-/* Toast progress bar animation */
-@keyframes toast-progress {
-  from { width: 100%; }
-  to { width: 0%; }
-}
-
-/* Tooltip fade-in animation */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-.animate-fade-in {
-  animation: fade-in 0.15s ease-out forwards;
-}
-
-/* ============================================================================
-   Form element overrides for dark theme
-   ============================================================================ */
-.dark select,
-.dark input[type="search"],
-.dark input[type="text"],
-.dark input[type="url"],
-.dark input[type="email"],
-.dark input[type="number"],
-.dark textarea {
-  background-color: var(--color-surface-100);
-  color: var(--text-color);
-  border-color: var(--color-surface-300);
-}
-
-.dark select option {
-  background-color: var(--color-surface-100);
-  color: var(--text-color);
-}
-
-/* Light mode form elements */
-:root:not(.dark) select,
-:root:not(.dark) input[type="search"],
-:root:not(.dark) input[type="text"],
-:root:not(.dark) input[type="url"],
-:root:not(.dark) input[type="email"],
-:root:not(.dark) input[type="number"],
-:root:not(.dark) textarea {
-  background-color: var(--color-surface-light);
-  color: var(--text-color);
-  border-color: var(--border-color);
-}
-
-:root:not(.dark) select option {
-  background-color: var(--color-surface-light);
-  color: var(--text-color);
-}
-
-/* ============================================================================
-   Badge / Achievement system
-   ============================================================================ */
-
-/* Shine sweep that plays once on earned badges */
-@keyframes badge-shine {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-.animate-badge-shine {
-  background-size: 200% 100%;
-  background-image: linear-gradient(
-    115deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.08) 40%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.08) 60%,
-    transparent 80%
-  );
-  animation: badge-shine 2.5s ease-in-out;
-}
-
-/* Subtle glow pulse for earned badges on hover */
-@keyframes badge-glow {
-  0%, 100% {
-    box-shadow: 0 0 6px rgba(153, 69, 255, 0.15), 0 0 12px rgba(20, 241, 149, 0.08);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(153, 69, 255, 0.30), 0 0 24px rgba(20, 241, 149, 0.15);
-  }
-}
-
-.animate-badge-glow {
-  animation: badge-glow 2s ease-in-out infinite;
-}
-
-/* Badge pop-in entrance */
-@keyframes badge-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-badge-pop {
-  animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-/* Tooltip reveal */
-@keyframes tooltip-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-tooltip-reveal {
-  animation: tooltip-reveal 0.18s ease-out forwards;
-}
-
-/* ============================================================================
-   Theme Transition Styles - Smooth transitions between light and dark mode
-   ============================================================================ */
-
-/* Smooth theme transition animation */
-.theme-transitioning,
-.theme-transitioning *,
-.theme-transitioning *::before,
-.theme-transitioning *::after {
-  transition: background-color 0.2s ease,
-              border-color 0.2s ease,
-              color 0.2s ease,
-              box-shadow 0.2s ease !important;
-}
-
-/* Prevent transition on initial load to avoid flash */
-html:not(.theme-transitioning) {
-  transition: none;
-}
-
-/* ============================================================================
-   Loading Skeleton Animation
-   ============================================================================ */
-
-/* Shimmer effect for skeleton loaders */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Shimmer uses background-image so Tailwind bg-gray-200 / dark:bg-surface-200 stay visible underneath */
-.animate-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.12) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  animation: shimmer 2s linear infinite;
-}
-
-:root:not(.dark) .animate-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.06) 50%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    #222222 25%,
-    #2a2a2a 37%,
-    #333333 50%,
-    #2a2a2a 63%,
-    #222222 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
-}
-
-/* Light mode shimmer */
-:root:not(.dark) .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    #e5e5e5 25%,
-    #f0f0f0 37%,
-    #f5f5f5 50%,
-    #f0f0f0 63%,
-    #e5e5e5 75%
-  );
-  background-size: 200% 100%;
-}
-
-/* Pulse fallback — subtle opacity animation */
-.skeleton-pulse {
-  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* Number input hide arrows */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

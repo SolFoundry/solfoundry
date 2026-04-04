@@ -1,102 +1,57 @@
-/**
- * GitHubCallbackPage -- handles the OAuth callback after GitHub authorization.
- * Exchanges the code with the backend to link the GitHub account to the wallet.
- */
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthContext } from '../contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
+import { exchangeGitHubCode } from '../api/auth';
+import { setAuthToken } from '../services/apiClient';
+import { fadeIn } from '../lib/animations';
 
-export default function GitHubCallbackPage() {
+export function GitHubCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { accessToken: token, updateUser } = useAuthContext();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [errorMsg, setErrorMsg] = useState('');
+  const { login } = useAuth();
+  const didRun = useRef(false);
 
   useEffect(() => {
+    if (didRun.current) return;
+    didRun.current = true;
+
     const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const savedState = sessionStorage.getItem('github_link_state');
+    const error = searchParams.get('error');
 
-    if (!code) {
-      setStatus('error');
-      setErrorMsg('No authorization code received from GitHub.');
+    if (error || !code) {
+      navigate('/', { replace: true });
       return;
     }
 
-    if (state !== savedState) {
-      setStatus('error');
-      setErrorMsg('State mismatch. Please try linking again.');
-      return;
-    }
-
-    sessionStorage.removeItem('github_link_state');
-
-    (async () => {
-      try {
-        const res = await fetch('/api/users/me/link-github', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ code }),
-        });
-
-        if (res.ok) {
-          const linkData = await res.json().catch(() => ({}));
-          // Update auth context with new GitHub username + avatar
-          if (linkData.github_username) {
-            updateUser({
-              username: linkData.github_username,
-              github_id: linkData.github_username,
-            });
-          }
-          setStatus('success');
-          setTimeout(() => navigate('/settings', { replace: true }), 2000);
-        } else {
-          const data = await res.json().catch(() => ({}));
-          setStatus('error');
-          setErrorMsg(data.detail || 'Failed to link GitHub account.');
+    exchangeGitHubCode(code)
+      .then((response) => {
+        // Store tokens + user in auth context
+        const authUser = { ...response.user, wallet_verified: false };
+        login(response.access_token, response.refresh_token ?? '', authUser);
+        setAuthToken(response.access_token);
+        // Store refresh token for future use
+        if (response.refresh_token) {
+          localStorage.setItem('sf_refresh_token', response.refresh_token);
         }
-      } catch {
-        setStatus('error');
-        setErrorMsg('Network error. Please try again.');
-      }
-    })();
-  }, [searchParams, token, navigate]);
+        navigate('/', { replace: true });
+      })
+      .catch(() => {
+        navigate('/', { replace: true });
+      });
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
-      <div className="max-w-md w-full mx-4 rounded-xl border border-white/10 bg-surface-100 p-8 text-center">
-        {status === 'loading' && (
-          <>
-            <div className="animate-spin w-8 h-8 border-2 border-solana-purple border-t-transparent rounded-full mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-white">Linking GitHub account...</h2>
-            <p className="text-sm text-gray-400 mt-2">Please wait while we verify your GitHub account.</p>
-          </>
-        )}
-        {status === 'success' && (
-          <>
-            <div className="text-4xl mb-4">✅</div>
-            <h2 className="text-lg font-semibold text-white">GitHub linked</h2>
-            <p className="text-sm text-gray-400 mt-2">Your GitHub account is now connected. Redirecting to your profile...</p>
-          </>
-        )}
-        {status === 'error' && (
-          <>
-            <div className="text-4xl mb-4">❌</div>
-            <h2 className="text-lg font-semibold text-white">Linking failed</h2>
-            <p className="text-sm text-red-400 mt-2">{errorMsg}</p>
-            <button
-              onClick={() => navigate('/settings', { replace: true })}
-              className="mt-4 px-6 py-2 bg-solana-purple hover:bg-solana-purple/80 text-white rounded-lg text-sm transition-colors min-h-[44px]"
-            >
-              Back to Profile
-            </button>
-          </>
-        )}
-      </div>
+    <div className="min-h-screen bg-forge-950 flex items-center justify-center">
+      <motion.div
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+        className="text-center"
+      >
+        <div className="w-12 h-12 rounded-full border-2 border-emerald border-t-transparent animate-spin mx-auto mb-4" />
+        <p className="text-text-muted font-mono text-sm">Signing in with GitHub...</p>
+      </motion.div>
     </div>
   );
 }
