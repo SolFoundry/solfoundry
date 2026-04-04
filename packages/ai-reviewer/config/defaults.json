@@ -1,0 +1,18 @@
+{
+  "strictness": "balanced",
+  "commentPreferences": {
+    "inline": true,
+    "summary": true,
+    "maxInlineComments": 10
+  },
+  "providers": [
+    "claude",
+    "codex",
+    "gemini"
+  ],
+  "approvalThresholds": {
+    "blockOnCritical": true,
+    "requestChangesOnHighSeverityCount": 2
+  },
+  "customRules": []
+}

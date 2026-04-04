@@ -1,0 +1,33 @@
+{
+  "name": "solfoundry-ai-review",
+  "version": "1.0.0",
+  "description": "GitHub App for multi-LLM automated pull request reviews.",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/app.ts",
+    "start": "node dist/app.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.54.0",
+    "@octokit/app": "^16.1.0",
+    "@octokit/rest": "^22.0.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "openai": "^5.20.0",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
