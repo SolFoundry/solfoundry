@@ -143,3 +143,115 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* ============================================================================
+   Toast Notification System
+   ============================================================================ */
+
+.toast-container {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 280px;
+  max-width: 400px;
+  padding: 0.875rem 1rem 1.125rem;
+  border-radius: 0.625rem;
+  border: 1px solid;
+  backdrop-filter: blur(12px);
+  pointer-events: all;
+  overflow: hidden;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  animation: toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Variant: success */
+.toast--success {
+  background: rgba(0, 230, 118, 0.08);
+  border-color: rgba(0, 230, 118, 0.3);
+  color: #00E676;
+}
+
+/* Variant: error */
+.toast--error {
+  background: rgba(255, 82, 82, 0.08);
+  border-color: rgba(255, 82, 82, 0.3);
+  color: #FF5252;
+}
+
+/* Variant: warning */
+.toast--warning {
+  background: rgba(255, 179, 0, 0.08);
+  border-color: rgba(255, 179, 0, 0.3);
+  color: #FFB300;
+}
+
+/* Variant: info */
+.toast--info {
+  background: rgba(64, 196, 255, 0.08);
+  border-color: rgba(64, 196, 255, 0.3);
+  color: #40C4FF;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: #F0F0F5;
+  line-height: 1.4;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  color: #5C5C78;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.toast-close:hover {
+  color: #F0F0F5;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Progress bar at the bottom */
+.toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: var(--progress, 100%);
+  background: currentColor;
+  opacity: 0.4;
+  transform-origin: left;
+  transition: width 0.1s linear;
+}
