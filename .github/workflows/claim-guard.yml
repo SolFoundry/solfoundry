@@ -236,8 +236,8 @@ jobs:
                       f"- The project owner reviews and approves/denies your claim\n"
                       f"- Once approved: 14-day deadline, AI review ≥7/10\n\n"
                       f"Keep building — the top-tier bounties will open up.\n\n"
-                      f"⚠️ Star rewards and content bounties don't count toward tier progression.\n\n"
-                      f"*— SolFoundry Bot 🏭*"
+                      f"Star rewards and content bounties don't count toward tier progression.\n\n"
+                      f"---\n*-- SolFoundry Bot*"
                   )
                   gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                   exit(0)
@@ -274,7 +274,7 @@ jobs:
                           f"⚠️ @{user} — You already have an active T3 claim (#{list(user_t3_claims)[0]}). "
                           f"Please complete or release your existing claim before taking on another.\n\n"
                           f"**One T3 bounty at a time** — these are large-scope projects that need full focus.\n\n"
-                          f"*— SolFoundry Bot 🏭*"
+                          f"---\n*-- SolFoundry Bot*"
                       )
                       gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
                       exit(0)
@@ -287,7 +287,7 @@ jobs:
                   f"**Your stats:** {t1_count} T1 + {t2_count} T2 completed bounties ✅\n"
                   f"**Proposal:** {comment[:300]}{'...' if len(comment) > 300 else ''}\n\n"
                   f"You'll be notified here when your claim is approved or denied.\n\n"
-                  f"*— SolFoundry Bot 🏭*"
+                  f"---\n*-- SolFoundry Bot*"
               )
               gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 

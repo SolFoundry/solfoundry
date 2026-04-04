@@ -152,7 +152,7 @@ jobs:
               exit(0)
 
           # Claim detection on T1/T2
-          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this)"
+          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this|can i (work on|take|do|have|claim) this|is this (still )?(available|open|unclaimed)|i.?m interested\b|i am interested\b|can (this|you) (be )?assign(ed)? (to )?me|i would like to (contribute|work|help)|requesting (this )?assignment|pick(ing)? (this )?up|i.?ll pick this up|i want to work on|let me take this)"
           is_claim = bool(re.search(claim_re, stripped))
 
           if not is_claim:
@@ -166,16 +166,10 @@ jobs:
               print(f"T1 claim from {user} on #{issue} — deleting + FCFS rules")
               gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
               body = (
-                  f"👋 Hey @{user} — **Tier 1 bounties are open race (FCFS)**. "
-                  f"No claiming needed!\n\n"
-                  f"### How it works:\n"
-                  f"1. Read the bounty spec in the issue description\n"
-                  f"2. Build your solution and submit a PR linking this issue (`Closes #{issue}`)\n"
-                  f"3. Include your **Solana wallet** in the PR body for payout\n"
-                  f"4. Our multi-LLM review pipeline scores your submission\n"
-                  f"5. **First PR to pass review wins** the bounty 🏆\n\n"
-                  f"Just ship it — your code speaks for itself.\n\n"
-                  f"*— SolFoundry Bot 🏭*"
+                  f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                  f"No claiming needed — just submit a PR with your solution. "
+                  f"First quality submission that passes AI review wins. Good luck!\n\n"
+                  f"---\n*-- SolFoundry Bot*"
               )
               gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 
@@ -183,17 +177,10 @@ jobs:
               print(f"T2 claim from {user} on #{issue} — deleting + FCFS rules")
               gh_delete(f"repos/{repo}/issues/comments/{comment_id}")
               body = (
-                  f"👋 Hey @{user} — **Tier 2 bounties are also FCFS** (no claiming needed). "
-                  f"First quality PR to pass review wins.\n\n"
-                  f"### How it works:\n"
-                  f"1. Read the bounty spec in the issue description\n"
-                  f"2. Build your solution and submit a PR (`Closes #{issue}`)\n"
-                  f"3. Include your **Solana wallet** in the PR body\n"
-                  f"4. Min AI review score: **7.0/10** (tests + docs required)\n"
-                  f"5. **First PR to pass wins** 🏆\n\n"
-                  f"⚠️ T2 requires 4+ merged T1 bounty PRs. The review pipeline will check eligibility.\n\n"
-                  f"Ship it!\n\n"
-                  f"*— SolFoundry Bot 🏭*"
+                  f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                  f"No claiming needed — just submit a PR with your solution. "
+                  f"First quality submission that passes AI review wins. Good luck!\n\n"
+                  f"---\n*-- SolFoundry Bot*"
               )
               gh_post(f"repos/{repo}/issues/{issue}/comments", {"body": body})
 

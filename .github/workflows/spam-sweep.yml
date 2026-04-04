@@ -44,7 +44,7 @@ jobs:
                   return None
 
           # Claim detection regex (same as spam-guard)
-          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this)"
+          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this|can i (work on|take|do|have|claim) this|is this (still )?(available|open|unclaimed)|i.?m interested\b|i am interested\b|can (this|you) (be )?assign(ed)? (to )?me|i would like to (contribute|work|help)|requesting (this )?assignment|pick(ing)? (this )?up|i.?ll pick this up|i want to work on|let me take this)"
 
           spam_patterns = [
               r"(i am a .* developer|hire me|my portfolio|check my profile)",
@@ -144,20 +144,17 @@ jobs:
                           if user not in warned_users:
                               if tier == "tier-1":
                                   warning = (
-                                      f"👋 Hey @{user} — **Tier 1 bounties are open race (FCFS)**. "
-                                      f"No claiming needed!\n\n"
-                                      f"Just submit a PR linking this issue (`Closes #{issue_num}`) "
-                                      f"with your Solana wallet. First PR to pass review wins 🏆\n\n"
-                                      f"*— SolFoundry Bot 🏭*"
+                                      f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                                      f"No claiming needed — just submit a PR with your solution. "
+                                      f"First quality submission that passes AI review wins. Good luck!\n\n"
+                                      f"---\n*-- SolFoundry Bot*"
                                   )
                               else:
                                   warning = (
-                                      f"👋 Hey @{user} — **Tier 2 bounties are also FCFS**. "
-                                      f"No claiming needed!\n\n"
-                                      f"Submit a PR (`Closes #{issue_num}`) with your Solana wallet. "
-                                      f"Min score: 7.0/10. First PR to pass wins 🏆\n\n"
-                                      f"⚠️ T2 requires 4+ merged T1 bounty PRs.\n\n"
-                                      f"*— SolFoundry Bot 🏭*"
+                                      f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                                      f"No claiming needed — just submit a PR with your solution. "
+                                      f"First quality submission that passes AI review wins. Good luck!\n\n"
+                                      f"---\n*-- SolFoundry Bot*"
                                   )
                               gh_api("POST", f"repos/{repo}/issues/{issue_num}/comments", {"body": warning})
                               comments_warned += 1
