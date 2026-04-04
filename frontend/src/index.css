@@ -143,3 +143,13 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Mobile responsiveness: prevent horizontal overflow */
+* {
+  overflow-wrap: break-word;
+}
+
+/* Ensure no horizontal scroll on any page */
+html, body {
+  overflow-x: hidden;
+}

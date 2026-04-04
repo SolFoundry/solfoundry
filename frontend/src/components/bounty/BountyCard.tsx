@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { GitPullRequest, Clock } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardHover } from '../../lib/animations';
-import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { BountyCountdown } from './BountyCountdown';
 
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
@@ -111,10 +112,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
             {bounty.submission_count} PRs
           </span>
           {bounty.deadline && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
-            </span>
+            <BountyCountdown deadline={bounty.deadline} />
           )}
         </div>
       </div>
