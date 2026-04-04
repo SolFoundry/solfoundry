@@ -1,0 +1,28 @@
+{
+  "name": "SolFoundry AI Code Review",
+  "url": "https://your-app.example.com",
+  "hook_attributes": {
+    "url": "https://your-app.example.com/api/github/webhooks"
+  },
+  "redirect_url": "https://your-app.example.com/api/github/setup/complete",
+  "callback_urls": [
+    "https://your-app.example.com/api/github/setup/complete"
+  ],
+  "description": "Automated multi-LLM pull request reviews with security, performance, and best-practice checks.",
+  "public": true,
+  "default_events": [
+    "pull_request",
+    "pull_request_review",
+    "pull_request_review_comment",
+    "installation",
+    "installation_repositories"
+  ],
+  "default_permissions": {
+    "contents": "read",
+    "metadata": "read",
+    "pull_requests": "write",
+    "checks": "write",
+    "issues": "write"
+  },
+  "setup_url": "https://your-app.example.com/api/github/setup"
+}

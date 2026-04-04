@@ -1,0 +1,17 @@
+strictness: strict
+providers:
+  - claude
+  - codex
+commentPreferences:
+  inline: true
+  summary: true
+  maxInlineComments: 15
+approvalThresholds:
+  blockOnCritical: true
+  requestChangesOnHighSeverityCount: 1
+customRules:
+  - id: no-console-log
+    description: Flag console logging in production paths.
+    include:
+      - src/**
+    pattern: console.log
