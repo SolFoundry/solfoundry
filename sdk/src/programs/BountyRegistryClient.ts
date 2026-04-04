@@ -40,10 +40,21 @@ export class BountyRegistryClient extends BaseClient {
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
     return this.program.methods
       .updateStatus(newStatus, contributor)
+async registerBounty(
+    bountyId: BN,
+    title: string,
+    tier: number,
+    rewardAmount: BN,
+    githubIssue: string,
+  ): Promise<TransactionSignature> {
+    if (bountyId.lte(new BN(0))) {
+      throw new Error('bountyId must be a positive integer');
+    }
+    const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
+    return this.program.methods
+      .registerBounty(bountyId, title, tier, rewardAmount, githubIssue)
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
-  }
-
   async recordCompletion(
     bountyId: BN,
     githubPr: string,
