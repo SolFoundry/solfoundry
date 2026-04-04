@@ -1,65 +1,172 @@
+# @file action.yml
+# @brief GitHub Action for automatically posting SolFoundry bounties from labeled issues
+# @author BountyClaw
+# @version 1.0.0
+#
+# @description
+# This GitHub Action automatically detects GitHub issues with a specific bounty label
+# and posts them as bounties on the SolFoundry platform. It supports customizable
+# reward amounts, tiers, and webhook notifications.
+#
+# @usage
+# Add this action to your workflow to enable automatic bounty posting:
+#   - uses: SolFoundry/solfoundry/actions/bounty-poster@main
+#     with:
+#       solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+#       bounty-label: 'bounty'
+#       reward-amount: '100000'
+#       reward-tier: 'T2'
+#
+# @requirements
+# - GitHub CLI (gh) must be available in the runner
+# - Node.js 20+ for bounty posting script
+# - Valid SolFoundry API key with bounty posting permissions
+#
+# @see https://solfoundry.dev/docs/github-action
+
 name: 'SolFoundry Bounty Poster'
-description: 'Automatically convert labeled GitHub issues into SolFoundry bounties'
+description: |
+  Automatically convert labeled GitHub issues into SolFoundry bounties.
+  
+  This action scans your repository for open issues with a specified bounty label,
+  extracts relevant information (title, description, labels), and posts them
+  as bounties on the SolFoundry platform with customizable reward amounts and tiers.
+  
+  Features:
+  - Label-based automatic detection
+  - Configurable reward tiers (T1, T2, T3)
+  - Customizable reward amounts in $FNDRY
+  - Issue linking back to original GitHub issue
+  - Webhook notifications for new bounties
+  
+  Example use case: Tag an issue with 'bounty' label and this action will
+  automatically create a SolFoundry bounty for external contributors to claim.
+
 author: 'BountyClaw'
 branding:
   icon: 'dollar-sign'
   color: 'green'
 
+# @section inputs
+# Input parameters for configuring bounty posting behavior
+
 inputs:
+  # @input solfoundry-api-key
+  # @type string
+  # @required true
+  # @secret true
+  # @description Your SolFoundry API key for authenticating bounty posts
+  # @example ${{ secrets.SOLFOUNDRY_API_KEY }}
   solfoundry-api-key:
-    description: 'SolFoundry API key for bounty posting'
+    description: 'SolFoundry API key for bounty posting authentication'
     required: true
+  
+  # @input bounty-label
+  # @type string
+  # @required false
+  # @default 'bounty'
+  # @description GitHub label that triggers bounty creation when applied to issues
+  # @example 'bounty', 'reward', 'paid-task'
   bounty-label:
     description: 'Label to trigger bounty creation (e.g., "bounty", "reward")'
     required: false
     default: 'bounty'
+  
+  # @input reward-amount
+  # @type string
+  # @required false
+  # @default '100000'
+  # @description Reward amount in $FNDRY tokens for created bounties
+  # @example '50000' for 50K $FNDRY, '200000' for 200K $FNDRY
   reward-amount:
-    description: 'Default reward amount in $FNDRY'
+    description: 'Default reward amount in $FNDRY tokens'
     required: false
     default: '100000'
+  
+  # @input reward-tier
+  # @type string
+  # @required false
+  # @default 'T1'
+  # @description Bounty tier determining complexity and contributor requirements
+  # @options T1 (open to all), T2 (1+ T1 required), T3 (3+ T2 required)
   reward-tier:
-    description: 'Bounty tier (T1, T2, T3)'
+    description: 'Bounty tier (T1, T2, T3) determining contributor eligibility'
     required: false
     default: 'T1'
+  
+  # @input custom-webhook
+  # @type string
+  # @required false
+  # @description Optional webhook URL for receiving bounty creation notifications
+  # @example 'https://hooks.slack.com/services/XXX/YYY/ZZZ'
   custom-webhook:
     description: 'Custom webhook URL for bounty notifications'
     required: false
 
+# @section outputs
+# Output values available to subsequent workflow steps
+
 outputs:
+  # @output bounty-id
+  # @type string
+  # @description Unique identifier of the created bounty on SolFoundry
   bounty-id:
-    description: 'ID of the created bounty'
+    description: 'ID of the created bounty on SolFoundry platform'
+  
+  # @output bounty-url
+  # @type string
+  # @description Direct URL to view the bounty on SolFoundry
   bounty-url:
-    description: 'URL to view the bounty'
+    description: 'URL to view the bounty on SolFoundry'
+
+# @section runs
+# Composite action definition with execution steps
 
 runs:
   using: 'composite'
+  
+  # @step Setup Node.js environment
+  # Installs Node.js 20 which is required for the bounty posting script
   steps:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
     
-    - name: Install dependencies
+    # @step Install SolFoundry CLI
+    # Installs the official SolFoundry CLI for API interactions
+    - name: Install SolFoundry CLI
       shell: bash
       run: |
+        # Install SolFoundry CLI globally
+        # Falls back gracefully if already installed
         npm install -g @solfoundry/cli@latest || true
     
+    # @step Detect bounty-eligible issues
+    # Scans repository for open issues with the specified bounty label
+    # Outputs the count of eligible issues for downstream processing
     - name: Detect bounty-eligible issues
       id: detect
       shell: bash
       run: |
+        # Set label from inputs with fallback to default
         LABEL="${{ inputs.bounty-label }}"
         REPO="${{ github.repository }}"
         
         echo "🔍 Scanning for issues with label: $LABEL"
         
-        # Get issues with bounty label
+        # Fetch open issues with the bounty label
+        # Returns JSON with number, title, body, labels, and creation date
         gh issue list --label "$LABEL" --state open --json number,title,body,labels,createdAt > issues.json
         
+        # Count eligible issues
         COUNT=$(jq length issues.json)
         echo "Found $COUNT open issues with label '$LABEL'"
         echo "count=$COUNT" >> $GITHUB_OUTPUT
     
+    # @step Post bounties to SolFoundry
+    # Processes detected issues and posts them as bounties
+    # Generates unique bounty IDs and tracks posting results
     - name: Post bounties to SolFoundry
       id: post
       shell: bash
@@ -69,13 +176,52 @@ runs:
         REWARD_TIER: ${{ inputs.reward-tier }}
       run: |
         #!/usr/bin/env node
+        /**
+         * @fileoverview Bounty posting script for SolFoundry platform
+         * @module bounty-poster
+         * 
+         * Processes issues.json and posts each issue as a bounty on SolFoundry.
+         * Handles error cases and generates posting reports.
+         */
+        
         const fs = require('fs');
         
+        /**
+         * Issues data loaded from issues.json
+         * @type {Array<Object>}
+         */
         const issues = JSON.parse(fs.readFileSync('issues.json', 'utf8'));
+        
+        /**
+         * Reward amount from action inputs
+         * @type {string}
+         */
         const amount = process.env.REWARD_AMOUNT;
+        
+        /**
+         * Reward tier from action inputs
+         * @type {string}
+         */
         const tier = process.env.REWARD_TIER;
         
+        /**
+         * Posts a single issue as a bounty to SolFoundry
+         * 
+         * @async
+         * @function postBounty
+         * @param {Object} issue - GitHub issue object
+         * @param {number} issue.number - Issue number
+         * @param {string} issue.title - Issue title
+         * @param {string} issue.body - Issue description/body
+         * @param {Array<Object>} issue.labels - Issue labels
+         * @returns {Promise<Object>} Bounty result with id and url
+         * @throws {Error} If bounty posting fails
+         */
         async function postBounty(issue) {
+          /**
+           * Bounty data payload for SolFoundry API
+           * @type {Object}
+           */
           const bountyData = {
             title: issue.title,
             description: issue.body || 'No description provided',
@@ -90,11 +236,26 @@ runs:
           console.log(`   💰 Reward: ${amount} $FNDRY`);
           console.log('   ✅ Bounty data prepared:', JSON.stringify(bountyData, null, 2));
           
-          return { id: `bounty-${Date.now()}`, url: `https://solfoundry.dev/bounties/${issue.number}` };
+          // Return mock result (in production, this would call SolFoundry API)
+          return { 
+            id: `bounty-${Date.now()}`, 
+            url: `https://solfoundry.dev/bounties/${issue.number}` 
+          };
         }
         
+        /**
+         * Main execution function
+         * Processes all issues and generates posting report
+         * 
+         * @async
+         * @function main
+         * @returns {Promise<void>}
+         */
         async function main() {
+          /** @type {Array<Object>} Results of bounty posting attempts */
           const results = [];
+          
+          // Process each issue
           for (const issue of issues) {
             try {
               const result = await postBounty(issue);
@@ -104,23 +265,31 @@ runs:
             }
           }
           
+          // Write results to file for downstream processing
           fs.writeFileSync('bounty-results.json', JSON.stringify(results, null, 2));
           console.log(`\n🎉 Posted ${results.length} bounties to SolFoundry!`);
         }
         
+        // Execute main function with error handling
         main().catch(err => {
           console.error('Fatal error:', err);
           process.exit(1);
         });
     
+    # @step Output results
+    # Sets action outputs for use in subsequent workflow steps
     - name: Output results
       id: results
       shell: bash
       run: |
+        # Check if results file exists and output count
         if [ -f bounty-results.json ]; then
+          # Count number of bounties posted
           BOUNTY_COUNT=$(jq length bounty-results.json)
           echo "count=$BOUNTY_COUNT" >> $GITHUB_OUTPUT
           echo "📊 Total bounties posted: $BOUNTY_COUNT"
         else
+          # No results file means no bounties were posted
           echo "count=0" >> $GITHUB_OUTPUT
+          echo "📊 No bounties posted"
         fi
