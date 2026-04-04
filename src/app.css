@@ -1,0 +1,95 @@
+:root {
+  color: #f3efe8;
+  background:
+    radial-gradient(circle at top left, rgba(255, 153, 102, 0.22), transparent 32%),
+    radial-gradient(circle at top right, rgba(108, 154, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, #181712 0%, #090a0f 100%);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.demo-shell {
+  width: min(1200px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.hero {
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: #ffb27f;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.hero-copy {
+  width: min(680px, 100%);
+  margin: 16px 0 0;
+  color: rgba(243, 239, 232, 0.74);
+  font-size: 1.05rem;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.demo-card {
+  grid-column: span 4;
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 8, 14, 0.5);
+  backdrop-filter: blur(18px);
+}
+
+.demo-card h2 {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(243, 239, 232, 0.65);
+}
+
+.demo-card-wide {
+  grid-column: span 12;
+}
+
+@media (max-width: 960px) {
+  .demo-card,
+  .demo-card-wide {
+    grid-column: span 12;
+  }
+}
