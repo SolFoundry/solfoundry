@@ -13,7 +13,7 @@ const GitHubIcon = () => (
 );
 
 const NAV_LINKS = [
-  { label: 'Bounties', to: '/#bounties' },
+  { label: 'Bounties', to: '/bounties' },
   { label: 'Leaderboard', to: '/leaderboard' },
   { label: 'How It Works', to: '/how-it-works' },
 ];
@@ -45,7 +45,7 @@ export function Navbar() {
 
   const isActive = (to: string) => {
     if (to === '/') return location.pathname === '/';
-    return location.pathname.startsWith(to.replace('/#', '/'));
+    return location.pathname.startsWith(to);
   };
 
   return (
