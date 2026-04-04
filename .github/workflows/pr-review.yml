@@ -471,10 +471,11 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Trigger private review pipeline
+      - name: Trigger AI review via backend API
         if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true' && steps.already_approved.outputs.skip != 'true'
         env:
           REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
 
@@ -485,13 +486,22 @@ jobs:
             ACTION="manual"
           fi
 
-          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to private pipeline..."
+          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to backend API..."
 
-          # Fire repository_dispatch to the private review repo
-          curl -sf -X POST \
-            -H "Authorization: token $REVIEW_PAT" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/SolFoundry/solfoundry-review/dispatches" \
-            -d "{\"event_type\": \"review-pr\", \"client_payload\": {\"pr_number\": \"${PR_NUM}\", \"action\": \"${ACTION}\", \"tier_validated\": true}}"
+          # Call the backend review API directly instead of private repo dispatch
+          PR_URL="https://github.com/SolFoundry/solfoundry/pull/${PR_NUM}"
+          REVIEW_RESPONSE=$(curl -sf -X POST \
+            -H "Authorization: Bearer ${ADMIN_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "https://solfoundry.org/api/admin/trigger-review" \
+            -d "{\"pr_url\": \"${PR_URL}\", \"bounty_id\": \"${BOUNTY_ID:-}\"}" \
+            --max-time 300 \
+            2>&1) || true
 
-          echo "✅ Review dispatched for PR #${PR_NUM}"
+          if echo "$REVIEW_RESPONSE" | grep -q '"overall_score"'; then
+            SCORE=$(echo "$REVIEW_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('overall_score',0))" 2>/dev/null || echo "0")
+            echo "✅ Review completed for PR #${PR_NUM} — Score: ${SCORE}/10"
+          else
+            echo "⚠️ Review API call completed but response may need checking"
+            echo "Response: ${REVIEW_RESPONSE:0:200}"
+          fi
