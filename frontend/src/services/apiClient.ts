@@ -65,6 +65,7 @@ async function refreshAccessToken(): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
+    credentials: 'include',
   });
 
   if (!response.ok) throw new Error('Refresh failed');
@@ -155,6 +156,7 @@ export async function apiClient<T>(
         headers,
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
+        credentials: 'include',
       });
 
       if (!response.ok) {

@@ -88,6 +88,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-solfoundry}:${POSTGRES_PASSWORD:-solfoundry_dev}@postgres:5432/${POSTGRES_DB:-solfoundry}
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_URI: ${OAUTH_REDIRECT_URI:-http://localhost:5173/auth/github/callback}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       SOLANA_RPC_URL: http://solana-validator:8899
