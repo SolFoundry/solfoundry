@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
+import { ProfileSkeleton } from '../skeletons/Skeleton';
 import type { Bounty } from '../../types/bounty';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
@@ -33,9 +34,29 @@ function BountyStatusBadge({ status }: { status: string }) {
   );
 }
 
+function BountyRowSkeleton() {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3 rounded-lg bg-forge-900 border border-border">
+      <div className="flex-1 space-y-1.5">
+        <div className="h-4 w-3/4 rounded bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+        <div className="h-3 w-20 rounded bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+      </div>
+      <div className="h-4 w-20 rounded bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+      <div className="h-5 w-16 rounded-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+      <div className="h-3 w-10 rounded bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+    </div>
+  );
+}
+
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <BountyRowSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
   if (!bounties.length) {
     return (

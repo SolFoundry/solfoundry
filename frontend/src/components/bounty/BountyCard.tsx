@@ -101,11 +101,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      <div className="flex items-center justify-between mt-3 gap-2">
+        <span className="font-mono text-lg font-semibold text-emerald truncate">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex items-center gap-3 text-xs text-text-muted flex-shrink-0">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
@@ -119,11 +119,13 @@ export function BountyCard({ bounty }: BountyCardProps) {
         </div>
       </div>
 
-      {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        {statusLabel}
-      </span>
+      {/* Row 5: Status badge */}
+      <div className="flex items-center justify-end mt-2">
+        <span className={`text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          {statusLabel}
+        </span>
+      </div>
     </motion.div>
   );
 }

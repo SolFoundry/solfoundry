@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronDown, Loader2, Plus } from 'lucide-react';
 import { BountyCard } from './BountyCard';
+import { BountyCardSkeleton } from '../skeletons/Skeleton';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 
@@ -54,12 +55,12 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap scrollbar-none">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
@@ -74,12 +75,7 @@ export function BountyGrid() {
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
-              >
-                <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-              </div>
+              <BountyCardSkeleton key={i} />
             ))}
           </div>
         )}
