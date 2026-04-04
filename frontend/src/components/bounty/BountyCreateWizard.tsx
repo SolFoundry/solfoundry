@@ -393,7 +393,7 @@ export function BountyCreateWizard() {
     description: '',
     github_repo_url: '',
     github_issue_url: '',
-    reward_amount: 50,
+    reward_amount: 20,
     custom_amount: '',
     deadline: '',
     tier: 'T2',
@@ -435,7 +435,7 @@ export function BountyCreateWizard() {
   };
 
   const handlePublish = async () => {
-    navigate(`/bounties/${state.bounty_id}`);
+    setSuccess(true);
   };
 
   if (success) {
