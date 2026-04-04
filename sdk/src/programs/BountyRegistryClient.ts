@@ -21,13 +21,15 @@ export class BountyRegistryClient extends BaseClient {
   async registerBounty(
     bountyId: BN,
     title: string,
-    tier: number,
-    rewardAmount: BN,
-    githubIssue: string,
-  ): Promise<TransactionSignature> {
-    const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
-      .registerBounty(bountyId, title, tier, rewardAmount, githubIssue)
+static deriveBountyRecordPDA(bountyId: BN, programId: PublicKey = PROGRAM_ID): [PublicKey, number] {
+    if (bountyId.lte(new BN(0)) || bountyId.gte(new BN(2).pow(new BN(64)).sub(new BN(1)))) {
+      throw new Error('Invalid bountyId');
+    }
+    return PublicKey.findProgramAddressSync(
+      [REGISTRY_SEED, bountyId.toArrayLike(Buffer, 'le', 8)],
+      programId,
+    );
+  }
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
   }
