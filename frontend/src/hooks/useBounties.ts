@@ -3,13 +3,18 @@ import { listBounties, getBounty } from '../api/bounties';
 import type { BountiesListParams } from '../api/bounties';
 
 export function useBounties(params?: BountiesListParams) {
+  if (!params) {
+    throw new Error('Params are required');
+  }
+  if (typeof params !== 'object' || Array.isArray(params)) {
+    throw new Error('Params must be an object');
+  }
   return useQuery({
     queryKey: ['bounties', params],
     queryFn: () => listBounties(params),
-    staleTime: 30_000,
+    staleTime: 30000,
   });
 }
-
 export function useInfiniteBounties(params?: Omit<BountiesListParams, 'offset'>) {
   return useInfiniteQuery({
     queryKey: ['bounties-infinite', params],
