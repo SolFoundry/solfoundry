@@ -101,9 +101,12 @@ export class EventSubscriber {
    * Register an event handler for a specific event type.
    *
    * Multiple handlers can be registered for the same event type.
-   * Handlers are called in registration order when matching events arrive.
-   *
-   * @param eventType - The event type to listen for (e.g., "bounty_created").
+if (!this.wsUrl || typeof this.wsUrl !== 'string') {
+    throw new Error('Invalid WebSocket URL');
+}
+if (this.token && typeof this.token !== 'string') {
+    throw new Error('Invalid token');
+}
    * @param handler - Callback invoked when a matching event is received.
    * @returns This instance for method chaining.
    */
