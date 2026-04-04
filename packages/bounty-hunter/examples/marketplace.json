@@ -1,0 +1,17 @@
+[
+  {
+    "id": "861",
+    "title": "Autonomous Bounty Hunter",
+    "description": "Build a multi-agent system that finds bounties, analyzes requirements, implements solutions, runs tests, and drafts PRs.",
+    "repository": "https://github.com/example/solfoundry",
+    "languages": ["python", "typescript"],
+    "tags": ["agents", "automation", "bounties"],
+    "reward_usd": 1000000,
+    "difficulty": "high",
+    "acceptance_criteria": [
+      "Multi-LLM agent orchestration with planning",
+      "Automated solution implementation and testing",
+      "Autonomous PR submission with proper formatting"
+    ]
+  }
+]
