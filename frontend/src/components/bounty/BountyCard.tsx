@@ -100,30 +100,30 @@ export function BountyCard({ bounty }: BountyCardProps) {
       {/* Separator */}
       <div className="mt-4 border-t border-border/50" />
 
-      {/* Row 4: Reward + Meta */}
+      {/* Row 4: Reward + Status */}
       <div className="flex items-center justify-between mt-3">
         <span className="font-mono text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
-          <span className="inline-flex items-center gap-1">
-            <GitPullRequest className="w-3.5 h-3.5" />
-            {bounty.submission_count} PRs
-          </span>
-          {bounty.deadline && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
-            </span>
-          )}
-        </div>
+        <span className={`text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          {statusLabel}
+        </span>
       </div>
 
-      {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        {statusLabel}
-      </span>
+      {/* Row 5: Meta */}
+      <div className="flex items-center gap-3 mt-2 text-xs text-text-muted">
+        <span className="inline-flex items-center gap-1">
+          <GitPullRequest className="w-3.5 h-3.5" />
+          {bounty.submission_count} PRs
+        </span>
+        {bounty.deadline && (
+          <span className="inline-flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            {timeLeft(bounty.deadline)}
+          </span>
+        )}
+      </div>
     </motion.div>
   );
 }

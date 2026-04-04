@@ -17,7 +17,7 @@ export function FeaturedBounties() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4 }}
-          className="flex items-end justify-between mb-10"
+          className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10"
         >
           <div>
             <h2 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-wide">
