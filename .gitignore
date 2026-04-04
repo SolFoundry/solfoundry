@@ -1,6 +1,3 @@
-# Backend (moved to private repo: SolFoundry/solfoundry-api)
-backend/
-
 # Environment & Secrets
 .env
 .env.*
@@ -25,8 +22,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Python local install dirs (root only — do not use bare `lib/` or it ignores frontend/src/lib)
+/lib/
+/lib64/
 parts/
 sdist/
 var/

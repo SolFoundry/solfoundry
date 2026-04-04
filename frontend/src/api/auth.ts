@@ -12,7 +12,9 @@ export interface GitHubCallbackResponse extends AuthTokens {
 }
 
 export async function getGitHubAuthorizeUrl(): Promise<string> {
-  const data = await apiClient<{ authorize_url: string }>('/api/auth/github/authorize');
+  const data = await apiClient<{ authorize_url: string }>(
+    '/api/auth/github/authorize?format=json',
+  );
   return data.authorize_url;
 }
 
