@@ -36,10 +36,17 @@ export function Navbar() {
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
+      // Validate that we got an actual URL before redirecting
+      if (!url || !url.startsWith('http')) {
+        throw new Error('Invalid authorization URL received');
+      }
       window.location.href = url;
-    } catch {
-      // Fallback: direct to backend authorize endpoint
-      window.location.href = '/api/auth/github/authorize';
+    } catch (err) {
+      // Extract a user-friendly message
+      const message =
+        err instanceof Error ? err.message : 'Unable to reach the auth server';
+      console.error('[Navbar] GitHub sign-in failed:', err);
+      alert(`Sign-in failed: ${message}\n\nPlease try again or contact support if the problem persists.`);
     }
   };
 
