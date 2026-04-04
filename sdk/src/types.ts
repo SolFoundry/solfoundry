@@ -580,6 +580,54 @@ export interface HealthResponse {
 }
 
 // ---------------------------------------------------------------------------
+// User / Auth types
+// ---------------------------------------------------------------------------
+
+/** Full user profile returned by the authenticated /api/auth/me endpoint. */
+export interface User {
+  /** Unique UUID of the user. */
+  readonly id: string;
+  /** GitHub username. */
+  readonly username: string;
+  /** Primary email address (null if not granted by the user). */
+  readonly email: string | null;
+  /** GitHub avatar URL. */
+  readonly avatar_url: string | null;
+  /** Registered Solana wallet address (null if not yet linked). */
+  readonly wallet_address: string | null;
+  /** Whether the wallet signature has been verified. */
+  readonly wallet_verified: boolean;
+  /** GitHub numeric user ID. */
+  readonly github_id: string | null;
+  /** ISO 8601 account creation timestamp. */
+  readonly created_at: string | null;
+}
+
+/** Tokens issued after successful OAuth or wallet authentication. */
+export interface AuthTokens {
+  /** JWT bearer access token. */
+  readonly access_token: string;
+  /** Refresh token for renewing expired sessions. */
+  readonly refresh_token: string;
+  /** Token type (always "Bearer"). */
+  readonly token_type: string;
+}
+
+/** Response from the GitHub OAuth code exchange endpoint. */
+export interface GitHubAuthResponse extends AuthTokens {
+  /** Authenticated user profile. */
+  readonly user: User;
+}
+
+/**
+ * Payload for requesting a GitHub OAuth authorize URL.
+ * The server returns { authorize_url: string }.
+ */
+export interface GitHubAuthorizeUrlResponse {
+  readonly authorize_url: string;
+}
+
+// ---------------------------------------------------------------------------
 // GitHub types (for the GitHub API wrapper)
 // ---------------------------------------------------------------------------
 

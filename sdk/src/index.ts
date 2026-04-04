@@ -40,6 +40,7 @@ export type { RequestOptions } from './client.js';
 export { BountyClient } from './bounties.js';
 export { EscrowClient } from './escrow.js';
 export { ContributorClient } from './contributors.js';
+export { UsersClient } from './users.js';
 export { GitHubClient } from './github.js';
 export type { GitHubClientConfig } from './github.js';
 export { EventSubscriber } from './events.js';
@@ -126,6 +127,10 @@ export type {
   ContributorUpdate,
   ContributorResponse,
   ContributorListResponse,
+  // User / Auth types
+  User,
+  AuthTokens,
+  GitHubAuthResponse,
   // Stats types
   TierStats,
   TopContributor,
@@ -168,6 +173,7 @@ import { HttpClient } from './client.js';
 import { BountyClient } from './bounties.js';
 import { EscrowClient } from './escrow.js';
 import { ContributorClient } from './contributors.js';
+import { UsersClient } from './users.js';
 import type { SolFoundryClientConfig } from './types.js';
 
 /**
@@ -208,6 +214,9 @@ export class SolFoundry {
   /** Client for contributor profiles and platform statistics. */
   public readonly contributors: ContributorClient;
 
+  /** Client for user authentication and profile management. */
+  public readonly users: UsersClient;
+
   /**
    * Create a SolFoundry SDK instance with the given configuration.
    *
@@ -218,6 +227,7 @@ export class SolFoundry {
     this.bounties = new BountyClient(this.http);
     this.escrow = new EscrowClient(this.http);
     this.contributors = new ContributorClient(this.http);
+    this.users = new UsersClient(this.http);
   }
 
   /**
