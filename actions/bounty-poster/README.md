@@ -1,82 +1,149 @@
+# @file README.md
+# @brief Documentation for SolFoundry Bounty Poster GitHub Action
+# @author BountyClaw
+# @version 1.0.0
+#
+# @description
+# Comprehensive documentation for the SolFoundry Bounty Poster GitHub Action,
+# which automatically converts labeled GitHub issues into SolFoundry bounties.
+
 # SolFoundry Bounty Poster GitHub Action
 
-[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Ready-green)](https://github.com/marketplace)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![SolFoundry](https://img.shields.io/badge/Powered%20by-SolFoundry-blue)](https://solfoundry.dev)
-
-> Automatically convert labeled GitHub issues into SolFoundry bounties with customizable reward amounts and tiers.
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-- [Inputs](#inputs)
-- [Outputs](#outputs)
-- [Bounty Tiers](#bounty-tiers)
-- [Setup Guide](#setup-guide)
-- [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+Automatically convert labeled GitHub issues into SolFoundry bounties with customizable reward amounts and tiers.
 
 ## Overview
 
-The **SolFoundry Bounty Poster** is a GitHub Action that automates the process of converting labeled GitHub issues into bounties on the [SolFoundry](https://solfoundry.dev) platform. This enables open-source projects to offer financial incentives for issue resolution without manual bounty creation.
-
-### How It Works
-
-1. A maintainer labels a GitHub issue with a designated tag (e.g., `bounty`)
-2. This GitHub Action detects the labeled issue
-3. The action automatically posts the issue as a bounty on SolFoundry
-4. Contributors can discover and claim the bounty
-5. Upon successful PR merge, the bounty is paid out
+This GitHub Action enables repository maintainers to automatically post bounties to the SolFoundry platform when issues are tagged with a specific label. It streamlines the bounty creation process by extracting issue details and posting them to SolFoundry with minimal configuration.
 
 ## Features
 
-- ✅ **Label-based Detection**: Automatically detects issues with bounty labels
-- ✅ **Customizable Rewards**: Configure reward amounts and tier levels
-- ✅ **Multi-Tier Support**: Supports T1, T2, and T3 bounty tiers with different requirements
-- ✅ **Issue Linking**: Automatically links back to original GitHub issues
-- ✅ **Zero Configuration**: Works out of the box with sensible defaults
-- ✅ **Webhook Support**: Optional custom webhook notifications
-- ✅ **Secure**: Uses GitHub Secrets for API key management
+- **Label-based Detection**: Automatically detects issues with bounty labels
+- **Customizable Rewards**: Configure reward amounts and tiers per workflow
+- **Multi-Tier Support**: Supports T1, T2, T3 bounty tiers with different requirements
+- **Issue Linking**: Automatically links back to original GitHub issues
+- **Zero Configuration**: Works out of the box with sensible defaults
+- **Webhook Notifications**: Optional custom webhook for bounty notifications
+- **Batch Processing**: Handles multiple bounty issues in a single run
 
-## Quick Start
+## Requirements
 
-Add this workflow to your repository at `.github/workflows/solfoundry-bounties.yml`:
+- GitHub repository with issue tracking enabled
+- SolFoundry account with API access
+- GitHub Actions enabled on the repository
+
+## Installation
+
+### Step 1: Get SolFoundry API Key
+
+1. Visit [SolFoundry Developer Portal](https://solfoundry.dev/developer)
+2. Sign in or create an account
+3. Navigate to API Keys section
+4. Generate a new API key with bounty posting permissions
+5. Copy the key for use in GitHub Secrets
+
+### Step 2: Add GitHub Secret
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Name: `SOLFOUNDRY_API_KEY`
+5. Value: Your SolFoundry API key from Step 1
+6. Click **Add secret**
+
+### Step 3: Create Bounty Label
+
+1. Go to your repository → **Issues** → **Labels**
+2. Click **New label**
+3. Name: `bounty` (or your preferred label name)
+4. Color: Choose a distinctive color (e.g., green `#0E8A16`)
+5. Description: "Issues eligible for SolFoundry bounties"
+6. Click **Create label**
+
+### Step 4: Create Workflow
+
+Create `.github/workflows/solfoundry-bounties.yml`:
 
 ```yaml
+# @file solfoundry-bounties.yml
+# @brief Workflow for automatic bounty posting
+# @description Triggers bounty creation when issues are labeled or on schedule
+
 name: SolFoundry Bounty Poster
 
 on:
+  # Trigger when issues are labeled
   issues:
-    types: [labeled, opened]
+    types: [labeled, opened, edited]
+  
+  # Run daily at 9 AM UTC to catch any missed issues
   schedule:
-    - cron: '0 9 * * *'  # Daily at 9 AM UTC
-  workflow_dispatch:  # Manual trigger
+    - cron: '0 9 * * *'
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      bounty_label:
+        description: 'Label to scan for bounties'
+        required: false
+        default: 'bounty'
+      reward_amount:
+        description: 'Reward amount in $FNDRY'
+        required: false
+        default: '100000'
 
 jobs:
   post-bounties:
+    # Use Ubuntu latest runner
     runs-on: ubuntu-latest
+    
+    # Required permissions for issue reading
     permissions:
       issues: read
       contents: read
     
     steps:
-      - uses: actions/checkout@v4
+      # Checkout repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
+      # Run the bounty poster action
       - name: Post bounties to SolFoundry
         uses: SolFoundry/solfoundry/actions/bounty-poster@main
         with:
           solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'bounty'
-          reward-amount: '100000'
+          bounty-label: ${{ github.event.inputs.bounty_label || 'bounty' }}
+          reward-amount: ${{ github.event.inputs.reward_amount || '100000' }}
           reward-tier: 'T2'
 ```
 
-## Usage
+## Configuration
+
+### Inputs
+
+| Input | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `solfoundry-api-key` | string | ✅ Yes | - | Your SolFoundry API key for authentication |
+| `bounty-label` | string | ❌ No | `bounty` | Label that triggers bounty creation |
+| `reward-amount` | string | ❌ No | `100000` | Reward amount in $FNDRY tokens |
+| `reward-tier` | string | ❌ No | `T1` | Bounty tier (T1, T2, T3) |
+| `custom-webhook` | string | ❌ No | - | Custom webhook URL for notifications |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `bounty-id` | string | Unique identifier of the created bounty |
+| `bounty-url` | string | Direct URL to view the bounty on SolFoundry |
+
+### Bounty Tiers
+
+| Tier | Reward Range | Requirements | Use Case |
+|------|-------------|--------------|----------|
+| **T1** | 50K - 200K $FNDRY | Open to all contributors | Simple bugs, documentation fixes |
+| **T2** | 200K - 500K $FNDRY | Requires 1 merged T1 bounty | Feature implementations |
+| **T3** | 500K - 1M+ $FNDRY | Requires 3 merged T2 bounties | Complex features, architecture work |
+
+## Usage Examples
 
 ### Basic Usage
 
@@ -86,324 +153,104 @@ jobs:
     solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
 ```
 
-### Advanced Usage
+### With Custom Label
 
 ```yaml
 - uses: SolFoundry/solfoundry/actions/bounty-poster@main
   with:
     solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
     bounty-label: 'reward'
-    reward-amount: '250000'
-    reward-tier: 'T2'
-    custom-webhook: 'https://hooks.example.com/bounty'
+    reward-amount: '50000'
 ```
 
-## Inputs
-
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `solfoundry-api-key` | **Yes** | — | Your SolFoundry API key for authentication |
-| `bounty-label` | No | `bounty` | GitHub label that triggers bounty creation |
-| `reward-amount` | No | `100000` | Reward amount in $FNDRY tokens |
-| `reward-tier` | No | `T1` | Bounty tier classification (T1/T2/T3) |
-| `custom-webhook` | No | — | Optional webhook URL for notifications |
-
-### Input Details
-
-#### `solfoundry-api-key`
-
-Your SolFoundry API key. This should be stored as a GitHub Secret.
-
-**How to obtain:**
-1. Visit [SolFoundry Developer Portal](https://solfoundry.dev/developer)
-2. Create an account or sign in
-3. Generate a new API key
-4. Copy the key for use in GitHub Secrets
-
-#### `bounty-label`
-
-The GitHub issue label that triggers automatic bounty creation.
-
-**Examples:**
-- `bounty` (default)
-- `reward`
-- `paid`
-- `bounty-high`
-
-#### `reward-amount`
-
-The reward amount in $FNDRY tokens.
-
-**Tier Guidelines:**
-- T1: 50,000 - 200,000 $FNDRY
-- T2: 200,000 - 500,000 $FNDRY
-- T3: 500,000 - 1,000,000+ $FNDRY
-
-#### `reward-tier`
-
-The bounty tier determines contributor access requirements:
-
-| Tier | Min Bounty | Access Requirement |
-|------|------------|-------------------|
-| T1 | 50K $FNDRY | Open to all contributors |
-| T2 | 200K $FNDRY | Requires 1 merged T1 bounty |
-| T3 | 500K $FNDRY | Requires 3 merged T2 bounties |
-
-## Outputs
-
-| Output | Description |
-|--------|-------------|
-| `bounty-id` | Unique identifier of the created bounty |
-| `bounty-url` | Direct URL to view the bounty on SolFoundry |
-
-### Using Outputs
+### Tier-Based Workflows
 
 ```yaml
-- uses: SolFoundry/solfoundry/actions/bounty-poster@main
-  id: bounty
+# High-priority bounties
+- name: Post high-priority bounties
+  uses: SolFoundry/solfoundry/actions/bounty-poster@main
   with:
     solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+    bounty-label: 'bounty-high'
+    reward-amount: '500000'
+    reward-tier: 'T2'
 
-- name: Post comment
-  run: |
-    echo "Bounty created: ${{ steps.bounty.outputs.bounty-url }}"
+# Standard bounties
+- name: Post standard bounties
+  uses: SolFoundry/solfoundry/actions/bounty-poster@main
+  with:
+    solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+    bounty-label: 'bounty'
+    reward-amount: '100000'
+    reward-tier: 'T1'
 ```
 
-## Bounty Tiers
+## Creating a Bounty Issue
 
-SolFoundry uses a tiered system to ensure quality contributions:
+To create a bounty-eligible issue:
 
-### T1 - Entry Level
-- **Reward Range:** 50,000 - 200,000 $FNDRY
-- **Access:** Open to all contributors
-- **Best For:** Documentation, bug fixes, simple features
+1. Create a new issue with a clear title and description
+2. Add acceptance criteria as a checklist
+3. Apply the bounty label (e.g., `bounty`)
+4. The action will automatically detect and post it
 
-### T2 - Intermediate
-- **Reward Range:** 200,000 - 500,000 $FNDRY
-- **Access:** Requires 1 merged T1 bounty
-- **Best For:** Feature implementations, integrations
+### Example Issue Template
 
-### T3 - Advanced
-- **Reward Range:** 500,000 - 1,000,000+ $FNDRY
-- **Access:** Requires 3 merged T2 bounties
-- **Best For:** Complex features, architectural changes
+```markdown
+## Description
+Implement user authentication with JWT tokens.
 
-## Setup Guide
+## Acceptance Criteria
+- [ ] Login endpoint with email/password
+- [ ] JWT token generation
+- [ ] Token refresh mechanism
+- [ ] Password reset flow
 
-### Step 1: Get SolFoundry API Key
-
-1. Visit [SolFoundry Developer Portal](https://solfoundry.dev/developer)
-2. Sign in with your GitHub account
-3. Navigate to "API Keys" section
-4. Click "Generate New Key"
-5. Copy the key (you won't see it again)
-
-### Step 2: Add GitHub Secret
-
-1. Go to your repository on GitHub
-2. Click **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Name: `SOLFOUNDRY_API_KEY`
-5. Value: Paste your API key from Step 1
-6. Click **Add secret**
-
-### Step 3: Create Bounty Label
-
-1. Go to your repository's **Issues** tab
-2. Click **Labels** → **New label**
-3. Name: `bounty` (or your preferred label)
-4. Color: Choose a color (green recommended)
-5. Description: "Issues eligible for SolFoundry bounty"
-6. Click **Create label**
-
-### Step 4: Add Workflow
-
-1. Create `.github/workflows/solfoundry-bounties.yml`
-2. Copy the [Quick Start](#quick-start) configuration
-3. Commit and push to your repository
-
-### Step 5: Test
-
-1. Create a new issue in your repository
-2. Add the `bounty` label
-3. The workflow should trigger automatically
-4. Check the Actions tab to see execution results
-
-## Examples
-
-### Example 1: Simple Bug Bounty
-
-```yaml
-name: Bug Bounty
-on:
-  issues:
-    types: [labeled]
-
-jobs:
-  bounty:
-    if: github.event.label.name == 'bug-bounty'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SolFoundry/solfoundry/actions/bounty-poster@main
-        with:
-          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'bug-bounty'
-          reward-amount: '75000'
-          reward-tier: 'T1'
-```
-
-### Example 2: Feature Bounty with Webhook
-
-```yaml
-name: Feature Bounty
-on:
-  issues:
-    types: [labeled]
-
-jobs:
-  bounty:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SolFoundry/solfoundry/actions/bounty-poster@main
-        with:
-          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'feature-request'
-          reward-amount: '300000'
-          reward-tier: 'T2'
-          custom-webhook: ${{ secrets.DISCORD_WEBHOOK }}
-```
-
-### Example 3: Scheduled Bounty Scan
-
-```yaml
-name: Daily Bounty Scan
-on:
-  schedule:
-    - cron: '0 9 * * *'  # Every day at 9 AM UTC
-
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SolFoundry/solfoundry/actions/bounty-poster@main
-        with:
-          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'bounty'
-          reward-amount: '100000'
-          reward-tier: 'T1'
-```
-
-### Example 4: Multi-Tier Bounties
-
-```yaml
-name: Multi-Tier Bounties
-on:
-  issues:
-    types: [labeled]
-
-jobs:
-  # T1 Bounties - Small fixes
-  t1-bounty:
-    if: github.event.label.name == 'bounty-t1'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SolFoundry/solfoundry/actions/bounty-poster@main
-        with:
-          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'bounty-t1'
-          reward-amount: '100000'
-          reward-tier: 'T1'
-  
-  # T2 Bounties - Features
-  t2-bounty:
-    if: github.event.label.name == 'bounty-t2'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SolFoundry/solfoundry/actions/bounty-poster@main
-        with:
-          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: 'bounty-t2'
-          reward-amount: '350000'
-          reward-tier: 'T2'
+## Reward
+50000 $FNDRY
 ```
 
 ## Troubleshooting
 
-### Issue: "No issues found with label"
+### "No issues found with label"
 
-**Cause:** The label doesn't exist or no open issues have the label.
+- Ensure the label exists in your repository
+- Check that issues with the label are open (not closed)
+- Verify the label name matches exactly (case-sensitive)
 
-**Solution:**
-1. Verify the label exists in your repository
-2. Check that issues with the label are open (not closed)
-3. Ensure the label name matches exactly (case-sensitive)
+### "API key invalid"
 
-### Issue: "API key invalid"
+- Verify your `SOLFOUNDRY_API_KEY` secret is set correctly
+- Check that the API key hasn't expired
+- Ensure the key has bounty posting permissions
 
-**Cause:** The SolFoundry API key is incorrect or expired.
+### Action not triggering
 
-**Solution:**
-1. Verify your `SOLFOUNDRY_API_KEY` secret is set correctly
-2. Check that the API key hasn't expired
-3. Generate a new key if necessary
+- Verify the workflow file is in `.github/workflows/`
+- Check the YAML syntax is valid
+- Ensure the workflow is enabled in the Actions tab
 
-### Issue: Action not triggering
+## Security Considerations
 
-**Cause:** Workflow configuration issue.
-
-**Solution:**
-1. Verify the workflow file is in `.github/workflows/`
-2. Check the YAML syntax is valid
-3. Ensure the workflow is enabled in the Actions tab
-4. Verify trigger conditions match your use case
-
-### Issue: "Permission denied"
-
-**Cause:** The workflow lacks necessary permissions.
-
-**Solution:**
-Ensure your workflow has these permissions:
-```yaml
-permissions:
-  issues: read
-  contents: read
-```
-
-## Contributing
-
-Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-1. Fork this repository
-2. Clone your fork: `git clone https://github.com/your-username/solfoundry.git`
-3. Navigate to the action: `cd actions/bounty-poster`
-4. Make your changes
-5. Test locally if possible
-6. Submit a pull request
-
-### Reporting Issues
-
-If you encounter any issues:
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Search existing [GitHub Issues](https://github.com/SolFoundry/solfoundry/issues)
-3. Create a new issue with:
-   - Description of the problem
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Workflow configuration (with sensitive data redacted)
+- Store your SolFoundry API key as a GitHub Secret
+- Never commit API keys to your repository
+- Use repository-level secrets rather than organization-level for fine-grained control
+- Rotate API keys periodically
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+Contributions welcome! Please see our [Contributing Guide](CONTRIBUTING.md).
+
+## Support
+
+- [SolFoundry Documentation](https://docs.solfoundry.dev)
+- [GitHub Issues](https://github.com/SolFoundry/solfoundry/issues)
+- [Discord Community](https://discord.gg/solfoundry)
 
 ---
 
-<p align="center">
-  Built with ❤️ by the <a href="https://solfoundry.dev">SolFoundry</a> community
-</p>
+*Built with ❤️ by the SolFoundry community*
