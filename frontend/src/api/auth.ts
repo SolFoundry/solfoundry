@@ -12,14 +12,14 @@ export interface GitHubCallbackResponse extends AuthTokens {
 }
 
 export async function getGitHubAuthorizeUrl(): Promise<string> {
-  const data = await apiClient<{ url: string }>('/api/auth/github/authorize');
-  return data.url;
+  const data = await apiClient<{ authorize_url: string }>('/api/auth/github/authorize');
+  return data.authorize_url;
 }
 
-export async function exchangeGitHubCode(code: string): Promise<GitHubCallbackResponse> {
+export async function exchangeGitHubCode(code: string, state?: string): Promise<GitHubCallbackResponse> {
   return apiClient<GitHubCallbackResponse>('/api/auth/github', {
     method: 'POST',
-    body: { code },
+    body: { code, ...(state ? { state } : {}) },
   });
 }
 

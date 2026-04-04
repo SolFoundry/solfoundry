@@ -17,6 +17,7 @@ export function GitHubCallbackPage() {
     didRun.current = true;
 
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
     const error = searchParams.get('error');
 
     if (error || !code) {
@@ -24,7 +25,7 @@ export function GitHubCallbackPage() {
       return;
     }
 
-    exchangeGitHubCode(code)
+    exchangeGitHubCode(code, state ?? undefined)
       .then((response) => {
         // Store tokens + user in auth context
         const authUser = { ...response.user, wallet_verified: false };
