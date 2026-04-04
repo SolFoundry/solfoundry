@@ -12,6 +12,7 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => (
 const GitHubCallbackPage = React.lazy(() => import('./pages/GitHubCallbackPage').then((m) => ({ default: m.GitHubCallbackPage })));
 const BountiesPage = React.lazy(() => import('./pages/BountiesPage').then((m) => ({ default: m.BountiesPage })));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+const RepoMarketplacePage = React.lazy(() => import('./pages/RepoMarketplacePage').then((m) => ({ default: m.RepoMarketplacePage })));
 
 function PageLoader() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
         />
         <Route path="/bounties" element={<BountiesPage />} />
         <Route path="/bounties/:id" element={<BountyDetailPage />} />
+        <Route path="/repos" element={<RepoMarketplacePage />} />
         <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
