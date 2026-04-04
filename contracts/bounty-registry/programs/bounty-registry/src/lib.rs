@@ -120,21 +120,28 @@ pub mod bounty_registry {
     ) -> Result<()> {
         instructions::record_completion::handler(ctx, github_pr, review_scores, final_score, pr_hash)
     }
-
-    /// Close the bounty by cancelling it.
-    ///
-    /// Transitions the bounty to `Cancelled` status. Only permitted from
-    /// `Open` or `Claimed` states. Once cancelled, no further mutations
-    /// are allowed.
-    ///
-    /// # Arguments
-    ///
-    /// * `ctx` – Accounts context containing the admin signer and bounty PDA.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RegistryError::BountyAlreadyClosed`] if already Completed or Cancelled.
-    pub fn close_bounty(ctx: Context<CloseBounty>) -> Result<()> {
-        instructions::close_bounty::handler(ctx)
+pub fn register_bounty(
+    ctx: Context<RegisterBounty>,
+    bounty_id: u64,
+    title: String,
+    tier: u8,
+    reward_amount: u64,
+    github_issue: String,
+) -> Result<()> {
+    if bounty_id == 0 {
+        return Err(RegistryError::InvalidBountyId.into());
     }
+    if title.is_empty() || title.len() > 64 {
+        return Err(RegistryError::TitleTooLong.into());
+    }
+    if tier < 1 || tier > 3 {
+        return Err(RegistryError::InvalidTier.into());
+    }
+    if reward_amount == 0 {
+        return Err(RegistryError::InvalidRewardAmount.into());
+    }
+    if github_issue.is_empty() || github_issue.len() > 128 {
+        return Err(RegistryError::GithubReferenceTooLong.into());
+    }
+    instructions::register_bounty::handler(ctx, bounty_id, title, tier, reward_amount, github_issue)
 }
