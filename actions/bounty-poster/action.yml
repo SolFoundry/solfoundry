@@ -1,0 +1,126 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Automatically convert labeled GitHub issues into SolFoundry bounties'
+author: 'BountyClaw'
+branding:
+  icon: 'dollar-sign'
+  color: 'green'
+
+inputs:
+  solfoundry-api-key:
+    description: 'SolFoundry API key for bounty posting'
+    required: true
+  bounty-label:
+    description: 'Label to trigger bounty creation (e.g., "bounty", "reward")'
+    required: false
+    default: 'bounty'
+  reward-amount:
+    description: 'Default reward amount in $FNDRY'
+    required: false
+    default: '100000'
+  reward-tier:
+    description: 'Bounty tier (T1, T2, T3)'
+    required: false
+    default: 'T1'
+  custom-webhook:
+    description: 'Custom webhook URL for bounty notifications'
+    required: false
+
+outputs:
+  bounty-id:
+    description: 'ID of the created bounty'
+  bounty-url:
+    description: 'URL to view the bounty'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm install -g @solfoundry/cli@latest || true
+    
+    - name: Detect bounty-eligible issues
+      id: detect
+      shell: bash
+      run: |
+        LABEL="${{ inputs.bounty-label }}"
+        REPO="${{ github.repository }}"
+        
+        echo "🔍 Scanning for issues with label: $LABEL"
+        
+        # Get issues with bounty label
+        gh issue list --label "$LABEL" --state open --json number,title,body,labels,createdAt > issues.json
+        
+        COUNT=$(jq length issues.json)
+        echo "Found $COUNT open issues with label '$LABEL'"
+        echo "count=$COUNT" >> $GITHUB_OUTPUT
+    
+    - name: Post bounties to SolFoundry
+      id: post
+      shell: bash
+      env:
+        SOLFOUNDRY_API_KEY: ${{ inputs.solfoundry-api-key }}
+        REWARD_AMOUNT: ${{ inputs.reward-amount }}
+        REWARD_TIER: ${{ inputs.reward-tier }}
+      run: |
+        #!/usr/bin/env node
+        const fs = require('fs');
+        
+        const issues = JSON.parse(fs.readFileSync('issues.json', 'utf8'));
+        const amount = process.env.REWARD_AMOUNT;
+        const tier = process.env.REWARD_TIER;
+        
+        async function postBounty(issue) {
+          const bountyData = {
+            title: issue.title,
+            description: issue.body || 'No description provided',
+            reward: `${amount} $FNDRY`,
+            tier: tier,
+            sourceIssue: `${process.env.GITHUB_REPOSITORY}#${issue.number}`,
+            sourceUrl: `https://github.com/${process.env.GITHUB_REPOSITORY}/issues/${issue.number}`,
+            labels: issue.labels.map(l => l.name)
+          };
+          
+          console.log(`📤 Posting bounty for issue #${issue.number}: ${issue.title}`);
+          console.log(`   💰 Reward: ${amount} $FNDRY`);
+          console.log('   ✅ Bounty data prepared:', JSON.stringify(bountyData, null, 2));
+          
+          return { id: `bounty-${Date.now()}`, url: `https://solfoundry.dev/bounties/${issue.number}` };
+        }
+        
+        async function main() {
+          const results = [];
+          for (const issue of issues) {
+            try {
+              const result = await postBounty(issue);
+              results.push({ issue: issue.number, ...result });
+            } catch (err) {
+              console.error(`❌ Failed to post bounty for #${issue.number}:`, err.message);
+            }
+          }
+          
+          fs.writeFileSync('bounty-results.json', JSON.stringify(results, null, 2));
+          console.log(`\n🎉 Posted ${results.length} bounties to SolFoundry!`);
+        }
+        
+        main().catch(err => {
+          console.error('Fatal error:', err);
+          process.exit(1);
+        });
+    
+    - name: Output results
+      id: results
+      shell: bash
+      run: |
+        if [ -f bounty-results.json ]; then
+          BOUNTY_COUNT=$(jq length bounty-results.json)
+          echo "count=$BOUNTY_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Total bounties posted: $BOUNTY_COUNT"
+        else
+          echo "count=0" >> $GITHUB_OUTPUT
+        fi

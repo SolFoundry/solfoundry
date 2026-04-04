@@ -1,0 +1,27 @@
+name: SolFoundry Bounty Poster
+
+on:
+  issues:
+    types: [labeled, opened, edited]
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  post-bounties:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      contents: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Post bounties to SolFoundry
+        uses: ./actions/bounty-poster
+        with:
+          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+          bounty-label: ${{ github.event.inputs.bounty_label || 'bounty' }}
+          reward-amount: ${{ github.event.inputs.reward_amount || '100000' }}
+          reward-tier: 'T2'
