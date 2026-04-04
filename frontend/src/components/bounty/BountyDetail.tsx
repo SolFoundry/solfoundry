@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { BountyComments } from './BountyComments';
 import { fadeIn } from '../../lib/animations';
 
 interface BountyDetailProps {
@@ -14,7 +15,6 @@ interface BountyDetailProps {
 
 export function BountyDetail({ bounty }: BountyDetailProps) {
   const { isAuthenticated } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
@@ -91,6 +91,8 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
             </p>
           </div>
+
+          <BountyComments bountyId={bounty.id} />
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (

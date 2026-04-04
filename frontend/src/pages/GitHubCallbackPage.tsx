@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { exchangeGitHubCode } from '../api/auth';
-import { setAuthToken } from '../services/apiClient';
+import { ApiError, setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
+import { setOAuthFlashMessage } from '../lib/oauthFlash';
 
 export function GitHubCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -19,28 +20,45 @@ export function GitHubCallbackPage() {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
 
-    if (error || !code) {
+    if (error) {
+      const msg =
+        errorDescription?.replace(/\+/g, ' ') ||
+        (error === 'access_denied' ? 'GitHub sign-in was cancelled.' : 'GitHub sign-in failed.');
+      setOAuthFlashMessage(msg, 'error');
+      navigate('/', { replace: true });
+      return;
+    }
+
+    if (!code) {
+      setOAuthFlashMessage('Missing authorization code. Start sign-in again.', 'info');
       navigate('/', { replace: true });
       return;
     }
 
     exchangeGitHubCode(code, state ?? undefined)
       .then((response) => {
-        // Store tokens + user in auth context
         const authUser = { ...response.user, wallet_verified: false };
         login(response.access_token, response.refresh_token ?? '', authUser);
         setAuthToken(response.access_token);
-        // Store refresh token for future use
         if (response.refresh_token) {
           localStorage.setItem('sf_refresh_token', response.refresh_token);
         }
+        setOAuthFlashMessage(`Signed in as ${response.user.username}`, 'success');
         navigate('/', { replace: true });
       })
-      .catch(() => {
+      .catch((e: unknown) => {
+        const msg =
+          e instanceof ApiError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : 'Could not complete sign-in. The code may have expired — try again.';
+        setOAuthFlashMessage(msg, 'error');
         navigate('/', { replace: true });
       });
-  }, []);
+  }, [login, navigate, searchParams]);
 
   return (
     <div className="min-h-screen bg-forge-950 flex items-center justify-center">
