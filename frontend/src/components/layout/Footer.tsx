@@ -49,7 +49,7 @@ export function Footer() {
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">Platform</h4>
             <ul className="space-y-2">
               {[
-                { label: 'Bounties', to: '/' },
+                { label: 'Bounties', to: '/bounties' },
                 { label: 'Leaderboard', to: '/leaderboard' },
                 { label: 'How It Works', to: '/how-it-works' },
                 { label: 'Post a Bounty', to: '/bounties/create' },

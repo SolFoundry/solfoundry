@@ -178,7 +178,7 @@ export function HeroSection() {
       >
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
-            to="/#bounties"
+            to="/bounties"
             className="px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 shadow-lg shadow-emerald/20 inline-block"
           >
             Browse Bounties
