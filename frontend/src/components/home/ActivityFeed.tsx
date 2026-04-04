@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { ActivityFeedSkeleton } from '../skeletons/Skeleton';
 
 interface ActivityEvent {
   id: string;
