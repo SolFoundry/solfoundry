@@ -1,10 +1,11 @@
-"""SolFoundry API — health, CORS, GitHub OAuth, JWT auth."""
+"""SolFoundry API — health, CORS, GitHub OAuth, JWT auth, bounty comments."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth_github
+from app.routers import auth_github, comments
+from app.ws.comment_hub import get_comment_hub
 
 app = FastAPI(title="SolFoundry API", version="0.1.0")
 
@@ -18,6 +19,21 @@ app.add_middleware(
 )
 
 app.include_router(auth_github.router, prefix="/api/auth")
+app.include_router(comments.router, prefix="/api/bounties")
+
+
+@app.websocket("/ws/bounties/{bounty_id}/comments")
+async def bounty_comments_websocket(websocket: WebSocket, bounty_id: str) -> None:
+    """Subscribe to real-time comment_created / comment_hidden / comment_deleted for a bounty."""
+    hub = get_comment_hub()
+    await hub.connect(bounty_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await hub.disconnect(bounty_id, websocket)
 
 
 @app.get("/health")

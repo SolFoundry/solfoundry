@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 7
 
+    # Bounty comments — moderation (JWT `sub` values, comma-separated)
+    moderator_user_ids: str = ""
+    comment_rate_limit: int = 10
+    comment_rate_window_seconds: int = 60
+    comment_max_thread_depth: int = 8
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
