@@ -119,7 +119,6 @@ function Step1({
         </div>
       </div>
 
-      {/* AI Tag Preview sidebar */}
       <div className="bg-forge-800 border border-border rounded-lg p-4 h-fit">
         <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">AI Tag Preview</p>
         {state.description.length > 20 ? (
@@ -172,7 +171,6 @@ function Step2({
   const fee = Math.round(amount * PLATFORM_FEE_PCT * 100) / 100;
   const total = amount + fee;
 
-  // Min deadline is tomorrow
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split('T')[0];
@@ -228,7 +226,6 @@ function Step2({
         </span>
       </div>
 
-      {/* Fee breakdown */}
       <div className="bg-forge-800 border border-border rounded-lg p-4 font-mono text-sm space-y-2">
         <div className="flex justify-between text-text-secondary">
           <span>Bounty reward:</span>
@@ -354,7 +351,6 @@ function Step3({
         </p>
       )}
 
-      {/* Verification status */}
       <div className="text-sm font-mono">
         {state.verified ? (
           <span className="text-emerald inline-flex items-center gap-1.5">
@@ -408,7 +404,6 @@ export function BountyCreateWizard() {
 
   const handleStep1Next = () => setStep(1);
   const handleStep2Next = async () => {
-    // Create bounty (draft) when proceeding to step 3, then fetch treasury info
     setCreating(true);
     setError(null);
     try {
@@ -435,7 +430,17 @@ export function BountyCreateWizard() {
   };
 
   const handlePublish = async () => {
-    setSuccess(true);
+    if (!state.bounty_id) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+      setSuccess(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (success) {
@@ -446,7 +451,7 @@ export function BountyCreateWizard() {
         </div>
         <h2 className="font-display text-2xl font-bold text-text-primary mb-3">Bounty Published!</h2>
         <p className="text-text-muted mb-6">Your bounty is live. Contributors will be notified.</p>
-        <button onClick={() => navigate(`/bounties/${state.bounty_id}`)} className="px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm">
+        <button onClick={() => state.bounty_id && navigate(`/bounties/${state.bounty_id}`)} className="px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm">
           View Bounty
         </button>
       </div>

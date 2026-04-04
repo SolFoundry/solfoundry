@@ -88,7 +88,7 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center gap-3 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Live Activity</span>
+          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
         <div className="space-y-1">
           <AnimatePresence mode="popLayout">

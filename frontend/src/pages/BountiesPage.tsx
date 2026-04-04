@@ -6,7 +6,7 @@ import { pageTransition } from '../lib/animations';
 
 export function BountiesPage() {
   return (
-    <PageLayout noFooter={false}>
+    <PageLayout>
       <motion.div
         variants={pageTransition}
         initial="initial"

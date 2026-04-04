@@ -65,12 +65,10 @@ export function HowItWorksCondensed() {
                 variants={staggerItem}
                 className={`relative rounded-xl border ${step.border} ${step.bg} p-6 flex flex-col items-center text-center`}
               >
-                {/* Step number */}
                 <span className="absolute top-4 right-4 font-mono text-xs text-text-muted">
                   0{index + 1}
                 </span>
 
-                {/* Icon */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-forge-900 border border-border`}>
                   <Icon className={`w-6 h-6 ${step.color}`} />
                 </div>
