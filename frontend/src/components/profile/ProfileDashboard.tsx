@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
+import { Clock, GitPullRequest, DollarSign, Settings, Flame, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
+import { useGitHubActivity, useContributorStats, useEarningsHistory } from '../../hooks/useGitHubActivity';
+import { ActivityChart, EarningsChart } from './ActivityCharts';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
 import type { Bounty } from '../../types/bounty';
 
-const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
+const TABS = ['Overview', 'My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
 const MONTHLY_MOCK = [
@@ -33,6 +35,117 @@ function BountyStatusBadge({ status }: { status: string }) {
   );
 }
 
+function OverviewTab({ user }: { user: any }) {
+  const { data: activity, loading: activityLoading } = useGitHubActivity(user?.username, 30);
+  const { data: stats, loading: statsLoading } = useContributorStats(user?.username);
+  const { data: earnings, loading: earningsLoading } = useEarningsHistory(user?.id);
+  const { data: bountiesData } = useBounties({ limit: 50 });
+
+  const myBounties = bountiesData?.items.filter((b) => b.creator_id === user.id) ?? [];
+  const totalEarned = earnings.reduce((sum, e) => sum + e.amount, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-border bg-forge-900 p-4"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-emerald" />
+            <span className="text-xs text-text-muted">Total Earned</span>
+          </div>
+          <p className="font-mono text-xl font-bold text-emerald">
+            {(totalEarned / 1000).toFixed(0)}K
+          </p>
+          <p className="text-xs text-text-muted mt-1">FNDRY</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-xl border border-border bg-forge-900 p-4"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <GitPullRequest className="w-4 h-4 text-magenta" />
+            <span className="text-xs text-text-muted">Bounties</span>
+          </div>
+          <p className="font-mono text-xl font-bold text-text-primary">
+            {myBounties.length}
+          </p>
+          <p className="text-xs text-text-muted mt-1">completed</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-xl border border-border bg-forge-900 p-4"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Flame className="w-4 h-4 text-amber" />
+            <span className="text-xs text-text-muted">Streak</span>
+          </div>
+          <p className="font-mono text-xl font-bold text-amber">
+            {stats?.currentStreak ?? 0}
+          </p>
+          <p className="text-xs text-text-muted mt-1">days</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="rounded-xl border border-border bg-forge-900 p-4"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-emerald" />
+            <span className="text-xs text-text-muted">Longest</span>
+          </div>
+          <p className="font-mono text-xl font-bold text-text-primary">
+            {stats?.longestStreak ?? 0}
+          </p>
+          <p className="text-xs text-text-muted mt-1">days</p>
+        </motion.div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActivityChart data={activity} loading={activityLoading} />
+        <EarningsChart data={earnings} loading={earningsLoading} />
+      </div>
+
+      {/* Contribution Stats */}
+      {!statsLoading && stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-border bg-forge-900 p-4"
+        >
+          <p className="text-sm font-medium text-text-secondary mb-3">Contribution Summary</p>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="font-mono text-lg font-bold text-emerald">{stats.totalCommits}</p>
+              <p className="text-xs text-text-muted">Commits</p>
+            </div>
+            <div>
+              <p className="font-mono text-lg font-bold text-magenta">{stats.totalPullRequests}</p>
+              <p className="text-xs text-text-muted">Pull Requests</p>
+            </div>
+            <div>
+              <p className="font-mono text-lg font-bold text-amber">{stats.totalIssues}</p>
+              <p className="text-xs text-text-muted">Issues</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
     return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
@@ -42,8 +155,7 @@ function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boo
       <div className="text-center py-12">
         <p className="text-text-muted mb-2">You haven't created any bounties yet.</p>
         <a href="/bounties/create" className="text-sm text-emerald hover:text-emerald-light transition-colors">
-          Post your first bounty →
-        </a>
+          Post your first bounty 鈫?        </a>
       </div>
     );
   }
@@ -76,8 +188,7 @@ function SubmissionsTab() {
     <div className="text-center py-12">
       <p className="text-text-muted text-sm">No submissions yet.</p>
       <a href="/" className="text-sm text-emerald hover:text-emerald-light transition-colors mt-2 block">
-        Browse open bounties →
-      </a>
+        Browse open bounties 鈫?      </a>
     </div>
   );
 }
@@ -130,7 +241,7 @@ function SettingsTab() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-text-muted">Email</span>
-            <span className="text-text-primary">{user?.email ?? '—'}</span>
+            <span className="text-text-primary">{user?.email ?? '鈥?}</span>
           </div>
         </div>
       </div>
@@ -150,7 +261,7 @@ function SettingsTab() {
 
 export function ProfileDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('My Bounties');
+  const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const { data: bountiesData, isLoading } = useBounties({ limit: 50 });
 
   if (!user) return null;
@@ -176,18 +287,18 @@ export function ProfileDashboard() {
           <div className="flex-1">
             <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
             <p className="mt-1 font-mono text-sm text-text-muted">
-              Joined {joinDate} · {myBounties.length} bounties created
+              Joined {joinDate} 路 {myBounties.length} bounties created
             </p>
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 whitespace-nowrap ${
                 activeTab === tab
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary'
@@ -201,6 +312,7 @@ export function ProfileDashboard() {
 
       {/* Tab content */}
       <div>
+        {activeTab === 'Overview' && <OverviewTab user={user} />}
         {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
         {activeTab === 'My Submissions' && <SubmissionsTab />}
         {activeTab === 'Earnings' && <EarningsTab />}
