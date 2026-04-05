@@ -5,12 +5,15 @@ import { ActivityFeed } from '../components/home/ActivityFeed';
 import { HowItWorksCondensed } from '../components/home/HowItWorksCondensed';
 import { FeaturedBounties } from '../components/home/FeaturedBounties';
 import { WhySolFoundry } from '../components/home/WhySolFoundry';
+import { useActivity } from '../hooks/useActivity';
 
 export function HomePage() {
+  const { data: activityEvents } = useActivity();
+
   return (
     <PageLayout noFooter={false}>
       <HeroSection />
-      <ActivityFeed />
+      <ActivityFeed events={activityEvents} />
       <HowItWorksCondensed />
       <FeaturedBounties />
       <WhySolFoundry />
