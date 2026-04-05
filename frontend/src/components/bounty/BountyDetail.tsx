@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { Skeleton } from '../ui/Skeleton';
+import { CountdownTimer } from '../ui/CountdownTimer';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -138,9 +140,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
             {bounty.deadline && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
-                </span>
+                <CountdownTimer deadline={bounty.deadline} compact showIcon={false} />
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
@@ -157,5 +157,87 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+// Skeleton for BountyDetail loading state
+export function BountyDetailSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Back link */}
+      <Skeleton className="w-28 h-4 mb-6" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Title + meta */}
+          <div className="rounded-xl border border-border bg-forge-900 p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <Skeleton className="w-4 h-4 rounded-full" />
+                  <Skeleton className="w-32 h-3" />
+                </div>
+                <Skeleton className="w-full h-7" />
+              </div>
+              <Skeleton className="w-9 h-9 rounded-lg flex-shrink-0" />
+            </div>
+
+            {/* Skills */}
+            <div className="flex items-center gap-3 mb-4">
+              <Skeleton className="w-16 h-4" />
+              <Skeleton className="w-14 h-4" />
+              <Skeleton className="w-12 h-4" />
+            </div>
+
+            <div className="space-y-2">
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-3/4 h-4" />
+            </div>
+
+            <Skeleton className="w-32 h-4 mt-4" />
+          </div>
+
+          {/* Requirements */}
+          <div className="rounded-xl border border-border bg-forge-900 p-6">
+            <Skeleton className="w-28 h-5 mb-4" />
+            <div className="space-y-2">
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-5/6 h-4" />
+            </div>
+          </div>
+
+          {/* Submission form */}
+          <div className="rounded-xl border border-border bg-forge-900 p-6">
+            <Skeleton className="w-36 h-5 mb-4" />
+            <div className="space-y-3">
+              <Skeleton className="w-full h-10" />
+              <Skeleton className="w-full h-24" />
+              <Skeleton className="w-32 h-10" />
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Reward card */}
+          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-5">
+            <Skeleton className="w-16 h-3 mb-1" />
+            <Skeleton className="w-28 h-8" />
+          </div>
+
+          {/* Info card */}
+          <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <Skeleton className="w-16 h-4" />
+                <Skeleton className="w-20 h-4" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
