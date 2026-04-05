@@ -5,6 +5,7 @@ import { ChevronDown, Loader2, Plus } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import { BountyGridSkeleton } from '../ui/Skeleton';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
@@ -25,7 +26,6 @@ export function BountyGrid() {
   return (
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
@@ -36,7 +36,6 @@ export function BountyGrid() {
               <Plus className="w-4 h-4" />
               Post a Bounty
             </Link>
-            {/* Status filter */}
             <div className="relative">
               <select
                 value={statusFilter}
@@ -53,56 +52,40 @@ export function BountyGrid() {
           </div>
         </div>
 
-        {/* Filter pills */}
         <div className="flex items-center gap-2 flex-wrap mb-8">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
-              }`}
+              }}
             >
               {skill}
             </button>
           ))}
         </div>
 
-        {/* Loading state */}
-        {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
-              >
-                <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-              </div>
-            ))}
-          </div>
-        )}
+        {isLoading && <BountyGridSkeleton count={6} />}
 
-        {/* Error state */}
         {isError && !isLoading && (
           <div className="text-center py-16">
             <p className="text-text-muted mb-4">Could not load bounties. Backend may be offline.</p>
-            <p className="text-text-muted text-sm font-mono">Running in demo mode — no bounties to display.</p>
+            <p className="text-text-muted text-sm font-mono">Running in demo mode 鈥?no bounties to display.</p>
           </div>
         )}
 
-        {/* Empty state */}
         {!isLoading && !isError && allBounties.length === 0 && (
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {activeSkill !== 'All' ? Try a different language filter. : 'Check back soon for new bounties.'}
             </p>
           </div>
         )}
 
-        {/* Bounty grid */}
         {!isLoading && allBounties.length > 0 && (
           <motion.div
             variants={staggerContainer}
@@ -119,7 +102,6 @@ export function BountyGrid() {
           </motion.div>
         )}
 
-        {/* Load more */}
         {hasNextPage && (
           <div className="mt-10 text-center">
             <button
