@@ -7,6 +7,7 @@ import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
 import type { Bounty } from '../../types/bounty';
+import { Skeleton, ProfileStatsSkeleton } from '../ui/Skeleton';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
 type Tab = typeof TABS[number];
@@ -35,14 +36,28 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg bg-forge-900 border border-border">
+            <div className="flex-1 min-w-0 space-y-2">
+              <Skeleton className="w-3/4 h-4" />
+              <Skeleton className="w-24 h-3" />
+            </div>
+            <Skeleton className="w-20 h-4" />
+            <Skeleton className="w-16 h-5 rounded-full" />
+            <Skeleton className="w-10 h-3" />
+          </div>
+        ))}
+      </div>
+    );
   }
   if (!bounties.length) {
     return (
       <div className="text-center py-12">
         <p className="text-text-muted mb-2">You haven't created any bounties yet.</p>
         <a href="/bounties/create" className="text-sm text-emerald hover:text-emerald-light transition-colors">
-          Post your first bounty →
+          Post your first bounty 鈫?
         </a>
       </div>
     );
@@ -76,7 +91,7 @@ function SubmissionsTab() {
     <div className="text-center py-12">
       <p className="text-text-muted text-sm">No submissions yet.</p>
       <a href="/" className="text-sm text-emerald hover:text-emerald-light transition-colors mt-2 block">
-        Browse open bounties →
+        Browse open bounties 鈫?
       </a>
     </div>
   );
@@ -130,7 +145,7 @@ function SettingsTab() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-text-muted">Email</span>
-            <span className="text-text-primary">{user?.email ?? '—'}</span>
+            <span className="text-text-primary">{user?.email ?? '鈥?}</span>
           </div>
         </div>
       </div>
@@ -176,7 +191,7 @@ export function ProfileDashboard() {
           <div className="flex-1">
             <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
             <p className="mt-1 font-mono text-sm text-text-muted">
-              Joined {joinDate} · {myBounties.length} bounties created
+              Joined {joinDate} 路 {myBounties.length} bounties created
             </p>
           </div>
         </div>

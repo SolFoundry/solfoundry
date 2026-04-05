@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 import { useBounties } from '../../hooks/useBounties';
 import { BountyCard } from '../bounty/BountyCard';
+import { BountyGridSkeleton } from '../ui/Skeleton';
 
 export function FeaturedBounties() {
   const { data, isLoading, isError } = useBounties({ limit: 4, status: 'open' });
@@ -36,13 +37,7 @@ export function FeaturedBounties() {
           </Link>
         </motion.div>
 
-        {isLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-forge-900 h-48 animate-pulse" />
-            ))}
-          </div>
-        )}
+        {isLoading && <BountyGridSkeleton count={4} columns="featured" />}
 
         {isError && (
           <div className="py-12 text-center text-text-muted text-sm">
