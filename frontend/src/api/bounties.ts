@@ -21,14 +21,28 @@ export interface BountiesListResponse {
   items: Bounty[];
   total: number;
   limit: number;
-  offset: number;
-}
-
-// Map backend field names to frontend types (funding_token -> reward_token)
 function mapBounty(b: Bounty): Bounty {
-  const raw = b as Bounty & { funding_token?: string };
+  const raw = b as Bounty & { funding_token?: string, deadline?: string };
   if (!raw.reward_token && raw.funding_token) {
     raw.reward_token = raw.funding_token as Bounty['reward_token'];
+  }
+  if (!raw.reward_token) raw.reward_token = 'FNDRY';
+  if (raw.deadline) {
+    const deadlineDate = new Date(raw.deadline);
+    if (isNaN(deadlineDate.getTime())) {
+      throw new Error('Invalid deadline format');
+    }
+    const timeRemaining = deadlineDate.getTime() - Date.now();
+    raw.timeRemaining = timeRemaining;
+    raw.timeRemainingDays = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+    raw.timeRemainingHours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    raw.timeRemainingMinutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+    raw.isExpired = timeRemaining < 0;
+    raw.isWarning = timeRemaining < (1000 * 60 * 60 * 24);
+    raw.isUrgent = timeRemaining < (1000 * 60 * 60);
+  }
+  return raw;
+}
   }
   if (!raw.reward_token) raw.reward_token = 'FNDRY';
   return raw;
