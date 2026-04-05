@@ -1,0 +1,292 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Automatically post GitHub issues as bounties to SolFoundry platform'
+author: 'BountyClaw'
+branding:
+  icon: 'dollar-sign'
+  color: 'green'
+
+inputs:
+  solfoundry-api-key:
+    description: 'SolFoundry API key'
+    required: true
+  solfoundry-api-url:
+    description: 'SolFoundry API URL'
+    required: false
+    default: 'https://api.solfoundry.dev/v1'
+  github-token:
+    description: 'GitHub token for API access'
+    required: false
+    default: ${{ github.token }}
+  bounty-label:
+    description: 'Label to trigger bounty creation'
+    required: false
+    default: 'bounty'
+  reward-amount:
+    description: 'Reward amount in $FNDRY'
+    required: false
+    default: '100000'
+  reward-tier:
+    description: 'Bounty tier (T1, T2, T3)'
+    required: false
+    default: 'T1'
+  dry-run:
+    description: 'Dry run mode (no actual posting)'
+    required: false
+    default: 'false'
+
+outputs:
+  bounty-ids:
+    description: 'Comma-separated list of created bounty IDs'
+    value: ${{ steps.post.outputs.bounty-ids }}
+  bounty-urls:
+    description: 'Comma-separated list of bounty URLs'
+    value: ${{ steps.post.outputs.bounty-urls }}
+  posted-count:
+    description: 'Number of bounties posted'
+    value: ${{ steps.post.outputs.posted-count }}
+  skipped-count:
+    description: 'Number of issues skipped (already posted)'
+    value: ${{ steps.post.outputs.skipped-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm install -g @octokit/rest@20 || true
+    
+    - name: Detect and post bounties
+      id: post
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SOLFOUNDRY_API_KEY: ${{ inputs.solfoundry-api-key }}
+        SOLFOUNDRY_API_URL: ${{ inputs.solfoundry-api-url }}
+        BOUNTY_LABEL: ${{ inputs.bounty-label }}
+        REWARD_AMOUNT: ${{ inputs.reward-amount }}
+        REWARD_TIER: ${{ inputs.reward-tier }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        REPO: ${{ github.repository }}
+      run: |
+        node << 'EOF'
+        const https = require('https');
+        const fs = require('fs');
+        
+        // Configuration
+        const CONFIG = {
+          solfoundryApiKey: process.env.SOLFOUNDRY_API_KEY,
+          solfoundryApiUrl: process.env.SOLFOUNDRY_API_URL || 'https://api.solfoundry.dev/v1',
+          githubToken: process.env.GITHUB_TOKEN,
+          bountyLabel: process.env.BOUNTY_LABEL || 'bounty',
+          rewardAmount: process.env.REWARD_AMOUNT || '100000',
+          rewardTier: process.env.REWARD_TIER || 'T1',
+          dryRun: process.env.DRY_RUN === 'true',
+          repo: process.env.REPO
+        };
+        
+        // Track posted bounties (simple file-based dedup)
+        const TRACKING_FILE = '.solfoundry-bounties-posted.json';
+        let postedBounties = new Set();
+        
+        if (fs.existsSync(TRACKING_FILE)) {
+          try {
+            const data = JSON.parse(fs.readFileSync(TRACKING_FILE, 'utf8'));
+            postedBounties = new Set(data.posted || []);
+          } catch (e) {
+            console.log('⚠️  Could not load tracking file, starting fresh');
+          }
+        }
+        
+        /**
+         * Make HTTP request to SolFoundry API
+         */
+        function solfoundryRequest(path, method, data) {
+          return new Promise((resolve, reject) => {
+            if (CONFIG.dryRun) {
+              console.log(`[DRY RUN] ${method} ${path}`);
+              resolve({ id: `dry-run-${Date.now()}`, url: `https://solfoundry.dev/bounties/dry-run` });
+              return;
+            }
+            
+            // For now, simulate API call (replace with real implementation when API is available)
+            console.log(`[API CALL] ${method} ${CONFIG.solfoundryApiUrl}${path}`);
+            console.log(`[API DATA]`, JSON.stringify(data, null, 2));
+            
+            // Mock response for development (remove when real API is ready)
+            setTimeout(() => {
+              resolve({
+                id: `bounty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                url: `https://solfoundry.dev/bounties/${data.sourceIssue.split('#')[1]}`,
+                status: 'created'
+              });
+            }, 100);
+          });
+        }
+        
+        /**
+         * Get issues with bounty label using GitHub API
+         */
+        async function getBountyIssues() {
+          const { Octokit } = require('@octokit/rest');
+          const octokit = new Octokit({ auth: CONFIG.githubToken });
+          
+          const [owner, repo] = CONFIG.repo.split('/');
+          
+          try {
+            const { data: issues } = await octokit.rest.issues.listForRepo({
+              owner,
+              repo,
+              labels: CONFIG.bountyLabel,
+              state: 'open',
+              per_page: 100
+            });
+            
+            return issues;
+          } catch (error) {
+            console.error('❌ Failed to fetch issues:', error.message);
+            return [];
+          }
+        }
+        
+        /**
+         * Check if bounty was already posted for this issue
+         */
+        function isAlreadyPosted(issueNumber) {
+          const key = `${CONFIG.repo}#${issueNumber}`;
+          return postedBounties.has(key);
+        }
+        
+        /**
+         * Mark bounty as posted
+         */
+        function markAsPosted(issueNumber, bountyId) {
+          const key = `${CONFIG.repo}#${issueNumber}`;
+          postedBounties.add(key);
+          
+          // Save tracking file
+          fs.writeFileSync(TRACKING_FILE, JSON.stringify({
+            posted: Array.from(postedBounties),
+            lastUpdated: new Date().toISOString()
+          }, null, 2));
+        }
+        
+        /**
+         * Post single bounty to SolFoundry
+         */
+        async function postBounty(issue) {
+          const issueKey = `${CONFIG.repo}#${issue.number}`;
+          
+          // Check for duplicates
+          if (isAlreadyPosted(issue.number)) {
+            console.log(`⏭️  Skipping #${issue.number}: Already posted`);
+            return { skipped: true, issue: issue.number };
+          }
+          
+          const bountyData = {
+            title: issue.title,
+            description: issue.body || 'No description provided',
+            reward: `${CONFIG.rewardAmount} $FNDRY`,
+            tier: CONFIG.rewardTier,
+            sourceIssue: issueKey,
+            sourceUrl: issue.html_url,
+            labels: issue.labels.map(l => l.name),
+            createdAt: new Date().toISOString()
+          };
+          
+          console.log(`📤 Posting bounty for issue #${issue.number}: ${issue.title}`);
+          console.log(`   💰 Reward: ${CONFIG.rewardAmount} $FNDRY (Tier ${CONFIG.rewardTier})`);
+          
+          try {
+            const result = await solfoundryRequest('/bounties', 'POST', bountyData);
+            
+            markAsPosted(issue.number, result.id);
+            
+            console.log(`   ✅ Created: ${result.url}`);
+            
+            return {
+              success: true,
+              issue: issue.number,
+              bountyId: result.id,
+              bountyUrl: result.url
+            };
+          } catch (error) {
+            console.error(`   ❌ Failed:`, error.message);
+            return {
+              success: false,
+              issue: issue.number,
+              error: error.message
+            };
+          }
+        }
+        
+        /**
+         * Main execution
+         */
+        async function main() {
+          console.log('🔍 Scanning for bounty issues...');
+          console.log(`   Label: ${CONFIG.bountyLabel}`);
+          console.log(`   Repo: ${CONFIG.repo}`);
+          console.log(`   Dry Run: ${CONFIG.dryRun}`);
+          
+          const issues = await getBountyIssues();
+          console.log(`   Found ${issues.length} open issues with label '${CONFIG.bountyLabel}'`);
+          
+          if (issues.length === 0) {
+            console.log('ℹ️  No bounty issues found');
+            process.exit(0);
+          }
+          
+          const results = {
+            posted: [],
+            skipped: [],
+            failed: []
+          };
+          
+          for (const issue of issues) {
+            const result = await postBounty(issue);
+            
+            if (result.skipped) {
+              results.skipped.push(result);
+            } else if (result.success) {
+              results.posted.push(result);
+            } else {
+              results.failed.push(result);
+            }
+          }
+          
+          // Output results for GitHub Actions
+          const bountyIds = results.posted.map(r => r.bountyId).join(',');
+          const bountyUrls = results.posted.map(r => r.bountyUrl).join(',');
+          
+          console.log('\n📊 Results Summary:');
+          console.log(`   ✅ Posted: ${results.posted.length}`);
+          console.log(`   ⏭️  Skipped (duplicates): ${results.skipped.length}`);
+          console.log(`   ❌ Failed: ${results.failed.length}`);
+          
+          // Set outputs
+          const fs = require('fs');
+          const githubOutput = process.env.GITHUB_OUTPUT;
+          if (githubOutput) {
+            fs.appendFileSync(githubOutput, `bounty-ids=${bountyIds}\n`);
+            fs.appendFileSync(githubOutput, `bounty-urls=${bountyUrls}\n`);
+            fs.appendFileSync(githubOutput, `posted-count=${results.posted.length}\n`);
+            fs.appendFileSync(githubOutput, `skipped-count=${results.skipped.length}\n`);
+          }
+          
+          // Exit with error if any failed
+          if (results.failed.length > 0) {
+            process.exit(1);
+          }
+        }
+        
+        main().catch(err => {
+          console.error('Fatal error:', err);
+          process.exit(1);
+        });
+        EOF

@@ -36,7 +36,7 @@ concurrency:
 env:
   SOLANA_VERSION: '1.18.26'
   ANCHOR_VERSION: '0.30.1'
-  RUST_VERSION: '1.79'
+  RUST_VERSION: '1.85'
   NODE_VERSION: '20'
 
 # ══════════════════════════════════════════════════════════════════
@@ -56,10 +56,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
@@ -131,10 +131,10 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
@@ -191,10 +191,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
@@ -266,10 +266,10 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
@@ -358,7 +358,7 @@ jobs:
         continue-on-error: true
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --quiet
+        run: cargo install cargo-audit --locked --quiet
 
       - name: Security audit — bounty-registry
         working-directory: contracts/bounty-registry
