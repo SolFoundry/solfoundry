@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { ToastProvider } from './components/layout/Toast';
 
 // Lazy load pages
 const HomePage = React.lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -23,6 +24,7 @@ function PageLoader() {
 
 export default function App() {
   return (
+    <ToastProvider>
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -50,5 +52,6 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
+    </ToastProvider>
   );
 }

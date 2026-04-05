@@ -5,12 +5,14 @@ import { ChevronDown, Loader2, Plus } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import { useToast } from '../layout/Toast';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const { addToast } = useToast();
 
   const params = {
     status: statusFilter,
@@ -21,6 +23,13 @@ export function BountyGrid() {
     useInfiniteBounties(params);
 
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
+
+  const handleFilterChange = (skill: string) => {
+    setActiveSkill(skill);
+    if (skill !== 'All') {
+      addToast('info', `Showing bounties tagged with ${skill}`, 2500);
+    }
+  };
 
   return (
     <section id="bounties" className="py-16 md:py-24">
@@ -58,7 +67,7 @@ export function BountyGrid() {
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}
-              onClick={() => setActiveSkill(skill)}
+              onClick={() => handleFilterChange(skill)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
