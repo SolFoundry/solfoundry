@@ -6,13 +6,18 @@ on:
   schedule:
     - cron: '0 9 * * *'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (no actual posting)'
+        required: false
+        default: 'false'
 
 jobs:
   post-bounties:
     runs-on: ubuntu-latest
     permissions:
       issues: read
-      contents: read
+      contents: write  # Needed for tracking file
     
     steps:
       - name: Checkout repository
@@ -21,7 +26,20 @@ jobs:
       - name: Post bounties to SolFoundry
         uses: ./actions/bounty-poster
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
-          bounty-label: ${{ github.event.inputs.bounty_label || 'bounty' }}
-          reward-amount: ${{ github.event.inputs.reward_amount || '100000' }}
+          bounty-label: 'bounty'
+          reward-amount: '100000'
           reward-tier: 'T2'
+          dry-run: ${{ github.event.inputs.dry_run || 'false' }}
+      
+      - name: Commit tracking file
+        if: always()
+        run: |
+          if [ -f .solfoundry-bounties-posted.json ]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .solfoundry-bounties-posted.json
+            git diff --cached --quiet || git commit -m "chore: update bounty tracking [skip ci]"
+            git push || echo "No changes to push"
+          fi
