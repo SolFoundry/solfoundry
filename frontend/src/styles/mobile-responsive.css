@@ -1,0 +1,139 @@
+/* ============================================================================
+   SolFoundry Mobile Responsive Polish
+   Targets: 375px (mobile) and 768px (tablet) breakpoints
+   Ensures no horizontal scroll on any page
+   ============================================================================ */
+
+/* === Global: Prevent horizontal overflow === */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* === Mobile (max-width: 639px) === */
+@media (max-width: 639px) {
+  /* Hero section: scale down terminal */
+  .hero-terminal {
+    font-size: 0.7rem;
+    padding: 0.75rem;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Hero headline */
+  .hero-headline {
+    font-size: 1.75rem;
+    line-height: 1.15;
+  }
+
+  /* Bounty cards: full width, reduce padding */
+  .bounty-card,
+  [class*="rounded-xl"][class*="border"][class*="bg-forge-900"][class*="p-5"] {
+    padding: 1rem;
+  }
+
+  /* Bounty grid: single column */
+  .bounty-grid,
+  [class*="grid-cols-1"][class*="md:grid-cols-2"][class*="lg:grid-cols-3"] {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  /* Filter pills: horizontal scroll instead of wrap */
+  .filter-pills {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+  }
+  .filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Navbar: ensure hamburger menu has enough tap area */
+  .navbar-menu-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Footer: stack columns */
+  .footer-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  /* Reward amount: slightly smaller on mobile */
+  .reward-amount {
+    font-size: 1rem;
+  }
+
+  /* Leaderboard: compact rows */
+  .leaderboard-row {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Section padding: reduce for mobile */
+  section[class*="py-16"] {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  section[class*="py-24"] {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  /* Max width containers: add mobile padding */
+  .max-w-7xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* === Tablet (max-width: 767px) === */
+@media (max-width: 767px) {
+  /* Bounty grid: single column on small tablets */
+  .bounty-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hero: reduce vertical spacing */
+  .hero-section {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+}
+
+/* === Tablet landscape (768px - 1023px) === */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Bounty grid: 2 columns on tablet */
+  .bounty-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* === Touch target sizing (accessibility) === */
+@media (pointer: coarse) {
+  /* Ensure all interactive elements meet 44x44px touch target */
+  button, a, select, input {
+    min-height: 44px;
+  }
+
+  /* Filter pill buttons: larger tap targets */
+  .filter-pills button {
+    padding: 0.625rem 1rem;
+  }
+}
+
+/* === Safe area insets (notch phones) === */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .footer {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+
+  .navbar {
+    padding-top: env(safe-area-inset-top);
+  }
+}
