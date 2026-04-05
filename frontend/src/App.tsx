@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { ToastProvider } from './components/ui';
 import { Routes, Route } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
 
@@ -23,7 +24,8 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <ToastProvider>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
@@ -52,3 +54,4 @@ export default function App() {
     </Suspense>
   );
 }
+
