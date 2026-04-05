@@ -1,4 +1,5 @@
 /** Animation variants for Framer Motion */
+import type { Variants } from "framer-motion";
 
 export const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -33,12 +34,16 @@ export const staggerItem = {
   transition: { duration: 0.4 },
 };
 
-export const cardHover = {
-  scale: 1.02,
-  transition: { duration: 0.2 },
+export const cardHover: Variants = {
+  hover: {
+    scale: 1.02,
+    transition: { duration: 0.2 },
+  },
 };
 
-export const buttonHover = {
-  scale: 1.05,
-  transition: { duration: 0.2 },
+export const buttonHover: Variants = {
+  hover: {
+    scale: 1.05,
+    transition: { duration: 0.2 },
+  },
 };

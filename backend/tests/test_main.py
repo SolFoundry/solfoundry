@@ -1,6 +1,5 @@
 """Tests for SolFoundry backend."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 import sys
