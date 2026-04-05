@@ -60,24 +60,21 @@ export class RateLimiter {
     this.lastRefillTime = Date.now();
     this.refillRatePerMs = maxRequestsPerSecond / 1000;
   }
+private refillLock: boolean = false;
 
-  /**
-   * Wait until a token is available, then consume it.
-   *
-   * Resolves immediately if tokens are available; otherwise sleeps
-   * for the minimum time needed for one token to refill.
-   */
-  async acquire(): Promise<void> {
-    this.refill();
-    if (this.tokens >= 1) {
-      this.tokens -= 1;
-      return;
+private refill(): void {
+    if (this.refillLock) {
+        return;
     }
-    const waitMs = Math.ceil((1 - this.tokens) / this.refillRatePerMs);
-    await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
-    this.refill();
-    this.tokens -= 1;
-  }
+    this.refillLock = true;
+    try {
+        const now = Date.now();
+        const elapsed = now - this.lastRefillTime;
+        this.tokens = Math.min(this.maxTokens, this.tokens + elapsed * this.refillRatePerMs);
+        this.lastRefillTime = now;
+    } finally {
+        this.refillLock = false;
+    }
 
   /**
    * Refill tokens based on elapsed time since the last refill.
