@@ -31,14 +31,26 @@ export class BountyRegistryClient extends BaseClient {
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
   }
-
-  async updateStatus(
+async registerBounty(
     bountyId: BN,
-    newStatus: number,
-    contributor: PublicKey | null = null,
+    title: string,
+    tier: number,
+    rewardAmount: BN,
+    githubIssue: string,
   ): Promise<TransactionSignature> {
+    if (!bountyId || !title || !githubIssue || rewardAmount.lte(new BN(0))) {
+      throw new Error('Invalid bounty data: bountyId, title, githubIssue, and rewardAmount are required, and rewardAmount must be greater than zero.');
+    }
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
+    try {
+      return await this.program.methods
+        .registerBounty(bountyId, title, tier, rewardAmount, githubIssue)
+        .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
+        .rpc();
+    } catch (error) {
+      throw new Error(`Failed to register bounty: ${error.message}`);
+    }
+  }
       .updateStatus(newStatus, contributor)
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
