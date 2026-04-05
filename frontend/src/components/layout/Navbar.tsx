@@ -33,6 +33,29 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-user-dropdown]')) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [dropdownOpen]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
@@ -111,7 +134,7 @@ export function Navbar() {
 
           {/* Auth */}
           {isAuthenticated && user ? (
-            <div className="relative">
+            <div className="relative" data-user-dropdown>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-forge-800 transition-colors duration-200"

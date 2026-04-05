@@ -54,12 +54,12 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap scrollbar-none">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
