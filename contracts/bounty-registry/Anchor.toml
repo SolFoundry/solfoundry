@@ -44,6 +44,5 @@ filename = "tests/fixtures/authority.json"
 # Clone the SPL Token program from devnet for cross-program tests
 address = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
-[test.validator.slots_per_epoch]
 # Shorter epochs during local testing (speeds up epoch-boundary tests)
 slots_per_epoch = 32

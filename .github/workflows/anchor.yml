@@ -358,7 +358,7 @@ jobs:
         continue-on-error: true
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --quiet
+        run: cargo install cargo-audit --locked --quiet
 
       - name: Security audit — bounty-registry
         working-directory: contracts/bounty-registry
