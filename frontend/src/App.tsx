@@ -12,6 +12,8 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => (
 const GitHubCallbackPage = React.lazy(() => import('./pages/GitHubCallbackPage').then((m) => ({ default: m.GitHubCallbackPage })));
 const BountiesPage = React.lazy(() => import('./pages/BountiesPage').then((m) => ({ default: m.BountiesPage })));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+const AgentOrchestratorPage = React.lazy(() => import('./pages/AgentOrchestratorPage').then((m) => ({ default: m.AgentOrchestratorPage })));
+const PipelineDashboardPage = React.lazy(() => import('./pages/PipelineDashboardPage').then((m) => ({ default: m.PipelineDashboardPage })));
 
 function PageLoader() {
   return (
@@ -46,6 +48,8 @@ export default function App() {
         />
         <Route path="/bounties" element={<BountiesPage />} />
         <Route path="/bounties/:id" element={<BountyDetailPage />} />
+        <Route path="/orchestrator" element={<AgentOrchestratorPage />} />
+        <Route path="/pipeline" element={<PipelineDashboardPage />} />
         <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
