@@ -74,7 +74,7 @@
   --background-image-gradient-footer: linear-gradient(90deg, #E040FB, #7C3AED, #00E676);
 
   /* === ANIMATIONS === */
-  --animate-typewriter: typewriter 2.5s steps(44) 0.5s forwards;
+  --animate-typewriter: typewriter 2.5s steps(41) 0.5s forwards;
   --animate-blink: blink 1s step-end infinite;
   --animate-ember: ember-float 3s ease-out infinite;
   --animate-shimmer: shimmer 2s linear infinite;
@@ -123,6 +123,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #050505;
   color: #F0F0F5;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */
@@ -130,6 +131,10 @@ body {
 ::-webkit-scrollbar-track { background: #050505; }
 ::-webkit-scrollbar-thumb { background: #2A2A3A; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3E3E56; }
+
+/* Hide scrollbar for horizontal pill strips */
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* Date input dark override */
 input[type="date"]::-webkit-calendar-picker-indicator {
