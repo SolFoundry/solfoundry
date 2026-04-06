@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { type ToastType, useToast } from '../../contexts/ToastContext';
 
-const TOAST_STYLES: Record<ToastType, { icon: React.ReactNode, border: string, glow: string, iconColor: string }> = {
+const TOAST_STYLES: Record<ToastType, { icon: React.ReactNode; border: string; glow: string; iconColor: string }> = {
   success: {
     icon: <CheckCircle className="w-5 h-5" />,
     border: 'border-status-success/30',
@@ -30,7 +30,12 @@ const TOAST_STYLES: Record<ToastType, { icon: React.ReactNode, border: string, g
   }
 };
 
-const Toast: React.FC<{ id: string, type: ToastType, message: string, duration?: number }> = ({ id, type, message }) => {
+const Toast: React.FC<{ id: string; type: ToastType; message: string; duration?: number }> = ({ 
+  id, 
+  type, 
+  message, 
+  duration = 5000 
+}) => {
   const { removeToast } = useToast();
   const style = TOAST_STYLES[type];
 
@@ -57,11 +62,10 @@ const Toast: React.FC<{ id: string, type: ToastType, message: string, duration?:
         <X className="w-4 h-4" />
       </button>
 
-      {/* Progress bar (aesthetic) */}
       <motion.div
         initial={{ scaleX: 1 }}
         animate={{ scaleX: 0 }}
-        transition={{ duration: 5, ease: 'linear' }}
+        transition={{ duration: duration / 1000, ease: 'linear' }}
         className={`absolute bottom-0 left-4 right-4 h-[2px] ${style.iconColor} origin-left opacity-30`}
       />
     </motion.div>
