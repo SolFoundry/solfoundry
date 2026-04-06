@@ -143,3 +143,21 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Mobile responsive — prevent horizontal overflow */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Fix any elements that might cause horizontal scroll */
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Bounty card mobile padding tweak */
+@media (max-width: 767px) {
+  .font-display {
+    letter-spacing: 0.05em;
+  }
+}

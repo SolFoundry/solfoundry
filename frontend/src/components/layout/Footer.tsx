@@ -92,7 +92,7 @@ export function Footer() {
           <div>
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">$FNDRY Token</h4>
             <p className="text-sm text-text-muted mb-3">Contract Address:</p>
-            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex items-center gap-2 w-full">
+            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex items-center gap-2 min-w-0">
               <span className="truncate">{FNDRY_CA.slice(0, 8)}...{FNDRY_CA.slice(-4)}</span>
               <button
                 onClick={copyCA}

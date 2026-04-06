@@ -70,7 +70,7 @@ function EventItem({ event }: { event: ActivityEvent }) {
         {' '}{getActionText(event.type)}{' '}
         <span className={`font-mono ${isMagenta ? 'text-magenta' : 'text-emerald'}`}>{event.detail}</span>
       </p>
-      <span className="font-mono text-xs text-text-muted flex-shrink-0">{timeAgo(event.timestamp)}</span>
+      <span className="font-mono text-xs text-text-muted flex-shrink-0 max-w-[4.5rem] truncate">{timeAgo(event.timestamp)}</span>
     </div>
   );
 }
