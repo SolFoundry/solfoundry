@@ -1,6 +1,3 @@
-# CI Pipeline - Runs on every Pull Request
-# Performs linting, type checking, unit tests, and build checks
-
 name: CI
 
 on:
