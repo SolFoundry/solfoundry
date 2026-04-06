@@ -12,7 +12,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
-  RUST_VERSION: '1.81.0'
+  RUST_VERSION: 'stable'
 
 jobs:
   frontend-setup:
