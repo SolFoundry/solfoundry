@@ -22,7 +22,6 @@ This GitHub Action enables repository maintainers to automatically post bounties
 - **Multi-Tier Support**: Supports T1, T2, T3 bounty tiers with different requirements
 - **Issue Linking**: Automatically links back to original GitHub issues
 - **Zero Configuration**: Works out of the box with sensible defaults
-- **Webhook Notifications**: Optional custom webhook for bounty notifications
 - **Batch Processing**: Handles multiple bounty issues in a single run
 
 ## Requirements
@@ -61,10 +60,10 @@ This GitHub Action enables repository maintainers to automatically post bounties
 
 ### Step 4: Create Workflow
 
-Create `.github/workflows/solfoundry-bounties.yml`:
+Create `.github/workflows/solfoundry-bounty-poster.yml`:
 
 ```yaml
-# @file solfoundry-bounties.yml
+# @file solfoundry-bounty-poster.yml
 # @brief Workflow for automatic bounty posting
 # @description Triggers bounty creation when issues are labeled or on schedule
 
@@ -126,14 +125,16 @@ jobs:
 | `bounty-label` | string | ❌ No | `bounty` | Label that triggers bounty creation |
 | `reward-amount` | string | ❌ No | `100000` | Reward amount in $FNDRY tokens |
 | `reward-tier` | string | ❌ No | `T1` | Bounty tier (T1, T2, T3) |
-| `custom-webhook` | string | ❌ No | - | Custom webhook URL for notifications |
+
 
 ### Outputs
 
 | Output | Type | Description |
 |--------|------|-------------|
-| `bounty-id` | string | Unique identifier of the created bounty |
-| `bounty-url` | string | Direct URL to view the bounty on SolFoundry |
+| `bounty-ids` | string | Comma-separated list of created bounty IDs |
+| `bounty-urls` | string | Comma-separated list of bounty URLs |
+| `posted-count` | number | Number of bounties posted |
+| `skipped-count` | number | Number of issues skipped (already posted) |
 
 ### Bounty Tiers
 
@@ -243,7 +244,7 @@ MIT License - see LICENSE file for details.
 
 ## Contributing
 
-Contributions welcome! Please see our [Contributing Guide](CONTRIBUTING.md).
+Contributions welcome! Please see our [Contributing Guide](../../CONTRIBUTING.md).
 
 ## Support
 
