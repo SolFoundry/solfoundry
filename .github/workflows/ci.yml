@@ -12,7 +12,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
-  RUST_VERSION: '1.85'
+  RUST_VERSION: '1.79'
 
 jobs:
   frontend-setup:
@@ -157,9 +157,8 @@ jobs:
       - name: Install Anchor
         if: steps.check.outputs.has_anchor == 'true'
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-          avm install 0.30.1
-          avm use 0.30.1
+          npm install -g @coral-xyz/anchor-cli@0.30.1
+          anchor --version
 
       - name: Build Anchor Program
         if: steps.check.outputs.has_anchor == 'true'
