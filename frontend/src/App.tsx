@@ -12,8 +12,6 @@ const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((m
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const GitHubCallbackPage = React.lazy(() => import('./pages/GitHubCallbackPage').then((m) => ({ default: m.GitHubCallbackPage })));
 const BountiesPage = React.lazy(() => import('./pages/BountiesPage').then((m) => ({ default: m.BountiesPage })));
-const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
-
 function PageLoader() {
   return (
     <div className="min-h-screen bg-forge-950 flex items-center justify-center">
