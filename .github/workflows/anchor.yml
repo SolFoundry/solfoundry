@@ -58,6 +58,7 @@ jobs:
 
       - name: Setup Solana
         run: |
+          mkdir -p $HOME/.local/bin
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
@@ -71,8 +72,14 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
+          mkdir -p $HOME/.local/bin
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Tools
+        run: |
+          solana --version
+          anchor --version
         env:
           ANCHOR_VERSION: ${{ env.ANCHOR_VERSION }}
 
@@ -148,6 +155,7 @@ jobs:
 
       - name: Setup Solana
         run: |
+          mkdir -p $HOME/.local/bin
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
@@ -161,8 +169,14 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
+          mkdir -p $HOME/.local/bin
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Tools
+        run: |
+          solana --version
+          anchor --version
 
       - name: Verify Anchor Version
         run: anchor --version
@@ -221,6 +235,7 @@ jobs:
 
       - name: Setup Solana
         run: |
+          mkdir -p $HOME/.local/bin
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
@@ -234,8 +249,14 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
+          mkdir -p $HOME/.local/bin
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Tools
+        run: |
+          solana --version
+          anchor --version
 
       - name: Verify Anchor Version
         run: anchor --version
@@ -309,6 +330,7 @@ jobs:
 
       - name: Setup Solana
         run: |
+          mkdir -p $HOME/.local/bin
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
@@ -322,8 +344,14 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
+          mkdir -p $HOME/.local/bin
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Tools
+        run: |
+          solana --version
+          anchor --version
 
       - name: Verify Anchor Version
         run: anchor --version

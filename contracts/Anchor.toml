@@ -6,16 +6,16 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-escrow     = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
-reputation = "RPTNzHXtmDSy7y7UoU3X3r56QQW3bRGSJhWKFpkXHmk"
-treasury   = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
-staking    = "5yBCCECfnEPBQTaKxhwABHNeAmb5j8rNHLLuvJfUCkZ"
+escrow          = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+bounty_registry = "DwCJkFvRD7NJqzUnPo1njptVScDJsMS6ezZPNXxRrQxe"
+treasury        = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
+fndry_staking   = "Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET"
 
 [programs.devnet]
-escrow     = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
-reputation = "RPTNzHXtmDSy7y7UoU3X3r56QQW3bRGSJhWKFpkXHmk"
-treasury   = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
-staking    = "5yBCCECfnEPBQTaKxhwABHNeAmb5j8rNHLLuvJfUCkZ"
+escrow          = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+bounty_registry = "DwCJkFvRD7NJqzUnPo1njptVScDJsMS6ezZPNXxRrQxe"
+treasury        = "TRSRy3jy5nK6tMxpPjzKpWkMN1AXyTWPz1yXD1yGxbj"
+fndry_staking   = "Wkvaa5DdWWN1GWAa4UX26CJzGuU5otXF7obLL27TFET"
 
 [registry]
 url = "https://api.apr.dev"
