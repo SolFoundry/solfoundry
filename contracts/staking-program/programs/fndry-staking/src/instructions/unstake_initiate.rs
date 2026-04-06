@@ -22,7 +22,7 @@ pub struct UnstakeInitiate<'info> {
         seeds = [b"config"],
         bump = config.config_bump,
     )]
-    pub config: Account<'info, StakingConfig>,
+    pub config: Box<Account<'info, StakingConfig>>,
 
     /// The user's stake account PDA.
     #[account(
@@ -31,7 +31,7 @@ pub struct UnstakeInitiate<'info> {
         bump = stake_account.bump,
         constraint = stake_account.owner == user.key() @ StakingError::Unauthorized,
     )]
-    pub stake_account: Account<'info, StakeAccount>,
+    pub stake_account: Box<Account<'info, StakeAccount>>,
 }
 
 /// Initiates the unstake cooldown for the specified amount.

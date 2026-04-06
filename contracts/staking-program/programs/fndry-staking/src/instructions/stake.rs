@@ -24,7 +24,7 @@ pub struct Stake<'info> {
         seeds = [b"config"],
         bump = config.config_bump,
     )]
-    pub config: Account<'info, StakingConfig>,
+    pub config: Box<Account<'info, StakingConfig>>,
 
     /// Per-user stake account PDA.
     /// Seeds: `["stake", user_pubkey]`.
@@ -36,7 +36,7 @@ pub struct Stake<'info> {
         seeds = [b"stake", user.key().as_ref()],
         bump,
     )]
-    pub stake_account: Account<'info, StakeAccount>,
+    pub stake_account: Box<Account<'info, StakeAccount>>,
 
     /// The $FNDRY token mint.
     #[account(

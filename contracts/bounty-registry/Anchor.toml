@@ -32,20 +32,4 @@ test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 startup_wait = 5000
 
 [test.validator]
-# Bind the test validator to localhost only
-bind_address = "0.0.0.0"
-url = "http://127.0.0.1:8899"
-ledger = ".ledger"
-
-# Pre-fund the program upgrade authority using the fixture keypair
-# (the actual airdrop is handled by setup-test-accounts.sh)
-[[test.validator.account]]
-address = "9MewNskmQT5MnPRVKhmJEEFq3GQnMTnSJjv9MewDvPmM"
-filename = "tests/fixtures/authority.json"
-
-[[test.validator.clone]]
-# Clone the SPL Token program from devnet for cross-program tests
-address = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-
-[test.validator]
 slots_per_epoch = 32

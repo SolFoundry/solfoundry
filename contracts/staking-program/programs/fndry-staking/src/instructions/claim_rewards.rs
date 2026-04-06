@@ -25,7 +25,7 @@ pub struct ClaimRewards<'info> {
         seeds = [b"config"],
         bump = config.config_bump,
     )]
-    pub config: Account<'info, StakingConfig>,
+    pub config: Box<Account<'info, StakingConfig>>,
 
     /// The user's stake account PDA.
     #[account(
@@ -34,14 +34,14 @@ pub struct ClaimRewards<'info> {
         bump = stake_account.bump,
         constraint = stake_account.owner == user.key() @ StakingError::Unauthorized,
     )]
-    pub stake_account: Account<'info, StakeAccount>,
+    pub stake_account: Box<Account<'info, StakeAccount>>,
 
     /// The reward pool token account (source of reward tokens).
     #[account(
         mut,
         constraint = reward_pool_vault.key() == config.reward_pool_vault @ StakingError::Unauthorized,
     )]
-    pub reward_pool_vault: Account<'info, TokenAccount>,
+    pub reward_pool_vault: Box<Account<'info, TokenAccount>>,
 
     /// The user's token account to receive reward tokens.
     #[account(

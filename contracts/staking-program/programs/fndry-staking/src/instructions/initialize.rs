@@ -27,7 +27,7 @@ pub struct Initialize<'info> {
         seeds = [b"config"],
         bump,
     )]
-    pub config: Account<'info, StakingConfig>,
+    pub config: Box<Account<'info, StakingConfig>>,
 
     /// The $FNDRY token mint.
     pub token_mint: Account<'info, Mint>,
@@ -50,7 +50,7 @@ pub struct Initialize<'info> {
         seeds = [b"reward_pool"],
         bump,
     )]
-    pub reward_pool_vault: Account<'info, TokenAccount>,
+    pub reward_pool_vault: Box<Account<'info, TokenAccount>>,
 
     /// Solana system program.
     pub system_program: Program<'info, System>,

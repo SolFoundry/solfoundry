@@ -23,7 +23,7 @@ pub struct UnstakeComplete<'info> {
         seeds = [b"config"],
         bump = config.config_bump,
     )]
-    pub config: Account<'info, StakingConfig>,
+    pub config: Box<Account<'info, StakingConfig>>,
 
     /// The user's stake account PDA.
     #[account(
@@ -32,7 +32,7 @@ pub struct UnstakeComplete<'info> {
         bump = stake_account.bump,
         constraint = stake_account.owner == user.key() @ StakingError::Unauthorized,
     )]
-    pub stake_account: Account<'info, StakeAccount>,
+    pub stake_account: Box<Account<'info, StakeAccount>>,
 
     /// PDA-owned stake vault holding the user's staked tokens.
     #[account(
@@ -40,7 +40,7 @@ pub struct UnstakeComplete<'info> {
         seeds = [b"stake_vault", user.key().as_ref()],
         bump,
     )]
-    pub stake_vault: Account<'info, TokenAccount>,
+    pub stake_vault: Box<Account<'info, TokenAccount>>,
 
     /// The user's token account to receive unstaked tokens.
     #[account(
