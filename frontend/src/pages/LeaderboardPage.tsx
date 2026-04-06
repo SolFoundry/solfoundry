@@ -6,6 +6,7 @@ import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import type { TimePeriod } from '../types/leaderboard';
 import { fadeIn } from '../lib/animations';
+import { LeaderboardRowSkeleton } from '../components/loading/Skeletons';
 
 const PERIODS: { label: string; value: TimePeriod }[] = [
   { label: '7d', value: '7d' },
@@ -26,7 +27,6 @@ export function LeaderboardPage() {
           <p className="text-text-secondary">Top contributors ranked by bounties completed</p>
         </div>
 
-        {/* Time filter */}
         <div className="flex items-center justify-center mb-10">
           <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800">
             {PERIODS.map((p) => (
@@ -34,9 +34,7 @@ export function LeaderboardPage() {
                 key={p.value}
                 onClick={() => setPeriod(p.value)}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                  period === p.value
-                    ? 'bg-forge-700 text-text-primary'
-                    : 'text-text-muted hover:text-text-secondary'
+                  period === p.value ? 'bg-forge-700 text-text-primary' : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
                 {p.label}
@@ -45,28 +43,33 @@ export function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div className="max-w-4xl mx-auto rounded-xl border border-border bg-forge-900 overflow-hidden">
+            <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="w-[60px] text-center">Rank</div>
+              <div className="flex-1">User</div>
+              <div className="w-[100px] text-center">Bounties</div>
+              <div className="w-[120px] text-right">Earned</div>
+              <div className="w-[80px] text-center hidden sm:block">Streak</div>
+            </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <LeaderboardRowSkeleton key={i} />
+            ))}
           </div>
         )}
 
-        {/* Error */}
         {isError && !isLoading && (
           <div className="text-center py-12">
             <p className="text-text-muted">Could not load leaderboard data.</p>
           </div>
         )}
 
-        {/* Empty state */}
         {!isLoading && !isError && entries.length === 0 && (
           <div className="text-center py-12">
             <p className="text-text-muted">No contributors ranked yet for this period.</p>
           </div>
         )}
 
-        {/* Podium + table */}
         {!isLoading && entries.length > 0 && (
           <>
             <PodiumCards entries={entries} />

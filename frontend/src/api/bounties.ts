@@ -13,6 +13,7 @@ export interface BountiesListParams {
   limit?: number;
   offset?: number;
   skill?: string;
+  search?: string;
   tier?: string;
   reward_token?: string;
 }

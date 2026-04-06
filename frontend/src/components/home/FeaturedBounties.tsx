@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 import { useBounties } from '../../hooks/useBounties';
 import { BountyCard } from '../bounty/BountyCard';
+import { BountyCardSkeleton } from '../loading/Skeletons';
 
 export function FeaturedBounties() {
   const { data, isLoading, isError } = useBounties({ limit: 4, status: 'open' });
@@ -23,9 +24,7 @@ export function FeaturedBounties() {
             <h2 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-wide">
               Open Bounties
             </h2>
-            <p className="mt-2 text-text-secondary text-base">
-              Start contributing and earn USDC rewards.
-            </p>
+            <p className="mt-2 text-text-secondary text-base">Start contributing and earn USDC rewards.</p>
           </div>
           <Link
             to="/bounties"
@@ -39,16 +38,12 @@ export function FeaturedBounties() {
         {isLoading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-forge-900 h-48 animate-pulse" />
+              <BountyCardSkeleton key={i} />
             ))}
           </div>
         )}
 
-        {isError && (
-          <div className="py-12 text-center text-text-muted text-sm">
-            Could not load bounties.
-          </div>
-        )}
+        {isError && <div className="py-12 text-center text-text-muted text-sm">Could not load bounties.</div>}
 
         {data && data.items.length > 0 && (
           <motion.div
@@ -67,9 +62,7 @@ export function FeaturedBounties() {
         )}
 
         {data && data.items.length === 0 && (
-          <div className="py-12 text-center text-text-muted text-sm">
-            No open bounties right now. Check back soon.
-          </div>
+          <div className="py-12 text-center text-text-muted text-sm">No open bounties right now. Check back soon.</div>
         )}
 
         <motion.div

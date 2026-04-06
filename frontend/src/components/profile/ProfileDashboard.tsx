@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { GitPullRequest } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
 import type { Bounty } from '../../types/bounty';
+import { ProfileBountyRowSkeleton, ProfileSummarySkeleton } from '../loading/Skeletons';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
 type Tab = typeof TABS[number];
@@ -35,7 +36,13 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return (
+      <div className="space-y-2 py-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <ProfileBountyRowSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
   if (!bounties.length) {
     return (
@@ -54,7 +61,7 @@ function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boo
           key={b.id}
           variants={staggerItem}
           className="flex items-center gap-4 px-4 py-3 rounded-lg bg-forge-900 border border-border hover:bg-forge-850 transition-colors cursor-pointer"
-          onClick={() => window.location.href = `/bounties/${b.id}`}
+          onClick={() => (window.location.href = `/bounties/${b.id}`)}
         >
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{b.title}</p>
@@ -137,11 +144,7 @@ function SettingsTab() {
       <div className="rounded-xl border border-border bg-forge-900 p-5">
         <h3 className="font-sans text-base font-semibold text-text-primary mb-2">Solana Wallet</h3>
         <p className="text-sm text-text-muted">
-          {user?.wallet_address ? (
-            <span className="font-mono">{user.wallet_address}</span>
-          ) : (
-            'No wallet linked. Link a wallet to receive FNDRY payouts.'
-          )}
+          {user?.wallet_address ? <span className="font-mono">{user.wallet_address}</span> : 'No wallet linked. Link a wallet to receive FNDRY payouts.'}
         </p>
       </div>
     </div>
@@ -155,6 +158,19 @@ export function ProfileDashboard() {
 
   if (!user) return null;
 
+  if (isLoading) {
+    return (
+      <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
+        <ProfileSummarySkeleton />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <ProfileBountyRowSkeleton key={i} />
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
   const joinDate = user.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : 'Recently';
@@ -163,7 +179,6 @@ export function ProfileDashboard() {
 
   return (
     <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="rounded-xl border border-border bg-forge-900 p-6 mb-6">
         <div className="flex items-start gap-5">
           {user.avatar_url ? (
@@ -175,22 +190,17 @@ export function ProfileDashboard() {
           )}
           <div className="flex-1">
             <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
-            <p className="mt-1 font-mono text-sm text-text-muted">
-              Joined {joinDate} · {myBounties.length} bounties created
-            </p>
+            <p className="mt-1 font-mono text-sm text-text-muted">Joined {joinDate} · {myBounties.length} bounties created</p>
           </div>
         </div>
 
-        {/* Tab switcher */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                activeTab === tab
-                  ? 'bg-forge-700 text-text-primary'
-                  : 'text-text-muted hover:text-text-secondary'
+                activeTab === tab ? 'bg-forge-700 text-text-primary' : 'text-text-muted hover:text-text-secondary'
               }`}
             >
               {tab}
@@ -199,9 +209,8 @@ export function ProfileDashboard() {
         </div>
       </div>
 
-      {/* Tab content */}
       <div>
-        {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
+        {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={false} />}
         {activeTab === 'My Submissions' && <SubmissionsTab />}
         {activeTab === 'Earnings' && <EarningsTab />}
         {activeTab === 'Settings' && <SettingsTab />}
