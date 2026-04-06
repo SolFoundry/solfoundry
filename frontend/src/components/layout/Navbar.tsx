@@ -38,7 +38,6 @@ export function Navbar() {
       const url = await getGitHubAuthorizeUrl();
       window.location.href = url;
     } catch {
-      // Fallback: direct to backend authorize endpoint
       window.location.href = '/api/auth/github/authorize';
     }
   };
@@ -50,104 +49,63 @@ export function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-200 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled ? 'bg-forge-950/90' : 'bg-forge-950/80'
       } backdrop-blur-xl border-b border-border`}
     >
-      {/* Gradient bottom border */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 h-px bg-gradient-navbar transition-opacity duration-200 ${
-          scrolled ? 'opacity-70' : 'opacity-40'
-        }`}
-      />
+      <div className={`absolute bottom-0 left-0 right-0 h-px bg-gradient-navbar transition-opacity duration-200 ${scrolled ? 'opacity-70' : 'opacity-40'}`} />
 
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between">
-        {/* Left: Logo + Nav */}
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <img
-              src="/logo-icon.png"
-              alt="SolFoundry"
-              className="w-7 h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200"
-            />
-            <span className="font-display text-lg font-semibold text-text-primary tracking-wide">
-              SolFoundry
-            </span>
+      <div className="max-w-7xl mx-auto min-h-16 px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link to="/" className="flex items-center gap-2.5 group min-w-0">
+            <img src="/logo-icon.png" alt="SolFoundry" className="w-7 h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200 flex-shrink-0" />
+            <span className="font-display text-base sm:text-lg font-semibold text-text-primary tracking-wide truncate">SolFoundry</span>
           </Link>
 
-          {/* Desktop nav links */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6 lg:gap-8 min-w-0">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`relative font-sans text-sm font-medium transition-colors duration-200 ${
-                  isActive(link.to)
-                    ? 'text-text-primary'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
+                className={`relative font-sans text-sm font-medium transition-colors duration-200 ${isActive(link.to) ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}
               >
                 {link.label}
-                {isActive(link.to) && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute -bottom-[21px] left-0 right-0 h-0.5 bg-emerald"
-                  />
-                )}
+                {isActive(link.to) && <motion.div layoutId="nav-indicator" className="absolute -bottom-[21px] left-0 right-0 h-0.5 bg-emerald" />}
               </Link>
             ))}
           </div>
         </div>
 
-        {/* Right: Live count + Auth */}
-        <div className="flex items-center gap-3">
-          {/* Live bounty count */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {stats && (
-            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-bg border border-emerald-border">
-              <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-              <span className="font-mono text-xs text-emerald">{stats.open_bounties} open</span>
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-bg border border-emerald-border max-w-[120px] lg:max-w-none">
+              <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow flex-shrink-0" />
+              <span className="font-mono text-xs text-emerald truncate">{stats.open_bounties} open</span>
             </div>
           )}
 
-          {/* Auth */}
           {isAuthenticated && user ? (
-            <div className="relative">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-forge-800 transition-colors duration-200"
-              >
+            <div className="relative hidden sm:block">
+              <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-forge-800 transition-colors duration-200 max-w-[180px]">
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={user.username} className="w-7 h-7 rounded-full border border-border" />
+                  <img src={user.avatar_url} alt={user.username} className="w-7 h-7 rounded-full border border-border flex-shrink-0" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-forge-700 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-forge-700 flex items-center justify-center flex-shrink-0">
                     <User className="w-4 h-4 text-text-muted" />
                   </div>
                 )}
-                <span className="hidden sm:block text-sm font-medium text-text-primary">{user.username}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+                <span className="text-sm font-medium text-text-primary truncate">{user.username}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
               </button>
 
               <AnimatePresence>
                 {dropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-border bg-forge-900 shadow-2xl shadow-black/50 overflow-hidden"
-                  >
-                    <Link
-                      to="/profile"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
-                    >
+                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }} className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-border bg-forge-900 shadow-2xl shadow-black/50 overflow-hidden">
+                    <Link to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150">
                       <User className="w-4 h-4" /> Profile
                     </Link>
                     <div className="border-t border-border/50" />
-                    <button
-                      onClick={() => { logout(); setDropdownOpen(false); navigate('/'); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-status-error hover:bg-forge-850 transition-colors duration-150"
-                    >
+                    <button onClick={() => { logout(); setDropdownOpen(false); navigate('/'); }} className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-status-error hover:bg-forge-850 transition-colors duration-150">
                       <LogOut className="w-4 h-4" /> Sign out
                     </button>
                   </motion.div>
@@ -155,46 +113,43 @@ export function Navbar() {
               </AnimatePresence>
             </div>
           ) : (
-            <button
-              onClick={handleGitHubSignIn}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700"
-            >
+            <button onClick={handleGitHubSignIn} className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700">
               <GitHubIcon />
-              <span className="hidden sm:block">Sign in with GitHub</span>
-              <span className="sm:hidden">Sign in</span>
+              <span className="hidden lg:block">Sign in with GitHub</span>
+              <span className="lg:hidden">Sign in</span>
             </button>
           )}
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
-          >
+          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary">
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden bg-forge-900 border-b border-border"
-          >
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden overflow-hidden bg-forge-900 border-b border-border">
             <div className="px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
-                >
+                <Link key={link.to} to={link.to} onClick={() => setMenuOpen(false)} className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150">
                   {link.label}
                 </Link>
               ))}
+              {!isAuthenticated && (
+                <button onClick={handleGitHubSignIn} className="mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-forge-800 border border-border text-text-primary text-sm font-medium hover:border-border-hover hover:bg-forge-700 transition-all duration-200">
+                  <GitHubIcon /> Sign in with GitHub
+                </button>
+              )}
+              {isAuthenticated && user && (
+                <>
+                  <Link to="/profile" onClick={() => setMenuOpen(false)} className="mt-2 px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150">
+                    Profile
+                  </Link>
+                  <button onClick={() => { logout(); setMenuOpen(false); navigate('/'); }} className="px-4 py-2.5 rounded-lg text-left text-sm font-medium text-text-secondary hover:text-status-error hover:bg-forge-850 transition-colors duration-150">
+                    Sign out
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         )}
