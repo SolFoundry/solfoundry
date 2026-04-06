@@ -57,3 +57,12 @@ export const scaleUp: Variants = {
   initial: { opacity: 0, scale: 0.95 },
   animate: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
 };
+
+export const buttonHover: Variants = {
+  initial: { scale: 1 },
+  hover: {
+    scale: 1.02,
+    transition: { type: 'spring', stiffness: 400, damping: 10 },
+  },
+  tap: { scale: 0.98 },
+};

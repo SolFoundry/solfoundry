@@ -57,9 +57,9 @@ jobs:
           components: clippy, rustfmt
 
       - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Anchor
         uses: actions/cache@v4
@@ -71,12 +71,13 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          if ! command -v anchor &> /dev/null; then
-            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-            avm install ${{ env.ANCHOR_VERSION }}
-            avm use ${{ env.ANCHOR_VERSION }}
-          fi
-          anchor --version
+          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        env:
+          ANCHOR_VERSION: ${{ env.ANCHOR_VERSION }}
+
+      - name: Verify Anchor Version
+        run: anchor --version
 
       - name: Generate Solana keypair
         run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
@@ -146,9 +147,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Anchor
         uses: actions/cache@v4
@@ -160,12 +161,11 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          if ! command -v anchor &> /dev/null; then
-            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-            avm install ${{ env.ANCHOR_VERSION }}
-            avm use ${{ env.ANCHOR_VERSION }}
-          fi
-          anchor --version
+          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Anchor Version
+        run: anchor --version
 
       - name: Generate Solana keypair
         run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
@@ -220,9 +220,9 @@ jobs:
           components: clippy, rustfmt
 
       - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Anchor
         uses: actions/cache@v4
@@ -234,12 +234,11 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          if ! command -v anchor &> /dev/null; then
-            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-            avm install ${{ env.ANCHOR_VERSION }}
-            avm use ${{ env.ANCHOR_VERSION }}
-          fi
-          anchor --version
+          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Anchor Version
+        run: anchor --version
 
       - name: Generate Solana keypair
         run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
@@ -309,9 +308,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup Solana
-        uses: metadaoproject/setup-solana@v1
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Anchor
         uses: actions/cache@v4
@@ -323,12 +322,11 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          if ! command -v anchor &> /dev/null; then
-            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-            avm install ${{ env.ANCHOR_VERSION }}
-            avm use ${{ env.ANCHOR_VERSION }}
-          fi
-          anchor --version
+          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Anchor Version
+        run: anchor --version
 
       - name: Generate Solana keypair
         run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json

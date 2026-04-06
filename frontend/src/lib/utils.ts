@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function timeLeft(date: string): string {
+export function timeLeft(date: string | number | Date): string {
   const diff = new Date(date).getTime() - Date.now();
   if (diff <= 0) return 'Expired';
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -14,7 +14,7 @@ export function timeLeft(date: string): string {
   return `${hours}h left`;
 }
 
-export function timeAgo(date: string): string {
+export function timeAgo(date: string | number | Date): string {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   let interval = seconds / 31536000;
   if (interval > 1) return Math.floor(interval) + ' years ago';
