@@ -35,7 +35,7 @@ const Toast: React.FC<{ id: string, type: ToastType, message: string }> = ({ id,
   const style = TOAST_STYLES[type];
 
   return (
-      <motion.div
+    <motion.div
       layout
       initial={{ opacity: 0, x: 20, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}

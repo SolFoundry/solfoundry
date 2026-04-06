@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { ToastContainer } from './components/common/Toast';
 
@@ -48,7 +48,7 @@ export default function App() {
         <Route path="/bounties" element={<BountiesPage />} />
         <Route path="/bounties/:id" element={<BountyDetailPage />} />
         <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastContainer />
     </Suspense>
