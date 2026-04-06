@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { createSubmission, getReviewFee, verifyReviewFee } from '../../api/bounties';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SubmissionFormProps {
   bounty: Bounty;
@@ -10,6 +11,7 @@ interface SubmissionFormProps {
 
 export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
   const hasRepo = bounty.has_repo ?? !!bounty.github_repo_url;
+  const { pushToast } = useToast();
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
   const [txSig, setTxSig] = useState('');
@@ -21,7 +23,6 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
   const [copied, setCopied] = useState(false);
   const [feeInfo, setFeeInfo] = useState<{ fndry_amount: number; fndry_price_usd: number } | null>(null);
 
-  // Treasury address placeholder — in production comes from API
   const TREASURY = '9xKfBountyTreasuryAddressHere...';
 
   React.useEffect(() => {
@@ -38,19 +39,38 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
       const result = await verifyReviewFee({ bounty_id: bounty.id, tx_signature: txSig });
       if (result.verified) {
         setFeeVerified(true);
+        pushToast({
+          title: 'Review fee verified',
+          description: 'Your FNDRY payment was confirmed. You can submit now.',
+          variant: 'success',
+        });
       } else {
-        setError(result.error ?? 'Fee verification failed. Check your transaction signature.');
+        const message = result.error ?? 'Fee verification failed. Check your transaction signature.';
+        setError(message);
+        pushToast({ title: 'Verification failed', description: message, variant: 'error' });
       }
     } catch {
-      setError('Fee verification failed. Try again.');
+      const message = 'Fee verification failed. Try again.';
+      setError(message);
+      pushToast({ title: 'Verification failed', description: message, variant: 'error' });
     } finally {
       setVerifying(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!url.trim()) { setError('URL is required.'); return; }
-    if (!feeVerified) { setError('Verify your FNDRY review fee first.'); return; }
+    if (!url.trim()) {
+      const message = 'URL is required.';
+      setError(message);
+      pushToast({ title: 'Submission blocked', description: message, variant: 'warning' });
+      return;
+    }
+    if (!feeVerified) {
+      const message = 'Verify your FNDRY review fee first.';
+      setError(message);
+      pushToast({ title: 'Submission blocked', description: message, variant: 'warning' });
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -61,9 +81,16 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
         tx_signature: txSig,
       });
       setSuccess(true);
+      pushToast({
+        title: 'Submission received',
+        description: 'AI review will begin shortly.',
+        variant: 'success',
+      });
       onSuccess?.();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Submission failed. Try again.');
+      const message = e instanceof Error ? e.message : 'Submission failed. Try again.';
+      setError(message);
+      pushToast({ title: 'Submission failed', description: message, variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -72,6 +99,11 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
   const copyTreasury = () => {
     navigator.clipboard.writeText(TREASURY).then(() => {
       setCopied(true);
+      pushToast({
+        title: 'Treasury address copied',
+        description: 'Paste it into your wallet to pay the review fee.',
+        variant: 'info',
+      });
       setTimeout(() => setCopied(false), 2000);
     });
   };
@@ -118,7 +150,6 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
         </div>
       )}
 
-      {/* FNDRY Review Fee */}
       <div className="border-t border-b border-border py-4 my-2">
         <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">FNDRY Review Fee</p>
         {feeInfo && (

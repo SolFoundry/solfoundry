@@ -5,6 +5,7 @@ import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
 import type { BountyCreatePayload } from '../../types/bounty';
 import { createBounty, getTreasuryDepositInfo, verifyEscrowDeposit } from '../../api/bounties';
 import { pageTransition } from '../../lib/animations';
+import { useToast } from '../../contexts/ToastContext';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
 const PLATFORM_FEE_PCT = 0.05;
@@ -183,7 +184,10 @@ function Step2({
           {PRESET_AMOUNTS.map((amt) => (
             <button
               key={amt}
-              onClick={() => { onChange('reward_amount', amt); onChange('custom_amount', ''); }}
+              onClick={() => {
+                onChange('reward_amount', amt);
+                onChange('custom_amount', '');
+              }}
               className={`px-4 py-2 rounded-lg border text-sm font-mono font-medium transition-all duration-150 ${
                 state.reward_amount === amt && !state.custom_amount
                   ? 'bg-emerald text-text-inverse border-emerald'
@@ -270,6 +274,7 @@ function Step3({
   onSubmit: () => void;
   creating: boolean;
 }) {
+  const { pushToast } = useToast();
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
@@ -280,6 +285,11 @@ function Step3({
     if (!state.treasury_address) return;
     navigator.clipboard.writeText(state.treasury_address).then(() => {
       setCopiedAddr(true);
+      pushToast({
+        title: 'Treasury address copied',
+        description: 'Paste it into your wallet to fund the bounty.',
+        variant: 'info',
+      });
       setTimeout(() => setCopiedAddr(false), 2000);
     });
   };
@@ -292,11 +302,20 @@ function Step3({
       const result = await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
       if (result.verified) {
         onChange('verified', true);
+        pushToast({
+          title: 'Payment verified',
+          description: 'Escrow funding is confirmed. You can publish the bounty now.',
+          variant: 'success',
+        });
       } else {
-        setVerifyError(result.error ?? 'Verification failed. Check your transaction signature.');
+        const message = result.error ?? 'Verification failed. Check your transaction signature.';
+        setVerifyError(message);
+        pushToast({ title: 'Verification failed', description: message, variant: 'error' });
       }
     } catch {
-      setVerifyError('Verification failed. Try again.');
+      const message = 'Verification failed. Try again.';
+      setVerifyError(message);
+      pushToast({ title: 'Verification failed', description: message, variant: 'error' });
     } finally {
       setVerifying(false);
     }
@@ -332,7 +351,7 @@ function Step3({
             onChange={(e) => onChange('tx_signature', e.target.value)}
             disabled={state.verified}
             placeholder="5KfR8xMn..."
-            className={`flex-1 bg-forge-700 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150`}
+            className="flex-1 bg-forge-700 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150"
           />
           <button
             onClick={handleVerify}
@@ -380,6 +399,7 @@ function Step3({
 
 export function BountyCreateWizard() {
   const navigate = useNavigate();
+  const { pushToast } = useToast();
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -403,6 +423,7 @@ export function BountyCreateWizard() {
   }, []);
 
   const handleStep1Next = () => setStep(1);
+
   const handleStep2Next = async () => {
     setCreating(true);
     setError(null);
@@ -421,9 +442,16 @@ export function BountyCreateWizard() {
       onChange('bounty_id', bounty.id);
       onChange('treasury_address', depositInfo.treasury_address);
       onChange('total_to_fund', depositInfo.total_to_fund);
+      pushToast({
+        title: 'Bounty draft created',
+        description: 'Funding details are ready. Send payment to publish it live.',
+        variant: 'success',
+      });
       setStep(2);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create bounty. Try again.');
+      const message = e instanceof Error ? e.message : 'Failed to create bounty. Try again.';
+      setError(message);
+      pushToast({ title: 'Bounty creation failed', description: message, variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -435,9 +463,16 @@ export function BountyCreateWizard() {
     setError(null);
     try {
       await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+      pushToast({
+        title: 'Bounty published',
+        description: 'Your bounty is now live for contributors.',
+        variant: 'success',
+      });
       setSuccess(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
+      const message = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
+      setError(message);
+      pushToast({ title: 'Publish failed', description: message, variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -467,13 +502,7 @@ export function BountyCreateWizard() {
       )}
 
       <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          variants={pageTransition}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
+        <motion.div key={step} variants={pageTransition} initial="initial" animate="animate" exit="exit">
           {step === 0 && <Step1 state={state} onChange={onChange} onNext={handleStep1Next} />}
           {step === 1 && <Step2 state={state} onChange={onChange} onNext={handleStep2Next} onBack={() => setStep(0)} />}
           {step === 2 && <Step3 state={state} onChange={onChange} onBack={() => setStep(1)} onSubmit={handlePublish} creating={creating} />}
