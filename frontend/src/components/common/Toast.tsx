@@ -30,7 +30,7 @@ const TOAST_STYLES: Record<ToastType, { icon: React.ReactNode, border: string, g
   }
 };
 
-const Toast: React.FC<{ id: string, type: ToastType, message: string }> = ({ id, type, message }) => {
+const Toast: React.FC<{ id: string, type: ToastType, message: string, duration?: number }> = ({ id, type, message }) => {
   const { removeToast } = useToast();
   const style = TOAST_STYLES[type];
 

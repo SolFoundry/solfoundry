@@ -18,7 +18,6 @@ env:
   RUST_VERSION: '1.85'
 
 jobs:
-  # ==================== FRONTEND (React/TypeScript) ====================
   frontend-setup:
     name: Frontend Setup Check
     runs-on: ubuntu-latest
@@ -129,7 +128,6 @@ jobs:
         env:
           NODE_ENV: production
 
-  # ==================== CONTRACTS (Solana/Anchor) ====================
   contracts-check:
     name: Contracts Check (Anchor)
     runs-on: ubuntu-latest
@@ -171,7 +169,6 @@ jobs:
         working-directory: contracts
         run: anchor build
 
-  # ==================== RUST (General) ====================
   rust-lint:
     name: Rust Lint (Clippy)
     runs-on: ubuntu-latest
@@ -206,7 +203,6 @@ jobs:
         run: cargo fmt -- --check
         continue-on-error: true
 
-  # ==================== SUMMARY ====================
   ci-status:
     name: CI Status Summary
     runs-on: ubuntu-latest
