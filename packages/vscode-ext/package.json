@@ -1,0 +1,43 @@
+{
+  "name": "solfoundry-bounties",
+  "displayName": "SolFoundry Bounties",
+  "description": "Browse and manage SolFoundry bounties directly in VS Code",
+  "version": "1.0.0",
+  "publisher": "plutusmcduck",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:solfoundry.openPanel"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "solfoundry.openPanel",
+        "title": "Open SolFoundry Bounties",
+        "category": "SolFoundry"
+      },
+      {
+        "command": "solfoundry.refresh",
+        "title": "Refresh Bounties",
+        "icon": "$(refresh)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "solfoundryBounties",
+          "name": "SolFoundry Bounties"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4"
+  }
+}
