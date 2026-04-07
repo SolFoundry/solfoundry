@@ -1,0 +1,9 @@
+name: SolFoundry Bounty Poster
+description: Post bounties to SolFoundry from external repos
+inputs:
+  api-key:
+    description: SolFoundry API key
+    required: true
+runs:
+  using: node20
+  main: index.js
