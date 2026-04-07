@@ -94,7 +94,8 @@ jobs:
               post_issue_comment(48,
                   f"@{user} Thanks for your interest! To claim your 10,000 $FNDRY reward, "
                   f"please reply with your **Solana wallet address**. "
-                  f"Make sure you've also ⭐ starred the repo!"
+                  f"Make sure you've also starred the repo!\n\n"
+                  f"---\n*-- SolFoundry Bot*"
               )
               # No Telegram — bot.py handles star reward notifications with inline Pay/Skip buttons
               exit(0)
@@ -130,8 +131,9 @@ jobs:
 
           if not is_stargazer:
               post_issue_comment(48,
-                  f"@{user} I see your wallet but you haven't ⭐ starred the repo yet! "
-                  f"Star first, then your reward will be processed."
+                  f"@{user} I see your wallet but you haven't starred the repo yet! "
+                  f"Star first, then your reward will be processed.\n\n"
+                  f"---\n*-- SolFoundry Bot*"
               )
               # No Telegram — bot.py handles star reward notifications with inline buttons
           elif already_claimed:
@@ -139,8 +141,9 @@ jobs:
           else:
               # Acknowledge on GitHub — the local bot handles Telegram + payout buttons
               post_issue_comment(48,
-                  f"✅ @{user} — Star confirmed and wallet received! "
-                  f"Your 10,000 $FNDRY reward is being processed. 🏭"
+                  f"@{user} — Star confirmed and wallet received! "
+                  f"Your 10,000 $FNDRY reward is being processed.\n\n"
+                  f"---\n*-- SolFoundry Bot*"
               )
               # No Telegram — bot.py sends payout button via inline keyboard
 

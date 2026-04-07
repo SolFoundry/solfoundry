@@ -1,1 +1,0 @@
-export { ActivityFeed } from './ActivityFeed';

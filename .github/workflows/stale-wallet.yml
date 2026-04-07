@@ -110,13 +110,13 @@ jobs:
                   # No wallet after 24h — close
                   gh_api(f"repos/{repo}/issues/{pr_num}/comments", method="POST", data={
                       "body": (
-                          f"⏰ **Auto-closed — no wallet address after 24 hours**\n\n"
+                          f"**Auto-closed — no wallet address after 24 hours**\n\n"
                           f"@{pr_author}, this PR was closed because no Solana wallet address "
                           f"was added within 24 hours.\n\n"
                           f"To resubmit:\n"
                           f"1. Add your Solana wallet address to the PR description\n"
                           f"2. Open a new PR with `Closes #N` referencing the bounty issue\n\n"
-                          f"---\n*SolFoundry Review Bot*"
+                          f"---\n*-- SolFoundry Bot*"
                       )
                   })
                   gh_api(f"repos/{repo}/pulls/{pr_num}", method="PATCH", data={"state": "closed"})

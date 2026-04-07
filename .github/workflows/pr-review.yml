@@ -38,8 +38,15 @@ jobs:
           echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
 
           # Extract linked issue from PR title + body
-          PR_JSON=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+          PR_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM")
+          PR_HTTP_CODE=$(echo "$PR_RESPONSE" | tail -1)
+          PR_JSON=$(echo "$PR_RESPONSE" | head -n -1)
+          if [ "$PR_HTTP_CODE" != "200" ]; then
+            echo "ERROR: GitHub API returned $PR_HTTP_CODE for PR #$PR_NUM"
+            echo "Response: ${PR_JSON:0:300}"
+            exit 1
+          fi
           PR_TITLE=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title',''))" 2>/dev/null)
           PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
@@ -48,12 +55,12 @@ jobs:
           BLOCKED_USERS="AlexChen31337,xidik12,chulinhcql-art"
           if echo ",$BLOCKED_USERS," | grep -qi ",$PR_AUTHOR,"; then
             echo "BLOCKED USER: $PR_AUTHOR"
-            curl -sf -X POST \
+            curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
-              -d "{\"body\":\"🚫 @$PR_AUTHOR — your account has been blocked from the SolFoundry bounty program due to previous violations.\n\n---\n*SolFoundry Review Bot*\"}"
-            curl -sf -X PATCH \
+              -d "{\"body\":\"@$PR_AUTHOR — your account has been blocked from the SolFoundry bounty program due to previous violations.\n\n---\n*SolFoundry Bot*\"}"
+            curl -s -X PATCH \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
@@ -65,9 +72,10 @@ jobs:
           # Rate limiting disabled during maintenance
 
           # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
-          ALL_ISSUES=$(python3 -c "
-          import re
-          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          # Use env vars to avoid shell injection from PR title/body
+          ALL_ISSUES=$(PR_TITLE_ENV="$PR_TITLE" PR_BODY_ENV="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_ENV', '') + ' ' + os.environ.get('PR_BODY_ENV', '')
           matches = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
           # Deduplicate
           seen = []
@@ -89,12 +97,12 @@ jobs:
           # Block multi-bounty PRs (one PR = one bounty)
           if [ "$ISSUE_COUNT" -gt 1 ]; then
             echo "BLOCKED: PR #$PR_NUM references $ISSUE_COUNT bounty issues ($ALL_ISSUES)"
-            curl -sf -X POST \
+            curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
-              -d "{\"body\":\"❌ **Multiple Bounties Detected**\n\n@$PR_AUTHOR, this PR references **$ISSUE_COUNT bounty issues** (#$(echo $ALL_ISSUES | sed 's/,/, #/g')).\n\n**Each bounty must be submitted as a separate PR** — one PR per bounty issue. This ensures proper review scope, fair attribution, and clean merge history.\n\nPlease:\n1. Split your work into separate PRs, each referencing only one bounty issue\n2. Use \`Closes #N\` to link each PR to its specific bounty\n\n---\n*SolFoundry Review Bot*\"}"
-            curl -sf -X PATCH \
+              -d "{\"body\":\"**Multiple Bounties Detected**\n\n@$PR_AUTHOR, this PR references **$ISSUE_COUNT bounty issues** (#$(echo $ALL_ISSUES | sed 's/,/, #/g')).\n\n**Each bounty must be submitted as a separate PR** — one PR per bounty issue. This ensures proper review scope, fair attribution, and clean merge history.\n\nPlease:\n1. Split your work into separate PRs, each referencing only one bounty issue\n2. Use \`Closes #N\` to link each PR to its specific bounty\n\n---\n*SolFoundry Bot*\"}"
+            curl -s -X PATCH \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
@@ -104,20 +112,20 @@ jobs:
           fi
 
           # Check if the bounty issue is closed
-          ISSUE_STATE=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+          ISSUE_STATE=$(curl -s -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM" \
             | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('state','open'))" 2>/dev/null)
 
           if [ "$ISSUE_STATE" = "closed" ]; then
             echo "BLOCKED: Bounty #$ISSUE_NUM is closed — closing PR #$PR_NUM"
             # Post comment
-            curl -sf -X POST \
+            curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
-              -d "{\"body\":\"❌ **Bounty Closed**\n\n@$PR_AUTHOR, bounty #$ISSUE_NUM has already been completed and closed.\n\nThis PR cannot be reviewed because the bounty is no longer active. Please check the [open bounties](https://github.com/${{ github.repository }}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) for available work.\n\n---\n*SolFoundry Review Bot*\"}"
+              -d "{\"body\":\"**Bounty Closed**\n\n@$PR_AUTHOR, bounty #$ISSUE_NUM has already been completed and closed.\n\nThis PR cannot be reviewed because the bounty is no longer active. Please check the [open bounties](https://github.com/${{ github.repository }}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) for available work.\n\n---\n*SolFoundry Bot*\"}"
             # Close PR
-            curl -sf -X PATCH \
+            curl -s -X PATCH \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
@@ -138,16 +146,22 @@ jobs:
           REPO="${{ github.repository }}"
 
           # Get PR info
-          PR_JSON=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+          PR_RESPONSE2=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/$REPO/pulls/$PR_NUM")
+          PR_HTTP_CODE2=$(echo "$PR_RESPONSE2" | tail -1)
+          PR_JSON=$(echo "$PR_RESPONSE2" | head -n -1)
+          if [ "$PR_HTTP_CODE2" != "200" ]; then
+            echo "ERROR: GitHub API returned $PR_HTTP_CODE2 for PR #$PR_NUM in tier check"
+            exit 1
+          fi
           PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
           PR_TITLE=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title',''))" 2>/dev/null)
           PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
-          # Extract linked issue number
-          ISSUE_NUM=$(python3 -c "
-          import re
-          text = '''$PR_TITLE''' + ' ' + '''$PR_BODY'''
+          # Extract linked issue number (use env vars to avoid shell injection)
+          ISSUE_NUM=$(PR_TITLE_ENV="$PR_TITLE" PR_BODY_ENV="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_ENV', '') + ' ' + os.environ.get('PR_BODY_ENV', '')
           m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:\S+#)?(\d+)', text, re.IGNORECASE)
           print(m.group(1) if m else '')
           " 2>/dev/null)
@@ -159,7 +173,7 @@ jobs:
           fi
 
           # Get issue labels to determine tier
-          ISSUE_JSON=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+          ISSUE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/$REPO/issues/$ISSUE_NUM")
           LABELS=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(','.join(l['name'] for l in json.loads(sys.stdin.read()).get('labels',[])))" 2>/dev/null)
 
@@ -253,7 +267,7 @@ jobs:
                   f"You have **{t1_count}** merged T1 PR(s) — **{remaining} more** to unlock T2.\n\n"
                   f"This PR cannot proceed to review. Please build your reputation with "
                   f"[Tier 1 bounties](https://github.com/{repo}/labels/tier-1) first.\n\n"
-                  f"*— SolFoundry Bot 🏭*"
+                  f"---\n*-- SolFoundry Bot*"
               )
               blocked = True
 
@@ -267,7 +281,7 @@ jobs:
                       f"- **Standard:** 3+ completed Tier 2 bounties (you have {t2_count})\n"
                       f"- **Alternative:** 5+ T1 AND 1+ T2 (you have {t1_count} T1, {t2_count} T2)\n\n"
                       f"This PR cannot proceed to review until you meet the requirements.\n\n"
-                      f"*— SolFoundry Bot 🏭*"
+                      f"---\n*-- SolFoundry Bot*"
                   )
                   blocked = True
               else:
@@ -295,7 +309,7 @@ jobs:
                               f"**To claim:** Comment on [issue #{issue_num}](https://github.com/{repo}/issues/{issue_num}) "
                               f"with why you're a good fit. A maintainer will review and assign you.\n\n"
                               f"Once assigned, resubmit your PR.\n\n"
-                              f"*— SolFoundry Bot 🏭*"
+                              f"---\n*-- SolFoundry Bot*"
                           )
                           blocked = True
 
@@ -358,7 +372,7 @@ jobs:
               DISMISS_MSG="New commits pushed after approval — re-review required for security. Previous approval dismissed."
             fi
             for RID in $REVIEW_IDS; do
-              curl -sf -X PUT \
+              curl -s -X PUT \
                 -H "Authorization: token $GH_TOKEN" \
                 -H "Content-Type: application/json" \
                 "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUM}/reviews/${RID}/dismissals" \
@@ -367,7 +381,7 @@ jobs:
 
             # Remove escrow lock from the BOUNTY ISSUE (not the PR — that was the bug)
             if [ -n "$BOUNTY_NUM_SYNC" ]; then
-              curl -sf -X DELETE \
+              curl -s -X DELETE \
                 -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/issues/${BOUNTY_NUM_SYNC}/labels/review-passed" 2>/dev/null || true
               echo "Removed review-passed label from bounty issue #${BOUNTY_NUM_SYNC}"
@@ -377,11 +391,11 @@ jobs:
 
             # Post comment — friendly for rebases, security warning for real pushes
             if [ "$IS_REBASE" = "true" ]; then
-              COMMENT_BODY="🔄 **Rebase Detected**\n\nThanks for resolving the merge conflict! A quick re-review is running now.\n\nYour escrow lock has been temporarily cleared and will be re-set once the review passes again. No action needed from you.\n\n---\n*SolFoundry Review Bot*"
+              COMMENT_BODY="**Rebase Detected**\n\nThanks for resolving the merge conflict! A quick re-review is running now.\n\nYour escrow lock has been temporarily cleared and will be re-set once the review passes again. No action needed from you.\n\n---\n*-- SolFoundry Bot*"
             else
-              COMMENT_BODY="⚠️ **Review Invalidated**\n\nNew commits were pushed after approval. The previous approval has been dismissed and a fresh review will run.\n\nFor security, the escrow lock has been removed.\n\n---\n*SolFoundry Review Bot*"
+              COMMENT_BODY="**Review Invalidated**\n\nNew commits were pushed after approval. The previous approval has been dismissed and a fresh review will run.\n\nFor security, the escrow lock has been removed.\n\n---\n*-- SolFoundry Bot*"
             fi
-            curl -sf -X POST \
+            curl -s -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUM}/comments" \
@@ -398,7 +412,7 @@ jobs:
               else
                 TG_MSG="⚠️ <b>Approval Dismissed</b>%0A%0APR #${PR_NUM}: ${PR_TITLE_SYNC}%0Aby @${PR_AUTHOR_SYNC}%0A%0ANew commits pushed after approval. Review invalidated, re-review dispatched."
               fi
-              curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+              curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
                 -d "chat_id=${TELEGRAM_CHAT}" \
                 -d "text=${TG_MSG}" \
                 -d "parse_mode=HTML" \
@@ -459,7 +473,7 @@ jobs:
               TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
               if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
                 MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
-                curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
                   -d "chat_id=${TELEGRAM_CHAT}" \
                   -d "text=${MSG}" \
                   -d "parse_mode=HTML" \
@@ -471,10 +485,11 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Trigger private review pipeline
+      - name: Trigger AI review via backend API
         if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true' && steps.already_approved.outputs.skip != 'true'
         env:
           REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
 
@@ -485,13 +500,22 @@ jobs:
             ACTION="manual"
           fi
 
-          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to private pipeline..."
+          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to backend API..."
 
-          # Fire repository_dispatch to the private review repo
-          curl -sf -X POST \
-            -H "Authorization: token $REVIEW_PAT" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/SolFoundry/solfoundry-review/dispatches" \
-            -d "{\"event_type\": \"review-pr\", \"client_payload\": {\"pr_number\": \"${PR_NUM}\", \"action\": \"${ACTION}\", \"tier_validated\": true}}"
+          # Call the backend review API directly instead of private repo dispatch
+          PR_URL="https://github.com/SolFoundry/solfoundry/pull/${PR_NUM}"
+          REVIEW_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer ${ADMIN_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "https://solfoundry.org/api/admin/trigger-review" \
+            -d "{\"pr_url\": \"${PR_URL}\", \"bounty_id\": \"${BOUNTY_ID:-}\"}" \
+            --max-time 300 \
+            2>&1) || true
 
-          echo "✅ Review dispatched for PR #${PR_NUM}"
+          if echo "$REVIEW_RESPONSE" | grep -q '"overall_score"'; then
+            SCORE=$(echo "$REVIEW_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('overall_score',0))" 2>/dev/null || echo "0")
+            echo "✅ Review completed for PR #${PR_NUM} — Score: ${SCORE}/10"
+          else
+            echo "⚠️ Review API call completed but response may need checking"
+            echo "Response: ${REVIEW_RESPONSE:0:200}"
+          fi

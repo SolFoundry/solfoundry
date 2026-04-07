@@ -162,20 +162,20 @@ jobs:
                   if wallet_in_body:
                       gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
                           "body": (
-                              f"✅ **Wallet detected:** `{wallet_redacted}`\n\n"
+                              f"Wallet detected: `{wallet_redacted}`\n\n"
                               f"Thanks @{pr_author}! Your wallet has been recorded and your "
                               f"PR review will proceed as normal.\n\n"
-                              f"---\n*SolFoundry Review Bot*"
+                              f"---\n*-- SolFoundry Bot*"
                           )
                       })
                   elif wallet_in_comment:
                       gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
                           "body": (
-                              f"✅ **Wallet detected in comment:** `{wallet_redacted}`\n\n"
+                              f"Wallet detected in comment: `{wallet_redacted}`\n\n"
                               f"@{pr_author}, please also **edit your PR description** to include your wallet "
                               f"so it's on record for payout processing.\n\n"
                               f"Your review will proceed in the meantime.\n\n"
-                              f"---\n*SolFoundry Review Bot*"
+                              f"---\n*-- SolFoundry Bot*"
                           )
                       })
 
@@ -221,15 +221,9 @@ jobs:
                   if not already_warned:
                       gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
                           "body": (
-                              f"⚠️ **Missing Solana Wallet**\n\n"
-                              f"@{pr_author}, your PR doesn't include a Solana wallet address. "
-                              f"We need this to send your $FNDRY bounty payout.\n\n"
-                              f"**Edit your PR description** and add your wallet address:\n\n"
-                              f"```\n**Wallet:** YOUR_SOLANA_ADDRESS_HERE\n```\n\n"
-                              f"Or reply to this comment with your wallet address.\n\n"
-                              f"⏰ **You have 24 hours** to add your wallet or this PR will be automatically closed.\n\n"
-                              f"[Phantom](https://phantom.app) or [Backpack](https://backpack.app) recommended.\n\n"
-                              f"---\n*SolFoundry Review Bot*"
+                              f"Hey @{pr_author} — to receive your FNDRY payout, please add your Solana wallet address to your PR description. "
+                              f"Just add a line like: `Wallet: YourSolanaAddressHere`\n\n"
+                              f"---\n*-- SolFoundry Bot*"
                           )
                       })
 

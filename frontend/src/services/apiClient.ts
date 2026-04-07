@@ -30,7 +30,9 @@ export class ApiError extends Error {
  * Endpoints already include the /api prefix, so this is just the host.
  */
 const API_BASE: string =
-  (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
+  import.meta.env?.VITE_API_URL != null && import.meta.env.VITE_API_URL !== ''
+    ? (import.meta.env.VITE_API_URL as string)
+    : '';
 
 let authToken: string | null = null;
 
@@ -42,6 +44,33 @@ export function setAuthToken(token: string | null): void {
 /** Return the current JWT (or null). */
 export function getAuthToken(): string | null {
   return authToken;
+}
+
+/** Callback invoked when a token refresh fails (session fully expired). */
+let onAuthExpired: (() => void) | null = null;
+
+/** Register a handler (typically AuthContext's logout) for expired sessions. */
+export function setOnAuthExpired(cb: (() => void) | null): void {
+  onAuthExpired = cb;
+}
+
+/** Shared promise to deduplicate concurrent refresh calls. */
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = localStorage.getItem('sf_refresh_token');
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!response.ok) throw new Error('Refresh failed');
+
+  const data = await response.json();
+  return data.access_token as string;
 }
 
 /**
@@ -70,6 +99,8 @@ export async function apiClient<T>(
     /** JSON-serializable object; sent as application/json (not raw RequestInit.body). */
     body?: unknown;
     timeoutMs?: number;
+    /** @internal — set by the refresh-retry logic to prevent infinite loops. */
+    _isRetryAfterRefresh?: boolean;
   } = {},
 ): Promise<T> {
   const {
@@ -78,6 +109,7 @@ export async function apiClient<T>(
     body,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     headers: extraHeaders,
+    _isRetryAfterRefresh,
     ...fetchOptions
   } = options;
 
@@ -137,6 +169,23 @@ export async function apiClient<T>(
           parsed.message ?? parsed.detail ?? response.statusText,
           parsed.code ?? `HTTP_${response.status}`,
         );
+        // 401: attempt token refresh once, then retry the original request
+        if (response.status === 401 && !_isRetryAfterRefresh) {
+          try {
+            if (!refreshPromise) {
+              refreshPromise = refreshAccessToken();
+            }
+            const newToken = await refreshPromise;
+            refreshPromise = null;
+            setAuthToken(newToken);
+            localStorage.setItem('sf_access_token', newToken);
+            return apiClient<T>(endpoint, { ...options, _isRetryAfterRefresh: true });
+          } catch {
+            refreshPromise = null;
+            onAuthExpired?.();
+            throw error;
+          }
+        }
         // 4xx (except 429) are not retried
         if (response.status < 500 && response.status !== 429) throw error;
         lastError = error;

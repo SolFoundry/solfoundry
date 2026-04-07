@@ -1,23 +1,23 @@
-/**
- * Leaderboard domain types shared by hook, components, and tests.
- * @module types/leaderboard
- */
-
-/** Time range filter for the leaderboard API query. */
-export type TimeRange = '7d' | '30d' | '90d' | 'all';
-
-/** Fields the leaderboard table can be sorted by. */
-export type SortField = 'points' | 'bounties' | 'earnings';
-
-/** A single contributor row returned by the leaderboard API. */
-export interface Contributor {
+export interface LeaderboardEntry {
   rank: number;
   username: string;
-  avatarUrl: string;
+  avatarUrl?: string | null;
   points: number;
   bountiesCompleted: number;
   earningsFndry: number;
   earningsSol: number;
-  streak: number;
+  streak?: number | null;
   topSkills: string[];
+  reputation: number;
+  stakedFndry: number;
+  reputationBoost: number;
 }
+
+export interface PlatformStats {
+  open_bounties: number;
+  total_paid_usdc: number;
+  total_contributors: number;
+  total_bounties: number;
+}
+
+export type TimePeriod = '7d' | '30d' | '90d' | 'all';

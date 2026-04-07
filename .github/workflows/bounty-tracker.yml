@@ -160,7 +160,7 @@ jobs:
                   pr_labels = [l["name"] for l in closing_pr.get("labels", [])]
                   if "paid" in pr_labels:
                       print(f"PR #{pr_num} already has 'paid' label — skipping duplicate notification")
-                      sys.exit(0)
+                      exit(0)
 
                   keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
 
@@ -223,7 +223,7 @@ jobs:
                                       f"Check out the other [open bounties]"
                                       f"(https://github.com/{repo}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) "
                                       f"for more opportunities.\n\n"
-                                      f"---\n*SolFoundry Bot \U0001f3ed*"
+                                      f"---\n*-- SolFoundry Bot*"
                                   )
                                   requests.post(
                                       f"https://api.github.com/repos/{repo}/issues/{opr_num}/comments",

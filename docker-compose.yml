@@ -58,16 +58,9 @@ services:
       start_period: 10s
       retries: 3
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
+  # Frontend is deployed as static files via SCP — not containerized
+  # Build locally with: cd frontend && npm run build
+  # Deploy with: scp -r frontend/dist/* root@192.241.139.206:/opt/solfoundry/frontend/dist/
 
 volumes:
   postgres_data:
