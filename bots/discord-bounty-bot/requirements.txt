@@ -1,0 +1,5 @@
+# SolFoundry Discord Bounty Bot Dependencies
+# Install with: pip install -r requirements.txt
+
+discord.py>=2.3.0
+aiohttp>=3.9.0
