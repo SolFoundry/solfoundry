@@ -32,4 +32,4 @@ test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 startup_wait = 5000
 
 [test.validator]
-slots_per_epoch = 32
+slots_per_epoch = "32"

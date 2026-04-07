@@ -440,7 +440,7 @@ jobs:
         continue-on-error: true
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --quiet
+        run: cargo install cargo-audit --quiet --force
 
       - name: Security audit — bounty-registry
         working-directory: contracts/bounty-registry

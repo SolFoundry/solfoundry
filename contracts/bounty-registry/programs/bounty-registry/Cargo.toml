@@ -10,6 +10,7 @@ name = "bounty_registry"
 
 [features]
 idl-build = ["anchor-lang/idl-build"]
+no-entrypoint = ["anchor-lang/no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
 
