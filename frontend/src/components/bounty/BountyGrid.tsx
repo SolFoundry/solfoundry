@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
@@ -8,13 +8,20 @@ import { staggerContainer, staggerItem } from '../../lib/animations';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
-function useDebounce<T>(value: T, delay: number): T {
+function useDebounce<T>(value: T, delay: number): { debouncedValue: T; cancel: () => void } {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebouncedValue(value), delay);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [value, delay]);
-  return debouncedValue;
+  const cancel = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+  return { debouncedValue, cancel };
 }
 
 export function BountyGrid() {
@@ -22,7 +29,7 @@ export function BountyGrid() {
   const [statusFilter, setStatusFilter] = useState<string>('open');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  const { debouncedValue: debouncedSearch, cancel: cancelDebounce } = useDebounce(searchQuery, 300);
 
   const params = {
     status: statusFilter,
@@ -87,11 +94,12 @@ export function BountyGrid() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search bounties by title, description, or skill..."
+            aria-label="Search bounties by title, description, or skill"
             className="w-full bg-forge-800 border border-border rounded-lg pl-10 pr-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald outline-none transition-colors duration-150"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => { cancelDebounce(); setSearchQuery(''); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
               aria-label="Clear search"
             >
@@ -164,7 +172,7 @@ export function BountyGrid() {
         )}
 
         {/* Bounty grid */}
-        {!isLoading && filteredBounties.length > 0 && (
+        {!isLoading && !isError && filteredBounties.length > 0 && (
           <>
             {searchQuery && (
               <p className="text-sm text-text-muted mb-4">

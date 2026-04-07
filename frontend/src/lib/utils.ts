@@ -3,8 +3,10 @@
  * e.g. "5d 3h", "23h 59m", "59m", "Expired"
  */
 export function timeLeft(deadline: string): string {
-  const now = Date.now();
+  if (!deadline) return 'Expired';
   const deadlineMs = new Date(deadline).getTime();
+  if (Number.isNaN(deadlineMs)) return 'Expired';
+  const now = Date.now();
   const diff = deadlineMs - now;
 
   if (diff <= 0) return 'Expired';
@@ -48,10 +50,10 @@ export const LANG_COLORS: Record<string, string> = {
  */
 export function formatCurrency(amount: number, token: string): string {
   const symbol = token === 'USDC' ? '$' : '';
-  if (amount >= 1000) {
-    return `${symbol}${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${token}`;
+  if (token === 'USDC') {
+    return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${token}`;
   }
-  return `${symbol}${amount} ${token}`;
+  return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${token}`;
 }
 
 /**
@@ -59,9 +61,13 @@ export function formatCurrency(amount: number, token: string): string {
  * e.g. "2 hours ago", "3 days ago"
  */
 export function timeAgo(dateStr: string): string {
-  const now = Date.now();
+  if (!dateStr) return 'invalid date';
   const dateMs = new Date(dateStr).getTime();
+  if (Number.isNaN(dateMs)) return 'invalid date';
+  const now = Date.now();
   const diff = now - dateMs;
+
+  if (diff < 0) return 'in the future';
 
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);

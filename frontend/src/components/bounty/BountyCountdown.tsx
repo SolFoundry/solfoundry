@@ -29,7 +29,22 @@ export function BountyCountdown({ deadline, variant = 'inline', className = '' }
 
   const { days, hours, minutes, seconds, expired, urgent, warning } = timeLeft;
 
+  const colorClass = urgent
+    ? 'text-status-error'
+    : warning
+    ? 'text-status-warning'
+    : 'text-text-secondary';
+
   if (expired) {
+    if (variant === 'badge') {
+      return (
+        <span className={`inline-flex items-center gap-1 font-mono text-xs font-medium px-2 py-0.5 rounded-full border text-status-error ${className}`}
+          style={{ borderColor: 'currentColor', backgroundColor: 'rgba(239,68,68,0.1)' }}>
+          <Clock className="w-3 h-3" />
+          Expired
+        </span>
+      );
+    }
     return (
       <span className={`inline-flex items-center gap-1 text-status-error font-medium ${className}`}>
         <Clock className="w-3.5 h-3.5" />
@@ -37,12 +52,6 @@ export function BountyCountdown({ deadline, variant = 'inline', className = '' }
       </span>
     );
   }
-
-  const colorClass = urgent
-    ? 'text-status-error'
-    : warning
-    ? 'text-status-warning'
-    : 'text-text-secondary';
 
   if (variant === 'badge') {
     return (
