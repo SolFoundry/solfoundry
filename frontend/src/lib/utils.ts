@@ -23,14 +23,16 @@ export const LANG_COLORS: Record<string, string> = {
 
 export function formatCurrency(amount: number, token: string): string {
   if (token === 'USDC') {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} USDC`;
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDC`;
   }
-  return `${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${token}`;
+  return `${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${token}`;
 }
 
 export function timeLeft(deadline: string): string {
-  const now = Date.now();
+  if (!deadline) return 'Expired';
   const deadlineMs = new Date(deadline).getTime();
+  if (Number.isNaN(deadlineMs)) return 'Expired';
+  const now = Date.now();
   const diff = deadlineMs - now;
 
   if (diff <= 0) return 'Expired';
@@ -45,9 +47,13 @@ export function timeLeft(deadline: string): string {
 }
 
 export function timeAgo(dateStr: string): string {
-  const now = Date.now();
+  if (!dateStr) return 'invalid date';
   const dateMs = new Date(dateStr).getTime();
+  if (Number.isNaN(dateMs)) return 'invalid date';
+  const now = Date.now();
   const diff = now - dateMs;
+
+  if (diff < 0) return 'in the future';
 
   const minutes = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
