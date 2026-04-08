@@ -11,6 +11,7 @@ import { SolFoundry } from '../index.js';
 import { BountyClient } from '../bounties.js';
 import { EscrowClient } from '../escrow.js';
 import { ContributorClient } from '../contributors.js';
+import { MarketplaceApiClient } from '../rest-api.js';
 import { HttpClient } from '../client.js';
 
 describe('SolFoundry', () => {
@@ -24,6 +25,7 @@ describe('SolFoundry', () => {
       expect(client.bounties).toBeInstanceOf(BountyClient);
       expect(client.escrow).toBeInstanceOf(EscrowClient);
       expect(client.contributors).toBeInstanceOf(ContributorClient);
+      expect(client.api).toBeInstanceOf(MarketplaceApiClient);
       expect(client.http).toBeInstanceOf(HttpClient);
     });
 
@@ -188,6 +190,10 @@ describe('Barrel exports', () => {
     expect(exports.BountyClient).toBeDefined();
     expect(exports.EscrowClient).toBeDefined();
     expect(exports.ContributorClient).toBeDefined();
+    expect(exports.MarketplaceApiClient).toBeDefined();
+    expect(exports.MarketplaceBountiesClient).toBeDefined();
+    expect(exports.MarketplaceSubmissionsClient).toBeDefined();
+    expect(exports.UsersClient).toBeDefined();
     expect(exports.GitHubClient).toBeDefined();
     expect(exports.EventSubscriber).toBeDefined();
     expect(exports.SolFoundry).toBeDefined();

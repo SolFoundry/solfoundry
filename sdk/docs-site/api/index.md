@@ -12,6 +12,7 @@ Complete reference for all SDK classes, methods, and types.
 | [`BountyClient`](/api/bounty-client) | Bounty CRUD, search, submissions |
 | [`EscrowClient`](/api/escrow-client) | Fund, release, refund, audit ledger |
 | [`ContributorClient`](/api/contributor-client) | Profiles, stats, leaderboard |
+| [`MarketplaceApiClient`](/api/rest-api-client) | Typed bounties, submissions, users clients |
 | [`EventSubscriber`](/api/event-subscriber) | Real-time WebSocket subscriptions |
 | [`GitHubClient`](/api/github-client) | GitHub Issues integration |
 | [Solana Helpers](/api/solana-helpers) | On-chain helpers, PDA, balances |

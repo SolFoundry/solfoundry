@@ -112,6 +112,9 @@ try {
 | `client.bounties` | `list`, `get`, `create`, `update`, `delete`, `submitSolution`, `listSubmissions`, `search`, `autocomplete` |
 | `client.escrow` | `fund`, `release`, `refund`, `getStatus` |
 | `client.contributors` | `list`, `get`, `create`, `update`, `getStats`, `getHealth` |
+| `client.api.bounties` | `list`, `get`, `create` |
+| `client.api.submissions` | `listForBounty`, `createForBounty` |
+| `client.api.users` | `me`, `get`, `updateMe` |
 | `GitHubClient` | `listBountyIssues`, `isIssueClaimed`, `isIssueCompleted` |
 | `EventSubscriber` | `connect`, `disconnect`, `subscribe`, `on`, `onConnect` |
 
@@ -119,7 +122,7 @@ Full reference: [docs.solfoundry.io/api](https://docs.solfoundry.io/api/)
 
 ## Examples
 
-11 working examples in [`sdk/examples/`](./examples/):
+12 working examples in [`sdk/examples/`](./examples/):
 
 | # | File | Description |
 |---|------|-------------|
@@ -134,6 +137,7 @@ Full reference: [docs.solfoundry.io/api](https://docs.solfoundry.io/api/)
 | 09 | [github-integration.ts](./examples/09-github-integration.ts) | GitHub Issues |
 | 10 | [solana-helpers.ts](./examples/10-solana-helpers.ts) | On-chain utilities |
 | 11 | [error-handling.ts](./examples/11-error-handling.ts) | Typed error patterns |
+| 12 | [rest-api-client.ts](./examples/12-rest-api-client.ts) | Typed bounties, submissions, users API clients |
 
 ## Contributing
 
