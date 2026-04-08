@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2"
+  },
+  "dependencies": {
+    "jsdom": "^27.0.1",
+    "vitest": "^4.1.3"
+  }
+}
