@@ -1,15 +1,37 @@
-from fastapi import FastAPI
+"""SolFoundry FastAPI entrypoint (monorepo stub; production API lives in solfoundry-api)."""
 
-app = FastAPI()
+from typing import Any, Dict
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers.analytics import router as analytics_router
+
+app = FastAPI(
+    title="SolFoundry API",
+    description="Bounty analytics and health endpoints for local / Docker dev.",
+    version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(analytics_router, prefix="/api")
+
 
 @app.get("/")
-def read_root():
-    return {"message": "Welcome to the Bounty Analytics Dashboard"}
+def read_root() -> Dict[str, str]:
+    return {"message": "Welcome to the Bounty Analytics Dashboard API"}
 
-if True:
-    try:
-        print("Starting FastAPI application...")
-        import uvicorn
-        uvicorn.run(app, host="127.0.0.1", port=8000)
-    except Exception as e:
-        print(f"Error starting application: {e}")
+
+@app.get("/health")
+def health() -> Dict[str, Any]:
+    return {"status": "ok"}

@@ -1,6 +1,13 @@
 # Backend (primary API in SolFoundry/solfoundry-api); in-repo stubs tracked only under:
 /backend/**
 !/backend/main.py
+!/backend/requirements.txt
+!/backend/requirements-dev.txt
+!/backend/pytest.ini
+!/backend/routers/
+!/backend/routers/**
+!/backend/tests/
+!/backend/tests/**
 
 # Environment & Secrets
 .env
@@ -28,6 +35,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+!/frontend/src/lib/
+!/frontend/src/lib/**
 parts/
 sdist/
 var/
