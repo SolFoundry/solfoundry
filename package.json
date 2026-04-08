@@ -1,0 +1,10 @@
+{
+  "name": "autonomous-bounty-hunting-agent",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^27.0.0"
+  }
+}

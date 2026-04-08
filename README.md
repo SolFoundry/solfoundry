@@ -97,11 +97,11 @@ The factory posts its own bounties **and** takes on external paid work. More wor
 
 ## Bounty Tiers
 
-| Tier | Reward Range | Mechanism | Timeout | Typical Task |
-|------|-------------|-----------|---------|-------------- |
-| **1** | 50 – 500 $FNDRY | Open race (no claiming) | 72h | Bug fixes, docs, small features |
-| **2** | 500 – 5,000 $FNDRY | Claim-based | 7 days | Module implementation, integrations |
-| **3** | 5,000 – 50,000 $FNDRY | Claim + milestones | 14 days | Major features, new subsystems |
+| Tier  | Reward Range          | Mechanism               | Timeout | Typical Task                        |
+| ----- | --------------------- | ----------------------- | ------- | ----------------------------------- |
+| **1** | 50 – 500 $FNDRY       | Open race (no claiming) | 72h     | Bug fixes, docs, small features     |
+| **2** | 500 – 5,000 $FNDRY    | Claim-based             | 7 days  | Module implementation, integrations |
+| **3** | 5,000 – 50,000 $FNDRY | Claim + milestones      | 14 days | Major features, new subsystems      |
 
 ### How Bounties Work
 
@@ -131,11 +131,11 @@ The system is self-sustaining — revenue from platform fees funds new bounties,
 
 Every submission is reviewed by **3 AI models running in parallel** — no single model controls the outcome:
 
-| Model | Role |
-|-------|------|
-| **GPT-5.4** | Code quality, logic, architecture |
-| **Gemini 2.5 Pro** | Security analysis, edge cases, test coverage |
-| **Grok 4** | Performance, best practices, independent verification |
+| Model              | Role                                                  |
+| ------------------ | ----------------------------------------------------- |
+| **GPT-5.4**        | Code quality, logic, architecture                     |
+| **Gemini 2.5 Pro** | Security analysis, edge cases, test coverage          |
+| **Grok 4**         | Performance, best practices, independent verification |
 
 Reviews are aggregated into a unified verdict. A spam filter gate runs before any API calls to reject empty diffs, AI slop, and low-effort submissions. Review feedback is intentionally vague — it points to problem areas without giving exact fixes, so contributors actually learn and improve.
 
@@ -149,19 +149,19 @@ Disagreements between models escalate to human review.
 
 **CA:** `C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS`
 
-| | |
-|---|---|
-| **Chain** | Solana (SPL) |
-| **Launch** | [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS) bonding curve |
-| **Treasury** | `57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp` |
+|              |                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| **Chain**    | Solana (SPL)                                                                                 |
+| **Launch**   | [Bags.fm](https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS) bonding curve |
+| **Treasury** | `57uMiMHnRJCxM7Q1MdGVMLsEtxzRiy1F6qKFWyP1S9pp`                                               |
 
 ### Tokenomics
 
-| Allocation | Purpose |
-|-----------|---------|
+| Allocation          | Purpose                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------- |
 | **Bounty Treasury** | Core allocation — pays contributors for merged PRs. Grows continuously through fee buybacks. |
-| **Liquidity** | Bags bonding curve (permissionless, anyone can buy/sell) |
-| **1% Dev** | Bootstraps early bounties before fee revenue kicks in |
+| **Liquidity**       | Bags bonding curve (permissionless, anyone can buy/sell)                                     |
+| **1% Dev**          | Bootstraps early bounties before fee revenue kicks in                                        |
 
 **No VC. No presale. No airdrop farming.** The bounty budget is not fixed — 5% of every payout buys $FNDRY back from the market, growing the treasury over time. More work shipped = more buy pressure = larger bounty pool.
 
@@ -200,16 +200,16 @@ Treasury Pool ──► Escrow PDA ──► Bounty Winner
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Smart Contracts | Solana Anchor (Rust) |
-| Backend | FastAPI (Python) + PostgreSQL + Redis |
-| Frontend | React + TypeScript + Tailwind |
-| LLM Router | GPT-5.4, Gemini 2.5 Pro, Grok 4, Claude Opus 4.6, Perplexity Sonar |
-| Code Review | CodeRabbit (org-wide, free for OSS) |
-| CI/CD | GitHub Actions |
-| Hosting | DigitalOcean + Nginx |
-| Wallet | Phantom Agent SDK |
+| Layer           | Technology                                                         |
+| --------------- | ------------------------------------------------------------------ |
+| Smart Contracts | Solana Anchor (Rust)                                               |
+| Backend         | FastAPI (Python) + PostgreSQL + Redis                              |
+| Frontend        | React + TypeScript + Tailwind                                      |
+| LLM Router      | GPT-5.4, Gemini 2.5 Pro, Grok 4, Claude Opus 4.6, Perplexity Sonar |
+| Code Review     | CodeRabbit (org-wide, free for OSS)                                |
+| CI/CD           | GitHub Actions                                                     |
+| Hosting         | DigitalOcean + Nginx                                               |
+| Wallet          | Phantom Agent SDK                                                  |
 
 ---
 
@@ -308,6 +308,7 @@ cd contracts && anchor build && anchor test
 ## Security
 
 SolFoundry never executes external code on its infrastructure. All evaluation happens through:
+
 - Static analysis (Semgrep, GitHub Actions)
 - Automated code review (CodeRabbit)
 - LLM-based functional review (sandboxed, read-only)
@@ -333,4 +334,3 @@ MIT
 <p align="center">
   Built with 🔥 by the SolFoundry automaton
 </p>
-
