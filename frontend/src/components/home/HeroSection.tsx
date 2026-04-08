@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useInView, animate, useMotionValue } from 'framer-motion';
 import { useStats } from '../../hooks/useStats';
-import { getGitHubAuthorizeUrl } from '../../api/auth';
+import { getGitHubAuthorizeEndpoint, getGitHubAuthorizeUrl } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { buttonHover, fadeIn } from '../../lib/animations';
 
@@ -82,7 +82,7 @@ export function HeroSection() {
       const url = await getGitHubAuthorizeUrl();
       window.location.href = url;
     } catch {
-      window.location.href = '/api/auth/github/authorize';
+      window.location.href = getGitHubAuthorizeEndpoint();
     }
   };
 

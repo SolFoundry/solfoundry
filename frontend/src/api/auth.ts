@@ -11,9 +11,21 @@ export interface GitHubCallbackResponse extends AuthTokens {
   user: User;
 }
 
+const API_BASE: string =
+  import.meta.env?.VITE_API_URL != null && import.meta.env.VITE_API_URL !== ''
+    ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+    : '';
+
+export function getGitHubAuthorizeEndpoint(): string {
+  return API_BASE ? `${API_BASE}/api/auth/github/authorize` : '/api/auth/github/authorize';
+}
+
 export async function getGitHubAuthorizeUrl(): Promise<string> {
-  const data = await apiClient<{ authorize_url: string }>('/api/auth/github/authorize');
-  return data.authorize_url;
+  const data = await apiClient<{ authorize_url?: string }>('/api/auth/github/authorize');
+  if (data.authorize_url && data.authorize_url.trim()) {
+    return data.authorize_url;
+  }
+  return getGitHubAuthorizeEndpoint();
 }
 
 export async function exchangeGitHubCode(code: string, state?: string): Promise<GitHubCallbackResponse> {

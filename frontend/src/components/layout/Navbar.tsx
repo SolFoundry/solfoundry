@@ -4,7 +4,7 @@ import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useStats } from '../../hooks/useStats';
-import { getGitHubAuthorizeUrl } from '../../api/auth';
+import { getGitHubAuthorizeEndpoint, getGitHubAuthorizeUrl } from '../../api/auth';
 
 const GitHubIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -38,8 +38,7 @@ export function Navbar() {
       const url = await getGitHubAuthorizeUrl();
       window.location.href = url;
     } catch {
-      // Fallback: direct to backend authorize endpoint
-      window.location.href = '/api/auth/github/authorize';
+      window.location.href = getGitHubAuthorizeEndpoint();
     }
   };
 
