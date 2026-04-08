@@ -244,7 +244,7 @@ jobs:
       - name: Build Anchor Program
         if: steps.check.outputs.has_anchor == 'true'
         working-directory: contracts
-        run: anchor build -- --locked
+        run: anchor build
 
   # ==================== RUST (General) ====================
   rust-lint:
