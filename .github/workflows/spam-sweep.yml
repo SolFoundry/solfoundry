@@ -1,0 +1,165 @@
+name: Spam Sweep
+
+# Catches spam comments that slip through when GitHub drops webhook events
+# (e.g. during high-volume bounty creation bursts).
+# Runs every 15 minutes and checks recent comments on open T1/T2 bounties.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sweep uncaught spam on T1/T2 bounties
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, re, urllib.request, unicodedata
+          from datetime import datetime, timezone, timedelta
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
+          token = os.environ.get("GH_TOKEN", "")
+          cutoff = datetime.now(timezone.utc) - timedelta(minutes=20)  # 5min overlap with 15min schedule
+
+          def gh_api(method, path, data=None):
+              url = f"https://api.github.com/{path}"
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, body, method=method)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              if data:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  resp = urllib.request.urlopen(req)
+                  return json.loads(resp.read().decode()) if method == "GET" else resp
+              except Exception as e:
+                  print(f"API {method} {path} failed: {e}")
+                  return None
+
+          # Claim detection regex (same as spam-guard)
+          claim_re = r"(/attempt|claim(ing)?(\s+this)?|dibs|assigning myself|assign\s*(me|this)|i.?ll take this|i want to (take|work on) this|want to work on this|working on this|taking this|want to implement|i.?d like to (work on|take|build|implement) this|interested in (working on |taking )?this|please assign|let me work on this|i.?ll work on this|i.?ll build this|i.?ll implement this|can i (work on|take|do|have|claim) this|is this (still )?(available|open|unclaimed)|i.?m interested\b|i am interested\b|can (this|you) (be )?assign(ed)? (to )?me|i would like to (contribute|work|help)|requesting (this )?assignment|pick(ing)? (this )?up|i.?ll pick this up|i want to work on|let me take this)"
+
+          spam_patterns = [
+              r"(i am a .* developer|hire me|my portfolio|check my profile)",
+              r"(dm me|contact me at|whatsapp|telegram.*@)",
+              r"(upvote|follow me|subscribe|check out my)",
+              r"(great (project|repo|work).*star|nice repo.*followed)",
+              r"https?://\S+\.(click|xyz|top|buzz|gq|ml|tk|ga|cf)\b",
+          ]
+
+          content_keywords = ["x/twitter", "x post", "content", "tweet", "social media", "video", "article", "blog"]
+
+          # Get open T1 and T2 bounty issues
+          issues_swept = 0
+          comments_deleted = 0
+          comments_warned = 0
+
+          for tier in ["tier-1", "tier-2"]:
+              issues = gh_api("GET", f"repos/{repo}/issues?state=open&labels=bounty,{tier}&per_page=30&sort=updated&direction=desc")
+              if not issues:
+                  continue
+
+              for iss in issues:
+                  if issues_swept >= 15:  # Rate limit: max 15 issues per sweep
+                      break
+
+                  issue_num = str(iss["number"])
+                  issue_title = iss.get("title", "").lower()
+
+                  # Skip content bounties and star-reward/content-bounty labeled issues
+                  issue_labels = [l["name"] for l in iss.get("labels", [])]
+                  if any(kw in issue_title for kw in content_keywords):
+                      continue
+                  if any(lbl in ("star-reward", "content-bounty") for lbl in issue_labels):
+                      continue
+
+                  issues_swept += 1
+
+                  # Get recent comments
+                  comments = gh_api("GET", f"repos/{repo}/issues/{issue_num}/comments?per_page=50&sort=created&direction=desc")
+                  if not comments:
+                      continue
+
+                  # Check if bot already warned any users on this issue
+                  warned_users = set()
+                  for c in comments:
+                      author = c["user"]["login"]
+                      body = c.get("body", "")
+                      if author in ["chronoeth-creator", "github-actions[bot]"]:
+                          # Extract @username from warning messages
+                          mentioned = re.findall(r"@(\w+)", body)
+                          if any(kw in body.lower() for kw in ["open race", "fcfs", "no claiming", "just ship it"]):
+                              warned_users.update(mentioned)
+
+                  for c in comments:
+                      # Only check recent comments
+                      created = datetime.fromisoformat(c["created_at"].replace("Z", "+00:00"))
+                      if created < cutoff:
+                          continue
+
+                      user = c["user"]["login"]
+                      comment_id = c["id"]
+                      body = c.get("body", "")
+
+                      # Skip bots and owner
+                      if user in ["github-actions[bot]", "chronoeth-creator", "coderabbitai[bot]"]:
+                          continue
+
+                      # Normalize
+                      normalized = unicodedata.normalize('NFKC', body).lower()
+                      confusables = str.maketrans('аеорсухіјёАЕОРСУХІ', 'aeopcyxijeAEOPCYXI')
+                      lower = normalized.translate(confusables)
+                      stripped = re.sub(r'[*_`~>\[\]()]', '', lower)
+
+                      # Tiny comment
+                      if len(body.strip()) < 5:
+                          print(f"SWEEP: Tiny comment from {user} on #{issue_num} — deleting")
+                          gh_api("DELETE", f"repos/{repo}/issues/comments/{comment_id}")
+                          comments_deleted += 1
+                          continue
+
+                      # Spam
+                      if any(re.search(p, stripped) for p in spam_patterns):
+                          print(f"SWEEP: Spam from {user} on #{issue_num} — deleting")
+                          gh_api("DELETE", f"repos/{repo}/issues/comments/{comment_id}")
+                          comments_deleted += 1
+                          continue
+
+                      # Claim attempt on T1/T2
+                      is_claim = bool(re.search(claim_re, stripped))
+                      if is_claim:
+                          # Delete the claim comment
+                          print(f"SWEEP: Claim from {user} on #{issue_num} ({tier}) — deleting")
+                          gh_api("DELETE", f"repos/{repo}/issues/comments/{comment_id}")
+                          comments_deleted += 1
+
+                          # Only post FCFS warning if we haven't already warned this user
+                          if user not in warned_users:
+                              if tier == "tier-1":
+                                  warning = (
+                                      f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                                      f"No claiming needed — just submit a PR with your solution. "
+                                      f"First quality submission that passes AI review wins. Good luck!\n\n"
+                                      f"---\n*-- SolFoundry Bot*"
+                                  )
+                              else:
+                                  warning = (
+                                      f"Hey @{user} — This is a Tier 1/2 open-race bounty. "
+                                      f"No claiming needed — just submit a PR with your solution. "
+                                      f"First quality submission that passes AI review wins. Good luck!\n\n"
+                                      f"---\n*-- SolFoundry Bot*"
+                                  )
+                              gh_api("POST", f"repos/{repo}/issues/{issue_num}/comments", {"body": warning})
+                              comments_warned += 1
+                              warned_users.add(user)
+
+          print(f"Sweep complete: {issues_swept} issues checked, {comments_deleted} comments deleted, {comments_warned} warnings posted")
+
+          PYEOF

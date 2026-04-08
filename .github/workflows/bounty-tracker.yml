@@ -9,12 +9,14 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   track-bounty:
     if: github.event.pull_request.merged == true || github.event_name == 'issues'
     runs-on: ubuntu-latest
+    concurrency:
+      group: bounty-tracker-${{ github.event.pull_request.number || github.event.issue.number }}
     steps:
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -28,7 +30,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
           EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -38,53 +40,207 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_ACTION: ${{ github.event.action }}
+          REPO: ${{ github.repository }}
         run: |
           python3 << 'PYEOF'
           import os, re, requests, json
 
-          def send_telegram(msg):
+          def send_telegram(msg, reply_markup=None):
               token = os.environ.get("TELEGRAM_BOT_TOKEN")
               chat_id = os.environ.get("TELEGRAM_CHAT_ID")
               if not token or not chat_id:
                   print("Telegram not configured")
                   return
-              requests.post(
+              payload = {
+                  "chat_id": chat_id,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True
+              }
+              if reply_markup:
+                  payload["reply_markup"] = json.dumps(reply_markup)
+              resp = requests.post(
                   f"https://api.telegram.org/bot{token}/sendMessage",
-                  json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML", "disable_web_page_preview": True}
+                  json=payload
               )
+              print(f"Telegram send: {resp.status_code} {resp.text[:200]}")
+
+          def gh_api_get(path):
+              token = os.environ.get("GH_TOKEN", "")
+              resp = requests.get(
+                  f"https://api.github.com/{path}",
+                  headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+              )
+              return resp.json() if resp.ok else None
 
           event = os.environ["EVENT_NAME"]
+          repo = os.environ.get("REPO", "SolFoundry/solfoundry")
 
-          if event == "pull_request":
-              # PR was merged — check if it closes a bounty issue
+          # ══════════════════════════════════════════════════════
+          # EVENT: Issue closed (bounty completed via merged PR)
+          # ══════════════════════════════════════════════════════
+          if event == "issues":
+              action = os.environ.get("ISSUE_ACTION", "")
+              issue_num = os.environ.get("ISSUE_NUMBER", "")
+              issue_title = os.environ.get("ISSUE_TITLE", "")
+              issue_body = os.environ.get("ISSUE_BODY", "")
+
+              if action != "closed":
+                  print(f"Issue event action={action}, not closed — skipping")
+                  exit(0)
+
+              # Check if it's a bounty issue
+              issue_data = gh_api_get(f"repos/{repo}/issues/{issue_num}")
+              if not issue_data:
+                  print(f"Could not fetch issue #{issue_num}")
+                  exit(0)
+
+              labels = [l["name"] for l in issue_data.get("labels", [])]
+              if "bounty" not in labels:
+                  print(f"Issue #{issue_num} is not a bounty — skipping")
+                  exit(0)
+
+              # Find the tier
+              tier = "unknown"
+              for t in ("tier-3", "tier-2", "tier-1"):
+                  if t in labels:
+                      tier = t
+                      break
+
+              # Extract reward from issue body
+              reward = "unknown"
+              reward_match = re.search(r'(\d[\d,]*)\s*(?:\$FNDRY|FNDRY)', issue_body or "")
+              if reward_match:
+                  reward = reward_match.group(1)
+
+              # Find which merged PR closed this issue
+              # Look at timeline events for the closing PR
+              timeline = gh_api_get(f"repos/{repo}/issues/{issue_num}/timeline?per_page=50")
+              closing_pr = None
+              if timeline:
+                  for ev in timeline:
+                      if isinstance(ev, dict) and ev.get("event") == "closed" and ev.get("commit_id"):
+                          # Find the PR associated with this commit
+                          commit_sha = ev["commit_id"]
+                          # Search for PR by merge commit
+                          prs = gh_api_get(f"repos/{repo}/commits/{commit_sha}/pulls")
+                          if prs and len(prs) > 0:
+                              closing_pr = prs[0]
+                              break
+
+              if not closing_pr:
+                  # Fallback: search recently merged PRs that reference this issue
+                  recent_prs = gh_api_get(f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=20")
+                  if recent_prs:
+                      for pr in recent_prs:
+                          if not pr.get("merged_at"):
+                              continue
+                          body = (pr.get("body") or "").lower()
+                          if re.search(rf'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#{issue_num}\b', body, re.IGNORECASE):
+                              closing_pr = pr
+                              break
+
+              if closing_pr:
+                  pr_num = closing_pr["number"]
+                  pr_title = closing_pr["title"]
+                  pr_author = closing_pr["user"]["login"]
+                  pr_url = closing_pr["html_url"]
+                  pr_body = closing_pr.get("body") or ""
+
+                  # Extract wallet from PR body
+                  wallet = "not found"
+                  wallet_match = re.search(r'(?:wallet|address)[:\s]*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?', pr_body, re.IGNORECASE)
+                  if not wallet_match:
+                      wallet_match = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', pr_body)
+                  if wallet_match:
+                      wallet = wallet_match.group(1)
+
+                  # Check if this PR was already paid by the bot
+                  pr_labels = [l["name"] for l in closing_pr.get("labels", [])]
+                  if "paid" in pr_labels:
+                      print(f"PR #{pr_num} already has 'paid' label — skipping duplicate notification")
+                      exit(0)
+
+                  keyboard = {"inline_keyboard": [[{"text": "\U0001f440 View PR", "url": pr_url}]]}
+
+                  msg = (
+                      f"\U0001f389 <b>Bounty Completed!</b>\n\n"
+                      f"\U0001f3af Issue #{issue_num}: {issue_title}\n"
+                      f"\U0001f4b0 Reward: {reward} $FNDRY ({tier})\n\n"
+                      f"\U0001f527 Merged PR #{pr_num}: {pr_title}\n"
+                      f"\U0001f464 by @{pr_author}\n"
+                      f"\U0001f4b3 Wallet: <code>{wallet}</code>\n\n"
+                      f"Ready to send payout?"
+                  )
+                  send_telegram(msg, reply_markup=keyboard)
+                  print(f"Bounty #{issue_num} completed by @{pr_author} via PR #{pr_num}")
+              else:
+                  # Issue closed but couldn't find the PR — still notify
+                  msg = (
+                      f"\u2705 <b>Bounty Issue Closed</b>\n\n"
+                      f"Issue #{issue_num}: {issue_title}\n"
+                      f"Reward: {reward} $FNDRY ({tier})\n\n"
+                      f"\u26a0\ufe0f Could not identify the merging PR — check manually."
+                  )
+                  send_telegram(msg)
+                  print(f"Bounty #{issue_num} closed but no merging PR found")
+
+          # ══════════════════════════════════════════════════════
+          # EVENT: PR merged — only auto-close competing PRs
+          # (Telegram payout notification handled by issues event above
+          #  to avoid double-send, since Closes #N fires both events)
+          # ══════════════════════════════════════════════════════
+          elif event == "pull_request":
               pr_body = os.environ.get("PR_BODY", "")
-              pr_title = os.environ.get("PR_TITLE", "")
               pr_author = os.environ.get("PR_AUTHOR", "")
               pr_number = os.environ.get("PR_NUMBER", "")
-              pr_url = os.environ.get("PR_URL", "")
 
-              # Find "Closes #N" patterns
-              closes = re.findall(r'(?:closes|fixes|resolves)\s+#(\d+)', pr_body.lower())
+              closes = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', pr_body.lower())
 
+              # ── Auto-close competing PRs for the same bounty ──
               if closes:
-                  issue_nums = ", ".join(f"#{n}" for n in closes)
-                  msg = (
-                      f"\U0001f389 <b>Bounty PR Merged!</b>\n\n"
-                      f"PR #{pr_number}: {pr_title}\n"
-                      f"by @{pr_author}\n"
-                      f"Closes: {issue_nums}\n\n"
-                      f"\U0001f4b0 Review payout eligibility and send $FNDRY\n\n"
-                      f"{pr_url}"
-                  )
-                  send_telegram(msg)
-              else:
-                  msg = (
-                      f"\u2705 <b>PR Merged</b>\n\n"
-                      f"PR #{pr_number}: {pr_title}\n"
-                      f"by @{pr_author}\n\n"
-                      f"{pr_url}"
-                  )
-                  send_telegram(msg)
+                  for issue_num in closes:
+                      try:
+                          open_prs = gh_api_get(f"repos/{repo}/pulls?state=open&per_page=100")
+                          if not open_prs:
+                              continue
+
+                          for opr in open_prs:
+                              opr_num = opr["number"]
+                              if str(opr_num) == str(pr_number):
+                                  continue
+                              opr_body = (opr.get("body", "") or "").lower()
+                              opr_author = opr.get("user", {}).get("login", "unknown")
+
+                              opr_closes = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', opr_body)
+                              if issue_num in opr_closes:
+                                  # Post comment and close
+                                  comment = (
+                                      f"\U0001f3ed **Bounty #{issue_num} completed** \u2014 "
+                                      f"PR #{pr_number} by @{pr_author} was merged first.\n\n"
+                                      f"Thank you for your submission @{opr_author}! "
+                                      f"Check out the other [open bounties]"
+                                      f"(https://github.com/{repo}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) "
+                                      f"for more opportunities.\n\n"
+                                      f"---\n*-- SolFoundry Bot*"
+                                  )
+                                  requests.post(
+                                      f"https://api.github.com/repos/{repo}/issues/{opr_num}/comments",
+                                      json={"body": comment},
+                                      headers={"Authorization": f"token {os.environ.get('GH_TOKEN', '')}",
+                                               "Accept": "application/vnd.github.v3+json"}
+                                  )
+                                  requests.patch(
+                                      f"https://api.github.com/repos/{repo}/pulls/{opr_num}",
+                                      json={"state": "closed"},
+                                      headers={"Authorization": f"token {os.environ.get('GH_TOKEN', '')}",
+                                               "Accept": "application/vnd.github.v3+json"}
+                                  )
+                                  print(f"Auto-closed competing PR #{opr_num} by @{opr_author} (bounty #{issue_num} already won)")
+
+                      except Exception as e:
+                          print(f"Error auto-closing competing PRs for #{issue_num}: {e}")
 
           print("Bounty tracking complete")
           PYEOF

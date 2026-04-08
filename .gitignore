@@ -1,7 +1,6 @@
-# Backend (solfoundry-api is canonical); in-repo stubs tracked here only:
+# Backend (primary API in SolFoundry/solfoundry-api); in-repo stubs tracked only under:
 /backend/**
 !/backend/main.py
-!/backend/.gitkeep
 
 # Environment & Secrets
 .env

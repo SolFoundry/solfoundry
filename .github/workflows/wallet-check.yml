@@ -1,8 +1,12 @@
 name: Wallet Check
 
 on:
+  # When PR is opened or body is edited
   pull_request_target:
     types: [opened, edited]
+  # When someone comments on a PR (might paste wallet there)
+  issue_comment:
+    types: [created]
 
 permissions:
   pull-requests: write
@@ -10,57 +14,226 @@ permissions:
 
 jobs:
   check-wallet:
+    # For issue_comment: only run on PR comments, skip bot comments
+    if: |
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+       github.event.comment.user.login != 'github-actions[bot]' &&
+       github.event.comment.user.login != 'chronoeth-creator')
     runs-on: ubuntu-latest
+    concurrency:
+      group: wallet-check-${{ github.event.pull_request.number || github.event.issue.number }}
     steps:
       - name: Check for Solana wallet
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
         run: |
           python3 << 'PYEOF'
-          import os, re, requests
+          import os, json, re, urllib.request
 
-          pr_body = os.environ.get("PR_BODY", "")
-          pr_number = os.environ["PR_NUMBER"]
-          pr_author = os.environ["PR_AUTHOR"]
-          token = os.environ["GH_TOKEN"]
+          token = os.environ.get("GH_TOKEN", "")
+          tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          tg_chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+          event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
           repo = os.environ.get("GITHUB_REPOSITORY", "SolFoundry/solfoundry")
 
-          patterns = [
-              r'\*\*Wallet:\*\*\s*`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-              r'[Ww]allet[:\s]+`?([1-9A-HJ-NP-Za-km-z]{32,44})`?',
-              r'(?:^|\s)([1-9A-HJ-NP-Za-km-z]{43,44})(?:\s|$)',
-          ]
+          with open(event_path) as f:
+              event = json.load(f)
 
-          has_wallet = any(re.search(p, pr_body or "") for p in patterns)
-          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+          def gh_api(path, method="GET", data=None):
+              url = f"https://api.github.com/{path}"
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, data=body, method=method)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              if data:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      raw = resp.read()
+                      if resp.status == 204 or not raw:
+                          return None, resp.status
+                      return json.loads(raw), resp.status
+              except urllib.error.HTTPError as e:
+                  return None, e.code
 
-          if not has_wallet:
-              comments_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-              comments = requests.get(comments_url, headers=headers).json()
-              already_warned = any("Missing Solana Wallet" in (c.get("body", "") or "") for c in comments if isinstance(c, dict))
+          def send_telegram_with_button(msg, button_text, button_url):
+              """Send Telegram message with an inline keyboard button."""
+              if not tg_token or not tg_chat:
+                  return
+              url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
+              payload = {
+                  "chat_id": tg_chat,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True,
+                  "reply_markup": json.dumps({
+                      "inline_keyboard": [[
+                          {"text": button_text, "url": button_url}
+                      ]]
+                  })
+              }
+              data = json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, method="POST")
+              req.add_header("Content-Type", "application/json")
+              try:
+                  urllib.request.urlopen(req)
+              except Exception as e:
+                  print(f"Telegram failed: {e}")
 
-              if not already_warned:
-                  body = (
-                      f"⚠️ **Missing Solana Wallet**\n\n"
-                      f"Hey @{pr_author}! Your PR doesn't include a Solana wallet address.\n\n"
-                      f"**To receive your $FNDRY bounty payout, please edit your PR description and add your wallet:**\n\n"
-                      f"```\n**Wallet:** YOUR_SOLANA_ADDRESS_HERE\n```\n\n"
-                      f"Without a wallet, we can't send your bounty. "
-                      f"[Phantom](https://phantom.app) or [Backpack](https://backpack.app) are recommended.\n\n"
-                      f"---\n*SolFoundry Bounty Bot*"
+          def find_wallet(text):
+              """Find a Solana wallet address (43-44 base58 chars)."""
+              matches = re.findall(r'[1-9A-HJ-NP-Za-km-z]{43,44}', text or "")
+              return matches[0] if matches else None
+
+          # ── Determine PR number and what text to check ──
+          pr_number = None
+          pr_author = None
+          comment_text = ""
+
+          if event_name == "pull_request_target":
+              pr = event.get("pull_request", {})
+              pr_number = pr.get("number")
+              pr_author = pr.get("user", {}).get("login", "unknown")
+          elif event_name == "issue_comment":
+              issue = event.get("issue", {})
+              comment = event.get("comment", {})
+              pr_number = issue.get("number")
+              pr_author = issue.get("user", {}).get("login", "unknown")
+              comment_text = comment.get("body", "") or ""
+
+          if not pr_number:
+              print("No PR number, exiting")
+              exit(0)
+
+          # ── Get current PR body ──
+          pr_detail, _ = gh_api(f"repos/{repo}/pulls/{pr_number}")
+          if not pr_detail:
+              print(f"Could not fetch PR #{pr_number}")
+              exit(0)
+
+          # Skip merged or closed PRs — contributors can edit after merge without triggering bots
+          pr_state = pr_detail.get("state", "")
+          pr_merged = pr_detail.get("merged", False)
+          if pr_merged or pr_state == "closed":
+              print(f"PR #{pr_number} is {('merged' if pr_merged else 'closed')} — skipping wallet check")
+              exit(0)
+
+          pr_body = pr_detail.get("body", "") or ""
+          pr_author = pr_detail.get("user", {}).get("login", pr_author)
+          pr_url = pr_detail.get("html_url", f"https://github.com/{repo}/pull/{pr_number}")
+
+          # ── Check for wallet in PR body and comment ──
+          # SECURITY: Only accept wallet from PR author (prevent wallet injection)
+          wallet_in_body = find_wallet(pr_body)
+          wallet_in_comment = None
+          if event_name == "issue_comment":
+              comment_author = event.get("comment", {}).get("user", {}).get("login", "")
+              if comment_author == pr_author:
+                  wallet_in_comment = find_wallet(comment_text)
+              elif find_wallet(comment_text):
+                  print(f"SECURITY: Ignoring wallet from {comment_author} (not PR author {pr_author})")
+          wallet = wallet_in_body or wallet_in_comment
+
+          # ── Get current labels ──
+          labels_data, _ = gh_api(f"repos/{repo}/issues/{pr_number}/labels")
+          label_names = [l["name"] for l in (labels_data or [])]
+          has_missing_label = "missing-wallet" in label_names
+
+          headers_simple = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+
+          # SECURITY: Redact wallet in public GitHub comments (show first 4 + last 4 only)
+          def redact_wallet(w):
+              if w and len(w) > 8:
+                  return f"{w[:4]}...{w[-4:]}"
+              return w or "N/A"
+
+          if wallet:
+              # ── WALLET FOUND ──
+              wallet_redacted = redact_wallet(wallet)
+              if has_missing_label:
+                  # Remove the missing-wallet label
+                  gh_api(f"repos/{repo}/issues/{pr_number}/labels/missing-wallet", method="DELETE")
+
+                  # Confirm on GitHub (REDACTED wallet — full wallet only goes to Telegram)
+                  if wallet_in_body:
+                      gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
+                          "body": (
+                              f"Wallet detected: `{wallet_redacted}`\n\n"
+                              f"Thanks @{pr_author}! Your wallet has been recorded and your "
+                              f"PR review will proceed as normal.\n\n"
+                              f"---\n*-- SolFoundry Bot*"
+                          )
+                      })
+                  elif wallet_in_comment:
+                      gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
+                          "body": (
+                              f"Wallet detected in comment: `{wallet_redacted}`\n\n"
+                              f"@{pr_author}, please also **edit your PR description** to include your wallet "
+                              f"so it's on record for payout processing.\n\n"
+                              f"Your review will proceed in the meantime.\n\n"
+                              f"---\n*-- SolFoundry Bot*"
+                          )
+                      })
+
+                  # Add review-triggered label so pr-review can skip if it already ran
+                  gh_api(f"repos/{repo}/issues/{pr_number}/labels", method="POST", data={
+                      "labels": ["review-triggered"]
+                  })
+
+                  # Trigger AI Code Review via workflow_dispatch (label removal doesn't trigger pull_request_target)
+                  trigger_resp = gh_api(
+                      f"repos/{repo}/actions/workflows/pr-review.yml/dispatches",
+                      method="POST",
+                      data={"ref": "main", "inputs": {"pr_number": str(pr_number)}}
                   )
-                  requests.post(comments_url, json={"body": body}, headers=headers)
+                  review_triggered = trigger_resp[1] == 204
+                  review_status = "🔄 Review triggered" if review_triggered else "⚠️ Review trigger failed"
 
-                  label_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/labels"
-                  requests.post(label_url, json={"labels": ["missing-wallet"]}, headers=headers)
-                  print(f"Warned PR #{pr_number} — no wallet found")
+                  # Send Telegram with inline View PR button (bot doesn't detect wallet-added immediately)
+                  send_telegram_with_button(
+                      f"✅ <b>Wallet added — PR #{pr_number}</b>\n"
+                      f"👤 {pr_author}\n"
+                      f"📬 <code>{wallet}</code>\n"
+                      f"Label removed. {review_status}",
+                      "👀 View PR",
+                      pr_url
+                  )
+                  print(f"PR #{pr_number}: wallet found ({wallet_redacted}), removed missing-wallet label, review={'triggered' if review_triggered else 'trigger failed'}")
               else:
-                  print(f"Already warned PR #{pr_number}")
+                  print(f"PR #{pr_number}: wallet present, no missing-wallet label — all good")
           else:
-              print(f"Wallet found in PR #{pr_number}")
-              label_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/labels/missing-wallet"
-              requests.delete(label_url, headers=headers)
+              # ── NO WALLET ──
+              if not has_missing_label:
+                  # Check if we already warned (avoid duplicate comments)
+                  comments_data, _ = gh_api(f"repos/{repo}/issues/{pr_number}/comments?per_page=50")
+                  already_warned = False
+                  if comments_data:
+                      already_warned = any(
+                          "Missing Solana" in (c.get("body", "") or "") or
+                          "Missing Solana wallet" in (c.get("body", "") or "")
+                          for c in comments_data if isinstance(c, dict)
+                      )
+
+                  if not already_warned:
+                      gh_api(f"repos/{repo}/issues/{pr_number}/comments", method="POST", data={
+                          "body": (
+                              f"Hey @{pr_author} — to receive your FNDRY payout, please add your Solana wallet address to your PR description. "
+                              f"Just add a line like: `Wallet: YourSolanaAddressHere`\n\n"
+                              f"---\n*-- SolFoundry Bot*"
+                          )
+                      })
+
+                      gh_api(f"repos/{repo}/issues/{pr_number}/labels", method="POST", data={
+                          "labels": ["missing-wallet"]
+                      })
+                      print(f"PR #{pr_number}: no wallet, warned + labeled")
+                      # No Telegram for missing wallet — just label the PR, bot will see it
+                  else:
+                      print(f"PR #{pr_number}: no wallet, already warned")
+              else:
+                  print(f"PR #{pr_number}: still no wallet, already labeled")
           PYEOF

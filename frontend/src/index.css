@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================================
+   SolFoundry Design System — Forge Theme
+   ============================================================================ */
+@theme {
+  /* === BACKGROUNDS / SURFACES === */
+  --color-forge-950: #050505;
+  --color-forge-900: #0A0A0F;
+  --color-forge-850: #0F0F18;
+  --color-forge-800: #16161F;
+  --color-forge-700: #1E1E2A;
+  --color-forge-600: #2A2A3A;
+
+  /* === BORDERS === */
+  --color-border: #1E1E2E;
+  --color-border-hover: #2E2E42;
+  --color-border-active: #3E3E56;
+
+  /* === EMERALD (primary actions, success, money) === */
+  --color-emerald: #00E676;
+  --color-emerald-light: #69F0AE;
+  --color-emerald-dim: rgba(0,230,118,0.7);
+  --color-emerald-glow: rgba(0,230,118,0.15);
+  --color-emerald-bg: rgba(0,230,118,0.08);
+  --color-emerald-border: rgba(0,230,118,0.25);
+
+  /* === PURPLE (Solana, crypto, depth) === */
+  --color-purple: #7C3AED;
+  --color-purple-light: #A78BFA;
+  --color-purple-dim: rgba(124,58,237,0.7);
+  --color-purple-glow: rgba(124,58,237,0.15);
+  --color-purple-bg: rgba(124,58,237,0.08);
+  --color-purple-border: rgba(124,58,237,0.25);
+
+  /* === MAGENTA (AI/review, logo accent) === */
+  --color-magenta: #E040FB;
+  --color-magenta-light: #EA80FC;
+  --color-magenta-dim: rgba(224,64,251,0.7);
+  --color-magenta-glow: rgba(224,64,251,0.15);
+  --color-magenta-bg: rgba(224,64,251,0.08);
+  --color-magenta-border: rgba(224,64,251,0.25);
+
+  /* === TEXT === */
+  --color-text-primary: #F0F0F5;
+  --color-text-secondary: #A0A0B8;
+  --color-text-muted: #5C5C78;
+  --color-text-inverse: #050505;
+
+  /* === STATUS === */
+  --color-status-success: #00E676;
+  --color-status-warning: #FFB300;
+  --color-status-error: #FF5252;
+  --color-status-info: #40C4FF;
+
+  /* === TIER BADGES === */
+  --color-tier-t1: #00E676;
+  --color-tier-t2: #40C4FF;
+  --color-tier-t3: #7C3AED;
+
+  /* === FONTS === */
+  --font-display: 'Orbitron', sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* === BACKGROUND IMAGES === */
+  --background-image-grid-forge:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  --background-image-gradient-navbar: linear-gradient(90deg, #00E676, #7C3AED, #E040FB);
+  --background-image-gradient-hero: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.15) 0%, rgba(224,64,251,0.08) 40%, transparent 70%);
+  --background-image-gradient-footer: linear-gradient(90deg, #E040FB, #7C3AED, #00E676);
+
+  /* === ANIMATIONS === */
+  --animate-typewriter: typewriter 2.5s steps(44) 0.5s forwards;
+  --animate-blink: blink 1s step-end infinite;
+  --animate-ember: ember-float 3s ease-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --animate-gradient-shift: gradient-shift 6s ease infinite;
+
+  @keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  @keyframes ember-float {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    30% { opacity: 0.8; }
+    100% { opacity: 0; transform: translateY(-80px) scale(0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+}
+
+/* ============================================================================
+   Global base styles
+   ============================================================================ */
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #050505;
+  color: #F0F0F5;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #050505; }
+::-webkit-scrollbar-thumb { background: #2A2A3A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3E3E56; }
+
+/* Date input dark override */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+/* Number input hide arrows */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

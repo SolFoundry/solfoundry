@@ -1,0 +1,139 @@
+name: Close Missing-Wallet PRs (24h)
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  close-stale:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: stale-wallet
+    steps:
+      - name: Close PRs missing wallet for 24h+
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, urllib.request
+          from datetime import datetime, timezone, timedelta
+
+          token = os.environ.get("GH_TOKEN", "")
+          tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          tg_chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+          repo = "SolFoundry/solfoundry"
+          cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+
+          def gh_api(path, method="GET", data=None):
+              url = f"https://api.github.com/{path}"
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, data=body, method=method)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              if data:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      return json.loads(resp.read()), resp.status
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          def send_telegram_with_buttons(msg, buttons):
+              """Send Telegram message with inline keyboard buttons."""
+              if not tg_token or not tg_chat:
+                  return
+              url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
+              payload = {
+                  "chat_id": tg_chat,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True,
+                  "reply_markup": json.dumps({
+                      "inline_keyboard": [buttons]
+                  })
+              }
+              data = json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, method="POST")
+              req.add_header("Content-Type", "application/json")
+              try:
+                  urllib.request.urlopen(req)
+              except Exception as e:
+                  print(f"Telegram failed: {e}")
+
+          # Get open PRs with missing-wallet label
+          prs, status = gh_api(f"repos/{repo}/issues?state=open&labels=missing-wallet&per_page=50")
+          if not prs or status != 200:
+              print("No missing-wallet PRs found")
+              exit(0)
+
+          closed = []
+          for pr in prs:
+              if not pr.get("pull_request"):
+                  continue
+              pr_num = pr["number"]
+              pr_title = pr["title"]
+              pr_author = pr["user"]["login"]
+
+              # Check when missing-wallet label was added via timeline
+              events, _ = gh_api(f"repos/{repo}/issues/{pr_num}/events?per_page=50")
+              label_time = None
+              if events:
+                  for e in events:
+                      if e.get("event") == "labeled" and e.get("label", {}).get("name") == "missing-wallet":
+                          label_time = datetime.fromisoformat(e["created_at"].replace("Z", "+00:00"))
+                          break
+
+              if not label_time:
+                  # Fallback: use PR creation time
+                  label_time = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
+
+              if label_time < cutoff:
+                  # 24h passed — check if wallet was added since
+                  pr_detail, _ = gh_api(f"repos/{repo}/pulls/{pr_num}")
+                  if pr_detail:
+                      import re
+                      body = pr_detail.get("body", "") or ""
+                      has_wallet = bool(re.findall(r'[1-9A-HJ-NP-Za-km-z]{43,44}', body))
+                      if has_wallet:
+                          # Wallet added — remove label
+                          gh_api(f"repos/{repo}/issues/{pr_num}/labels/missing-wallet", method="DELETE")
+                          print(f"PR #{pr_num}: wallet added, removed label")
+                          continue
+
+                  # No wallet after 24h — close
+                  gh_api(f"repos/{repo}/issues/{pr_num}/comments", method="POST", data={
+                      "body": (
+                          f"**Auto-closed — no wallet address after 24 hours**\n\n"
+                          f"@{pr_author}, this PR was closed because no Solana wallet address "
+                          f"was added within 24 hours.\n\n"
+                          f"To resubmit:\n"
+                          f"1. Add your Solana wallet address to the PR description\n"
+                          f"2. Open a new PR with `Closes #N` referencing the bounty issue\n\n"
+                          f"---\n*-- SolFoundry Bot*"
+                      )
+                  })
+                  gh_api(f"repos/{repo}/pulls/{pr_num}", method="PATCH", data={"state": "closed"})
+                  closed.append({
+                      "text": f"#{pr_num} (@{pr_author}) — {pr_title[:50]}",
+                      "url": f"https://github.com/{repo}/pull/{pr_num}"
+                  })
+                  print(f"Closed PR #{pr_num} — missing wallet 24h+")
+
+          if closed:
+              # Build inline keyboard with View PR buttons for each closed PR
+              buttons = [{"text": f"👀 #{c['url'].split('/')[-1]}", "url": c["url"]} for c in closed[:3]]
+              send_telegram_with_buttons(
+                  f"🗑 <b>Auto-closed {len(closed)} PR(s) — missing wallet (24h expired)</b>\n\n"
+                  + "\n".join(f"• {c['text']}" for c in closed),
+                  buttons
+              )
+          else:
+              print("No PRs to close")
+          PYEOF

@@ -1,0 +1,151 @@
+name: Star Reward Watcher
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  check-star-reward:
+    if: github.event.issue.number == 48
+    runs-on: ubuntu-latest
+    concurrency:
+      group: star-reward-${{ github.event.issue.number }}-${{ github.event.comment.user.login }}
+    steps:
+      - name: Check star + wallet and notify
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, json, urllib.request, base64
+
+          comment = os.environ.get("COMMENT_BODY", "").strip()
+          user = os.environ.get("COMMENT_USER", "")
+          user_id = os.environ.get("COMMENT_USER_ID", "")
+          token = os.environ.get("GH_TOKEN", "")
+          repo = "SolFoundry/solfoundry"
+
+          def gh_api(path, method="GET"):
+              url = f"https://api.github.com/{path}"
+              req = urllib.request.Request(url, method=method)
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      return json.loads(resp.read()), resp.status
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          def post_issue_comment(issue_num, body):
+              url = f"https://api.github.com/repos/{repo}/issues/{issue_num}/comments"
+              data = json.dumps({"body": body}).encode()
+              req = urllib.request.Request(url, data=data, method="POST")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              req.add_header("Content-Type", "application/json")
+              try:
+                  urllib.request.urlopen(req)
+              except Exception as e:
+                  print(f"Comment post failed: {e}")
+
+          # Skip bot comments and org owner
+          if user in ["github-actions[bot]", "chronoeth-creator"]:
+              print(f"Skipping comment from {user}")
+              exit(0)
+
+          # Extract Solana wallet from comment
+          # Match base58 addresses (32-44 chars, Solana addresses are typically 43-44)
+          wallet_pattern = r'[1-9A-HJ-NP-Za-km-z]{32,48}'
+          wallets = re.findall(wallet_pattern, comment)
+
+          # Filter to likely Solana addresses (43-44 chars)
+          sol_wallets = [w for w in wallets if len(w) >= 32]
+
+          # Check for previous payouts OR prior acknowledgment BEFORE processing
+          comments_data, _ = gh_api(f"repos/{repo}/issues/48/comments?per_page=100")
+          already_claimed = False
+          already_acknowledged = False
+          if comments_data:
+              for c in comments_data:
+                  body = c.get("body", "")
+                  author = c["user"]["login"]
+                  # Check if org owner already confirmed payout
+                  if author == "chronoeth-creator" and f"@{user}" in body and "confirmed" in body.lower():
+                      already_claimed = True
+                      break
+                  # Check if bot already acknowledged this user (prevents duplicate replies from rapid comments)
+                  if author in ["chronoeth-creator", "github-actions[bot]"] and f"@{user}" in body:
+                      if any(kw in body.lower() for kw in ["being processed", "wallet received", "star confirmed", "reward", "starred the repo"]):
+                          already_acknowledged = True
+
+          # Skip entirely if already claimed or already acknowledged
+          if already_acknowledged and not already_claimed:
+              print(f"Already acknowledged {user} — skipping duplicate comment")
+              exit(0)
+
+          if not sol_wallets:
+              # No wallet found — comment on the issue reminding them
+              print(f"No wallet found in comment from {user}: {comment[:100]}")
+              post_issue_comment(48,
+                  f"@{user} Thanks for your interest! To claim your 10,000 $FNDRY reward, "
+                  f"please reply with your **Solana wallet address**. "
+                  f"Make sure you've also starred the repo!\n\n"
+                  f"---\n*-- SolFoundry Bot*"
+              )
+              # No Telegram — bot.py handles star reward notifications with inline Pay/Skip buttons
+              exit(0)
+
+          wallet = sol_wallets[0]
+
+          # Check if user has starred the repo
+          _, status = gh_api(f"repos/{repo}/stargazers")
+          # The stargazers endpoint doesn't let us check a specific user easily,
+          # so we check the user's starring status via a different endpoint
+          check_url = f"user/{user_id}/starred/{repo}"
+          # Actually, use: GET /user/starred/{owner}/{repo} requires auth as that user
+          # Better: check stargazers list
+          stargazers = []
+          page = 1
+          while True:
+              data, status = gh_api(f"repos/{repo}/stargazers?per_page=100&page={page}")
+              if not data or status != 200:
+                  break
+              stargazers.extend([s["login"] for s in data])
+              if len(data) < 100:
+                  break
+              page += 1
+
+          is_stargazer = user in stargazers
+
+          status_emoji = "✅" if is_stargazer else "⚠️"
+          star_status = "Starred ✅" if is_stargazer else "NOT starred ⚠️"
+          claim_status = " (DUPLICATE)" if already_claimed else ""
+
+          # SECURITY: Redact wallet in CI logs (full wallet only in Telegram, which is private)
+          wallet_redacted = f"{wallet[:4]}...{wallet[-4:]}" if len(wallet) > 8 else wallet
+
+          if not is_stargazer:
+              post_issue_comment(48,
+                  f"@{user} I see your wallet but you haven't starred the repo yet! "
+                  f"Star first, then your reward will be processed.\n\n"
+                  f"---\n*-- SolFoundry Bot*"
+              )
+              # No Telegram — bot.py handles star reward notifications with inline buttons
+          elif already_claimed:
+              print(f"Duplicate claim from {user} — skipping (already confirmed)")
+          else:
+              # Acknowledge on GitHub — the local bot handles Telegram + payout buttons
+              post_issue_comment(48,
+                  f"@{user} — Star confirmed and wallet received! "
+                  f"Your 10,000 $FNDRY reward is being processed.\n\n"
+                  f"---\n*-- SolFoundry Bot*"
+              )
+              # No Telegram — bot.py sends payout button via inline keyboard
+
+          print(f"Processed: {user} | Wallet: {wallet_redacted} | Starred: {is_stargazer} | Duplicate: {already_claimed}")
+          PYEOF

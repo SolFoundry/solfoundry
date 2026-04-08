@@ -1,5 +1,10 @@
 name: AI Code Review
 
+# This is a thin trigger shim — the real review logic runs in the private repo.
+# Contributors cannot break the review system by modifying this file.
+# Any changes to this file will only affect the trigger mechanism,
+# not the scoring, LLM pipeline, or review logic.
+
 on:
   pull_request_target:
     types: [opened, synchronize]
@@ -12,137 +17,505 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: read
 
 jobs:
-  ai-review:
+  trigger-review:
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-review-${{ inputs.pr_number || github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
-      - name: Checkout base repo (safe — never runs PR code)
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install openai requests
-
-      - name: Resolve PR number
-        id: pr
+      - name: Check if bounty is still open
+        id: bounty_check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
-          # Use workflow_dispatch input if available, else pull_request_target event
           if [ -n "${{ inputs.pr_number }}" ]; then
             PR_NUM="${{ inputs.pr_number }}"
           else
             PR_NUM="${{ github.event.pull_request.number }}"
           fi
-          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
 
-          # Get full PR details for workflow_dispatch case
-          PR_JSON=$(gh pr view $PR_NUM --repo ${{ github.repository }} --json title,author,url,body 2>/dev/null || echo '{}')
-          echo "title=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("title","Unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "author=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("author",{}).get("login","unknown"))' 2>/dev/null)" >> $GITHUB_OUTPUT
-          echo "url=$(echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("url",""))' 2>/dev/null)" >> $GITHUB_OUTPUT
-
-          # Write body to file to avoid shell escaping issues
-          echo "$PR_JSON" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("body",""))' > /tmp/pr_body.txt 2>/dev/null
-
-      - name: Get PR diff
-        id: diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr diff ${{ steps.pr.outputs.number }} --repo ${{ github.repository }} > /tmp/pr_diff.txt
-          echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
-
-      - name: Get bounty context and submission order
-        id: bounty
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Read PR body from file (handles both triggers)
-          if [ -f /tmp/pr_body.txt ]; then
-            PR_BODY=$(cat /tmp/pr_body.txt)
-          else
-            PR_BODY="${{ github.event.pull_request.body }}"
+          # Extract linked issue from PR title + body
+          PR_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM")
+          PR_HTTP_CODE=$(echo "$PR_RESPONSE" | tail -1)
+          PR_JSON=$(echo "$PR_RESPONSE" | head -n -1)
+          if [ "$PR_HTTP_CODE" != "200" ]; then
+            echo "ERROR: GitHub API returned $PR_HTTP_CODE for PR #$PR_NUM"
+            echo "Response: ${PR_JSON:0:300}"
+            exit 1
           fi
+          PR_TITLE=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title',''))" 2>/dev/null)
+          PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
+          PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
+
+          # Blocked users — hard block at workflow level
+          BLOCKED_USERS="AlexChen31337,xidik12,chulinhcql-art"
+          if echo ",$BLOCKED_USERS," | grep -qi ",$PR_AUTHOR,"; then
+            echo "BLOCKED USER: $PR_AUTHOR"
+            curl -s -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"@$PR_AUTHOR — your account has been blocked from the SolFoundry bounty program due to previous violations.\n\n---\n*SolFoundry Bot*\"}"
+            curl -s -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Rate limiting disabled during maintenance
+
+          # Extract ALL linked issue numbers (to detect multi-bounty stuffing)
+          # Use env vars to avoid shell injection from PR title/body
+          ALL_ISSUES=$(PR_TITLE_ENV="$PR_TITLE" PR_BODY_ENV="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_ENV', '') + ' ' + os.environ.get('PR_BODY_ENV', '')
+          matches = re.findall(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:#(?:\S+#)?)(\d+)', text, re.IGNORECASE)
+          # Deduplicate
+          seen = []
+          for m in matches:
+              if m not in seen:
+                  seen.append(m)
+          print(','.join(seen))
+          " 2>/dev/null)
+
+          ISSUE_COUNT=$(echo "$ALL_ISSUES" | tr ',' '\n' | grep -c '[0-9]' || echo 0)
+          ISSUE_NUM=$(echo "$ALL_ISSUES" | cut -d',' -f1)
+
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "No linked issue — proceeding to dispatch"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Block multi-bounty PRs (one PR = one bounty)
+          if [ "$ISSUE_COUNT" -gt 1 ]; then
+            echo "BLOCKED: PR #$PR_NUM references $ISSUE_COUNT bounty issues ($ALL_ISSUES)"
+            curl -s -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"**Multiple Bounties Detected**\n\n@$PR_AUTHOR, this PR references **$ISSUE_COUNT bounty issues** (#$(echo $ALL_ISSUES | sed 's/,/, #/g')).\n\n**Each bounty must be submitted as a separate PR** — one PR per bounty issue. This ensures proper review scope, fair attribution, and clean merge history.\n\nPlease:\n1. Split your work into separate PRs, each referencing only one bounty issue\n2. Use \`Closes #N\` to link each PR to its specific bounty\n\n---\n*SolFoundry Bot*\"}"
+            curl -s -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if the bounty issue is closed
+          ISSUE_STATE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM" \
+            | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('state','open'))" 2>/dev/null)
+
+          if [ "$ISSUE_STATE" = "closed" ]; then
+            echo "BLOCKED: Bounty #$ISSUE_NUM is closed — closing PR #$PR_NUM"
+            # Post comment
+            curl -s -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+              -d "{\"body\":\"**Bounty Closed**\n\n@$PR_AUTHOR, bounty #$ISSUE_NUM has already been completed and closed.\n\nThis PR cannot be reviewed because the bounty is no longer active. Please check the [open bounties](https://github.com/${{ github.repository }}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty) for available work.\n\n---\n*SolFoundry Bot*\"}"
+            # Close PR
+            curl -s -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+              -d '{"state":"closed"}'
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Bounty #$ISSUE_NUM is open — proceeding"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check tier eligibility
+        if: steps.bounty_check.outputs.skip != 'true'
+        id: tier_check
+        env:
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+        run: |
+          PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
           REPO="${{ github.repository }}"
 
-          # Extract linked issue number from PR body (Closes #N)
-          ISSUE_NUM=$(echo "$PR_BODY" | grep -ioP '(?:closes|fixes|resolves)\s+#\K\d+' | head -1)
+          # Get PR info
+          PR_RESPONSE2=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/pulls/$PR_NUM")
+          PR_HTTP_CODE2=$(echo "$PR_RESPONSE2" | tail -1)
+          PR_JSON=$(echo "$PR_RESPONSE2" | head -n -1)
+          if [ "$PR_HTTP_CODE2" != "200" ]; then
+            echo "ERROR: GitHub API returned $PR_HTTP_CODE2 for PR #$PR_NUM in tier check"
+            exit 1
+          fi
+          PR_AUTHOR=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('user',{}).get('login',''))" 2>/dev/null)
+          PR_TITLE=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title',''))" 2>/dev/null)
+          PR_BODY=$(echo "$PR_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
-          if [ -n "$ISSUE_NUM" ]; then
-            echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
-
-            # Get issue details
-            ISSUE_JSON=$(gh api repos/$REPO/issues/$ISSUE_NUM 2>/dev/null || echo '{}')
-            ISSUE_TITLE=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('title','Unknown'))" 2>/dev/null)
-
-            # Get tier from labels
-            TIER=$(echo "$ISSUE_JSON" | python3 -c "
-          import sys,json
-          data=json.loads(sys.stdin.read())
-          labels=[l['name'] for l in data.get('labels',[])]
-          tier=next((l for l in labels if l.startswith('tier-')),'unknown')
-          print(tier)
+          # Extract linked issue number (use env vars to avoid shell injection)
+          ISSUE_NUM=$(PR_TITLE_ENV="$PR_TITLE" PR_BODY_ENV="$PR_BODY" python3 -c "
+          import re, os
+          text = os.environ.get('PR_TITLE_ENV', '') + ' ' + os.environ.get('PR_BODY_ENV', '')
+          m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*(?:\S+#)?(\d+)', text, re.IGNORECASE)
+          print(m.group(1) if m else '')
           " 2>/dev/null)
 
-            # Extract reward amount
-            REWARD=$(echo "$ISSUE_JSON" | python3 -c "
-          import sys,json,re
-          data=json.loads(sys.stdin.read())
-          text=(data.get('title','') or '') + ' ' + (data.get('body','') or '')
-          m=re.search(r'(\d+)\s*\\\$?FNDRY', text)
-          print(m.group(1) if m else '0')
-          " 2>/dev/null)
-
-            echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
-            echo "tier=$TIER" >> $GITHUB_OUTPUT
-            echo "reward=$REWARD" >> $GITHUB_OUTPUT
-
-            # Count how many PRs target this issue (submission order)
-            ALL_PRS=$(gh pr list --repo $REPO --state all --limit 50 --json number,body 2>/dev/null)
-            ORDER=$(echo "$ALL_PRS" | python3 -c "
-          import sys,json,re
-          prs=json.loads(sys.stdin.read())
-          count=0
-          for pr in prs:
-              body=(pr.get('body','') or '').lower()
-              if re.search(r'(?:closes|fixes|resolves)\s+#$ISSUE_NUM', body):
-                  count+=1
-          print(count)
-          " 2>/dev/null)
-            echo "submission_order=$ORDER" >> $GITHUB_OUTPUT
-          else
-            echo "issue_num=" >> $GITHUB_OUTPUT
-            echo "tier=unknown" >> $GITHUB_OUTPUT
-            echo "reward=0" >> $GITHUB_OUTPUT
-            echo "submission_order=0" >> $GITHUB_OUTPUT
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "No linked issue — skipping tier check"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-      - name: Multi-LLM Review (GPT-5.4 + Gemini 2.5 Pro + Grok 4)
+          # Get issue labels to determine tier
+          ISSUE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUM")
+          LABELS=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(','.join(l['name'] for l in json.loads(sys.stdin.read()).get('labels',[])))" 2>/dev/null)
+
+          echo "Issue #$ISSUE_NUM labels: $LABELS"
+
+          # T1 bounties — open to everyone, no check needed
+          if echo "$LABELS" | grep -q "tier-1"; then
+            echo "T1 bounty — open race, no tier gate"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Skip non-bounty issues
+          if ! echo "$LABELS" | grep -q "bounty"; then
+            echo "Not a bounty issue — no tier gate"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # For T2/T3: check contributor's merged bounty PR history
+          python3 << PYEOF
+          import json, re, urllib.request, os, sys
+
+          token = os.environ["GH_TOKEN"]
+          repo = "$REPO"
+          user = "$PR_AUTHOR"
+          issue_num = "$ISSUE_NUM"
+          labels = "$LABELS"
+          pr_num = "$PR_NUM"
+
+          def gh_get(path):
+              req = urllib.request.Request(f"https://api.github.com/{path}")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              return json.loads(urllib.request.urlopen(req).read().decode())
+
+          def gh_post(path, data):
+              req = urllib.request.Request(f"https://api.github.com/{path}", json.dumps(data).encode(), method="POST")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              req.add_header("Content-Type", "application/json")
+              urllib.request.urlopen(req)
+
+          def gh_patch(path, data):
+              req = urllib.request.Request(f"https://api.github.com/{path}", json.dumps(data).encode(), method="PATCH")
+              req.add_header("Authorization", f"token {token}")
+              req.add_header("Accept", "application/vnd.github.v3+json")
+              req.add_header("Content-Type", "application/json")
+              urllib.request.urlopen(req)
+
+          def get_issue_tier(inum):
+              try:
+                  issue = gh_get(f"repos/{repo}/issues/{inum}")
+                  ilabels = [l["name"] for l in issue.get("labels", [])]
+                  if "bounty" not in ilabels:
+                      return None
+                  for t in ("tier-3", "tier-2", "tier-1"):
+                      if t in ilabels:
+                          return t
+                  return "tier-1"
+              except:
+                  return None
+
+          # Count merged bounty PRs by tier
+          t1_count = t2_count = 0
+          page = 1
+          while True:
+              prs = gh_get(f"repos/{repo}/pulls?state=closed&per_page=100&page={page}")
+              for pr in prs:
+                  if pr["user"]["login"] != user or not pr.get("merged_at"):
+                      continue
+                  body = pr.get("body") or ""
+                  linked = re.findall(r"(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)", body, re.IGNORECASE)
+                  for ln in linked:
+                      tier = get_issue_tier(ln)
+                      if tier == "tier-1": t1_count += 1
+                      elif tier == "tier-2": t2_count += 1
+              if len(prs) < 100: break
+              page += 1
+
+          print(f"{user}: T1={t1_count}, T2={t2_count}")
+
+          is_t2 = "tier-2" in labels
+          is_t3 = "tier-3" in labels
+
+          blocked = False
+          if is_t2 and t1_count < 4:
+              remaining = 4 - t1_count
+              msg = (
+                  f"⚠️ @{user} — **Tier 2 bounties require 4+ completed Tier 1 bounties.**\n\n"
+                  f"You have **{t1_count}** merged T1 PR(s) — **{remaining} more** to unlock T2.\n\n"
+                  f"This PR cannot proceed to review. Please build your reputation with "
+                  f"[Tier 1 bounties](https://github.com/{repo}/labels/tier-1) first.\n\n"
+                  f"---\n*-- SolFoundry Bot*"
+              )
+              blocked = True
+
+          elif is_t3:
+              t3_std = t2_count >= 3
+              t3_alt = t1_count >= 5 and t2_count >= 1
+              if not t3_std and not t3_alt:
+                  msg = (
+                      f"⚠️ @{user} — **Tier 3 bounties are reputation-gated.**\n\n"
+                      f"Requirements (one of):\n"
+                      f"- **Standard:** 3+ completed Tier 2 bounties (you have {t2_count})\n"
+                      f"- **Alternative:** 5+ T1 AND 1+ T2 (you have {t1_count} T1, {t2_count} T2)\n\n"
+                      f"This PR cannot proceed to review until you meet the requirements.\n\n"
+                      f"---\n*-- SolFoundry Bot*"
+                  )
+                  blocked = True
+              else:
+                  # Eligible by reputation — but T3 also requires approved claim
+                  # Check if contributor is assigned to the bounty issue (claim approved)
+                  issue_data = gh_get(f"repos/{repo}/issues/{issue_num}")
+                  assignees = [a["login"].lower() for a in issue_data.get("assignees", [])]
+
+                  if user.lower() not in assignees:
+                      # Check issue comments for bot approval message as fallback
+                      comments = gh_get(f"repos/{repo}/issues/{issue_num}/comments?per_page=100")
+                      has_approval = False
+                      for c in comments:
+                          cbody = (c.get("body") or "")
+                          cauthor = c.get("user", {}).get("login", "")
+                          # Look for our bot's claim approval comment mentioning this user
+                          if cauthor == "chronoeth-creator" and user.lower() in cbody.lower() and ("approved" in cbody.lower() or "assigned" in cbody.lower()):
+                              has_approval = True
+                              break
+
+                      if not has_approval:
+                          msg = (
+                              f"⚠️ @{user} — **Tier 3 bounties require claiming before submitting.**\n\n"
+                              f"You meet the reputation requirements ✅ but you haven't claimed this bounty yet.\n\n"
+                              f"**To claim:** Comment on [issue #{issue_num}](https://github.com/{repo}/issues/{issue_num}) "
+                              f"with why you're a good fit. A maintainer will review and assign you.\n\n"
+                              f"Once assigned, resubmit your PR.\n\n"
+                              f"---\n*-- SolFoundry Bot*"
+                          )
+                          blocked = True
+
+          if blocked:
+              gh_post(f"repos/{repo}/issues/{pr_num}/comments", {"body": msg})
+              gh_patch(f"repos/{repo}/pulls/{pr_num}", {"state": "closed"})
+              print(f"BLOCKED: {user} not eligible — PR #{pr_num} closed")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("skip=true\n")
+          else:
+              print(f"ELIGIBLE: {user} passes tier gate")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("skip=false\n")
+          PYEOF
+
+      # Skip re-review if PR already has our APPROVED review
+      - name: Check if already approved
+        id: already_approved
+        if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true'
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-          SOLFOUNDRY_TELEGRAM_BOT_TOKEN: ${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}
-          SOLFOUNDRY_TELEGRAM_CHAT_ID: ${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-          PR_TITLE: ${{ steps.pr.outputs.title || github.event.pull_request.title }}
-          PR_AUTHOR: ${{ steps.pr.outputs.author || github.event.pull_request.user.login }}
-          PR_URL: ${{ steps.pr.outputs.url || github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BOUNTY_ISSUE: ${{ steps.bounty.outputs.issue_num }}
-          BOUNTY_TITLE: ${{ steps.bounty.outputs.issue_title }}
-          BOUNTY_TIER: ${{ steps.bounty.outputs.tier }}
-          BOUNTY_REWARD: ${{ steps.bounty.outputs.reward }}
-          SUBMISSION_ORDER: ${{ steps.bounty.outputs.submission_order }}
+          GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
-          # Load PR body from file to avoid shell escaping
-          export PR_BODY="$(cat /tmp/pr_body.txt 2>/dev/null || echo '${{ github.event.pull_request.body }}')"
-          python3 .github/scripts/ai_review.py
+          PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
+          APPROVED_REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
+            --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")]' 2>/dev/null || echo "[]")
+          APPROVED=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; print(len(json.loads(sys.stdin.read())))" 2>/dev/null || echo 0)
+
+          # If new commits pushed after approval (synchronize event), dismiss the
+          # APPROVED review and force re-review — prevents bait-and-switch attacks
+          ACTION="${{ github.event.action }}"
+          if [ "$APPROVED" -gt "0" ] && [ "$ACTION" = "synchronize" ]; then
+            echo "⚠️ New commits pushed after approval — dismissing review and forcing re-review"
+
+            # Extract bounty issue number from PR body (escrow label lives on BOUNTY ISSUE, not PR)
+            PR_BODY_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null)
+            BOUNTY_NUM_SYNC=$(echo "$PR_BODY_SYNC" | python3 -c "
+            import sys, re
+            text = sys.stdin.read()
+            m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+            print(m.group(1) if m else '')
+            " 2>/dev/null)
+            echo "Extracted bounty issue: ${BOUNTY_NUM_SYNC:-none}"
+
+            # Check if bot recently asked this contributor to rebase (friendly vs security messaging)
+            IS_REBASE="false"
+            if [ -n "$BOUNTY_NUM_SYNC" ]; then
+              RECENT_BOT_COMMENTS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/comments?per_page=10" \
+                --jq '[.[] | select(.user.login == "chronoeth-creator") | .body] | join(" ")' 2>/dev/null || echo "")
+              if echo "$RECENT_BOT_COMMENTS" | grep -qi "rebase\|conflict\|merge conflict\|paid-pending-merge"; then
+                IS_REBASE="true"
+                echo "Detected rebase after conflict notification — using friendly messaging"
+              fi
+            fi
+
+            # Dismiss each APPROVED review
+            REVIEW_IDS=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; [print(r['id']) for r in json.loads(sys.stdin.read())]" 2>/dev/null)
+            if [ "$IS_REBASE" = "true" ]; then
+              DISMISS_MSG="Rebase detected — previous approval cleared for a quick re-review. Thanks for resolving conflicts!"
+            else
+              DISMISS_MSG="New commits pushed after approval — re-review required for security. Previous approval dismissed."
+            fi
+            for RID in $REVIEW_IDS; do
+              curl -s -X PUT \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUM}/reviews/${RID}/dismissals" \
+                -d "{\"message\":\"$DISMISS_MSG\",\"event\":\"DISMISS\"}" || true
+            done
+
+            # Remove escrow lock from the BOUNTY ISSUE (not the PR — that was the bug)
+            if [ -n "$BOUNTY_NUM_SYNC" ]; then
+              curl -s -X DELETE \
+                -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/${BOUNTY_NUM_SYNC}/labels/review-passed" 2>/dev/null || true
+              echo "Removed review-passed label from bounty issue #${BOUNTY_NUM_SYNC}"
+            else
+              echo "WARNING: Could not extract bounty issue — escrow label removal skipped"
+            fi
+
+            # Post comment — friendly for rebases, security warning for real pushes
+            if [ "$IS_REBASE" = "true" ]; then
+              COMMENT_BODY="**Rebase Detected**\n\nThanks for resolving the merge conflict! A quick re-review is running now.\n\nYour escrow lock has been temporarily cleared and will be re-set once the review passes again. No action needed from you.\n\n---\n*-- SolFoundry Bot*"
+            else
+              COMMENT_BODY="**Review Invalidated**\n\nNew commits were pushed after approval. The previous approval has been dismissed and a fresh review will run.\n\nFor security, the escrow lock has been removed.\n\n---\n*-- SolFoundry Bot*"
+            fi
+            curl -s -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUM}/comments" \
+              -d "{\"body\":\"${COMMENT_BODY}\"}" || true
+
+            # Notify owner on Telegram (this was a blind spot — owner had no idea approvals were being dismissed)
+            TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+            TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+            if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+              PR_TITLE_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null)
+              PR_AUTHOR_SYNC=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null)
+              if [ "$IS_REBASE" = "true" ]; then
+                TG_MSG="🔄 <b>Rebase Detected</b>%0A%0APR #${PR_NUM}: ${PR_TITLE_SYNC}%0Aby @${PR_AUTHOR_SYNC}%0A%0AContributor rebased after conflict. Re-review running. Escrow will re-lock if it passes."
+              else
+                TG_MSG="⚠️ <b>Approval Dismissed</b>%0A%0APR #${PR_NUM}: ${PR_TITLE_SYNC}%0Aby @${PR_AUTHOR_SYNC}%0A%0ANew commits pushed after approval. Review invalidated, re-review dispatched."
+              fi
+              curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                -d "chat_id=${TELEGRAM_CHAT}" \
+                -d "text=${TG_MSG}" \
+                -d "parse_mode=HTML" \
+                -d "disable_web_page_preview=true" > /dev/null 2>&1
+            fi
+
+            # Don't skip — force re-review
+            echo "skip=false" >> $GITHUB_OUTPUT
+          elif [ "$APPROVED" -gt "0" ]; then
+            echo "⏭️ PR #${PR_NUM} already approved — not dispatching re-review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+
+            # Check if PR is now mergeable (conflict resolved after rebase)
+            MERGEABLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.mergeable // false' 2>/dev/null || echo "false")
+            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.title' 2>/dev/null || echo "Unknown")
+            PR_AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.user.login' 2>/dev/null || echo "unknown")
+            PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUM}"
+
+            if [ "$MERGEABLE" = "true" ]; then
+              # Skip notification if PR is already paid (bot already handled it)
+              PR_LABELS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/labels" --jq '.[].name' 2>/dev/null || echo "")
+              if echo "$PR_LABELS" | grep -q "^paid$"; then
+                echo "PR #${PR_NUM} already paid — skipping duplicate 'Ready to Merge' notification"
+                exit 0
+              fi
+
+              # Extract bounty info for payout context
+              PR_BODY=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.body // ""' 2>/dev/null || echo "")
+              BOUNTY_NUM=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:closes|fixes|resolves|issue|bounty)\s*:?\s*#(\d+)', text, re.IGNORECASE)
+              print(m.group(1) if m else '')
+              " 2>/dev/null || echo "")
+
+              WALLET=$(echo "$PR_BODY" | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(?:wallet|address)[:\s]*\`?([1-9A-HJ-NP-Za-km-z]{32,44})\`?', text, re.IGNORECASE)
+              if not m:
+                  m = re.search(r'\b([1-9A-HJ-NP-Za-km-z]{32,44})\b', text)
+              print(m.group(1) if m else 'not found')
+              " 2>/dev/null || echo "not found")
+
+              BOUNTY_INFO=""
+              if [ -n "$BOUNTY_NUM" ]; then
+                REWARD=$(gh api "repos/${{ github.repository }}/issues/${BOUNTY_NUM}" --jq '.body' 2>/dev/null | python3 -c "
+              import sys, re
+              text = sys.stdin.read()
+              m = re.search(r'(\d[\d,]*)\s*(?:\\\$FNDRY|FNDRY|\\\$)', text)
+              print(m.group(1) if m else 'unknown')
+              " 2>/dev/null || echo "unknown")
+                BOUNTY_INFO="Bounty: #${BOUNTY_NUM} (${REWARD} \$FNDRY)"
+              fi
+
+              # Send Telegram notification
+              TELEGRAM_TOKEN="${{ secrets.SOLFOUNDRY_TELEGRAM_BOT_TOKEN }}"
+              TELEGRAM_CHAT="${{ secrets.SOLFOUNDRY_TELEGRAM_CHAT_ID }}"
+              if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+                MSG="✅ <b>Ready to Merge &amp; Pay Out</b>%0A%0APR #${PR_NUM}: ${PR_TITLE}%0Aby @${PR_AUTHOR}%0A${BOUNTY_INFO}%0AWallet: ${WALLET}%0A%0A🔗 ${PR_URL}%0A%0AReply <code>merge 620</code> to merge and trigger payout."
+                curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                  -d "chat_id=${TELEGRAM_CHAT}" \
+                  -d "text=${MSG}" \
+                  -d "parse_mode=HTML" \
+                  -d "disable_web_page_preview=true" > /dev/null 2>&1 || true
+              fi
+            fi
+            exit 0
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger AI review via backend API
+        if: steps.bounty_check.outputs.skip != 'true' && steps.tier_check.outputs.skip != 'true' && steps.already_approved.outputs.skip != 'true'
+        env:
+          REVIEW_PAT: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
+
+          # Determine action type for smart dedup in private pipeline
+          if [ -n "${{ github.event.action }}" ]; then
+            ACTION="${{ github.event.action }}"
+          else
+            ACTION="manual"
+          fi
+
+          echo "Dispatching review for PR #${PR_NUM} (action: ${ACTION}) to backend API..."
+
+          # Call the backend review API directly instead of private repo dispatch
+          PR_URL="https://github.com/SolFoundry/solfoundry/pull/${PR_NUM}"
+          REVIEW_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer ${ADMIN_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "https://solfoundry.org/api/admin/trigger-review" \
+            -d "{\"pr_url\": \"${PR_URL}\", \"bounty_id\": \"${BOUNTY_ID:-}\"}" \
+            --max-time 300 \
+            2>&1) || true
+
+          if echo "$REVIEW_RESPONSE" | grep -q '"overall_score"'; then
+            SCORE=$(echo "$REVIEW_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('overall_score',0))" 2>/dev/null || echo "0")
+            echo "✅ Review completed for PR #${PR_NUM} — Score: ${SCORE}/10"
+          else
+            echo "⚠️ Review API call completed but response may need checking"
+            echo "Response: ${REVIEW_RESPONSE:0:200}"
+          fi
