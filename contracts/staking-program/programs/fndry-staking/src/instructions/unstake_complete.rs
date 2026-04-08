@@ -112,26 +112,13 @@ pub fn handler(ctx: Context<UnstakeComplete>) -> Result<()> {
     );
     token::transfer(transfer_ctx, unstake_amount)?;
 
-    // Update stake account.
-    stake_account.amount = stake_account
-        .amount
-        .checked_sub(unstake_amount)
-        .ok_or(StakingError::MathOverflow)?;
+    // Update stake account state.
+    // NOTE: stake_account.amount was already decremented in unstake_initiate
+    // to prevent rewards double-dipping.
     stake_account.cooldown_active = false;
     stake_account.cooldown_start = 0;
     stake_account.cooldown_amount = 0;
     stake_account.last_claim = current_timestamp;
-
-    // Update global stats.
-    let config = &mut ctx.accounts.config;
-    config.total_staked = config
-        .total_staked
-        .checked_sub(unstake_amount)
-        .ok_or(StakingError::MathOverflow)?;
-
-    if stake_account.amount == 0 {
-        config.active_stakers = config.active_stakers.saturating_sub(1);
-    }
 
     emit!(UnstakeCompletedEvent {
         user: ctx.accounts.user.key(),

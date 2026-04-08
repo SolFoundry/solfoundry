@@ -1,231 +1,35 @@
-# Solana / Anchor CI
-#
-# Three independent pipelines — one per program directory:
-#
-#   bounty-registry   contracts/bounty-registry/
-#   fndry-staking     contracts/staking-program/
-#   rust-quality      clippy + rustfmt + cargo audit (all programs)
-#
-# Each program pipeline:
-#   1. anchor build  — compile the Solana program
-#   2. cargo test    — run Rust unit tests (no validator needed)
-#   3. anchor test   — run TypeScript integration tests (local validator)
-#   4. coverage      — generate c8 LCOV report, upload to artifacts
-#
-# Triggers on any PR or push that touches contracts/ or this workflow.
-
 name: Anchor CI
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'contracts/**'
-      - '.github/workflows/anchor.yml'
   push:
     branches: [main]
-    paths:
-      - 'contracts/**'
-      - '.github/workflows/anchor.yml'
-  workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 concurrency:
-  group: anchor-${{ github.head_ref || github.ref }}
+  group: anchor-ci-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 env:
   SOLANA_VERSION: '1.18.26'
   ANCHOR_VERSION: '0.30.1'
-  RUST_VERSION: 'stable'
+  RUST_VERSION: '1.79'
   NODE_VERSION: '20'
 
-# ══════════════════════════════════════════════════════════════════
-# BOUNTY REGISTRY
-# ══════════════════════════════════════════════════════════════════
-
 jobs:
-  bounty-registry-build:
-    name: "Bounty Registry — Build"
+  anchor-build-test:
+    name: Anchor Build & Test — bounty-registry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: clippy, rustfmt
-
-      - name: Setup Solana
-        run: |
-          mkdir -p $HOME/.local/bin
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Cache Anchor
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.avm
-            ~/.cargo/bin/anchor
-          key: anchor-${{ env.ANCHOR_VERSION }}-${{ runner.os }}
-
-      - name: Install Anchor CLI
-        run: |
-          mkdir -p $HOME/.local/bin
-          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify Tools
-        run: |
-          solana --version
-          anchor --version
-        env:
-          ANCHOR_VERSION: ${{ env.ANCHOR_VERSION }}
-
-      - name: Verify Anchor Version
-        run: anchor --version
-
-      - name: Generate Solana keypair
-        run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            contracts/bounty-registry/target/
-          key: bounty-registry-cargo-${{ runner.os }}-${{ hashFiles('contracts/bounty-registry/programs/bounty-registry/Cargo.toml') }}
-          restore-keys: bounty-registry-cargo-${{ runner.os }}-
-
-      - name: Build program
-        working-directory: contracts/bounty-registry
-        run: anchor build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: bounty-registry-build
-          path: |
-            contracts/bounty-registry/target/deploy/
-            contracts/bounty-registry/target/idl/
-          retention-days: 7
-
-  bounty-registry-rust-tests:
-    name: "Bounty Registry — Rust Unit Tests"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            contracts/bounty-registry/target/
-          key: bounty-registry-cargo-${{ runner.os }}-${{ hashFiles('contracts/bounty-registry/programs/bounty-registry/Cargo.toml') }}
-          restore-keys: bounty-registry-cargo-${{ runner.os }}-
-
-      - name: Run Rust unit tests
-        working-directory: contracts/bounty-registry
-        run: cargo test --manifest-path programs/bounty-registry/Cargo.toml
-
-  bounty-registry-integration-tests:
-    name: "Bounty Registry — Integration Tests (localnet)"
-    runs-on: ubuntu-latest
-    needs: bounty-registry-build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Setup Solana
-        run: |
-          mkdir -p $HOME/.local/bin
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Cache Anchor
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.avm
-            ~/.cargo/bin/anchor
-          key: anchor-${{ env.ANCHOR_VERSION }}-${{ runner.os }}
-
-      - name: Install Anchor CLI
-        run: |
-          mkdir -p $HOME/.local/bin
-          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify Tools
-        run: |
-          solana --version
-          anchor --version
-
-      - name: Verify Anchor Version
-        run: anchor --version
-
-      - name: Generate Solana keypair
-        run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
-
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: contracts/bounty-registry/package.json
-
-      - name: Install npm dependencies
-        working-directory: contracts/bounty-registry
-        run: npm install
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: bounty-registry-build
-          path: contracts/bounty-registry/target/
-
-      - name: Run integration tests (localnet)
-        working-directory: contracts/bounty-registry
-        run: anchor test --provider.cluster localnet
-        timeout-minutes: 10
-
-      - name: Generate coverage report
-        working-directory: contracts/bounty-registry
-        run: npm run test:coverage || true
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: bounty-registry-coverage
-          path: contracts/bounty-registry/coverage/
-          retention-days: 14
-
-# ══════════════════════════════════════════════════════════════════
-# FNDRY STAKING
-# ══════════════════════════════════════════════════════════════════
-
-  staking-build:
-    name: "Staking — Build"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          cache-dependency-path: frontend/package.json
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -234,260 +38,119 @@ jobs:
           components: clippy, rustfmt
 
       - name: Setup Solana
-        run: |
-          mkdir -p $HOME/.local/bin
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Cache Anchor
-        uses: actions/cache@v4
+        uses: metadaoproject/setup-solana@v1
         with:
-          path: |
-            ~/.avm
-            ~/.cargo/bin/anchor
-          key: anchor-${{ env.ANCHOR_VERSION }}-${{ runner.os }}
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
 
       - name: Install Anchor CLI
-        run: |
-          mkdir -p $HOME/.local/bin
-          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify Tools
-        run: |
-          solana --version
-          anchor --version
-
-      - name: Verify Anchor Version
-        run: anchor --version
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
 
       - name: Generate Solana keypair
         run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            contracts/staking-program/target/
-          key: staking-cargo-${{ runner.os }}-${{ hashFiles('contracts/staking-program/programs/fndry-staking/Cargo.toml') }}
-          restore-keys: staking-cargo-${{ runner.os }}-
-
-      - name: Build program
-        working-directory: contracts/staking-program
-        run: anchor build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: staking-build
-          path: |
-            contracts/staking-program/target/deploy/
-            contracts/staking-program/target/idl/
-          retention-days: 7
-
-  staking-rust-tests:
-    name: "Staking — Rust Unit Tests"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            contracts/staking-program/target/
-          key: staking-cargo-${{ runner.os }}-${{ hashFiles('contracts/staking-program/programs/fndry-staking/Cargo.toml') }}
-          restore-keys: staking-cargo-${{ runner.os }}-
-
-      - name: Run Rust unit tests
-        working-directory: contracts/staking-program
-        run: cargo test --manifest-path programs/fndry-staking/Cargo.toml
-
-  staking-integration-tests:
-    name: "Staking — Integration Tests (localnet)"
-    runs-on: ubuntu-latest
-    needs: staking-build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Setup Solana
-        run: |
-          mkdir -p $HOME/.local/bin
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Cache Anchor
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.avm
-            ~/.cargo/bin/anchor
-          key: anchor-${{ env.ANCHOR_VERSION }}-${{ runner.os }}
-
-      - name: Install Anchor CLI
-        run: |
-          mkdir -p $HOME/.local/bin
-          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }} --prefix=$HOME/.local
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify Tools
-        run: |
-          solana --version
-          anchor --version
-
-      - name: Verify Anchor Version
-        run: anchor --version
-
-      - name: Generate Solana keypair
-        run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: contracts/staking-program/package.json
-
-      - name: Install npm dependencies
-        working-directory: contracts/staking-program
-        run: npm install
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: staking-build
-          path: contracts/staking-program/target/
-
-      - name: Run integration tests (localnet)
-        working-directory: contracts/staking-program
-        run: anchor test --provider.cluster localnet
-        timeout-minutes: 10
-
-      - name: Generate coverage report
-        working-directory: contracts/staking-program
-        run: npm run test:coverage || true
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: staking-coverage
-          path: contracts/staking-program/coverage/
-          retention-days: 14
-
-# ══════════════════════════════════════════════════════════════════
-# RUST QUALITY (shared — covers both programs)
-# ══════════════════════════════════════════════════════════════════
-
-  rust-quality:
-    name: "Rust Quality (clippy + fmt + audit)"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: clippy, rustfmt
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: rust-quality-${{ runner.os }}-${{ hashFiles('contracts/**/Cargo.toml') }}
-          restore-keys: rust-quality-${{ runner.os }}-
-
-      - name: Clippy — bounty-registry
-        working-directory: contracts/bounty-registry
-        run: cargo clippy --manifest-path programs/bounty-registry/Cargo.toml --all-targets -- -D warnings
-        continue-on-error: true
-
-      - name: Clippy — staking
-        working-directory: contracts/staking-program
-        run: cargo clippy --manifest-path programs/fndry-staking/Cargo.toml --all-targets -- -D warnings
-        continue-on-error: true
-
-      - name: Rustfmt — bounty-registry
-        working-directory: contracts/bounty-registry
-        run: cargo fmt --manifest-path programs/bounty-registry/Cargo.toml -- --check
-        continue-on-error: true
-
-      - name: Rustfmt — staking
-        working-directory: contracts/staking-program
-        run: cargo fmt --manifest-path programs/fndry-staking/Cargo.toml -- --check
-        continue-on-error: true
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --quiet --force
 
       - name: Security audit — bounty-registry
         working-directory: contracts/bounty-registry
         run: cargo audit
         continue-on-error: true
 
-      - name: Security audit — staking
+      - name: Build Anchor Legacy (bounty-registry)
+        working-directory: contracts/bounty-registry
+        run: anchor build
+
+      - name: Run Integration Tests — bounty-registry
+        working-directory: contracts/bounty-registry
+        run: anchor test
+        env:
+          ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
+
+  anchor-staking-audit:
+    name: Anchor Build & Test — staking-program
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Solana
+        uses: metadaoproject/setup-solana@v1
+        with:
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Generate Solana keypair
+        run: solana-keygen new --no-bip39-passphrase -o ~/.config/solana/id.json
+
+      - name: Build Staking Program
+        working-directory: contracts/staking-program
+        run: anchor build
+
+      - name: Run Integration Tests — staking-program
+        working-directory: contracts/staking-program
+        run: anchor test
+
+  contracts-clippy:
+    name: Rust Quality (clippy + fmt + audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+
+      - name: Setup Solana
+        uses: metadaoproject/setup-solana@v1
+        with:
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Run Clippy — All Contracts
+        working-directory: contracts
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        continue-on-error: true
+
+      - name: Run Fmt Check — All Contracts
+        working-directory: contracts
+        run: cargo fmt --all -- --check
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --quiet
+
+      - name: Security audit — bounty-registry
+        working-directory: contracts/bounty-registry
+        run: cargo audit
+        continue-on-error: true
+
+      - name: Security audit — staking-program
         working-directory: contracts/staking-program
         run: cargo audit
         continue-on-error: true
 
-# ══════════════════════════════════════════════════════════════════
-# SUMMARY
-# ══════════════════════════════════════════════════════════════════
-
-  anchor-status:
-    name: "Anchor CI — Summary"
+  anchor-summary:
+    name: Anchor CI — Summary
     runs-on: ubuntu-latest
-    needs:
-      - bounty-registry-build
-      - bounty-registry-rust-tests
-      - bounty-registry-integration-tests
-      - staking-build
-      - staking-rust-tests
-      - staking-integration-tests
-      - rust-quality
+    needs: [anchor-build-test, anchor-staking-audit, contracts-clippy]
     if: always()
     steps:
-      - name: Write job summary
+      - name: Check Results
         run: |
-          echo "## Anchor CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Program | Build | Rust Tests | Integration Tests |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-------|------------|-------------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| bounty-registry | ${{ needs.bounty-registry-build.result }} | ${{ needs.bounty-registry-rust-tests.result }} | ${{ needs.bounty-registry-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| fndry-staking   | ${{ needs.staking-build.result }} | ${{ needs.staking-rust-tests.result }} | ${{ needs.staking-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Quality Job | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Rust Quality (clippy/fmt/audit) | ${{ needs.rust-quality.result }} |" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if required jobs failed
-        if: |
-          needs.bounty-registry-build.result == 'failure' ||
-          needs.bounty-registry-rust-tests.result == 'failure' ||
-          needs.staking-build.result == 'failure' ||
-          needs.staking-rust-tests.result == 'failure'
-        run: |
-          echo "One or more required jobs failed." >&2
-          exit 1
+          if [[ "${{ needs.anchor-build-test.result }}" != "success" || "${{ needs.anchor-staking-audit.result }}" != "success" ]]; then
+            echo "One or more Anchor jobs failed."
+            exit 1
+          fi

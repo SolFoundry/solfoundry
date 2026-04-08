@@ -19,6 +19,7 @@ pub struct UnstakeInitiate<'info> {
 
     /// Global staking configuration PDA.
     #[account(
+        mut,
         seeds = [b"config"],
         bump = config.config_bump,
     )]
@@ -85,8 +86,27 @@ pub fn handler(ctx: Context<UnstakeInitiate>, amount: u64) -> Result<()> {
     stake_account.cooldown_start = current_timestamp;
     stake_account.cooldown_amount = amount;
 
+    // IMPORTANT: Subtract from active stake IMMEDIATELY to prevent "double-dipping" rewards
+    // during the 7-day cooldown period. The tokens remain in the vault but are no longer
+    // considered "staked" for reward calculations.
+    stake_account.amount = stake_account
+        .amount
+        .checked_sub(amount)
+        .ok_or(StakingError::MathOverflow)?;
+
+    // Update global stats immediately.
+    let config_mut = &mut ctx.accounts.config;
+    config_mut.total_staked = config_mut
+        .total_staked
+        .checked_sub(amount)
+        .ok_or(StakingError::MathOverflow)?;
+
+    if stake_account.amount == 0 {
+        config_mut.active_stakers = config_mut.active_stakers.saturating_sub(1);
+    }
+
     let cooldown_end = current_timestamp
-        .checked_add(config.cooldown_seconds)
+        .checked_add(config_mut.cooldown_seconds)
         .ok_or(StakingError::MathOverflow)?;
 
     emit!(UnstakeInitiatedEvent {
