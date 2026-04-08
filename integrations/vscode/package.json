@@ -1,0 +1,135 @@
+{
+  "name": "solfoundry-bounties",
+  "displayName": "SolFoundry Bounties",
+  "description": "Browse, filter, and claim SolFoundry bounties directly from VS Code",
+  "version": "0.1.0",
+  "publisher": "solfoundry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolFoundry/solfoundry"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "Programming Languages"],
+  "keywords": ["bounty", "solfoundry", "web3", "solana"],
+  "activationEvents": ["onView:solfoundry-bounties"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "solfoundry",
+          "title": "SolFoundry Bounties",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "solfoundry": [
+        {
+          "id": "solfoundry-bounties",
+          "name": "Bounties",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "solfoundry-bounties",
+        "contents": "No bounties found. Try refreshing or adjusting filters.\n[Refresh](command:solfoundry.refresh)\n[Set API Key](command:solfoundry.setApiKey)\n[Filter Bounties](command:solfoundry.filter)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "solfoundry.refresh",
+        "title": "SolFoundry: Refresh Bounties",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "solfoundry.filter",
+        "title": "SolFoundry: Filter Bounties"
+      },
+      {
+        "command": "solfoundry.claim",
+        "title": "SolFoundry: Claim Bounty"
+      },
+      {
+        "command": "solfoundry.openInBrowser",
+        "title": "SolFoundry: Open in Browser",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "solfoundry.setApiKey",
+        "title": "SolFoundry: Set API Key"
+      },
+      {
+        "command": "solfoundry.clearFilters",
+        "title": "SolFoundry: Clear Filters"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "solfoundry.refresh",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        },
+        {
+          "command": "solfoundry.filter",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        },
+        {
+          "command": "solfoundry.clearFilters",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "solfoundry.claim",
+          "when": "view == solfoundry-bounties && viewItem =~ /bounty-open/",
+          "group": "inline"
+        },
+        {
+          "command": "solfoundry.openInBrowser",
+          "when": "view == solfoundry-bounties && viewItem =~ /bounty/",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SolFoundry Bounties",
+      "properties": {
+        "solfoundry.apiUrl": {
+          "type": "string",
+          "default": "https://solfoundry.vercel.app",
+          "description": "SolFoundry API base URL"
+        },
+        "solfoundry.autoRefreshInterval": {
+          "type": "number",
+          "default": 0,
+          "description": "Auto-refresh interval in minutes (0 = disabled)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.3.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
