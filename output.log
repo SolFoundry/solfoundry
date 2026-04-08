@@ -1,0 +1,7 @@
+api-test.ts(1,30): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties' or its corresponding type declarations.
+frontend/src/services/BountyService.ts(1,73): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties-ft' or its corresponding type declarations.
+import-validation.ts(1,30): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties' or its corresponding type declarations.
+log-import.ts(1,30): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties' or its corresponding type declarations.
+test-import.ts(1,30): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties' or its corresponding type declarations.
+test.ts(1,30): error TS2307: Cannot find module '../../solfoundry/backend/api/bounties' or its corresponding type declarations.
+tests/integration/bountyIntegration.test.ts(1,33): error TS2307: Cannot find module '../frontend/src/services/BountyService' or its corresponding type declarations.

@@ -5,8 +5,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["jest"],
-    "ignoreDeprecations": "6.0"
+    "types": ["jest"]
+    //
   },
+
   "include": ["**/*.ts"]
 }
