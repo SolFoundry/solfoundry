@@ -19,6 +19,7 @@ jobs:
   backend-lint:
     name: Backend Lint (Ruff)
     runs-on: ubuntu-latest
+    if: hashFiles('backend/requirements.txt') != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,6 +43,7 @@ jobs:
   backend-tests:
     name: Backend Tests (pytest)
     runs-on: ubuntu-latest
+    if: hashFiles('backend/requirements.txt') != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
