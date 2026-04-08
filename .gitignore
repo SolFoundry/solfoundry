@@ -1,5 +1,8 @@
-# Backend (moved to private repo: SolFoundry/solfoundry-api)
-backend/
+# Backend (primary API in SolFoundry/solfoundry-api); in-repo stubs under backend/api/
+/backend/**
+!/backend/__init__.py
+!/backend/api/
+!/backend/api/**
 
 # Environment & Secrets
 .env
@@ -40,6 +43,7 @@ wheels/
 venv/
 ENV/
 env/
+myenv/
 
 # Node
 node_modules/
