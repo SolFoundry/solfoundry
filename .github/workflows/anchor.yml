@@ -84,7 +84,7 @@ jobs:
         working-directory: contracts/bounty-registry
         env:
           RUSTFLAGS: --cfg procmacro2_semver_exempt
-        run: anchor build
+        run: cargo build --manifest-path programs/bounty-registry/Cargo.toml
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -225,7 +225,7 @@ jobs:
         working-directory: contracts/staking-program
         env:
           RUSTFLAGS: --cfg procmacro2_semver_exempt
-        run: anchor build
+        run: cargo build --manifest-path programs/fndry-staking/Cargo.toml
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

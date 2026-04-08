@@ -248,7 +248,7 @@ jobs:
         working-directory: contracts
         env:
           RUSTFLAGS: --cfg procmacro2_semver_exempt
-        run: anchor build
+        run: cargo build --workspace
 
   # ==================== RUST (General) ====================
   rust-lint:
