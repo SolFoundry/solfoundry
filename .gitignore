@@ -1,0 +1,85 @@
+# Backend (solfoundry-api is canonical); in-repo stubs tracked here only:
+/backend/**
+!/backend/main.py
+!/backend/.gitkeep
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.env
+*.key
+*.pem
+treasury_key.json
+*_key.json
+*secret*
+*.p12
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+myenv/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Rust/Anchor
+target/
+*.so
+.anchor/
+
+# Anchor deploy keypairs — never commit private keys
+*-keypair.json
+deploy-keypair.json
+
+# Logs
+*.log
+
+# Data
+data/
+*.sqlite
+*.db
+*.sqlite3
