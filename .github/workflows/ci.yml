@@ -226,7 +226,7 @@ jobs:
         if: steps.check.outputs.has_anchor == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          toolchain: 1.79
 
       - name: Install Solana CLI
         if: steps.check.outputs.has_anchor == 'true'
