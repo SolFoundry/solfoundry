@@ -33,6 +33,11 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+    setDropdownOpen(false);
+  }, [location.pathname]);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
