@@ -16,6 +16,7 @@ env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
   RUST_VERSION: '1.85'
+  SOLANA_VERSION: '1.18.26'
 
 jobs:
   # ==================== BACKEND (Python/FastAPI) ====================
@@ -231,7 +232,7 @@ jobs:
       - name: Install Solana CLI
         if: steps.check.outputs.has_anchor == 'true'
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Install Anchor
