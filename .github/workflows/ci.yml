@@ -19,9 +19,30 @@ env:
 
 jobs:
   # ==================== BACKEND (Python/FastAPI) ====================
+  backend-setup:
+    name: Backend Setup Check
+    runs-on: ubuntu-latest
+    outputs:
+      has_backend: ${{ steps.check.outputs.has_backend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for backend directory
+        id: check
+        run: |
+          if [ -d "backend" ] && [ -f "backend/requirements.txt" ]; then
+            echo "has_backend=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_backend=false" >> $GITHUB_OUTPUT
+            echo "::notice::No backend service found - skipping backend CI jobs"
+          fi
+
   backend-lint:
     name: Backend Lint (Ruff)
     runs-on: ubuntu-latest
+    needs: backend-setup
+    if: needs.backend-setup.outputs.has_backend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,6 +66,8 @@ jobs:
   backend-tests:
     name: Backend Tests (pytest)
     runs-on: ubuntu-latest
+    needs: backend-setup
+    if: needs.backend-setup.outputs.has_backend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -215,13 +238,13 @@ jobs:
         if: steps.check.outputs.has_anchor == 'true'
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-          avm install 0.30.1
-          avm use 0.30.1
+          avm install 0.30.0
+          avm use 0.30.0
 
       - name: Build Anchor Program
         if: steps.check.outputs.has_anchor == 'true'
         working-directory: contracts
-        run: anchor build
+        run: anchor build -- --locked
 
   # ==================== RUST (General) ====================
   rust-lint:
@@ -262,7 +285,7 @@ jobs:
   ci-status:
     name: CI Status Summary
     runs-on: ubuntu-latest
-    needs: [backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint]
+    needs: [backend-setup, backend-lint, backend-tests, frontend-lint, frontend-typecheck, frontend-tests, frontend-build, contracts-check, rust-lint]
     if: always()
     steps:
       - name: Check CI Results
