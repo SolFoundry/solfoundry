@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
+import { Clock, GitPullRequest, DollarSign, Settings, BarChart3, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
+import { ContributorStats } from './ContributorStats';
 import type { Bounty } from '../../types/bounty';
 
-const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
+const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Stats', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
 const MONTHLY_MOCK = [
@@ -150,7 +151,7 @@ function SettingsTab() {
 
 export function ProfileDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('My Bounties');
+  const [activeTab, setActiveTab] = useState<Tab>('Stats');
   const { data: bountiesData, isLoading } = useBounties({ limit: 50 });
 
   if (!user) return null;
@@ -187,12 +188,15 @@ export function ProfileDashboard() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                activeTab === tab
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 flex items-center gap-1.5
+                ${activeTab === tab
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary'
-              }`}
+                }`}
             >
+              {tab === 'Stats' && <TrendingUp className="w-3.5 h-3.5" />}
+              {tab === 'Earnings' && <DollarSign className="w-3.5 h-3.5" />}
+              {tab === 'Settings' && <Settings className="w-3.5 h-3.5" />}
               {tab}
             </button>
           ))}
@@ -204,6 +208,7 @@ export function ProfileDashboard() {
         {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
         {activeTab === 'My Submissions' && <SubmissionsTab />}
         {activeTab === 'Earnings' && <EarningsTab />}
+        {activeTab === 'Stats' && <ContributorStats />}
         {activeTab === 'Settings' && <SettingsTab />}
       </div>
     </motion.div>
