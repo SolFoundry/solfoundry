@@ -44,6 +44,27 @@ export { GitHubClient } from './github.js';
 export type { GitHubClientConfig } from './github.js';
 export { EventSubscriber } from './events.js';
 export type { EventSubscriberConfig, EventHandler, ConnectionHandler, ErrorHandler } from './events.js';
+export {
+  MarketplaceApiClient,
+  MarketplaceBountiesClient,
+  MarketplaceSubmissionsClient,
+  UsersClient,
+} from './rest-api.js';
+export type {
+  MarketplaceBountyStatus,
+  MarketplaceBountyTier,
+  RewardToken,
+  MarketplaceSubmissionStatus,
+  UserRole,
+  MarketplaceBounty,
+  MarketplaceBountyCreate,
+  MarketplaceBountiesListParams,
+  MarketplaceBountiesListResponse,
+  MarketplaceSubmission,
+  MarketplaceSubmissionCreate,
+  UserProfile,
+  UserProfileUpdate,
+} from './rest-types.js';
 
 // Solana helpers
 export {
@@ -168,6 +189,7 @@ import { HttpClient } from './client.js';
 import { BountyClient } from './bounties.js';
 import { EscrowClient } from './escrow.js';
 import { ContributorClient } from './contributors.js';
+import { MarketplaceApiClient } from './rest-api.js';
 import type { SolFoundryClientConfig } from './types.js';
 
 /**
@@ -208,6 +230,9 @@ export class SolFoundry {
   /** Client for contributor profiles and platform statistics. */
   public readonly contributors: ContributorClient;
 
+  /** Combined typed REST API client for bounties, submissions, and users. */
+  public readonly api: MarketplaceApiClient;
+
   /**
    * Create a SolFoundry SDK instance with the given configuration.
    *
@@ -218,6 +243,7 @@ export class SolFoundry {
     this.bounties = new BountyClient(this.http);
     this.escrow = new EscrowClient(this.http);
     this.contributors = new ContributorClient(this.http);
+    this.api = new MarketplaceApiClient(this.http);
   }
 
   /**
