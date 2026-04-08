@@ -1,0 +1,4 @@
+openai>=1.30.0
+anthropic>=0.30.0
+google-generativeai>=0.7.0
+fastapi>=0.110.0
