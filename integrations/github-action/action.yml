@@ -1,0 +1,38 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Automatically post bounties to SolFoundry when issues are labeled'
+inputs:
+  solfoundry-api-key:
+    description: 'SolFoundry API key'
+    required: true
+  solfoundry-api-url:
+    description: 'SolFoundry API base URL'
+    required: false
+    default: 'https://solfoundry.vercel.app'
+  default-reward-amount:
+    description: 'Default reward amount'
+    required: false
+    default: '100'
+  default-reward-token:
+    description: 'Default reward token (USDC or FNDRY)'
+    required: false
+    default: 'USDC'
+  default-tier:
+    description: 'Default bounty tier (T1, T2, T3)'
+    required: false
+    default: 'T1'
+  bounty-label:
+    description: 'Label that triggers bounty creation'
+    required: false
+    default: 'bounty'
+  github-token:
+    description: 'GitHub token for posting comments'
+    required: false
+    default: '${{ github.token }}'
+outputs:
+  bounty-id:
+    description: 'Created bounty ID'
+  bounty-url:
+    description: 'URL to the created bounty'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
