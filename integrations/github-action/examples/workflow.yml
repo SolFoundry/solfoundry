@@ -1,0 +1,23 @@
+name: SolFoundry Bounty
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  post-bounty:
+    runs-on: ubuntu-latest
+    # Only run when the "bounty" label is added
+    if: github.event.label.name == 'bounty'
+    steps:
+      - name: Post bounty to SolFoundry
+        uses: SolFoundry/solfoundry/integrations/github-action@main
+        with:
+          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+          # Optional: customize defaults
+          # solfoundry-api-url: 'https://solfoundry.vercel.app'
+          # default-reward-amount: '100'
+          # default-reward-token: 'USDC'
+          # default-tier: 'T1'
+          # bounty-label: 'bounty'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
