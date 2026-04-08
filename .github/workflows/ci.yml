@@ -51,19 +51,19 @@ jobs:
           contracts=false
           rust=false
 
-          if echo "$FILES" | grep -Eq '^(backend/|\.github/workflows/ci\.yml$)'; then
+          if echo "$FILES" | grep -Eq '^backend/'; then
             backend=true
           fi
 
-          if echo "$FILES" | grep -Eq '^(frontend/|\.github/workflows/ci\.yml$)'; then
+          if echo "$FILES" | grep -Eq '^frontend/'; then
             frontend=true
           fi
 
-          if echo "$FILES" | grep -Eq '^(contracts/|\.github/workflows/(ci|anchor)\.yml$)'; then
+          if echo "$FILES" | grep -Eq '^contracts/'; then
             contracts=true
           fi
 
-          if echo "$FILES" | grep -Eq '^(contracts/|Cargo\.toml$|Cargo\.lock$|rust-toolchain(\.toml)?$|\.github/workflows/ci\.yml$)'; then
+          if echo "$FILES" | grep -Eq '^(contracts/|Cargo\.toml$|Cargo\.lock$|rust-toolchain(\.toml)?$)'; then
             rust=true
           fi
 
