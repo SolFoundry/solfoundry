@@ -81,6 +81,8 @@ jobs:
 
       - name: Build program
         working-directory: contracts/bounty-registry
+        env:
+          RUSTFLAGS: --cfg procmacro2_semver_exempt
         run: anchor build
 
       - name: Upload build artifacts
@@ -161,6 +163,8 @@ jobs:
 
       - name: Run integration tests (localnet)
         working-directory: contracts/bounty-registry
+        env:
+          RUSTFLAGS: --cfg procmacro2_semver_exempt
         run: anchor test --provider.cluster localnet
         timeout-minutes: 10
 
@@ -216,6 +220,8 @@ jobs:
 
       - name: Build program
         working-directory: contracts/staking-program
+        env:
+          RUSTFLAGS: --cfg procmacro2_semver_exempt
         run: anchor build
 
       - name: Upload build artifacts
@@ -296,6 +302,8 @@ jobs:
 
       - name: Run integration tests (localnet)
         working-directory: contracts/staking-program
+        env:
+          RUSTFLAGS: --cfg procmacro2_semver_exempt
         run: anchor test --provider.cluster localnet
         timeout-minutes: 10
 

@@ -244,6 +244,8 @@ jobs:
       - name: Build Anchor Program
         if: steps.check.outputs.has_anchor == 'true'
         working-directory: contracts
+        env:
+          RUSTFLAGS: --cfg procmacro2_semver_exempt
         run: anchor build
 
   # ==================== RUST (General) ====================
