@@ -1,5 +1,8 @@
 name: SolFoundry Bounty Poster
 description: Post bounties to SolFoundry from external repos
+branding:
+  icon: dollar-sign
+  color: green
 inputs:
   api-key:
     description: SolFoundry API key
@@ -7,3 +10,4 @@ inputs:
 runs:
   using: node20
   main: index.js
+  pre: npm install
