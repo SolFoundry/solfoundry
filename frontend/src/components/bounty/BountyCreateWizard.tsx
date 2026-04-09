@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
+import { Check, ChevronRight, Loader2, Copy, Sparkles } from 'lucide-react';
 import type { BountyCreatePayload } from '../../types/bounty';
+import type { EnhancedDescription } from '../../api/ai';
 import { createBounty, getTreasuryDepositInfo, verifyEscrowDeposit } from '../../api/bounties';
 import { pageTransition } from '../../lib/animations';
+import { AIDescriptionEnhancer } from './AIDescriptionEnhancer';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
 const PLATFORM_FEE_PCT = 0.05;
@@ -72,6 +74,16 @@ function Step1({
 }) {
   const canProceed = state.title.trim().length >= 5 && state.description.trim().length >= 20;
 
+  const handleApplyEnhancement = (enhanced: EnhancedDescription) => {
+    onChange('title', enhanced.title);
+    // Append acceptance criteria to description if available
+    let desc = enhanced.description;
+    if (enhanced.acceptance_criteria.length > 0) {
+      desc += '\n\n## Acceptance Criteria\n' + enhanced.acceptance_criteria.map((c) => `- ${c}`).join('\n');
+    }
+    onChange('description', desc);
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="md:col-span-2 space-y-4">
@@ -87,7 +99,14 @@ function Step1({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-2">Description *</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-text-secondary">Description *</label>
+            <AIDescriptionEnhancer
+              title={state.title}
+              description={state.description}
+              onApply={handleApplyEnhancement}
+            />
+          </div>
           <textarea
             value={state.description}
             onChange={(e) => onChange('description', e.target.value)}
@@ -120,10 +139,15 @@ function Step1({
       </div>
 
       <div className="bg-forge-800 border border-border rounded-lg p-4 h-fit">
-        <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">AI Tag Preview</p>
+        <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">AI Assistance</p>
         {state.description.length > 20 ? (
-          <div className="space-y-2">
-            <span className="inline-block bg-magenta-bg text-magenta text-xs px-2 py-0.5 rounded-full border border-magenta-border">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-text-muted mb-2 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-magenta" /> AI Tag Preview
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+              <span className="inline-block bg-magenta-bg text-magenta text-xs px-2 py-0.5 rounded-full border border-magenta-border">
               Tier 2 (AI)
             </span>
             {state.description.toLowerCase().includes('security') && (
@@ -136,7 +160,9 @@ function Step1({
                 TypeScript
               </span>
             )}
-            <p className="text-xs text-text-muted mt-3">Tags are auto-generated based on your description.</p>
+            </div>
+            </div>
+            <p className="text-xs text-text-muted">Tags are auto-generated based on your description.</p>
           </div>
         ) : (
           <p className="text-xs text-text-muted">Start typing your description to see AI-generated tags.</p>
