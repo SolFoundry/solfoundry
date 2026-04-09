@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { GitPullRequest, Clock } from 'lucide-react';
+import { GitPullRequest } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardHover } from '../../lib/animations';
-import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { timeLeft, formatCurrency, LANG_COLORS, isUrgent } from '../../lib/utils';
+import { CountdownTimer, UrgentIndicator } from './CountdownTimer';
 
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
@@ -97,7 +98,6 @@ export function BountyCard({ bounty }: BountyCardProps) {
         </div>
       )}
 
-      {/* Separator */}
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
@@ -105,16 +105,21 @@ export function BountyCard({ bounty }: BountyCardProps) {
         <span className="font-mono text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
-          <span className="inline-flex items-center gap-1">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1 text-xs text-text-muted">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
           </span>
           {bounty.deadline && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
-            </span>
+            <div className="flex items-center gap-2">
+              {isUrgent(bounty.deadline) && <UrgentIndicator deadline={bounty.deadline} />}
+              <CountdownTimer
+                deadline={bounty.deadline}
+                size="sm"
+                variant="compact"
+                showIcon={false}
+              />
+            </div>
           )}
         </div>
       </div>
