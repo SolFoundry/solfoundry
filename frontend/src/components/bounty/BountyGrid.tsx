@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BountySearch } from './BountySearch';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronDown, Loader2, Plus } from 'lucide-react';
@@ -11,6 +12,7 @@ const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const params = {
     status: statusFilter,
@@ -26,6 +28,7 @@ export function BountyGrid() {
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
+        <BountySearch onSearch={setSearchQuery} />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
