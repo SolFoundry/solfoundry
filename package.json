@@ -1,0 +1,1 @@
+{"scripts":{"test":"jest"},"devDependencies":{"@babel/preset-env":"^7.29.2","@babel/preset-react":"^7.28.5","@testing-library/jest-dom":"^6.9.1","@testing-library/react":"^16.3.2","babel-jest":"^30.3.0","fetch-mock":"^12.6.0","fetch-polyfill":"^0.8.2","jest-environment-jsdom":"^30.3.0","whatwg-fetch":"^3.6.20"},"dependencies":{"node-fetch":"^3.3.2"}}
