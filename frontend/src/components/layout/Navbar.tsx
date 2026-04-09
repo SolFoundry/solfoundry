@@ -63,14 +63,14 @@ export function Navbar() {
 
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between">
         {/* Left: Logo + Nav */}
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="flex items-center gap-6 lg:gap-8">
+          <Link to="/" className="flex items-center gap-2 group">
             <img
               src="/logo-icon.png"
               alt="SolFoundry"
-              className="w-7 h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200"
+              className="w-6 h-6 sm:w-7 sm:h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200"
             />
-            <span className="font-display text-lg font-semibold text-text-primary tracking-wide">
+            <span className="font-display text-base sm:text-lg font-semibold text-text-primary tracking-wide">
               SolFoundry
             </span>
           </Link>

@@ -205,10 +205,10 @@ export function FlowTabs() {
   return (
     <div>
       {/* Tab switcher */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-forge-800 mx-auto w-fit mb-12">
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-forge-800 mx-auto w-fit mb-12 max-w-full px-2">
         <button
           onClick={() => setActiveTab('usdc')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
             activeTab === 'usdc'
               ? 'bg-emerald text-text-inverse'
               : 'text-text-muted hover:text-text-secondary'
@@ -218,7 +218,7 @@ export function FlowTabs() {
         </button>
         <button
           onClick={() => setActiveTab('fndry')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
             activeTab === 'fndry'
               ? 'bg-magenta text-text-inverse'
               : 'text-text-muted hover:text-text-secondary'

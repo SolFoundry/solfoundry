@@ -36,7 +36,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       variants={fadeIn}
       initial="initial"
       animate="animate"
-      className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-hidden"
+      className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-x-auto"
     >
       {/* Header */}
       <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
