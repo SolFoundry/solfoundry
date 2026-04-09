@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, Hourglass } from 'lucide-react';
 import { getTimeRemaining, isUrgent, isCritical } from '../../lib/utils';
 
 interface CountdownTimerProps {
   deadline: string | Date;
+  createdAt?: string | Date;
   size?: 'sm' | 'md' | 'lg';
   showIcon?: boolean;
   className?: string;
   onExpire?: () => void;
-  variant?: 'default' | 'compact' | 'detailed';
+  variant?: 'default' | 'compact' | 'detailed' | 'with-progress';
 }
 
 interface TimeUnitProps {
@@ -59,6 +60,7 @@ function TimeUnit({ value, label, size, isUrgent, isCritical }: TimeUnitProps) {
 
 export function CountdownTimer({
   deadline,
+  createdAt,
   size = 'md',
   showIcon = true,
   className = '',
@@ -175,6 +177,37 @@ export function CountdownTimer({
     );
   }
 
+  // With-progress variant - shows countdown + visual progress bar
+  if (variant === 'with-progress' && createdAt) {
+    return (
+      <div className={`space-y-3 ${className}`}>
+        <div className="inline-flex items-center gap-3">
+          {showIcon && (
+            <Clock className={`w-4 h-4 flex-shrink-0 ${critical ? 'text-status-error' : urgent ? 'text-status-warning' : 'text-text-muted'}`} />
+          )}
+          <div className="flex items-center gap-1">
+            {timeRemaining.days > 0 && (
+              <>
+                <TimeUnit value={timeRemaining.days} label="d" size={size} isUrgent={urgent} isCritical={critical} />
+                <span className="text-text-muted">:</span>
+              </>
+            )}
+            <TimeUnit value={timeRemaining.hours} label="h" size={size} isUrgent={urgent} isCritical={critical} />
+            <span className="text-text-muted">:</span>
+            <TimeUnit value={timeRemaining.minutes} label="m" size={size} isUrgent={urgent} isCritical={critical} />
+            {timeRemaining.days === 0 && (
+              <>
+                <span className="text-text-muted">:</span>
+                <TimeUnit value={timeRemaining.seconds} label="s" size={size} isUrgent={urgent} isCritical={critical} />
+              </>
+            )}
+          </div>
+        </div>
+        <TimeProgressBar deadline={deadline} createdAt={createdAt} />
+      </div>
+    );
+  }
+
   // Default variant - adaptive display
   return (
     <motion.div
@@ -247,4 +280,81 @@ export function UrgentIndicator({ deadline, className = '' }: { deadline: string
       {critical ? 'Critical' : 'Urgent'}
     </div>
   );
+}
+
+/**
+ * Time Progress Bar - Visual indicator of time remaining
+ * UNIQUE FEATURE: Shows percentage of time elapsed with color gradient
+ */
+interface TimeProgressBarProps {
+  deadline: string | Date;
+  createdAt: string | Date;
+  className?: string;
+  showPercentage?: boolean;
+}
+
+export function TimeProgressBar({ deadline, createdAt, className = '', showPercentage = true }: TimeProgressBarProps) {
+  const [progress, setProgress] = useState(() => calculateProgress(createdAt, deadline));
+
+  const updateProgress = useCallback(() => {
+    setProgress(calculateProgress(createdAt, deadline));
+  }, [createdAt, deadline]);
+
+  useEffect(() => {
+    updateProgress();
+    const interval = setInterval(updateProgress, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [updateProgress]);
+
+  const getColorClass = () => {
+    if (progress >= 90) return 'bg-status-error';
+    if (progress >= 75) return 'bg-status-warning';
+    if (progress >= 50) return 'bg-purple';
+    return 'bg-emerald';
+  };
+
+  return (
+    <div className={`w-full ${className}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-text-muted">
+          <Hourglass className="w-3 h-3" />
+          <span>Time Remaining</span>
+        </div>
+        {showPercentage && (
+          <span className={`text-xs font-mono font-medium ${
+            progress >= 90 ? 'text-status-error' :
+            progress >= 75 ? 'text-status-warning' :
+            progress >= 50 ? 'text-purple' : 'text-emerald'
+          }`}>
+            {Math.round(100 - progress)}%
+          </span>
+        )}
+      </div>
+      <div className="h-2 w-full bg-forge-800 rounded-full overflow-hidden border border-border/50">
+        <motion.div
+          className={`h-full rounded-full ${getColorClass()}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.max(0, Math.min(100, 100 - progress))}%` }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Calculate progress percentage based on created time and deadline
+ */
+function calculateProgress(createdAt: string | Date, deadline: string | Date): number {
+  const created = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+  const end = typeof deadline === 'string' ? new Date(deadline) : deadline;
+  const now = new Date();
+
+  const total = end.getTime() - created.getTime();
+  const elapsed = now.getTime() - created.getTime();
+
+  if (total <= 0) return 100;
+  if (elapsed <= 0) return 0;
+
+  return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }

@@ -7,7 +7,7 @@ import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
-import { CountdownTimer, ExpiredBadge, UrgentIndicator } from './CountdownTimer';
+import { CountdownTimer, ExpiredBadge, UrgentIndicator, TimeProgressBar } from './CountdownTimer';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -138,12 +138,15 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               {new Date(bounty.deadline) < new Date() ? (
                 <ExpiredBadge />
               ) : (
-                <CountdownTimer
-                  deadline={bounty.deadline}
-                  size="lg"
-                  variant="detailed"
-                  showIcon={false}
-                />
+                <>
+                  <CountdownTimer
+                    deadline={bounty.deadline}
+                    createdAt={bounty.created_at}
+                    size="lg"
+                    variant="with-progress"
+                    showIcon={false}
+                  />
+                </>
               )}
               <p className="text-xs text-text-muted mt-3 font-mono">
                 {new Date(bounty.deadline).toLocaleString(undefined, {
