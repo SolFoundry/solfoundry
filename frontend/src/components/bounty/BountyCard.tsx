@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { GitPullRequest, Clock } from 'lucide-react';
+import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { GitPullRequest, Clock, ArrowRight } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { cardHover } from '../../lib/animations';
+import { cardTap, mobileStaggerItem } from '../../lib/animations';
 import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
 
 function TierBadge({ tier }: { tier: string }) {
@@ -21,10 +21,22 @@ function TierBadge({ tier }: { tier: string }) {
 
 interface BountyCardProps {
   bounty: Bounty;
+  index?: number;
 }
 
-export function BountyCard({ bounty }: BountyCardProps) {
+export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
   const navigate = useNavigate();
+  const [isPressed, setIsPressed] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Swipe gesture handling for mobile quick actions
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [-100, 0, 100], [0.5, 1, 0.5]);
+  const background = useTransform(
+    x,
+    [-100, 0, 100],
+    ['rgba(0,230,118,0.1)', 'rgba(0,0,0,0)', 'rgba(224,64,251,0.1)']
+  );
 
   const orgName = bounty.org_name ?? bounty.github_issue_url?.split('/')[3] ?? 'unknown';
   const repoName = bounty.repo_name ?? bounty.github_issue_url?.split('/')[4] ?? 'repo';
@@ -55,23 +67,57 @@ export function BountyCard({ bounty }: BountyCardProps) {
     cancelled: 'bg-status-error',
   }[bounty.status] ?? 'bg-emerald';
 
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    // Swipe threshold for quick actions
+    if (Math.abs(info.offset.x) > 80) {
+      // Could trigger quick actions here (save, share, etc.)
+      setShowPreview(true);
+      setTimeout(() => setShowPreview(false), 2000);
+    }
+  };
+
+  const handleClick = () => {
+    navigate(`/bounties/${bounty.id}`);
+  };
+
   return (
     <motion.article
-      variants={cardHover}
-      initial="rest"
-      whileHover="hover"
-      onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-3 sm:p-4 lg:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group min-h-[180px] sm:min-h-[200px] flex flex-col"
+      variants={mobileStaggerItem}
+      initial="initial"
+      animate="animate"
+      whileTap="tap"
+      style={{ x, opacity, background }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.15}
+      onDragEnd={handleDragEnd}
+      onClick={handleClick}
+      onPointerDown={() => setIsPressed(true)}
+      onPointerUp={() => setIsPressed(false)}
+      onPointerLeave={() => setIsPressed(false)}
+      className={`relative rounded-xl border border-border bg-forge-900 p-3 sm:p-4 lg:p-5 cursor-pointer transition-all duration-200 overflow-hidden group min-h-[180px] sm:min-h-[200px] flex flex-col tap-highlight ${isPressed ? 'scale-[0.98]' : ''}`}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          navigate(`/bounties/${bounty.id}`);
+          handleClick();
         }
       }}
       aria-label={`Bounty: ${bounty.title}, Reward: ${formatCurrency(bounty.reward_amount, bounty.reward_token)}, Status: ${statusLabel}`}
     >
+      {/* Quick Preview Indicator (shown on swipe) */}
+      {showPreview && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="absolute top-2 right-2 z-10 px-2 py-1 bg-emerald/20 border border-emerald/30 rounded text-[10px] text-emerald font-medium"
+        >
+          Swipe for quick actions
+        </motion.div>
+      )}
+
       {/* Row 1: Repo + Tier */}
       <div className="flex items-start sm:items-center justify-between gap-2 text-sm">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
@@ -141,6 +187,13 @@ export function BountyCard({ bounty }: BountyCardProps) {
           </span>
         )}
       </div>
+
+      {/* Mobile Quick Action Hint */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isPressed ? 1 : 0 }}
+        className="absolute inset-0 bg-gradient-to-r from-emerald/5 via-transparent to-magenta/5 pointer-events-none"
+      />
     </motion.article>
   );
 }
