@@ -1,0 +1,15 @@
+{ 
+  "name": "solfoundry", 
+  "version": "1.0.0", 
+  "scripts": { 
+    "test": "jest" 
+  }, 
+  "dependencies": { 
+    "express": "^4.x.x",
+    "supertest": "^6.x.x",
+    "yaml": "^1.x.x"
+  }, 
+  "devDependencies": { 
+    "jest": "^27.x.x"
+  }
+}
