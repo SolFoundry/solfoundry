@@ -143,3 +143,72 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* ============================================================================
+   Mobile Responsive — 375px / 768px breakpoints
+   ============================================================================ */
+
+/* Prevent horizontal overflow globally */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Ensure all containers respect viewport */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Mobile-safe padding for main content */
+@media (max-width: 375px) {
+  .max-w-7xl {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* Hero terminal — smaller typewriter on mobile */
+@media (max-width: 639px) {
+  .animate-typewriter-sm {
+    animation: typewriter-sm 2.5s steps(38) 0.5s forwards;
+    width: 0;
+  }
+  @keyframes typewriter-sm {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+}
+
+/* Footer token address — prevent overflow on small screens */
+@media (max-width: 375px) {
+  .font-mono.text-xs {
+    font-size: 10px;
+  }
+}
+
+/* Nav mobile menu — close on body scroll lock */
+body.menu-open {
+  overflow: hidden;
+}
+
+/* Ensure grid layouts don't break on narrow screens */
+@media (max-width: 375px) {
+  .grid-cols-1 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Leaderboard podium — prevent overflow on very small screens */
+@media (max-width: 420px) {
+  .flex.items-end.justify-center {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* General text truncation safety for narrow viewports */
+@media (max-width: 375px) {
+  h1 {
+    font-size: 1.375rem;
+  }
+}

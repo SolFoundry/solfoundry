@@ -25,7 +25,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
   };
 
   return (
-    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
+    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-4 sm:py-8">
       {/* Back link */}
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Bounties
@@ -36,16 +36,16 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         <div className="lg:col-span-2 space-y-6">
           {/* Title + meta */}
           <div className="rounded-xl border border-border bg-forge-900 p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3 text-xs font-mono text-text-muted">
+            <div className="flex items-start gap-3 sm:gap-4 mb-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-3 text-xs font-mono text-text-muted flex-wrap">
                   {bounty.org_avatar_url && (
                     <img src={bounty.org_avatar_url} alt="" className="w-4 h-4 rounded-full" />
                   )}
                   <span>{bounty.org_name}/{bounty.repo_name}</span>
                   {bounty.issue_number && <span>#{bounty.issue_number}</span>}
                 </div>
-                <h1 className="font-sans text-2xl font-semibold text-text-primary">{bounty.title}</h1>
+                <h1 className="font-sans text-lg sm:text-2xl font-semibold text-text-primary">{bounty.title}</h1>
               </div>
               <button
                 onClick={copyLink}

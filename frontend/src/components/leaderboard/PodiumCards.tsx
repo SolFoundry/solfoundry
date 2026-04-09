@@ -26,13 +26,13 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
     : 'text-orange-500';
 
   const avatarBorderClass = isGold ? 'border-yellow-500/50' : 'border-zinc-600';
-  const avatarSize = isGold ? 'w-14 h-14' : 'w-12 h-12';
-  const padding = isGold ? 'py-8 px-6' : 'py-6 px-6';
+  const avatarSize = isGold ? 'w-12 h-12 sm:w-14 sm:h-14' : 'w-10 h-10 sm:w-12 sm:h-12';
+  const padding = isGold ? 'py-6 px-4 sm:py-8 sm:px-6' : 'py-5 px-4 sm:py-6 sm:px-6';
 
   return (
     <motion.div
       variants={staggerItem}
-      className={`relative flex flex-col items-center rounded-xl border bg-forge-900 ${borderClass} ${padding} min-w-[140px]`}
+      className={`relative flex flex-col items-center rounded-xl border bg-forge-900 ${borderClass} ${padding} min-w-[110px] sm:min-w-[140px]`}
     >
       {/* Crown for #1 */}
       {isGold && (
@@ -84,7 +84,7 @@ export function PodiumCards({ entries }: PodiumCardsProps) {
       variants={staggerContainer}
       initial="initial"
       animate="animate"
-      className="flex items-end justify-center gap-4 md:gap-6 mb-12"
+      className="flex items-end justify-center gap-2 sm:gap-4 md:gap-6 mb-12 overflow-x-auto px-2 py-2"
     >
       {ordered.map((entry, i) => (
         <PodiumCard key={entry.username} entry={entry} rank={ranks[i]} />
