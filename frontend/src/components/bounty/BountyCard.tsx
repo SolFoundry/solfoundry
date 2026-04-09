@@ -13,7 +13,7 @@ function TierBadge({ tier }: { tier: string }) {
     T3: 'bg-tier-t3/10 text-tier-t3 border border-tier-t3/20',
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${styles[tier] ?? styles.T1}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${styles[tier] ?? styles.T1}`}>
       {tier}
     </span>
   );
@@ -56,74 +56,91 @@ export function BountyCard({ bounty }: BountyCardProps) {
   }[bounty.status] ?? 'bg-emerald';
 
   return (
-    <motion.div
+    <motion.article
       variants={cardHover}
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-3 sm:p-4 lg:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group min-h-[180px] sm:min-h-[200px] flex flex-col"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(`/bounties/${bounty.id}`);
+        }
+      }}
+      aria-label={`Bounty: ${bounty.title}, Reward: ${formatCurrency(bounty.reward_amount, bounty.reward_token)}, Status: ${statusLabel}`}
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-start sm:items-center justify-between gap-2 text-sm">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
           {bounty.org_avatar_url && (
-            <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
+            <img 
+              src={bounty.org_avatar_url} 
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex-shrink-0" 
+              alt="" 
+              loading="lazy"
+            />
           )}
-          <span className="text-text-muted font-mono text-xs truncate">
+          <span className="text-text-muted font-mono text-[10px] sm:text-xs truncate">
             {orgName}/{repoName}
-            {issueNumber && <span className="ml-1">#{issueNumber}</span>}
+            {issueNumber && <span className="ml-0.5 sm:ml-1">#{issueNumber}</span>}
           </span>
         </div>
         <TierBadge tier={bounty.tier ?? 'T1'} />
       </div>
 
       {/* Row 2: Title */}
-      <h3 className="mt-3 font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
+      <h3 className="mt-2 sm:mt-3 font-sans text-sm sm:text-base font-semibold text-text-primary leading-snug line-clamp-2 flex-grow">
         {bounty.title}
       </h3>
 
       {/* Row 3: Language dots */}
       {skills.length > 0 && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 flex-wrap">
           {skills.map((lang) => (
-            <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
+            <span key={lang} className="inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-text-muted">
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: LANG_COLORS[lang] ?? '#888' }}
               />
-              {lang}
+              <span className="hidden xs:inline">{lang}</span>
             </span>
           ))}
         </div>
       )}
 
       {/* Separator */}
-      <div className="mt-4 border-t border-border/50" />
+      <div className="mt-3 sm:mt-4 border-t border-border/50" />
 
-      {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      {/* Row 4: Reward + Meta + Status */}
+      <div className="flex items-center justify-between mt-2 sm:mt-3 gap-2">
+        <span className="font-mono text-base sm:text-lg font-semibold text-emerald truncate">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
-          <span className="inline-flex items-center gap-1">
-            <GitPullRequest className="w-3.5 h-3.5" />
-            {bounty.submission_count} PRs
-          </span>
-          {bounty.deadline && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
-            </span>
-          )}
-        </div>
+        
+        {/* Status badge - inline on mobile instead of absolute */}
+        <span className={`text-[10px] sm:text-xs font-medium inline-flex items-center gap-1 flex-shrink-0 ${statusColor}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          <span className="hidden xs:inline">{statusLabel}</span>
+          <span className="xs:hidden">{statusLabel.split(' ')[0]}</span>
+        </span>
       </div>
-
-      {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        {statusLabel}
-      </span>
-    </motion.div>
+      
+      {/* Row 5: Meta info (PRs, Deadline) */}
+      <div className="flex items-center gap-2 sm:gap-3 mt-2 text-[10px] sm:text-xs text-text-muted">
+        <span className="inline-flex items-center gap-1">
+          <GitPullRequest className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          <span className="truncate">{bounty.submission_count} PRs</span>
+        </span>
+        {bounty.deadline && (
+          <span className="inline-flex items-center gap-1 truncate">
+            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+            <span className="truncate">{timeLeft(bounty.deadline)}</span>
+          </span>
+        )}
+      </div>
+    </motion.article>
   );
 }
