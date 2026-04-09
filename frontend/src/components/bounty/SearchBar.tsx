@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useId } from 'react';
+import React, { useState, useCallback, useId, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { debounce } from '../../lib/utils';
 
@@ -8,6 +8,7 @@ interface SearchBarProps {
   placeholder?: string;
   className?: string;
   debounceMs?: number;
+  autoFocus?: boolean;
 }
 
 export function SearchBar({
@@ -16,10 +17,17 @@ export function SearchBar({
   placeholder = 'Search bounties...',
   className = '',
   debounceMs = 150,
+  autoFocus = false,
 }: SearchBarProps) {
   const [inputValue, setInputValue] = useState(value);
+  const [isFocused, setIsFocused] = useState(false);
   const inputId = useId();
   const descriptionId = useId();
+
+  // Sync with external value changes (e.g., URL params)
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
 
   // Debounce the onChange callback for performance
   const debouncedOnChange = useCallback(
@@ -38,6 +46,9 @@ export function SearchBar({
   const handleClear = () => {
     setInputValue('');
     onChange('');
+    // Focus back on input after clearing
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    input?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -48,9 +59,15 @@ export function SearchBar({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="relative flex items-center">
+      <div 
+        className={`relative flex items-center transition-all duration-200 ${
+          isFocused ? 'ring-2 ring-emerald/30' : ''
+        }`}
+      >
         <Search
-          className="absolute left-3 w-4 h-4 text-text-muted pointer-events-none"
+          className={`absolute left-3 w-4 h-4 pointer-events-none transition-colors duration-200 ${
+            isFocused ? 'text-emerald' : 'text-text-muted'
+          }`}
           aria-hidden="true"
         />
         <input
@@ -63,10 +80,17 @@ export function SearchBar({
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
+          autoFocus={autoFocus}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
           className="w-full pl-10 pr-10 py-2.5 bg-forge-800 border border-border rounded-lg
                      text-text-primary placeholder:text-text-muted
-                     focus:border-emerald focus:outline-none focus:ring-1 focus:ring-emerald/30
+                     focus:border-emerald focus:outline-none
                      transition-all duration-200
                      text-sm md:text-base"
         />
@@ -76,9 +100,10 @@ export function SearchBar({
             onClick={handleClear}
             className="absolute right-3 p-1 rounded-md
                        text-text-muted hover:text-text-primary hover:bg-forge-700
-                       transition-colors duration-150
+                       transition-all duration-150
                        focus:outline-none focus:ring-2 focus:ring-emerald/50"
             aria-label="Clear search"
+            title="Clear search (Esc)"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>

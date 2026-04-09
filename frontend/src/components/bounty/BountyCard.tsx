@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { GitPullRequest, Clock, ArrowRight } from 'lucide-react';
+import { GitPullRequest, Clock } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardTap, mobileStaggerItem } from '../../lib/animations';
 import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
@@ -22,9 +22,41 @@ function TierBadge({ tier }: { tier: string }) {
 interface BountyCardProps {
   bounty: Bounty;
   index?: number;
+  searchQuery?: string;
 }
 
-export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
+/**
+ * Highlight matching text in content
+ */
+function HighlightText({ text, query }: { text: string; query: string }): React.ReactElement {
+  if (!query.trim()) return <>{text}</>;
+
+  const normalizedQuery = query.toLowerCase().trim();
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, 'gi'));
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === normalizedQuery ? (
+          <mark
+            key={i}
+            className="bg-emerald/30 text-emerald-light px-0.5 rounded"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function BountyCard({ bounty, index = 0, searchQuery = '' }: BountyCardProps) {
   const navigate = useNavigate();
   const [isPressed, setIsPressed] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -79,6 +111,15 @@ export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
   const handleClick = () => {
     navigate(`/bounties/${bounty.id}`);
   };
+
+  // Truncate description for preview
+  const descriptionPreview = useMemo(() => {
+    if (!bounty.description) return null;
+    const maxLength = 100;
+    return bounty.description.length > maxLength
+      ? bounty.description.slice(0, maxLength) + '...'
+      : bounty.description;
+  }, [bounty.description]);
 
   return (
     <motion.article
@@ -137,12 +178,19 @@ export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
         <TierBadge tier={bounty.tier ?? 'T1'} />
       </div>
 
-      {/* Row 2: Title */}
+      {/* Row 2: Title with search highlight */}
       <h3 className="mt-2 sm:mt-3 font-sans text-sm sm:text-base font-semibold text-text-primary leading-snug line-clamp-2 flex-grow">
-        {bounty.title}
+        <HighlightText text={bounty.title} query={searchQuery} />
       </h3>
 
-      {/* Row 3: Language dots */}
+      {/* Row 3: Description preview (only when searching) */}
+      {searchQuery && descriptionPreview && (
+        <p className="mt-2 text-xs text-text-muted line-clamp-2">
+          <HighlightText text={descriptionPreview} query={searchQuery} />
+        </p>
+      )}
+
+      {/* Row 4: Language dots */}
       {skills.length > 0 && (
         <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 flex-wrap">
           {skills.map((lang) => (
@@ -160,7 +208,7 @@ export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
       {/* Separator */}
       <div className="mt-3 sm:mt-4 border-t border-border/50" />
 
-      {/* Row 4: Reward + Meta + Status */}
+      {/* Row 5: Reward + Meta + Status */}
       <div className="flex items-center justify-between mt-2 sm:mt-3 gap-2">
         <span className="font-mono text-base sm:text-lg font-semibold text-emerald truncate">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
@@ -174,7 +222,7 @@ export function BountyCard({ bounty, index = 0 }: BountyCardProps) {
         </span>
       </div>
       
-      {/* Row 5: Meta info (PRs, Deadline) */}
+      {/* Row 6: Meta info (PRs, Deadline) */}
       <div className="flex items-center gap-2 sm:gap-3 mt-2 text-[10px] sm:text-xs text-text-muted">
         <span className="inline-flex items-center gap-1">
           <GitPullRequest className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
