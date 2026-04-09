@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant motion-reduce (&:where(.motion-reduce, .motion-reduce *, [data-reduced-motion="true"], [data-reduced-motion="true"] *));
 
 /* ============================================================================
    SolFoundry Design System — Forge Theme
