@@ -110,11 +110,61 @@
 }
 
 /* ============================================================================
+   Custom breakpoints (Tailwind v4)
+   ============================================================================ */
+@theme {
+  /* Extra small breakpoint for fine-tuned mobile control */
+  --breakpoint-xs: 480px;
+}
+
+/* ============================================================================
+   Mobile-first utility classes
+   ============================================================================ */
+
+/* Hide scrollbar but allow scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch manipulation for better mobile interactions */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on interactive elements */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Improve tap highlight on mobile */
+@media (hover: none) {
+  .tap-highlight {
+    -webkit-tap-highlight-color: rgba(0, 230, 118, 0.1);
+  }
+}
+
+/* Safe area insets for notched devices */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ============================================================================
    Global base styles
    ============================================================================ */
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
