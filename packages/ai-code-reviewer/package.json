@@ -1,0 +1,16 @@
+{
+  "name": "solfoundry-ai-code-reviewer",
+  "version": "1.0.0",
+  "description": "AI-powered code review GitHub App for SolFoundry",
+  "main": "index.js",
+  "scripts": {
+    "start": "probot run ./index.js"
+  },
+  "dependencies": {
+    "openai": "^4.28.0",
+    "probot": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
