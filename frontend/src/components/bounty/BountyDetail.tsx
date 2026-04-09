@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { CountdownTimer, ExpiredBadge, UrgentIndicator, TimeProgressBar } from './CountdownTimer';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -123,6 +124,42 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
             </p>
           </div>
 
+          {/* Countdown Timer Card - Highlighted for time-sensitive bounties */}
+          {bounty.deadline && (
+            <div className={`rounded-xl border p-5 ${
+              new Date(bounty.deadline) < new Date()
+                ? 'border-status-error/30 bg-status-error/5'
+                : 'border-magenta-border bg-magenta-bg/30'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-text-muted font-mono">Time Remaining</p>
+                {bounty.deadline && <UrgentIndicator deadline={bounty.deadline} />}
+              </div>
+              {new Date(bounty.deadline) < new Date() ? (
+                <ExpiredBadge />
+              ) : (
+                <>
+                  <CountdownTimer
+                    deadline={bounty.deadline}
+                    createdAt={bounty.created_at}
+                    size="lg"
+                    variant="with-progress"
+                    showIcon={false}
+                  />
+                </>
+              )}
+              <p className="text-xs text-text-muted mt-3 font-mono">
+                {new Date(bounty.deadline).toLocaleString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                })}
+              </p>
+            </div>
+          )}
+
           {/* Info card */}
           <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
             <div className="flex items-center justify-between text-sm">
@@ -135,14 +172,6 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               <span className="text-text-muted">Tier</span>
               <span className="font-mono text-text-primary">{bounty.tier ?? 'T1'}</span>
             </div>
-            {bounty.deadline && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
-                </span>
-              </div>
-            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-muted">Submissions</span>
               <span className="font-mono text-text-primary inline-flex items-center gap-1">
