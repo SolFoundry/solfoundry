@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SolFoundry Skeleton Demo - Bounty #827</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .animate-shimmer {
+            animation: shimmer 2s linear infinite;
+            background-size: 200% 100%;
+        }
+        .skeleton-bg {
+            background: linear-gradient(90deg, #16161F 25%, #1E1E2A 50%, #16161F 75%);
+            background-size: 200% 100%;
+        }
+    </style>
+</head>
+<body class="bg-[#050505] text-[#F0F0F5] p-8 font-sans">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">SolFoundry Loading Skeletons</h1>
+        <p class="text-[#5C5C78] mb-8">Bounty #827 - Implementation Demo</p>
+        
+        <!-- Bounty Card Skeleton Demo -->
+        <div class="mb-12">
+            <h2 class="text-xl font-semibold mb-4 text-emerald">BountyCardSkeleton</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <!-- Skeleton Card -->
+                <div class="relative rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-5 overflow-hidden">
+                    <!-- Row 1: Repo + Tier -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-5 h-5 rounded-full skeleton-bg animate-shimmer"></div>
+                            <div class="h-4 w-32 rounded-md skeleton-bg animate-shimmer"></div>
+                        </div>
+                        <div class="h-5 w-12 rounded-full skeleton-bg animate-shimmer"></div>
+                    </div>
+                    <!-- Row 2: Title -->
+                    <div class="mt-3 space-y-2">
+                        <div class="h-5 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                        <div class="h-5 w-3/4 rounded-md skeleton-bg animate-shimmer"></div>
+                    </div>
+                    <!-- Row 3: Skills -->
+                    <div class="flex items-center gap-3 mt-3">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer"></div>
+                            <div class="h-3 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer"></div>
+                            <div class="h-3 w-12 rounded-md skeleton-bg animate-shimmer"></div>
+                        </div>
+                    </div>
+                    <!-- Separator -->
+                    <div class="mt-4 border-t border-[#1E1E2E]/50"></div>
+                    <!-- Row 4: Reward + Meta -->
+                    <div class="flex items-center justify-between mt-3">
+                        <div class="h-6 w-24 rounded-md skeleton-bg animate-shimmer"></div>
+                        <div class="flex items-center gap-3">
+                            <div class="h-3 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                            <div class="h-3 w-14 rounded-md skeleton-bg animate-shimmer"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Second skeleton -->
+                <div class="relative rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-5 overflow-hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-5 h-5 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                            <div class="h-4 w-28 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                        </div>
+                        <div class="h-5 w-10 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                    </div>
+                    <div class="mt-3 space-y-2">
+                        <div class="h-5 w-full rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                        <div class="h-5 w-2/3 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                    </div>
+                    <div class="flex items-center gap-3 mt-3">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                            <div class="h-3 w-14 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 border-t border-[#1E1E2E]/50"></div>
+                    <div class="flex items-center justify-between mt-3">
+                        <div class="h-6 w-20 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                        <div class="flex items-center gap-3">
+                            <div class="h-3 w-12 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.1s"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Third skeleton -->
+                <div class="relative rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-5 overflow-hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-5 h-5 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                            <div class="h-4 w-36 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        </div>
+                        <div class="h-5 w-14 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                    </div>
+                    <div class="mt-3 space-y-2">
+                        <div class="h-5 w-full rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        <div class="h-5 w-1/2 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                    </div>
+                    <div class="flex items-center gap-3 mt-3">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                            <div class="h-3 w-10 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                            <div class="h-3 w-8 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 border-t border-[#1E1E2E]/50"></div>
+                    <div class="flex items-center justify-between mt-3">
+                        <div class="h-6 w-28 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        <div class="flex items-center gap-3">
+                            <div class="h-3 w-16 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                            <div class="h-3 w-14 rounded-md skeleton-bg animate-shimmer" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bounty Detail Skeleton Demo -->
+        <div class="mb-12">
+            <h2 class="text-xl font-semibold mb-4 text-emerald">BountyDetailSkeleton</h2>
+            <div class="max-w-4xl mx-auto">
+                <!-- Back link -->
+                <div class="h-5 w-32 rounded-md skeleton-bg animate-shimmer mb-6"></div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Main content -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Title card -->
+                        <div class="rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-6 space-y-4">
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 rounded-full skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-48 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-8 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-8 w-2/3 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer"></div>
+                                    <div class="h-3 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-2.5 h-2.5 rounded-full skeleton-bg animate-shimmer"></div>
+                                    <div class="h-3 w-14 rounded-md skeleton-bg animate-shimmer"></div>
+                                </div>
+                            </div>
+                            <div class="space-y-2 pt-2">
+                                <div class="h-4 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-3/4 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Requirements card -->
+                        <div class="rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-6 space-y-4">
+                            <div class="h-6 w-32 rounded-md skeleton-bg animate-shimmer"></div>
+                            <div class="space-y-2">
+                                <div class="h-4 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-full rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sidebar -->
+                    <div class="space-y-4">
+                        <!-- Reward card -->
+                        <div class="rounded-xl border border-emerald/25 bg-emerald/[0.08] p-5 space-y-2">
+                            <div class="h-3 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                            <div class="h-10 w-32 rounded-md skeleton-bg animate-shimmer"></div>
+                        </div>
+                        
+                        <!-- Info card -->
+                        <div class="rounded-xl border border-[#1E1E2E] bg-[#0A0A0F] p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="h-4 w-14 rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="h-4 w-10 rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-8 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="h-4 w-16 rounded-md skeleton-bg animate-shimmer"></div>
+                                <div class="h-4 w-20 rounded-md skeleton-bg animate-shimmer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-[#5C5C78] text-sm mt-12">
+            <p>✨ Smooth shimmer animation • Accessible (reduced motion support) • Matches design system</p>
+        </div>
+    </div>
+</body>
+</html>
