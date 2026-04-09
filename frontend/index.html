@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace</title>
+</head>
+<body>
+    <h1>Marketplace</h1>
+    <input type="text" id="language" placeholder="Filter by language" />
+    <input type="number" id="stars" placeholder="Minimum stars" />
+    <button onclick="applyFilters()">Apply Filters</button>
+    <ul id="repoList"></ul>
+
+    <script>
+        let repos = [];
+
+        const fetchRepos = async () => {
+            try {
+                const response = await fetch('https://api.github.com/repositories');
+                repos = await response.json();
+                displayRepos();
+            } catch (error) {
+                console.error('Error fetching repositories:', error);
+            }
+        };
+
+        const displayRepos = () => {
+            const repoList = document.getElementById('repoList');
+            repoList.innerHTML = '';
+            repos.forEach(repo => {
+                const listItem = document.createElement('li');
+                listItem.textContent = repo.name;
+                repoList.appendChild(listItem);
+            });
+        };
+
+        const applyFilters = () => {
+            const language = document.getElementById('language').value;
+            const stars = Number(document.getElementById('stars').value);
+            console.log('Filtering by:', { language, stars });
+            // Basic filtering logic can be implemented here
+        };
+
+        fetchRepos();
+    </script>
+</body>
+</html>
