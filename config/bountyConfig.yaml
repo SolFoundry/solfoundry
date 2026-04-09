@@ -1,0 +1,10 @@
+rewardTiers:
+  - tier: T1
+    amount: 10000
+  - tier: T2
+    amount: 50000
+labelDetection:
+  - label: bounty
+    rewardAmount: 50000
+  - label: feature
+    rewardAmount: 10000
