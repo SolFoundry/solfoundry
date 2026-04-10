@@ -110,6 +110,71 @@
 }
 
 /* ============================================================================
+   Mobile Responsive Polish (Bounty #824)
+   ============================================================================ */
+
+/* 768px breakpoint — tablet */
+@media (max-width: 768px) {
+  /* Ensure no horizontal overflow anywhere */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Footer: prevent CA text overflow at tablet */
+  footer .font-mono {
+    font-size: 0.65rem !important;
+    word-break: break-all;
+  }
+}
+
+/* 375px breakpoint — mobile */
+@media (max-width: 375px) {
+  /* Global: prevent horizontal scroll */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Hero: reduce terminal card padding */
+  .hero-terminal {
+    padding: 1rem !important;
+  }
+
+  /* Hero: smaller terminal text */
+  .hero-terminal .font-mono {
+    font-size: 0.7rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Bounty cards: tighter spacing */
+  .bounty-card {
+    padding: 0.875rem !important;
+  }
+
+  /* Bounty cards: smaller title */
+  .bounty-card h3 {
+    font-size: 0.875rem !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Footer: stack all columns cleanly, prevent CA overflow */
+  footer .grid {
+    gap: 1.5rem !important;
+  }
+
+  footer .font-mono {
+    font-size: 0.6rem !important;
+    word-break: break-all;
+    max-width: 100%;
+  }
+
+  /* Navbar: ensure mobile menu is full-width */
+  nav .mobile-menu {
+    width: 100vw;
+  }
+}
+
+/* ============================================================================
    Global base styles
    ============================================================================ */
 html {
