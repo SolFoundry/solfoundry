@@ -61,10 +61,10 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group bounty-card"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-sm gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
