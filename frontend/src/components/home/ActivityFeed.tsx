@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { useActivityFeed } from '../../hooks/useActivityFeed';
 
 interface ActivityEvent {
   id: string;
@@ -11,38 +12,6 @@ interface ActivityEvent {
   detail: string;
   timestamp: string;
 }
-
-// Mock events for when API doesn't return activity
-const MOCK_EVENTS: ActivityEvent[] = [
-  {
-    id: '1',
-    type: 'completed',
-    username: 'devbuilder',
-    detail: '$500 USDC from Bounty #42',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'submitted',
-    username: 'KodeSage',
-    detail: 'PR to Bounty #38',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'posted',
-    username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'review',
-    username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
 
 function getActionText(type: ActivityEvent['type']) {
   switch (type) {
@@ -75,13 +44,35 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-6 gap-2">
+      <span className="font-mono text-xs text-text-muted">No recent activity</span>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-1">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-3 py-2 px-3 animate-pulse">
+          <div className="w-6 h-6 rounded-full bg-forge-800 flex-shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 bg-forge-800 rounded w-3/4" />
+          </div>
+          <div className="h-3 bg-forge-800 rounded w-10" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ActivityFeed() {
+  const { data: events, isLoading, isError } = useActivityFeed({ limit: 10 });
+
+  const displayEvents = events?.length ? events.slice(0, 4) : null;
+  const hasEvents = displayEvents && displayEvents.length > 0;
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -89,23 +80,33 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
         <div className="flex items-center gap-3 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+          {isError && (
+            <span className="font-mono text-xs text-red-400 ml-auto">Connection lost — retrying</span>
+          )}
         </div>
-        <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+
+        {isLoading ? (
+          <LoadingSkeleton />
+        ) : hasEvents ? (
+          <div className="space-y-1">
+            <AnimatePresence mode="popLayout">
+              {displayEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <EmptyState />
+        )}
       </div>
     </section>
   );
