@@ -6,8 +6,16 @@ import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 
+/** Skill filter options available in the bounty grid filter bar. */
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
+/**
+ * Custom hook that debounces a value by a given delay.
+ * Returns the debounced value and a cancel function to clear the pending timeout.
+ *
+ * @param value - The value to debounce
+ * @param delay - Debounce delay in milliseconds
+ */
 function useDebounce<T>(value: T, delay: number): { debouncedValue: T; cancel: () => void } {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -24,6 +32,11 @@ function useDebounce<T>(value: T, delay: number): { debouncedValue: T; cancel: (
   return { debouncedValue, cancel };
 }
 
+/**
+ * BountyGrid — renders the full bounty listing page section.
+ * Includes a skill/language filter bar, status dropdown, debounced search input,
+ * client-side search across title/description/skills/repo, and a paginated card grid with infinite scroll.
+ */
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');

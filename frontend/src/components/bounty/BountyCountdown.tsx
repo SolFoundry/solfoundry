@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
-interface BountyCountdownProps {
+/**
+ * Props for the BountyCountdown component.
+ */
+export interface BountyCountdownProps {
   deadline: string;
   /** Show just the text, or a richer card with label */
   variant?: 'inline' | 'badge';

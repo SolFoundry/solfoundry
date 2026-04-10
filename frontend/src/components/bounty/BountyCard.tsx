@@ -7,6 +7,7 @@ import { cardHover } from '../../lib/animations';
 import { formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { BountyCountdown } from './BountyCountdown';
 
+/** Tier badge component showing T1/T2/T3 bounty tier. */
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
     T1: 'bg-tier-t1/10 text-tier-t1 border border-tier-t1/20',
@@ -24,6 +25,10 @@ interface BountyCardProps {
   bounty: Bounty;
 }
 
+/**
+ * BountyCard — a single bounty preview card for the grid/list view.
+ * Shows repo, title, skills, reward, PR count, deadline countdown, and status.
+ */
 export function BountyCard({ bounty }: BountyCardProps) {
   const navigate = useNavigate();
 

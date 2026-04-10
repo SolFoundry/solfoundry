@@ -9,10 +9,18 @@ import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
 
+/**
+ * Props for the BountyDetail component.
+ */
 interface BountyDetailProps {
   bounty: Bounty;
 }
 
+/**
+ * BountyDetail — renders the full bounty detail page.
+ * Shows bounty description, requirements, sidebar with reward/status/deadline,
+ * and a submission form for authenticated users.
+ */
 export function BountyDetail({ bounty }: BountyDetailProps) {
   const { isAuthenticated } = useAuth();
   const [submitting, setSubmitting] = useState(false);
