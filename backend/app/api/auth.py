@@ -10,6 +10,7 @@ This module provides REST API endpoints for:
 
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -94,22 +95,23 @@ async def get_github_authorize(state: Optional[str] = None):
         )
 
 
-@router.post("/github", response_model=GitHubOAuthResponse)
-async def github_oauth_callback(request: GitHubOAuthRequest):
+@router.get("/github/callback", response_model=GitHubOAuthResponse)
+async def github_oauth_callback(code: str, state: Optional[str] = None):
     """
     Complete GitHub OAuth flow.
     
+    GitHub redirects here after user authorizes.
     Exchange the authorization code for JWT tokens.
     
     Flow:
-    1. User is redirected from GitHub with a code
+    1. User is redirected from GitHub with a code and state
     2. Exchange code for GitHub access token
     3. Get user info from GitHub
     4. Create/update user in database
     5. Return JWT tokens
     """
     try:
-        result = await auth_service.github_oauth_login(request.code)
+        result = await auth_service.github_oauth_login(code, state)
         return result
     except GitHubOAuthError as e:
         raise HTTPException(

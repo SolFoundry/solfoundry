@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth import router as auth_router
 from app.api.contributors import router as contributors_router
 from app.api.bounties import router as bounties_router
 from app.api.notifications import router as notifications_router
@@ -46,6 +47,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+app.include_router(auth_router, prefix="/api", tags=["authentication"])
 app.include_router(contributors_router)
 app.include_router(bounties_router, prefix="/api", tags=["bounties"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])

@@ -94,9 +94,11 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
     state = state or secrets.token_urlsafe(32)
     _oauth_states[state] = {"created_at": datetime.now(timezone.utc),
                             "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    from urllib.parse import urlencode
     params = {"client_id": GITHUB_CLIENT_ID, "redirect_uri": GITHUB_REDIRECT_URI,
               "scope": "read:user user:email", "state": state, "response_type": "code"}
-    return f"https://github.com/login/oauth/authorize?{'&'.join(f'{k}={v}' for k,v in params.items())}", state
+    encoded_params = urlencode(params)
+    return f"https://github.com/login/oauth/authorize?{encoded_params}", state
 
 
 def verify_oauth_state(state: str) -> bool:

@@ -40,3 +40,69 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class GitHubOAuthRequest(BaseModel):
+    """Request model for GitHub OAuth callback."""
+    code: str
+    state: Optional[str] = None
+
+
+class GitHubOAuthResponse(BaseModel):
+    """Response model for successful GitHub OAuth login."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
+
+
+class WalletAuthRequest(BaseModel):
+    """Request model for wallet authentication."""
+    wallet_address: str
+    signature: str
+    message: str
+    nonce: Optional[str] = None
+
+
+class WalletAuthResponse(BaseModel):
+    """Response model for successful wallet authentication."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
+
+
+class LinkWalletRequest(BaseModel):
+    """Request model for linking a wallet to user account."""
+    wallet_address: str
+    signature: str
+    message: str
+    nonce: Optional[str] = None
+
+
+class LinkWalletResponse(BaseModel):
+    """Response model for wallet linking."""
+    success: bool
+    message: str
+    user: UserResponse
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response model for token refresh."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class AuthMessageResponse(BaseModel):
+    """Response model for auth message generation."""
+    message: str
+    nonce: str
+    expires_at: datetime
