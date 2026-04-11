@@ -42,8 +42,12 @@ class Bounty:
             elif "tier-3" in label.lower():
                 tier = BountyTier.TIER_3
 
-        reward_match = re.search(r"[\$€£]?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:USD|FNDRY|K|k)", issue.get("body", ""))
-        reward = reward_match.group(0) if reward_match else None
+        reward_match = re.search(
+            r"(?:reward[^\n:]*:\s*)?([\$€£]?\s*\d+(?:,\d{3})*(?:\.\d+)?\s*[MKmk]?\s*(?:USD|FNDRY|USDC|\$)?)",
+            issue.get("body", ""),
+            re.IGNORECASE,
+        )
+        reward = reward_match.group(1).strip() if reward_match else None
 
         domain_labels = ["agent", "frontend", "backend", "integration", "security", "devops"]
         domain = next((l for l in labels if l.lower() in domain_labels), None)
