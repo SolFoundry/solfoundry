@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SolFoundry — Autonomous AI Software Factory on Solana</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="mobile-polish.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -320,14 +321,19 @@
         @media (max-width: 768px) {
             .nav-links {
                 position: fixed;
-                top: 100%;
+                top: 60px;
                 left: 0;
                 width: 100%;
+                height: calc(100vh - 60px);
                 background: white;
                 flex-direction: column;
                 padding: 2rem;
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                transition: transform 0.3s ease-in-out;
+                z-index: 999;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+                /* Force display to avoid transition conflict with display:none */
+                display: flex;
             }
 
             .nav-links.active {
@@ -345,6 +351,7 @@
             .hero-buttons {
                 flex-direction: column;
                 align-items: center;
+                gap: 0.75rem;
             }
 
             .steps {
