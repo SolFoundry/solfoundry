@@ -6,6 +6,11 @@ import { exchangeGitHubCode } from '../api/auth';
 import { setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
 
+/**
+ * GitHubCallbackPage — handles the OAuth callback from GitHub.
+ * Exchanges the authorization code for JWT tokens, validates CSRF state,
+ * stores the session, and redirects to the home page.
+ */
 export function GitHubCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -24,6 +29,16 @@ export function GitHubCallbackPage() {
       navigate('/', { replace: true });
       return;
     }
+
+    // Validate CSRF state
+    const storedState = sessionStorage.getItem('oauth_state');
+    if (state !== storedState) {
+      console.error('[GitHubCallback] CSRF state mismatch — possible attack');
+      sessionStorage.removeItem('oauth_state');
+      navigate('/', { replace: true });
+      return;
+    }
+    sessionStorage.removeItem('oauth_state');
 
     exchangeGitHubCode(code, state ?? undefined)
       .then((response) => {

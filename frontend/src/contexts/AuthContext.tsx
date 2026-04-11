@@ -4,6 +4,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setAuthToken, setOnAuthExpired } from '../services/apiClient';
+import { logout as apiLogout } from '../api/auth';
 
 export interface AuthUser {
   id: string;
@@ -36,6 +37,13 @@ const TOKEN_KEY = 'sf_access_token';
 const REFRESH_KEY = 'sf_refresh_token';
 const USER_KEY = 'sf_user';
 
+/**
+ * AuthContext provider — manages JWT token + current user state, persisted to localStorage.
+ * Provides login (token storage), logout, and the authenticated user object.
+ * Wire this into the app root to make auth state available via `useAuthContext`.
+ *
+ * @param children - The React subtree that will have access to the auth context
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -75,11 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ user, accessToken, refreshToken, isAuthenticated: true, isLoading: false });
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    localStorage.removeItem(USER_KEY);
-    setAuthToken(null);
+  const logout = useCallback(async () => {
+    await apiLogout();
     setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
   }, []);
 
@@ -105,6 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Hook to access the auth context value.
+ * Throws if called outside of an `AuthProvider` tree.
+ */
 export function useAuthContext(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuthContext must be used inside AuthProvider');

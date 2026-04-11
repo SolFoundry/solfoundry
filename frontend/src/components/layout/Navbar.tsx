@@ -18,6 +18,11 @@ const NAV_LINKS = [
   { label: 'How It Works', to: '/how-it-works' },
 ];
 
+/**
+ * Navbar — the top navigation bar, fixed above content.
+ * Shows logo, nav links, live bounty count badge, and auth controls
+ * (GitHub sign-in button or user avatar dropdown).
+ */
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,10 +41,30 @@ export function Navbar() {
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
+      // Validate that we got a valid HTTPS URL with same-origin
+      if (!url) {
+        console.error('[Navbar] GitHub sign-in failed: empty authorization URL');
+        return;
+      }
+      let urlObj: URL;
+      try {
+        urlObj = new URL(url, window.location.origin);
+      } catch {
+        console.error('[Navbar] GitHub sign-in failed: invalid URL format', url);
+        return;
+      }
+      if (urlObj.protocol !== 'https:') {
+        console.error('[Navbar] GitHub sign-in failed: URL must use HTTPS', url);
+        return;
+      }
+      if (urlObj.origin !== window.location.origin) {
+        console.error('[Navbar] GitHub sign-in failed: URL must be same-origin', url);
+        return;
+      }
       window.location.href = url;
-    } catch {
-      // Fallback: direct to backend authorize endpoint
-      window.location.href = '/api/auth/github/authorize';
+    } catch (err) {
+      console.error('[Navbar] GitHub sign-in failed:', err);
+      window.alert('Sign-in failed. Please try again or contact support.');
     }
   };
 
