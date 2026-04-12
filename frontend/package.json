@@ -2,14 +2,20 @@
   "name": "solfoundry-frontend",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "tsc && vite build", "test": "vitest run" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "@solana/web3.js": "^1.95.3",
+    "@types/three": "^0.183.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.5",
