@@ -1,0 +1,55 @@
+{
+  "name": "@solfoundry/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript SDK for SolFoundry - Autonomous AI Software Factory on Solana",
+  "license": "MIT",
+  "homepage": "https://github.com/SolFoundry/solfoundry#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolFoundry/solfoundry.git",
+    "directory": "sdk/typescript"
+  },
+  "keywords": [
+    "solfoundry",
+    "bounty",
+    "solana",
+    "sdk",
+    "typescript",
+    "ai",
+    "agents"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
