@@ -37,6 +37,13 @@ export interface Submission {
   description?: string | null;
   status: 'pending' | 'in_review' | 'approved' | 'rejected';
   review_score?: number | null;
+  ai_score?: number | null;
+  ai_scores_by_model?: Record<string, number> | null;
+  review_complete?: boolean;
+  meets_threshold?: boolean;
+  confidence_percentage?: number | null;
+  review_reasoning?: string | null;
+  review_details_url?: string | null;
   earned?: number | null;
   created_at: string;
 }
