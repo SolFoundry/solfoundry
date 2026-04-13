@@ -3,11 +3,20 @@ import { Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { createSubmission, getReviewFee, verifyReviewFee } from '../../api/bounties';
 
+/**
+ * Props for the SubmissionForm component.
+ */
 interface SubmissionFormProps {
+  /** The bounty to submit a solution for. */
   bounty: Bounty;
+  /** Optional callback fired after a successful submission. */
   onSuccess?: () => void;
 }
 
+/**
+ * SubmissionForm — renders the PR/solution submission form for a bounty.
+ * Handles fee verification via FNDRY token and posts the submission to the API.
+ */
 export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
   const hasRepo = bounty.has_repo ?? !!bounty.github_repo_url;
   const [url, setUrl] = useState('');

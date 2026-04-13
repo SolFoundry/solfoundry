@@ -13,6 +13,7 @@ import { fadeIn } from '../../lib/animations';
  * Props for the BountyDetail component.
  */
 interface BountyDetailProps {
+  /** The full bounty object to display. */
   bounty: Bounty;
 }
 

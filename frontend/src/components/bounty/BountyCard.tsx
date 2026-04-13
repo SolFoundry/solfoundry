@@ -7,7 +7,10 @@ import { cardHover } from '../../lib/animations';
 import { formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { BountyCountdown } from './BountyCountdown';
 
-/** Tier badge component showing T1/T2/T3 bounty tier. */
+/**
+ * TierBadge — small inline badge showing the bounty tier (T1/T2/T3).
+ * Color-coded via CSS classes on the span element.
+ */
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
     T1: 'bg-tier-t1/10 text-tier-t1 border border-tier-t1/20',
@@ -21,7 +24,11 @@ function TierBadge({ tier }: { tier: string }) {
   );
 }
 
+/**
+ * Props for the BountyCard component.
+ */
 interface BountyCardProps {
+  /** The full bounty object to display. */
   bounty: Bounty;
 }
 
