@@ -1,0 +1,35 @@
+{
+  "name": "solfoundry-bounty-hunter",
+  "version": "1.0.0",
+  "description": "Full Autonomous Bounty-Hunting Agent for SolFoundry",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "hunter": "node --experimental-specifier-resolution=node dist/index.js",
+    "hunter:watch": "node --watch dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dry-run": "DRY_RUN=true node dist/index.js"
+  },
+  "keywords": ["bounty", "agent", "solfoundry", "autonomous", "github"],
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.52.0",
+    "child_process": "^1.0.0",
+    "ora": "^8.0.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/node": "^22.0.0",
+    "@types/prompts": "^2.4.9",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
