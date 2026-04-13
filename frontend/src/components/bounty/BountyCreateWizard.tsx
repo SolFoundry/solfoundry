@@ -14,6 +14,9 @@ const inputClass =
 
 const STEPS = ['Describe', 'Timeline & Reward', 'Fund & Publish'];
 
+/**
+ * WizardState — holds all form state across the 3-step bounty creation flow.
+ */
 interface WizardState {
   title: string;
   description: string;
@@ -31,6 +34,10 @@ interface WizardState {
   verified: boolean;
 }
 
+/**
+ * StepIndicator — renders the 3-step progress indicator at the top of the wizard.
+ * Highlights completed steps with a checkmark and the current step with an emerald border.
+ */
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
     <div className="flex items-center justify-center gap-4 mb-10">
@@ -61,6 +68,10 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
+/**
+ * Step1 — collects bounty title, description, and optional GitHub repo/issue.
+ * Validates minimum lengths before enabling the Next button.
+ */
 function Step1({
   state,
   onChange,
@@ -156,6 +167,10 @@ function Step1({
   );
 }
 
+/**
+ * Step2 — collects reward amount (with presets), deadline date, and displays a fee summary.
+ * Disables the Next button until a deadline is selected.
+ */
 function Step2({
   state,
   onChange,
@@ -257,6 +272,10 @@ function Step2({
   );
 }
 
+/**
+ * Step3 — collects the escrow deposit transaction signature, verifies it,
+ * and enables publishing once verification succeeds.
+ */
 function Step3({
   state,
   onChange,
@@ -378,6 +397,10 @@ function Step3({
   );
 }
 
+/**
+ * BountyCreateWizard — multi-step bounty creation flow (Describe → Timeline & Reward → Fund & Publish).
+ * Collects title, description, reward amount, deadline, and escrow verification before publishing.
+ */
 export function BountyCreateWizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);

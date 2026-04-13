@@ -1,26 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 
+/** Skill filter options available in the bounty grid filter bar. */
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
+/**
+ * Custom hook that debounces a value by a given delay.
+ * Returns the debounced value and a cancel function to clear the pending timeout.
+ *
+ * @param value - The value to debounce
+ * @param delay - Debounce delay in milliseconds
+ */
+function useDebounce<T>(value: T, delay: number): { debouncedValue: T; cancel: () => void } {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebouncedValue(value), delay);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [value, delay]);
+  const cancel = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+  return { debouncedValue, cancel };
+}
+
+/**
+ * BountyGrid — renders the full bounty listing page section.
+ * Includes a skill/language filter bar, status dropdown, debounced search input,
+ * server-side search across title/description/skills/repo, and a paginated card grid with infinite scroll.
+ */
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const { debouncedValue: debouncedSearch, cancel: cancelDebounce } = useDebounce(searchQuery, 300);
+
+  /** Debounced and trimmed search term used consistently everywhere. */
+  const effectiveSearch = debouncedSearch.trim();
 
   const params = {
     status: statusFilter,
     skill: activeSkill !== 'All' ? activeSkill : undefined,
+    search: effectiveSearch || undefined,
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
     useInfiniteBounties(params);
 
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
+  const totalCount = data?.pages[0]?.total ?? 0;
 
   return (
     <section id="bounties" className="py-16 md:py-24">
@@ -51,6 +88,29 @@ export function BountyGrid() {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
             </div>
           </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            id="bounty-search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search bounties by title, description, or skill..."
+            aria-label="Search bounties by title, description, or skill"
+            className="w-full bg-forge-800 border border-border rounded-lg pl-10 pr-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald outline-none transition-colors duration-150"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => { cancelDebounce(); setSearchQuery(''); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Filter pills */}
@@ -92,8 +152,22 @@ export function BountyGrid() {
           </div>
         )}
 
-        {/* Empty state */}
-        {!isLoading && !isError && allBounties.length === 0 && (
+        {/* Empty state — search with no results */}
+        {!isLoading && !isError && effectiveSearch && allBounties.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-text-muted text-lg mb-2">No bounties match &quot;{effectiveSearch}&quot;</p>
+            <p className="text-text-muted text-sm">
+              Try a different search term or{' '}
+              <button onClick={() => setSearchQuery('')} className="text-emerald hover:underline">
+                clear the search
+              </button>
+              .
+            </p>
+          </div>
+        )}
+
+        {/* Empty state — no results at all */}
+        {!isLoading && !isError && !effectiveSearch && allBounties.length === 0 && (
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
@@ -103,20 +177,27 @@ export function BountyGrid() {
         )}
 
         {/* Bounty grid */}
-        {!isLoading && allBounties.length > 0 && (
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-50px' }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
-          >
-            {allBounties.map((bounty) => (
-              <motion.div key={bounty.id} variants={staggerItem}>
-                <BountyCard bounty={bounty} />
-              </motion.div>
-            ))}
-          </motion.div>
+        {!isLoading && !isError && allBounties.length > 0 && (
+          <>
+            {effectiveSearch && (
+              <p className="text-sm text-text-muted mb-4">
+                {totalCount} result{totalCount !== 1 ? 's' : ''} for &quot;{effectiveSearch}&quot;
+              </p>
+            )}
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              whileInView="animate"
+              viewport={{ once: true, margin: '-50px' }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            >
+              {allBounties.map((bounty) => (
+                <motion.div key={bounty.id} variants={staggerItem}>
+                  <BountyCard bounty={bounty} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </>
         )}
 
         {/* Load more */}

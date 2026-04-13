@@ -111,7 +111,7 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
             <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
