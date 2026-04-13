@@ -1,0 +1,69 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#0f172a"/>
+  
+  <!-- Title -->
+  <text x="400" y="50" text-anchor="middle" fill="#ffffff" font-size="24" font-family="Arial">SolFoundry Bounty Flow</text>
+  
+  <!-- Step boxes -->
+  <g id="steps">
+    <!-- Step 1: Create -->
+    <rect x="40" y="160" width="120" height="80" rx="10" fill="#10b981"/>
+    <text x="100" y="195" text-anchor="middle" fill="#0f172a" font-size="12" font-family="Arial">1. Create</text>
+    <text x="100" y="215" text-anchor="middle" fill="#0f172a" font-size="12" font-family="Arial">Bounty</text>
+    
+    <!-- Arrow 1 -->
+    <line x1="160" y1="200" x2="190" y2="200" stroke="#10b981" stroke-width="3"/>
+    <polygon points="190,200 185,195 185,205" fill="#10b981"/>
+    
+    <!-- Step 2: Fund -->
+    <rect x="190" y="160" width="120" height="80" rx="10" fill="#ec4899"/>
+    <text x="250" y="195" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Arial">2. Fund</text>
+    <text x="250" y="215" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Arial">Bounty</text>
+    
+    <!-- Arrow 2 -->
+    <line x1="310" y1="200" x2="340" y2="200" stroke="#10b981" stroke-width="3"/>
+    <polygon points="340,200 335,195 335,205" fill="#10b981"/>
+    
+    <!-- Step 3: Submit -->
+    <rect x="340" y="160" width="120" height="80" rx="10" fill="#334155"/>
+    <text x="400" y="195" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">3. Submit</text>
+    <text x="400" y="215" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">Work</text>
+    
+    <!-- Arrow 3 -->
+    <line x1="460" y1="200" x2="490" y2="200" stroke="#334155" stroke-width="3"/>
+    <polygon points="490,200 485,195 485,205" fill="#334155"/>
+    
+    <!-- Step 4: Review -->
+    <rect x="490" y="160" width="120" height="80" rx="10" fill="#334155"/>
+    <text x="550" y="195" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">4. AI</text>
+    <text x="550" y="215" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">Review</text>
+    
+    <!-- Arrow 4 -->
+    <line x1="610" y1="200" x2="640" y2="200" stroke="#334155" stroke-width="3"/>
+    <polygon points="640,200 635,195 635,205" fill="#334155"/>
+    
+    <!-- Step 5: Paid -->
+    <rect x="640" y="160" width="120" height="80" rx="10" fill="#334155"/>
+    <text x="700" y="195" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">5. Get</text>
+    <text x="700" y="215" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">Paid</text>
+  </g>
+  
+  <!-- Progress bar background -->
+  <rect x="50" y="300" width="700" height="10" rx="5" fill="#334155"/>
+  
+  <!-- Progress bar fill (40%) -->
+  <rect x="50" y="300" width="280" height="10" rx="5" fill="#10b981"/>
+  
+  <!-- Step counter -->
+  <text x="400" y="340" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Step 2 of 5</text>
+  
+  <!-- Description -->
+  <text x="400" y="380" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Arial">Current: Funding the bounty with FNDRY tokens</text>
+  
+  <!-- Branding -->
+  <text x="780" y="580" text-anchor="end" fill="#ec4899" font-size="14" font-family="Arial">SolFoundry</text>
+  
+  <!-- Animation for active step highlight -->
+  <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
+</svg>
