@@ -1,13 +1,24 @@
 import { apiClient, setAuthToken, ApiError } from '../services/apiClient';
 import type { User } from '../types/user';
 
+/**
+ * Authentication tokens issued by the backend after a successful OAuth or credential login.
+ */
 export interface AuthTokens {
+  /** JWT access token used to authenticate API requests. */
   access_token: string;
+  /** Long-lived token used to obtain a new access token when it expires. */
   refresh_token: string;
+  /** Token type (typically "Bearer"). */
   token_type: string;
 }
 
+/**
+ * Full response returned by the GitHub OAuth callback endpoint.
+ * Contains auth tokens plus the authenticated user's profile.
+ */
 export interface GitHubCallbackResponse extends AuthTokens {
+  /** Authenticated user profile. */
   user: User;
 }
 
