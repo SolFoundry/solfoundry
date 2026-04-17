@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { BountyCountdown } from './BountyCountdown';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -123,6 +124,14 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
             </p>
           </div>
 
+          {/* Live countdown timer */}
+          {bounty.deadline && (
+            <div className="rounded-xl border border-border bg-forge-900 p-5">
+              <p className="text-xs text-text-muted font-mono mb-3">Time Remaining</p>
+              <BountyCountdown deadline={bounty.deadline} variant="full" />
+            </div>
+          )}
+
           {/* Info card */}
           <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
             <div className="flex items-center justify-between text-sm">
@@ -135,14 +144,6 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               <span className="text-text-muted">Tier</span>
               <span className="font-mono text-text-primary">{bounty.tier ?? 'T1'}</span>
             </div>
-            {bounty.deadline && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
-                </span>
-              </div>
-            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-muted">Submissions</span>
               <span className="font-mono text-text-primary inline-flex items-center gap-1">
