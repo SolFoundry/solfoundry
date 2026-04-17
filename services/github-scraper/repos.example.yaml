@@ -1,0 +1,15 @@
+repositories:
+  - owner: SolFoundry
+    repo: solfoundry
+    label_mapping:
+      bounty: true
+      tier-1: 1
+      tier-2: 2
+      tier-3: 3
+    default_tier: 2
+    default_reward:
+      1: 200000
+      2: 600000
+      3: 1200000
+    category: backend
+    enabled: true
