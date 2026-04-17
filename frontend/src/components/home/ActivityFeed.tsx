@@ -80,7 +80,11 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
+    if (events?.length) {
+      setVisibleEvents(events.slice(0, 4));
+    } else {
+      setVisibleEvents(MOCK_EVENTS.slice(0, 4));
+    }
   }, [events]);
 
   return (
@@ -110,3 +114,5 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
     </section>
   );
 }
+
+export type { ActivityEvent };
