@@ -72,11 +72,11 @@ export function BountyGrid() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
+                className="h-48 sm:h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
               >
                 <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
               </div>
@@ -109,7 +109,7 @@ export function BountyGrid() {
             initial="initial"
             whileInView="animate"
             viewport={{ once: true, margin: '-50px' }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
           >
             {allBounties.map((bounty) => (
               <motion.div key={bounty.id} variants={staggerItem}>
