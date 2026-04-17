@@ -62,6 +62,25 @@ services:
   # Build locally with: cd frontend && npm run build
   # Deploy with: scp -r frontend/dist/* root@192.241.139.206:/opt/solfoundry/frontend/dist/
 
+  discord-bot:
+    build:
+      context: ./discord-bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      BOUNTY_CHANNEL_ID: ${BOUNTY_CHANNEL_ID:-}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
+      SOLFOUNDRY_API_URL: ${SOLFOUNDRY_API_URL:-http://backend:8000}
+      SOLFOUNDRY_API_TOKEN: ${SOLFOUNDRY_API_TOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - discord_bot_data:/app/data
+
 volumes:
   postgres_data:
   redis_data:
+  discord_bot_data:
