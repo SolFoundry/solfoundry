@@ -134,7 +134,41 @@ services:
       solana-validator:
         condition: service_healthy
 
+  # ── GitHub Issue Scraper ──────────────────────────────────────────────
+  # Scrapes GitHub issues from configured repos and posts them as bounties.
+  # Webhook endpoint at /api/webhooks/github for real-time issue updates.
+  github-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.github-scraper
+    restart: unless-stopped
+    ports:
+      - "${GITHUB_SCRAPER_PORT:-8001}:8001"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      SOLFOUNDRY_API_URL: http://backend:8000
+      SOLFOUNDRY_API_TOKEN: ${SOLFOUNDRY_API_TOKEN:-}
+      DATABASE_URL: sqlite+aiosqlite:///./scraper.db
+      REDIS_URL: redis://redis:6379/0
+      SCRAPING_INTERVAL_SECONDS: ${SCRAPING_INTERVAL_SECONDS:-1800}
+      REPO_CONFIG_PATH: /home/solfoundry/app/repos.yaml
+    volumes:
+      - scraper_data:/home/solfoundry/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
 volumes:
   postgres_data:
   redis_data:
   solana_ledger:
+  scraper_data:
