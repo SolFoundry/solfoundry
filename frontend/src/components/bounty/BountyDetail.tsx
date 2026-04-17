@@ -25,31 +25,31 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
   };
 
   return (
-    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
+    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {/* Back link */}
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Bounties
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Title + meta */}
-          <div className="rounded-xl border border-border bg-forge-900 p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex-1">
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-3 text-xs font-mono text-text-muted">
                   {bounty.org_avatar_url && (
                     <img src={bounty.org_avatar_url} alt="" className="w-4 h-4 rounded-full" />
                   )}
-                  <span>{bounty.org_name}/{bounty.repo_name}</span>
+                  <span className="truncate">{bounty.org_name}/{bounty.repo_name}</span>
                   {bounty.issue_number && <span>#{bounty.issue_number}</span>}
                 </div>
-                <h1 className="font-sans text-2xl font-semibold text-text-primary">{bounty.title}</h1>
+                <h1 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">{bounty.title}</h1>
               </div>
               <button
                 onClick={copyLink}
-                className="flex-shrink-0 p-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-muted hover:text-text-primary transition-colors duration-150"
+                className="flex-shrink-0 self-start p-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-muted hover:text-text-primary transition-colors duration-150"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -84,8 +84,8 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
           </div>
 
           {/* Description / requirements */}
-          <div className="rounded-xl border border-border bg-forge-900 p-6">
-            <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Requirements</h2>
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
+            <h2 className="font-sans text-base sm:text-lg font-semibold text-text-primary mb-4">Requirements</h2>
             <p className="text-sm text-text-secondary leading-relaxed">
               Submit a working solution that addresses the bounty requirements above.
               All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
@@ -94,8 +94,8 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (
-            <div className="rounded-xl border border-border bg-forge-900 p-6">
-              <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Submit Your Solution</h2>
+            <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
+              <h2 className="font-sans text-base sm:text-lg font-semibold text-text-primary mb-4">Submit Your Solution</h2>
               {isAuthenticated ? (
                 <SubmissionForm bounty={bounty} />
               ) : (
@@ -116,15 +116,15 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Reward card */}
-          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-5">
+          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-4 sm:p-5">
             <p className="text-xs text-text-muted font-mono mb-1">Reward</p>
-            <p className="font-mono text-3xl font-bold text-emerald">
+            <p className="font-mono text-2xl sm:text-3xl font-bold text-emerald">
               {formatCurrency(bounty.reward_amount, bounty.reward_token)}
             </p>
           </div>
 
           {/* Info card */}
-          <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-5 space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-muted">Status</span>
               <span className={`font-medium ${bounty.status === 'open' ? 'text-emerald' : 'text-magenta'}`}>

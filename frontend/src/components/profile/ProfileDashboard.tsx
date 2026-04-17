@@ -53,18 +53,20 @@ function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boo
         <motion.div
           key={b.id}
           variants={staggerItem}
-          className="flex items-center gap-4 px-4 py-3 rounded-lg bg-forge-900 border border-border hover:bg-forge-850 transition-colors cursor-pointer"
+          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3 rounded-lg bg-forge-900 border border-border hover:bg-forge-850 transition-colors cursor-pointer"
           onClick={() => window.location.href = `/bounties/${b.id}`}
         >
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{b.title}</p>
             <p className="text-xs text-text-muted mt-0.5">{timeAgo(b.created_at)}</p>
           </div>
-          <span className="font-mono text-sm font-semibold text-emerald">{formatCurrency(b.reward_amount, b.reward_token)}</span>
-          <BountyStatusBadge status={b.status} />
-          <span className="text-xs text-text-muted inline-flex items-center gap-1">
-            <GitPullRequest className="w-3.5 h-3.5" /> {b.submission_count}
-          </span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="font-mono text-sm font-semibold text-emerald">{formatCurrency(b.reward_amount, b.reward_token)}</span>
+            <BountyStatusBadge status={b.status} />
+            <span className="text-xs text-text-muted inline-flex items-center gap-1">
+              <GitPullRequest className="w-3.5 h-3.5" /> {b.submission_count}
+            </span>
+          </div>
         </motion.div>
       ))}
     </motion.div>
@@ -85,24 +87,24 @@ function SubmissionsTab() {
 function EarningsTab() {
   const totalEarned = MONTHLY_MOCK.reduce((s, m) => s + m.usdc, 0);
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: 'Total Earned', value: `$${totalEarned}`, color: 'text-emerald' },
           { label: 'This Month', value: '$800', color: 'text-emerald' },
           { label: 'Pending', value: '$0', color: 'text-text-muted' },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-border bg-forge-900 p-4">
+          <div key={s.label} className="rounded-xl border border-border bg-forge-900 p-3 sm:p-4">
             <p className="text-xs text-text-muted mb-1">{s.label}</p>
-            <p className={`font-mono text-xl font-bold ${s.color}`}>{s.value}</p>
+            <p className={`font-mono text-lg sm:text-xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
-      <div className="rounded-xl border border-border bg-forge-900 p-4">
-        <p className="text-sm font-medium text-text-secondary mb-4">Monthly Earnings</p>
-        <ResponsiveContainer width="100%" height={180}>
+      <div className="rounded-xl border border-border bg-forge-900 p-3 sm:p-4">
+        <p className="text-sm font-medium text-text-secondary mb-3 sm:mb-4">Monthly Earnings</p>
+        <ResponsiveContainer width="100%" height={150} className="sm:!h-[180px]">
           <BarChart data={MONTHLY_MOCK} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#5C5C78', fontSize: 12, fontFamily: 'JetBrains Mono' }} />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#5C5C78', fontSize: 11, fontFamily: 'JetBrains Mono' }} />
             <YAxis hide />
             <Tooltip
               contentStyle={{ backgroundColor: '#16161F', border: '1px solid #1E1E2E', borderRadius: 8, fontFamily: 'JetBrains Mono', fontSize: 12 }}
@@ -162,19 +164,19 @@ export function ProfileDashboard() {
   const myBounties = bountiesData?.items.filter((b) => b.creator_id === user.id) ?? [];
 
   return (
-    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
+    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {/* Header */}
-      <div className="rounded-xl border border-border bg-forge-900 p-6 mb-6">
-        <div className="flex items-start gap-5">
+      <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5">
           {user.avatar_url ? (
-            <img src={user.avatar_url} className="w-16 h-16 rounded-full border-2 border-border" alt={user.username} />
+            <img src={user.avatar_url} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-border" alt={user.username} />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-forge-700 border-2 border-border flex items-center justify-center">
-              <span className="font-display text-2xl text-text-muted">{user.username[0]?.toUpperCase()}</span>
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-forge-700 border-2 border-border flex items-center justify-center">
+              <span className="font-display text-xl sm:text-2xl text-text-muted">{user.username[0]?.toUpperCase()}</span>
             </div>
           )}
           <div className="flex-1">
-            <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
+            <h1 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">{user.username}</h1>
             <p className="mt-1 font-mono text-sm text-text-muted">
               Joined {joinDate} · {myBounties.length} bounties created
             </p>
@@ -182,12 +184,12 @@ export function ProfileDashboard() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-4 sm:mt-6 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors duration-150 whitespace-nowrap ${
                 activeTab === tab
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary'
