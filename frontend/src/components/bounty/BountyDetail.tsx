@@ -2,11 +2,57 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
-import type { Bounty } from '../../types/bounty';
+import type { Bounty, LLMReviewSummary } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { LLMReviewPanel } from './LLMReviewPanel';
 import { fadeIn } from '../../lib/animations';
+
+// Mock LLM review data — in production this comes from the backend
+function getMockLLMReview(bountyId: string): LLMReviewSummary {
+  const hash = bountyId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const base = (hash % 30 + 60) / 10; // 6.0 – 8.9
+  return {
+    reviews: [
+      {
+        model: 'claude',
+        score: Math.min(10, +(base + 0.3).toFixed(1)),
+        confidence: 87,
+        summary: 'Well-structured implementation with clear separation of concerns. The component architecture follows React best practices with proper state management.',
+        strengths: ['Clean component hierarchy', 'Proper TypeScript typing', 'Accessible markup'],
+        improvements: ['Add error boundary handling', 'Consider memoization for heavy computations'],
+        reasoning: 'The submission demonstrates solid understanding of the requirements. Code quality is high with consistent formatting. Minor issues with edge case handling but overall a strong submission.',
+        reviewed_at: new Date().toISOString(),
+      },
+      {
+        model: 'codex',
+        score: Math.min(10, +(base - 0.1).toFixed(1)),
+        confidence: 82,
+        summary: 'Functional implementation meeting core requirements. Good use of the existing design system components.',
+        strengths: ['Consistent with codebase patterns', 'Good test coverage structure'],
+        improvements: ['Enhance loading states', 'Add skeleton placeholders'],
+        reviewed_at: new Date().toISOString(),
+      },
+      {
+        model: 'gemini',
+        score: Math.min(10, +(base + 0.1).toFixed(1)),
+        confidence: 79,
+        summary: 'Solid implementation with attention to UX details. Responsive design works well across breakpoints.',
+        strengths: ['Responsive layout', 'Smooth animations', 'Clear visual hierarchy'],
+        improvements: ['Optimize bundle size', 'Add ARIA labels for interactive elements'],
+        reviewed_at: new Date().toISOString(),
+      },
+    ],
+    average_score: +((base + 0.3 + base - 0.1 + base + 0.1) / 3).toFixed(1),
+    consensus: base >= 7.5 ? 'strong_approve' : base >= 6.5 ? 'approve' : base >= 5 ? 'mixed' : 'reject',
+    quality_indicators: {
+      code_quality: Math.min(10, +(base + 0.2).toFixed(1)),
+      completeness: Math.min(10, +(base - 0.3).toFixed(1)),
+      adherence: Math.min(10, +(base + 0.1).toFixed(1)),
+    },
+  };
+}
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -91,6 +137,9 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
             </p>
           </div>
+
+          {/* LLM Review Results */}
+          <LLMReviewPanel summary={getMockLLMReview(bounty.id)} />
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (

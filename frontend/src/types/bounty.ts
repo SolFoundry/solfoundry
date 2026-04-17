@@ -72,3 +72,25 @@ export interface EscrowVerifyResult {
   amount_verified?: number;
   error?: string;
 }
+
+export interface LLMReview {
+  model: 'claude' | 'codex' | 'gemini';
+  score: number;          // 0-10
+  confidence: number;     // 0-100 percentage
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  reasoning?: string;
+  reviewed_at: string;
+}
+
+export interface LLMReviewSummary {
+  reviews: LLMReview[];
+  average_score: number;
+  consensus: 'strong_approve' | 'approve' | 'mixed' | 'reject';
+  quality_indicators: {
+    code_quality: number;
+    completeness: number;
+    adherence: number;
+  };
+}
