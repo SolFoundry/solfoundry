@@ -1,0 +1,38 @@
+# GitHub Issue Scraper Configuration
+# Edit this file to configure which repos to monitor
+
+# List of GitHub repositories to scrape issues from
+repos:
+  - "SolFoundry/solfoundry"
+  # Add more repos here:
+  # - "owner/repo"
+  # - "organization/project"
+
+# Only process issues with these labels (empty = all issues)
+labels_filter:
+  - "bug"
+  - "feature"
+  - "enhancement"
+  - "help wanted"
+  - "good first issue"
+
+# Minimum bounty tier to generate (1, 2, or 3)
+min_reward_tier: 1
+
+# Maximum issues to fetch per repository
+max_issues_per_repo: 30
+
+# Polling interval in seconds (for scheduled scraping)
+poll_interval_seconds: 300
+
+# GitHub personal access token (or set GITHUB_TOKEN env var)
+github_token: ""
+
+# Webhook secret for signature verification (or set WEBHOOK_SECRET env var)
+webhook_secret: ""
+
+# SolFoundry API URL for auto-posting (optional)
+solfoundry_api_url: ""
+
+# Output directory for generated bounty specs
+output_dir: "specs"
