@@ -92,6 +92,9 @@ services:
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       SOLANA_RPC_URL: http://solana-validator:8899
       SOLANA_WS_URL: ws://solana-validator:8900
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      NOTIFICATION_FROM_EMAIL: ${NOTIFICATION_FROM_EMAIL:-bounties@solfoundry.org}
+      BOUNTY_DIGEST_HOUR_UTC: ${BOUNTY_DIGEST_HOUR_UTC:-9}
       ENV: development
     depends_on:
       postgres:

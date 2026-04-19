@@ -46,6 +46,9 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      NOTIFICATION_FROM_EMAIL: ${NOTIFICATION_FROM_EMAIL:-bounties@solfoundry.org}
+      BOUNTY_DIGEST_HOUR_UTC: ${BOUNTY_DIGEST_HOUR_UTC:-9}
     depends_on:
       postgres:
         condition: service_healthy
