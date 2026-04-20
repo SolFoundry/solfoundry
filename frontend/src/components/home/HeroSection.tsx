@@ -98,7 +98,7 @@ export function HeroSection() {
         variants={fadeIn}
         initial="initial"
         animate="animate"
-        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
+        className="w-full max-w-[18rem] sm:max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
       >
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
@@ -154,7 +154,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10 px-2 leading-tight"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +164,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg px-4"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -211,7 +211,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-8 font-mono text-xs sm:text-sm text-text-muted px-4"
       >
         <span>
           <span className="text-text-primary font-semibold">
