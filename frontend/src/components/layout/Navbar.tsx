@@ -195,6 +195,14 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              {!isAuthenticated && (
+                <button
+                  onClick={handleGitHubSignIn}
+                  className="mt-2 px-4 py-2.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150 text-sm font-medium text-left inline-flex items-center gap-2"
+                >
+                  <GitHubIcon /> Sign in with GitHub
+                </button>
+              )}
             </div>
           </motion.div>
         )}

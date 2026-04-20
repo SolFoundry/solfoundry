@@ -123,6 +123,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #050505;
   color: #F0F0F5;
+  overflow-x: hidden;
+}
+
+/* Responsive typography scaling */
+@media (max-width: 375px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Prevent horizontal scroll on all mobile screens */
+* {
+  max-width: 100vw;
 }
 
 /* Custom scrollbar */
