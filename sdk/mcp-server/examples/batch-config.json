@@ -1,0 +1,31 @@
+{
+  "bounties": [
+    {
+      "title": "Add Python SDK Examples",
+      "description": "Create a Python SDK with examples for interacting with SolFoundry's bounty API. Include authentication, bounty CRUD, and submission workflows.",
+      "reward_amount": 500000,
+      "reward_token": "FNDRY",
+      "tier": "T2",
+      "skills": ["python", "api", "sdk"],
+      "github_repo_url": "https://github.com/SolFoundry/solfoundry"
+    },
+    {
+      "title": "Build Bounty Analytics Dashboard",
+      "description": "Create a web dashboard showing bounty analytics: completion rates, average rewards, top contributors, and time-to-merge metrics.",
+      "reward_amount": 800000,
+      "reward_token": "FNDRY",
+      "tier": "T2",
+      "skills": ["react", "typescript", "data-visualization"],
+      "github_repo_url": "https://github.com/SolFoundry/solfoundry"
+    },
+    {
+      "title": "Write Integration Tests for API",
+      "description": "Add comprehensive integration tests for the SolFoundry REST API covering all bounty endpoints, auth flows, and error cases.",
+      "reward_amount": 400000,
+      "reward_token": "FNDRY",
+      "tier": "T1",
+      "skills": ["testing", "python", "api"],
+      "github_repo_url": "https://github.com/SolFoundry/solfoundry"
+    }
+  ]
+}
