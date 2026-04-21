@@ -2,47 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
-
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
-
-// Mock events for when API doesn't return activity
-const MOCK_EVENTS: ActivityEvent[] = [
-  {
-    id: '1',
-    type: 'completed',
-    username: 'devbuilder',
-    detail: '$500 USDC from Bounty #42',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'submitted',
-    username: 'KodeSage',
-    detail: 'PR to Bounty #38',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'posted',
-    username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'review',
-    username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
+import { useActivityFeed } from '../../hooks/useActivityFeed';
+import type { ActivityEvent } from '../../api/activity';
 
 function getActionText(type: ActivityEvent['type']) {
   switch (type) {
@@ -50,6 +11,7 @@ function getActionText(type: ActivityEvent['type']) {
     case 'submitted': return 'submitted';
     case 'posted': return 'posted';
     case 'review': return 'AI Review passed for';
+    case 'payout': return 'paid';
     default: return 'updated';
   }
 }
@@ -76,12 +38,17 @@ function EventItem({ event }: { event: ActivityEvent }) {
 }
 
 export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
+  const activityQuery = useActivityFeed();
+  const isControlled = events !== undefined;
+  const displayEvents = isControlled ? events : activityQuery.data ?? [];
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
     setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  }, [displayEvents]);
+
+  const isUnavailable = !isControlled && activityQuery.isError;
+  const isEmpty = !isUnavailable && !activityQuery.isLoading && visibleEvents.length === 0;
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -91,20 +58,31 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
         <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {activityQuery.isLoading && !isControlled ? (
+            <p className="px-3 py-2 text-sm text-text-muted">Loading recent activity...</p>
+          ) : null}
+          {isUnavailable ? (
+            <p className="px-3 py-2 text-sm text-text-muted">Activity feed is temporarily unavailable.</p>
+          ) : null}
+          {isEmpty ? (
+            <p className="px-3 py-2 text-sm text-text-muted">No recent activity.</p>
+          ) : null}
+          {!activityQuery.isLoading && !isUnavailable && visibleEvents.length > 0 ? (
+            <AnimatePresence mode="popLayout">
+              {visibleEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          ) : null}
         </div>
       </div>
     </section>
