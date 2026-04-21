@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Clock, GitPullRequest, DollarSign, Settings, Flame, Trophy } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
 import type { Bounty } from '../../types/bounty';
 
-const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
+const TABS = ['My Bounties', 'My Submissions', 'Activity', 'Earnings', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
 const MONTHLY_MOCK = [
@@ -17,6 +17,79 @@ const MONTHLY_MOCK = [
   { month: 'Mar', usdc: 150, fndry: 0 },
   { month: 'Apr', usdc: 800, fndry: 100000 },
 ];
+
+type GitHubActivityPoint = {
+  date: string;
+  commits: number;
+  prs: number;
+  issues: number;
+};
+
+function buildEmptyActivity(): GitHubActivityPoint[] {
+  return Array.from({ length: 14 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (13 - index));
+    return {
+      date: date.toISOString().slice(5, 10),
+      commits: 0,
+      prs: 0,
+      issues: 0,
+    };
+  });
+}
+
+function calculateStreak(activity: GitHubActivityPoint[]): number {
+  let streak = 0;
+  for (let i = activity.length - 1; i >= 0; i -= 1) {
+    const point = activity[i];
+    if (point.commits + point.prs + point.issues === 0) break;
+    streak += 1;
+  }
+  return streak;
+}
+
+function useGitHubActivity(username?: string) {
+  const [activity, setActivity] = useState<GitHubActivityPoint[]>(buildEmptyActivity);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!username) return;
+    let cancelled = false;
+    setLoading(true);
+
+    fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((events: Array<{ type: string; created_at: string; payload?: { commits?: unknown[]; action?: string } }>) => {
+        if (cancelled) return;
+        const points = buildEmptyActivity();
+        const byDate = new Map(points.map((point) => [point.date, point]));
+
+        events.forEach((event) => {
+          const key = new Date(event.created_at).toISOString().slice(5, 10);
+          const point = byDate.get(key);
+          if (!point) return;
+
+          if (event.type === 'PushEvent') point.commits += event.payload?.commits?.length || 1;
+          if (event.type === 'PullRequestEvent' && event.payload?.action === 'opened') point.prs += 1;
+          if (event.type === 'IssuesEvent' && event.payload?.action === 'opened') point.issues += 1;
+        });
+
+        setActivity(points);
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(buildEmptyActivity());
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
+
+  return { activity, loading };
+}
 
 function BountyStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -117,6 +190,38 @@ function EarningsTab() {
   );
 }
 
+function ActivityTab({ activity, loading }: { activity: GitHubActivityPoint[]; loading: boolean }) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-forge-900 p-4">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="text-sm font-medium text-text-secondary">GitHub Activity</p>
+          {loading && <span className="font-mono text-xs text-text-muted">syncing</span>}
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={activity} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke="#1E1E2E" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#5C5C78', fontSize: 12, fontFamily: 'JetBrains Mono' }} />
+            <YAxis allowDecimals={false} width={28} axisLine={false} tickLine={false} tick={{ fill: '#5C5C78', fontSize: 12, fontFamily: 'JetBrains Mono' }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#16161F', border: '1px solid #1E1E2E', borderRadius: 8, fontFamily: 'JetBrains Mono', fontSize: 12 }}
+              labelStyle={{ color: '#A0A0B8' }}
+            />
+            <Line type="monotone" dataKey="commits" stroke="#00E676" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="prs" stroke="#40C4FF" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="issues" stroke="#E040FB" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid grid-cols-3 gap-3 text-xs text-text-muted">
+        <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald" /> Commits</span>
+        <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-status-info" /> PRs</span>
+        <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-magenta" /> Issues</span>
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const { user } = useAuth();
   return (
@@ -152,6 +257,7 @@ export function ProfileDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('My Bounties');
   const { data: bountiesData, isLoading } = useBounties({ limit: 50 });
+  const { activity, loading: activityLoading } = useGitHubActivity(user?.username);
 
   if (!user) return null;
 
@@ -160,6 +266,9 @@ export function ProfileDashboard() {
     : 'Recently';
 
   const myBounties = bountiesData?.items.filter((b) => b.creator_id === user.id) ?? [];
+  const completedBounties = myBounties.filter((b) => b.status === 'completed').length;
+  const totalEarned = MONTHLY_MOCK.reduce((sum, item) => sum + item.usdc, 0);
+  const contributionStreak = useMemo(() => calculateStreak(activity), [activity]);
 
   return (
     <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
@@ -179,6 +288,23 @@ export function ProfileDashboard() {
               Joined {joinDate} · {myBounties.length} bounties created
             </p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+          {[
+            { label: 'Total Earned', value: `$${totalEarned.toLocaleString()}`, icon: DollarSign, color: 'text-emerald' },
+            { label: 'Completed', value: completedBounties.toString(), icon: Trophy, color: 'text-status-info' },
+            { label: 'Contributions', value: activity.reduce((sum, point) => sum + point.commits + point.prs + point.issues, 0).toString(), icon: GitPullRequest, color: 'text-magenta' },
+            { label: 'Streak', value: `${contributionStreak}d`, icon: Flame, color: 'text-status-warning' },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-lg border border-border bg-forge-850 p-3">
+              <div className="flex items-center gap-2 text-xs text-text-muted">
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                {stat.label}
+              </div>
+              <p className={`mt-2 font-mono text-xl font-bold ${stat.color}`}>{stat.value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Tab switcher */}
@@ -203,6 +329,7 @@ export function ProfileDashboard() {
       <div>
         {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
         {activeTab === 'My Submissions' && <SubmissionsTab />}
+        {activeTab === 'Activity' && <ActivityTab activity={activity} loading={activityLoading} />}
         {activeTab === 'Earnings' && <EarningsTab />}
         {activeTab === 'Settings' && <SettingsTab />}
       </div>
