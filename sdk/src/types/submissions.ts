@@ -59,25 +59,41 @@ export interface Submission extends Timestamps {
 
 /**
  * Payload for creating a submission.
+ *
+ * At least one of `artifactUrl` or `content` must be provided.
  */
-export interface CreateSubmissionInput {
+type CreateSubmissionBase = {
   /**
    * Associated bounty identifier.
    */
   bountyId: ResourceId;
   /**
-   * URL pointing at the submission artifact.
-   */
-  artifactUrl?: string;
-  /**
-   * Text summary of the submission.
-   */
-  content?: string;
-  /**
    * Additional provider-defined attributes.
    */
   metadata?: JsonObject;
-}
+};
+
+export type CreateSubmissionInput =
+  | (CreateSubmissionBase & {
+      /**
+       * URL pointing at the submission artifact.
+       */
+      artifactUrl: string;
+      /**
+       * Text summary of the submission.
+       */
+      content?: string;
+    })
+  | (CreateSubmissionBase & {
+      /**
+       * URL pointing at the submission artifact.
+       */
+      artifactUrl?: string;
+      /**
+       * Text summary of the submission.
+       */
+      content: string;
+    });
 
 /**
  * Payload for reviewing a submission.

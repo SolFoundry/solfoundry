@@ -2,18 +2,25 @@ import type { JsonObject, RateLimitState } from "./common.js";
 
 /**
  * Supported authentication configuration.
+ *
+ * In {@link SolFoundryAuthConfig}, {@link getAccessToken} takes precedence over
+ * {@link accessToken}. When {@link getAccessToken} returns `undefined`,
+ * {@link accessToken} is used as a fallback. {@link apiKey} is always sent as
+ * the `X-API-Key` header in addition to any bearer token.
  */
 export interface SolFoundryAuthConfig {
   /**
-   * Static bearer token used for all requests.
+   * Static bearer token used for all requests when {@link getAccessToken}
+   * does not provide one.
    */
   accessToken?: string;
   /**
-   * API key sent as `X-API-Key`.
+   * API key sent as `X-API-Key` alongside any bearer token.
    */
   apiKey?: string;
   /**
-   * Custom callback for resolving a bearer token lazily.
+   * Custom callback for resolving a bearer token lazily before falling back to
+   * {@link accessToken}.
    */
   getAccessToken?: () => string | undefined | Promise<string | undefined>;
 }

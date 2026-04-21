@@ -169,9 +169,9 @@ try {
 
 ## Documentation
 
-- API guide: [docs/API.md](/Users/akii/.openclaw/workspace/solfoundry-sdk/docs/API.md)
-- Main client: [src/client/SolFoundryClient.ts](/Users/akii/.openclaw/workspace/solfoundry-sdk/src/client/SolFoundryClient.ts)
-- Exported types: [src/types/index.ts](/Users/akii/.openclaw/workspace/solfoundry-sdk/src/types/index.ts)
+- API guide: [docs/API.md](docs/API.md)
+- Main client: [src/client/SolFoundryClient.ts](src/client/SolFoundryClient.ts)
+- Exported types: [src/types/index.ts](src/types/index.ts)
 
 ## Development
 

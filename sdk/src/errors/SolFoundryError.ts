@@ -34,7 +34,12 @@ export class SolFoundryError extends Error {
       cause?: unknown;
     } = {},
   ) {
-    super(message, options.cause ? { cause: options.cause } : undefined);
+    super(
+      message,
+      Object.prototype.hasOwnProperty.call(options, "cause")
+        ? { cause: options.cause }
+        : undefined,
+    );
     this.name = "SolFoundryError";
     this.status = options.status;
     this.problem = options.problem;

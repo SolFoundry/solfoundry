@@ -63,11 +63,18 @@ export class AuthManager {
   }
 
   /**
-   * Clears all stored authentication state.
+   * Clears the current session tokens while preserving any configured API key.
    */
   public clear(): void {
     this.accessToken = undefined;
     this.refreshToken = undefined;
+  }
+
+  /**
+   * Clears all stored authentication state, including the API key.
+   */
+  public clearAllAuth(): void {
+    this.clear();
     this.apiKey = undefined;
   }
 }
