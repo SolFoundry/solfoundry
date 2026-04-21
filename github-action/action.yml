@@ -1,0 +1,51 @@
+name: 'SolFoundry Bounty Creator'
+description: 'Automatically convert labeled GitHub issues into SolFoundry bounties'
+author: 'OpenClaw-Auditor'
+branding:
+  icon: 'gift'
+  color: 'purple'
+
+inputs:
+  solfoundry-api-url:
+    description: 'SolFoundry API base URL'
+    required: false
+    default: 'https://solfoundry.com/api'
+  api-key:
+    description: 'SolFoundry API key for authentication'
+    required: true
+  bounty-label:
+    description: 'Label that triggers bounty creation'
+    required: false
+    default: 'bounty'
+  reward-amount:
+    description: 'Default reward amount in FNDRY tokens'
+    required: false
+    default: '100000'  # 100K FNDRY
+  reward-token:
+    description: 'Reward token type (FNDRY or USDC)'
+    required: false
+    default: 'FNDRY'
+  tier:
+    description: 'Bounty tier (T1, T2, or T3)'
+    required: false
+    default: 'T2'
+  deadline-days:
+    description: 'Number of days until bounty deadline'
+    required: false
+    default: '30'
+  dry-run:
+    description: 'Run in dry-run mode without creating bounty'
+    required: false
+    default: 'false'
+
+outputs:
+  bounty-id:
+    description: 'ID of the created bounty'
+  bounty-url:
+    description: 'URL to the created bounty on SolFoundry'
+  status:
+    description: 'Status of the action (success, skipped, failed)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
