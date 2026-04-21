@@ -33,11 +33,11 @@
 }
 
 .widget[data-direction='up'] {
-  animation: pulseUp 650ms ease;
+  animation: pulse-up 650ms ease;
 }
 
 .widget[data-direction='down'] {
-  animation: pulseDown 650ms ease;
+  animation: pulse-down 650ms ease;
 }
 
 .light {
@@ -294,7 +294,7 @@
   }
 }
 
-@keyframes pulseUp {
+@keyframes pulse-up {
   0% {
     transform: scale(1);
     box-shadow: 0 24px 70px rgba(17, 24, 39, 0.14);
@@ -308,7 +308,7 @@
   }
 }
 
-@keyframes pulseDown {
+@keyframes pulse-down {
   0% {
     transform: scale(1);
     box-shadow: 0 24px 70px rgba(17, 24, 39, 0.14);

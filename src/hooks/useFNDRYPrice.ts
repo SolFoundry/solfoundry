@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DexScreenerPair, FNDRYPriceData, FNDRYPriceHookOptions, PricePoint } from '../types';
+import type {
+  DexScreenerPair,
+  FNDRYPriceData,
+  FNDRYPriceHookOptions,
+  FNDRYPriceHookResult,
+  PricePoint,
+} from '../types';
 
 const DEFAULT_CHAIN_ID = 'solana';
 const DEFAULT_TOKEN_ADDRESS = '2ZiSPGncrkwWa6GBZB4EDtsfq7HEWwkwsPFzEXieXjNL';
@@ -62,7 +68,7 @@ async function fetchTokenPairs(
   return Array.isArray(payload) ? payload : [];
 }
 
-export function useFNDRYPrice(options: FNDRYPriceHookOptions = {}) {
+export function useFNDRYPrice(options: FNDRYPriceHookOptions = {}): FNDRYPriceHookResult {
   const {
     tokenAddress = DEFAULT_TOKEN_ADDRESS,
     chainId = DEFAULT_CHAIN_ID,
@@ -105,7 +111,10 @@ export function useFNDRYPrice(options: FNDRYPriceHookOptions = {}) {
         throw new Error('FNDRY pair data is unavailable right now.');
       }
 
-      const priceUsd = Number(bestPair.priceUsd);
+      const priceUsd = Number.parseFloat(bestPair.priceUsd);
+      if (!Number.isFinite(priceUsd)) {
+        throw new Error('FNDRY pair price is invalid or unavailable.');
+      }
       const priceChange24h = bestPair.priceChange?.h24 ?? 0;
       const volume24h = bestPair.volume?.h24 ?? null;
       const marketCap = bestPair.marketCap ?? null;

@@ -1,9 +1,3 @@
-import type { FNDRYPriceData, FNDRYPriceHookOptions } from '../types';
-export declare function useFNDRYPrice(options?: FNDRYPriceHookOptions): {
-    data: FNDRYPriceData | null;
-    error: string | null;
-    isLoading: boolean;
-    isRefreshing: boolean;
-    retry: () => Promise<void>;
-};
+import type { FNDRYPriceHookOptions, FNDRYPriceHookResult } from '../types';
+export declare function useFNDRYPrice(options?: FNDRYPriceHookOptions): FNDRYPriceHookResult;
 //# sourceMappingURL=useFNDRYPrice.d.ts.map

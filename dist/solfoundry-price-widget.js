@@ -1,4 +1,4 @@
-import de, { useState as ee, useRef as re, useCallback as ue, useEffect as pe } from "react";
+import pe, { useState as ee, useRef as re, useCallback as ue, useEffect as ve } from "react";
 var te = { exports: {} }, K = {};
 /**
  * @license React
@@ -10,10 +10,10 @@ var te = { exports: {} }, K = {};
  * LICENSE file in the root directory of this source tree.
  */
 var le;
-function ve() {
+function he() {
   if (le) return K;
   le = 1;
-  var M = Symbol.for("react.transitional.element"), z = Symbol.for("react.fragment");
+  var j = Symbol.for("react.transitional.element"), Y = Symbol.for("react.fragment");
   function W(m, i, n) {
     var s = null;
     if (n !== void 0 && (s = "" + n), i.key !== void 0 && (s = "" + i.key), "key" in i) {
@@ -22,14 +22,14 @@ function ve() {
         f !== "key" && (n[f] = i[f]);
     } else n = i;
     return i = n.ref, {
-      $$typeof: M,
+      $$typeof: j,
       type: m,
       key: s,
       ref: i !== void 0 ? i : null,
       props: n
     };
   }
-  return K.Fragment = z, K.jsx = W, K.jsxs = W, K;
+  return K.Fragment = Y, K.jsx = W, K.jsxs = W, K;
 }
 var $ = {};
 /**
@@ -42,9 +42,9 @@ var $ = {};
  * LICENSE file in the root directory of this source tree.
  */
 var se;
-function he() {
+function ye() {
   return se || (se = 1, process.env.NODE_ENV !== "production" && (function() {
-    function M(l) {
+    function j(l) {
       if (l == null) return null;
       if (typeof l == "function")
         return l.$$typeof === A ? null : l.displayName || l.name || null;
@@ -60,7 +60,7 @@ function he() {
           return "Suspense";
         case w:
           return "SuspenseList";
-        case q:
+        case V:
           return "Activity";
       }
       if (typeof l == "object")
@@ -77,22 +77,22 @@ function he() {
             var o = l.render;
             return l = l.displayName, l || (l = o.displayName || o.name || "", l = l !== "" ? "ForwardRef(" + l + ")" : "ForwardRef"), l;
           case O:
-            return o = l.displayName || null, o !== null ? o : M(l.type) || "Memo";
-          case x:
+            return o = l.displayName || null, o !== null ? o : j(l.type) || "Memo";
+          case R:
             o = l._payload, l = l._init;
             try {
-              return M(l(o));
+              return j(l(o));
             } catch {
             }
         }
       return null;
     }
-    function z(l) {
+    function Y(l) {
       return "" + l;
     }
     function W(l) {
       try {
-        z(l);
+        Y(l);
         var o = !1;
       } catch {
         o = !0;
@@ -104,15 +104,15 @@ function he() {
           o,
           "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
           k
-        ), z(l);
+        ), Y(l);
       }
     }
     function m(l) {
       if (l === a) return "<>";
-      if (typeof l == "object" && l !== null && l.$$typeof === x)
+      if (typeof l == "object" && l !== null && l.$$typeof === R)
         return "<...>";
       try {
-        var o = M(l);
+        var o = j(l);
         return o ? "<" + o + ">" : "<...>";
       } catch {
         return "<...>";
@@ -145,12 +145,12 @@ function he() {
       });
     }
     function d() {
-      var l = M(this.type);
+      var l = j(this.type);
       return P[l] || (P[l] = !0, console.error(
         "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
       )), l = this.props.ref, l !== void 0 ? l : null;
     }
-    function v(l, o, y, k, U, F) {
+    function v(l, o, y, k, F, U) {
       var S = y.ref;
       return l = {
         $$typeof: T,
@@ -175,15 +175,15 @@ function he() {
         configurable: !1,
         enumerable: !1,
         writable: !0,
-        value: U
+        value: F
       }), Object.defineProperty(l, "_debugTask", {
         configurable: !1,
         enumerable: !1,
         writable: !0,
-        value: F
+        value: U
       }), Object.freeze && (Object.freeze(l.props), Object.freeze(l)), l;
     }
-    function u(l, o, y, k, U, F) {
+    function u(l, o, y, k, F, U) {
       var S = o.children;
       if (S !== void 0)
         if (k)
@@ -197,7 +197,7 @@ function he() {
             );
         else h(S);
       if (J.call(o, "key")) {
-        S = M(l);
+        S = j(l);
         var L = Object.keys(o).filter(function(C) {
           return C !== "key";
         });
@@ -227,17 +227,17 @@ React keys must be passed directly to JSX without using spread:
         S,
         y,
         i(),
-        U,
-        F
+        F,
+        U
       );
     }
     function h(l) {
-      g(l) ? l._store && (l._store.validated = 1) : typeof l == "object" && l !== null && l.$$typeof === x && (l._payload.status === "fulfilled" ? g(l._payload.value) && l._payload.value._store && (l._payload.value._store.validated = 1) : l._store && (l._store.validated = 1));
+      g(l) ? l._store && (l._store.validated = 1) : typeof l == "object" && l !== null && l.$$typeof === R && (l._payload.status === "fulfilled" ? g(l._payload.value) && l._payload.value._store && (l._payload.value._store.validated = 1) : l._store && (l._store.validated = 1));
     }
     function g(l) {
       return typeof l == "object" && l !== null && l.$$typeof === T;
     }
-    var E = de, T = Symbol.for("react.transitional.element"), b = Symbol.for("react.portal"), a = Symbol.for("react.fragment"), e = Symbol.for("react.strict_mode"), p = Symbol.for("react.profiler"), r = Symbol.for("react.consumer"), t = Symbol.for("react.context"), c = Symbol.for("react.forward_ref"), _ = Symbol.for("react.suspense"), w = Symbol.for("react.suspense_list"), O = Symbol.for("react.memo"), x = Symbol.for("react.lazy"), q = Symbol.for("react.activity"), A = Symbol.for("react.client.reference"), G = E.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, J = Object.prototype.hasOwnProperty, X = Array.isArray, Z = console.createTask ? console.createTask : function() {
+    var E = pe, T = Symbol.for("react.transitional.element"), b = Symbol.for("react.portal"), a = Symbol.for("react.fragment"), e = Symbol.for("react.strict_mode"), p = Symbol.for("react.profiler"), r = Symbol.for("react.consumer"), t = Symbol.for("react.context"), c = Symbol.for("react.forward_ref"), _ = Symbol.for("react.suspense"), w = Symbol.for("react.suspense_list"), O = Symbol.for("react.memo"), R = Symbol.for("react.lazy"), V = Symbol.for("react.activity"), A = Symbol.for("react.client.reference"), G = E.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, J = Object.prototype.hasOwnProperty, X = Array.isArray, Z = console.createTask ? console.createTask : function() {
       return null;
     };
     E = {
@@ -273,15 +273,15 @@ React keys must be passed directly to JSX without using spread:
   })()), $;
 }
 var ce;
-function ye() {
-  return ce || (ce = 1, process.env.NODE_ENV === "production" ? te.exports = ve() : te.exports = he()), te.exports;
+function me() {
+  return ce || (ce = 1, process.env.NODE_ENV === "production" ? te.exports = he() : te.exports = ye()), te.exports;
 }
-var R = ye(), ae = { exports: {} }, me = ae.exports, fe;
-function ge() {
-  return fe || (fe = 1, (function(M, z) {
+var x = me(), ae = { exports: {} }, ge = ae.exports, fe;
+function _e() {
+  return fe || (fe = 1, (function(j, Y) {
     (function(m, i) {
-      M.exports = i(de);
-    })(me, function(W) {
+      j.exports = i(pe);
+    })(ge, function(W) {
       return (
         /******/
         (function(m) {
@@ -592,7 +592,7 @@ function ge() {
               return function(P, B, N) {
                 return B && D(P.prototype, B), N && D(P, N), P;
               };
-            })(), f = n(0), d = A(f), v = n(1), u = A(v), h = n(17), g = A(h), E = n(18), T = A(E), b = n(19), a = A(b), e = n(20), p = A(e), r = n(21), t = A(r), c = n(22), _ = A(c), w = n(27), O = A(w), x = n(28), q = A(x);
+            })(), f = n(0), d = A(f), v = n(1), u = A(v), h = n(17), g = A(h), E = n(18), T = A(E), b = n(19), a = A(b), e = n(20), p = A(e), r = n(21), t = A(r), c = n(22), _ = A(c), w = n(27), O = A(w), R = n(28), V = A(R);
             function A(D) {
               return D && D.__esModule ? D : { default: D };
             }
@@ -618,14 +618,14 @@ function ge() {
               return s(P, [{
                 key: "render",
                 value: function() {
-                  var N = this.props, H = N.data, l = N.limit, o = N.width, y = N.height, k = N.svgWidth, U = N.svgHeight, F = N.preserveAspectRatio, S = N.margin, L = N.style, I = N.max, C = N.min;
+                  var N = this.props, H = N.data, l = N.limit, o = N.width, y = N.height, k = N.svgWidth, F = N.svgHeight, U = N.preserveAspectRatio, S = N.margin, L = N.style, I = N.max, C = N.min;
                   if (H.length === 0) return null;
-                  var Y = (0, q.default)({ data: H, limit: l, width: o, height: y, margin: S, max: I, min: C }), V = { style: L, viewBox: "0 0 " + o + " " + y, preserveAspectRatio: F };
-                  return k > 0 && (V.width = k), U > 0 && (V.height = U), u.default.createElement(
+                  var z = (0, V.default)({ data: H, limit: l, width: o, height: y, margin: S, max: I, min: C }), q = { style: L, viewBox: "0 0 " + o + " " + y, preserveAspectRatio: U };
+                  return k > 0 && (q.width = k), F > 0 && (q.height = F), u.default.createElement(
                     "svg",
-                    V,
+                    q,
                     u.default.Children.map(this.props.children, function(Q) {
-                      return u.default.cloneElement(Q, { data: H, points: Y, width: o, height: y, margin: S });
+                      return u.default.cloneElement(Q, { data: H, points: z, width: o, height: y, margin: S });
                     })
                   );
                 }
@@ -676,8 +676,8 @@ function ge() {
                   symbol: _("symbol"),
                   any: w(),
                   arrayOf: O,
-                  element: x(),
-                  instanceOf: q,
+                  element: R(),
+                  instanceOf: V,
                   node: X(),
                   objectOf: G,
                   oneOf: A,
@@ -694,8 +694,8 @@ function ge() {
                 function c(o) {
                   if (s.env.NODE_ENV !== "production")
                     var y = {}, k = 0;
-                  function U(S, L, I, C, Y, V, Q) {
-                    if (C = C || e, V = V || I, Q !== u) {
+                  function F(S, L, I, C, z, q, Q) {
+                    if (C = C || e, q = q || I, Q !== u) {
                       if (E)
                         d(
                           !1,
@@ -707,22 +707,22 @@ function ge() {
                         k < 3 && (v(
                           !1,
                           "You are manually calling a React.PropTypes validation function for the `%s` prop on `%s`. This is deprecated and will throw in the standalone `prop-types` package. You may be seeing this warning due to a third-party PropTypes library. See https://fb.me/react-warning-dont-call-proptypes for details.",
-                          V,
+                          q,
                           C
                         ), y[oe] = !0, k++);
                       }
                     }
-                    return L[I] == null ? S ? L[I] === null ? new t("The " + Y + " `" + V + "` is marked as required " + ("in `" + C + "`, but its value is `null`.")) : new t("The " + Y + " `" + V + "` is marked as required in " + ("`" + C + "`, but its value is `undefined`.")) : null : o(L, I, C, Y, V);
+                    return L[I] == null ? S ? L[I] === null ? new t("The " + z + " `" + q + "` is marked as required " + ("in `" + C + "`, but its value is `null`.")) : new t("The " + z + " `" + q + "` is marked as required in " + ("`" + C + "`, but its value is `undefined`.")) : null : o(L, I, C, z, q);
                   }
-                  var F = U.bind(null, !1);
-                  return F.isRequired = U.bind(null, !0), F;
+                  var U = F.bind(null, !1);
+                  return U.isRequired = F.bind(null, !0), U;
                 }
                 function _(o) {
-                  function y(k, U, F, S, L, I) {
-                    var C = k[U], Y = B(C);
-                    if (Y !== o) {
-                      var V = N(C);
-                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + V + "` supplied to `" + F + "`, expected ") + ("`" + o + "`."));
+                  function y(k, F, U, S, L, I) {
+                    var C = k[F], z = B(C);
+                    if (z !== o) {
+                      var q = N(C);
+                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + q + "` supplied to `" + U + "`, expected ") + ("`" + o + "`."));
                     }
                     return null;
                   }
@@ -732,39 +732,39 @@ function ge() {
                   return c(f.thatReturnsNull);
                 }
                 function O(o) {
-                  function y(k, U, F, S, L) {
+                  function y(k, F, U, S, L) {
                     if (typeof o != "function")
-                      return new t("Property `" + L + "` of component `" + F + "` has invalid PropType notation inside arrayOf.");
-                    var I = k[U];
+                      return new t("Property `" + L + "` of component `" + U + "` has invalid PropType notation inside arrayOf.");
+                    var I = k[F];
                     if (!Array.isArray(I)) {
                       var C = B(I);
-                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + F + "`, expected an array."));
+                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + U + "`, expected an array."));
                     }
-                    for (var Y = 0; Y < I.length; Y++) {
-                      var V = o(I, Y, F, S, L + "[" + Y + "]", u);
-                      if (V instanceof Error)
-                        return V;
+                    for (var z = 0; z < I.length; z++) {
+                      var q = o(I, z, U, S, L + "[" + z + "]", u);
+                      if (q instanceof Error)
+                        return q;
                     }
                     return null;
                   }
                   return c(y);
                 }
-                function x() {
-                  function o(y, k, U, F, S) {
+                function R() {
+                  function o(y, k, F, U, S) {
                     var L = y[k];
                     if (!g(L)) {
                       var I = B(L);
-                      return new t("Invalid " + F + " `" + S + "` of type " + ("`" + I + "` supplied to `" + U + "`, expected a single ReactElement."));
+                      return new t("Invalid " + U + " `" + S + "` of type " + ("`" + I + "` supplied to `" + F + "`, expected a single ReactElement."));
                     }
                     return null;
                   }
                   return c(o);
                 }
-                function q(o) {
-                  function y(k, U, F, S, L) {
-                    if (!(k[U] instanceof o)) {
-                      var I = o.name || e, C = l(k[U]);
-                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + F + "`, expected ") + ("instance of `" + I + "`."));
+                function V(o) {
+                  function y(k, F, U, S, L) {
+                    if (!(k[F] instanceof o)) {
+                      var I = o.name || e, C = l(k[F]);
+                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + U + "`, expected ") + ("instance of `" + I + "`."));
                     }
                     return null;
                   }
@@ -773,27 +773,27 @@ function ge() {
                 function A(o) {
                   if (!Array.isArray(o))
                     return s.env.NODE_ENV !== "production" && v(!1, "Invalid argument supplied to oneOf, expected an instance of array."), f.thatReturnsNull;
-                  function y(k, U, F, S, L) {
-                    for (var I = k[U], C = 0; C < o.length; C++)
+                  function y(k, F, U, S, L) {
+                    for (var I = k[F], C = 0; C < o.length; C++)
                       if (r(I, o[C]))
                         return null;
-                    var Y = JSON.stringify(o);
-                    return new t("Invalid " + S + " `" + L + "` of value `" + I + "` " + ("supplied to `" + F + "`, expected one of " + Y + "."));
+                    var z = JSON.stringify(o);
+                    return new t("Invalid " + S + " `" + L + "` of value `" + I + "` " + ("supplied to `" + U + "`, expected one of " + z + "."));
                   }
                   return c(y);
                 }
                 function G(o) {
-                  function y(k, U, F, S, L) {
+                  function y(k, F, U, S, L) {
                     if (typeof o != "function")
-                      return new t("Property `" + L + "` of component `" + F + "` has invalid PropType notation inside objectOf.");
-                    var I = k[U], C = B(I);
+                      return new t("Property `" + L + "` of component `" + U + "` has invalid PropType notation inside objectOf.");
+                    var I = k[F], C = B(I);
                     if (C !== "object")
-                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + F + "`, expected an object."));
-                    for (var Y in I)
-                      if (I.hasOwnProperty(Y)) {
-                        var V = o(I, Y, F, S, L + "." + Y, u);
-                        if (V instanceof Error)
-                          return V;
+                      return new t("Invalid " + S + " `" + L + "` of type " + ("`" + C + "` supplied to `" + U + "`, expected an object."));
+                    for (var z in I)
+                      if (I.hasOwnProperty(z)) {
+                        var q = o(I, z, U, S, L + "." + z, u);
+                        if (q instanceof Error)
+                          return q;
                       }
                     return null;
                   }
@@ -812,31 +812,31 @@ function ge() {
                         y
                       ), f.thatReturnsNull;
                   }
-                  function U(F, S, L, I, C) {
-                    for (var Y = 0; Y < o.length; Y++) {
-                      var V = o[Y];
-                      if (V(F, S, L, I, C, u) == null)
+                  function F(U, S, L, I, C) {
+                    for (var z = 0; z < o.length; z++) {
+                      var q = o[z];
+                      if (q(U, S, L, I, C, u) == null)
                         return null;
                     }
                     return new t("Invalid " + I + " `" + C + "` supplied to " + ("`" + L + "`."));
                   }
-                  return c(U);
+                  return c(F);
                 }
                 function X() {
-                  function o(y, k, U, F, S) {
-                    return D(y[k]) ? null : new t("Invalid " + F + " `" + S + "` supplied to " + ("`" + U + "`, expected a ReactNode."));
+                  function o(y, k, F, U, S) {
+                    return D(y[k]) ? null : new t("Invalid " + U + " `" + S + "` supplied to " + ("`" + F + "`, expected a ReactNode."));
                   }
                   return c(o);
                 }
                 function Z(o) {
-                  function y(k, U, F, S, L) {
-                    var I = k[U], C = B(I);
+                  function y(k, F, U, S, L) {
+                    var I = k[F], C = B(I);
                     if (C !== "object")
-                      return new t("Invalid " + S + " `" + L + "` of type `" + C + "` " + ("supplied to `" + F + "`, expected `object`."));
-                    for (var Y in o) {
-                      var V = o[Y];
-                      if (V) {
-                        var Q = V(I, Y, F, S, L + "." + Y, u);
+                      return new t("Invalid " + S + " `" + L + "` of type `" + C + "` " + ("supplied to `" + U + "`, expected `object`."));
+                    for (var z in o) {
+                      var q = o[z];
+                      if (q) {
+                        var Q = q(I, z, U, S, L + "." + z, u);
                         if (Q)
                           return Q;
                       }
@@ -860,15 +860,15 @@ function ge() {
                         return !0;
                       var y = a(o);
                       if (y) {
-                        var k = y.call(o), U;
+                        var k = y.call(o), F;
                         if (y !== o.entries) {
-                          for (; !(U = k.next()).done; )
-                            if (!D(U.value))
+                          for (; !(F = k.next()).done; )
+                            if (!D(F.value))
                               return !1;
                         } else
-                          for (; !(U = k.next()).done; ) {
-                            var F = U.value;
-                            if (F && !D(F[1]))
+                          for (; !(F = k.next()).done; ) {
+                            var U = F.value;
+                            if (U && !D(U[1]))
                               return !1;
                           }
                       } else
@@ -1023,13 +1023,13 @@ function ge() {
               return s(e, [{
                 key: "render",
                 value: function() {
-                  var r = this.props, t = r.point, c = r.text, _ = r.fontSize, w = r.fontFamily, O = t.x, x = t.y;
+                  var r = this.props, t = r.point, c = r.text, _ = r.fontSize, w = r.fontFamily, O = t.x, R = t.y;
                   return u.default.createElement(
                     "g",
                     null,
                     u.default.createElement(
                       "text",
-                      { x: O, y: x, fontFamily: w || "Verdana", fontSize: _ || 10 },
+                      { x: O, y: R, fontFamily: w || "Verdana", fontSize: _ || 10 },
                       c
                     )
                   );
@@ -1090,21 +1090,21 @@ function ge() {
                 value: function() {
                   var r = this.props, t = r.data, c = r.points;
                   r.width;
-                  var _ = r.height, w = r.margin, O = r.color, x = r.style, q = r.onMouseMove, A = c.map(function(P) {
+                  var _ = r.height, w = r.margin, O = r.color, R = r.style, V = r.onMouseMove, A = c.map(function(P) {
                     return [P.x, P.y];
                   }).reduce(function(P, B) {
                     return P.concat(B);
                   }), G = [c[c.length - 1].x, _ - w, w, _ - w, w, c[0].y], J = A.concat(G), X = {
-                    stroke: O || x.stroke || "slategray",
-                    strokeWidth: x.strokeWidth || "1",
-                    strokeLinejoin: x.strokeLinejoin || "round",
-                    strokeLinecap: x.strokeLinecap || "round",
+                    stroke: O || R.stroke || "slategray",
+                    strokeWidth: R.strokeWidth || "1",
+                    strokeLinejoin: R.strokeLinejoin || "round",
+                    strokeLinecap: R.strokeLinecap || "round",
                     fill: "none"
                   }, Z = {
-                    stroke: x.stroke || "none",
+                    stroke: R.stroke || "none",
                     strokeWidth: "0",
-                    fillOpacity: x.fillOpacity || ".1",
-                    fill: x.fill || O || "slategray",
+                    fillOpacity: R.fillOpacity || ".1",
+                    fill: R.fill || O || "slategray",
                     pointerEvents: "auto"
                   }, D = c.map(function(P, B) {
                     return u.default.createElement("circle", {
@@ -1114,10 +1114,10 @@ function ge() {
                       r: 2,
                       style: Z,
                       onMouseEnter: function(H) {
-                        return q("enter", t[B], P);
+                        return V("enter", t[B], P);
                       },
                       onClick: function(H) {
-                        return q("click", t[B], P);
+                        return V("click", t[B], P);
                       }
                     });
                   });
@@ -1184,12 +1184,12 @@ function ge() {
                 value: function() {
                   var r = this.props, t = r.points;
                   r.width;
-                  var c = r.height, _ = r.margin, w = r.color, O = r.style, x = r.divisor, q = x === void 0 ? 0.25 : x, A = void 0, G = function(N) {
+                  var c = r.height, _ = r.margin, w = r.color, O = r.style, R = r.divisor, V = R === void 0 ? 0.25 : R, A = void 0, G = function(N) {
                     var H = void 0;
                     if (!A)
                       H = [N.x, N.y];
                     else {
-                      var l = (N.x - A.x) * q;
+                      var l = (N.x - A.x) * V;
                       H = [
                         "C",
                         //x1
@@ -1281,7 +1281,7 @@ function ge() {
               return s(e, [{
                 key: "render",
                 value: function() {
-                  var r = this, t = this.props, c = t.points, _ = t.height, w = t.style, O = t.barWidth, x = t.margin, q = t.onMouseMove, A = 1 * (w && w.strokeWidth || 0), G = x ? 2 * x : 0, J = O || (c && c.length >= 2 ? Math.max(0, c[1].x - c[0].x - A - G) : 0);
+                  var r = this, t = this.props, c = t.points, _ = t.height, w = t.style, O = t.barWidth, R = t.margin, V = t.onMouseMove, A = 1 * (w && w.strokeWidth || 0), G = R ? 2 * R : 0, J = O || (c && c.length >= 2 ? Math.max(0, c[1].x - c[0].x - A - G) : 0);
                   return u.default.createElement(
                     "g",
                     { transform: "scale(1,-1)" },
@@ -1293,7 +1293,7 @@ function ge() {
                         width: J,
                         height: Math.max(0, _ - X.y),
                         style: w,
-                        onMouseMove: q && q.bind(r, X)
+                        onMouseMove: V && V.bind(r, X)
                       });
                     })
                   );
@@ -1367,7 +1367,7 @@ function ge() {
                     cy: t[0].y,
                     r: c,
                     style: _
-                  }), x = u.default.createElement("circle", {
+                  }), R = u.default.createElement("circle", {
                     cx: t[t.length - 1].x,
                     cy: t[t.length - 1].y,
                     r: c,
@@ -1377,7 +1377,7 @@ function ge() {
                     "g",
                     null,
                     _ && O,
-                    x
+                    R
                   );
                 }
               }]), e;
@@ -1446,15 +1446,15 @@ function ge() {
               return s(t, [{
                 key: "render",
                 value: function() {
-                  var _ = this.props, w = _.points, O = _.margin, x = _.type, q = _.style, A = _.value, G = w.map(function(X) {
+                  var _ = this.props, w = _.points, O = _.margin, R = _.type, V = _.style, A = _.value, G = w.map(function(X) {
                     return X.y;
-                  }), J = x == "custom" ? A : g[x](G);
+                  }), J = R == "custom" ? A : g[R](G);
                   return u.default.createElement("line", {
                     x1: w[0].x,
                     y1: J + O,
                     x2: w[w.length - 1].x,
                     y2: J + O,
-                    style: q
+                    style: V
                   });
                 }
               }]), t;
@@ -1564,15 +1564,15 @@ function ge() {
               return s(c, [{
                 key: "render",
                 value: function() {
-                  var w = this.props, O = w.points, x = w.margin, q = w.style, A = O.map(function(X) {
+                  var w = this.props, O = w.points, R = w.margin, V = w.style, A = O.map(function(X) {
                     return X.y;
                   }), G = (0, g.default)(A), J = (0, T.default)(A);
                   return u.default.createElement("rect", {
                     x: O[0].x,
-                    y: G - J + x,
+                    y: G - J + R,
                     width: O[O.length - 1].x - O[0].x,
                     height: T.default * 2,
-                    style: q
+                    style: V
                   });
                 }
               }]), c;
@@ -1596,11 +1596,11 @@ function ge() {
             i.default = function(h) {
               var g = h.data, E = h.limit, T = h.width, b = T === void 0 ? 1 : T, a = h.height, e = a === void 0 ? 1 : a, p = h.margin, r = p === void 0 ? 0 : p, t = h.max, c = t === void 0 ? (0, v.default)(g) : t, _ = h.min, w = _ === void 0 ? (0, f.default)(g) : _, O = g.length;
               E && E < O && (g = g.slice(O - E));
-              var x = (e - r * 2) / (c - w || 2), q = (b - r * 2) / ((E || O) - (O > 1 ? 1 : 0));
+              var R = (e - r * 2) / (c - w || 2), V = (b - r * 2) / ((E || O) - (O > 1 ? 1 : 0));
               return g.map(function(A, G) {
                 return {
-                  x: G * q + r,
-                  y: (c === w ? 1 : c - A) * x + r
+                  x: G * V + r,
+                  y: (c === w ? 1 : c - A) * R + r
                 };
               });
             };
@@ -1611,24 +1611,24 @@ function ge() {
     });
   })(ae)), ae.exports;
 }
-var ie = ge();
-const _e = "solana", be = "2ZiSPGncrkwWa6GBZB4EDtsfq7HEWwkwsPFzEXieXjNL", Te = 3e4, Ee = 20, we = 1e4;
-function Oe(M, z) {
-  return [...M].filter((W) => W.chainId === z && W.priceUsd).sort((W, m) => {
+var ie = _e();
+const be = "solana", Te = "2ZiSPGncrkwWa6GBZB4EDtsfq7HEWwkwsPFzEXieXjNL", Ee = 3e4, we = 20, Oe = 1e4;
+function Re(j, Y) {
+  return [...j].filter((W) => W.chainId === Y && W.priceUsd).sort((W, m) => {
     var n, s, f, d;
     const i = (((n = m.liquidity) == null ? void 0 : n.usd) ?? 0) - (((s = W.liquidity) == null ? void 0 : s.usd) ?? 0);
     return i !== 0 ? i : (((f = m.volume) == null ? void 0 : f.h24) ?? 0) - (((d = W.volume) == null ? void 0 : d.h24) ?? 0);
   })[0] ?? null;
 }
-function xe(M, z, W) {
+function xe(j, Y, W) {
   const m = {
     timestamp: Date.now(),
-    value: z
-  }, i = M[M.length - 1];
-  return (i && i.value === m.value && m.timestamp - i.timestamp < 5e3 ? [...M.slice(0, -1), m] : [...M, m]).slice(-W);
+    value: Y
+  }, i = j[j.length - 1];
+  return (i && i.value === m.value && m.timestamp - i.timestamp < 5e3 ? [...j.slice(0, -1), m] : [...j, m]).slice(-W);
 }
-async function Re(M, z, W) {
-  const m = await fetch(`https://api.dexscreener.com/token-pairs/v1/${M}/${z}`, {
+async function ke(j, Y, W) {
+  const m = await fetch(`https://api.dexscreener.com/token-pairs/v1/${j}/${Y}`, {
     headers: {
       Accept: "application/json"
     },
@@ -1643,13 +1643,13 @@ async function Re(M, z, W) {
   const i = await m.json();
   return Array.isArray(i) ? i : [];
 }
-function ke(M = {}) {
+function Pe(j = {}) {
   const {
-    tokenAddress: z = be,
-    chainId: W = _e,
-    updateInterval: m = Te,
-    maxHistoryPoints: i = Ee
-  } = M, n = Math.max(m, we), [s, f] = ee(null), [d, v] = ee(null), [u, h] = ee(!0), [g, E] = ee(!1), T = re(null), b = re(null), a = re(!1), e = ue(() => {
+    tokenAddress: Y = Te,
+    chainId: W = be,
+    updateInterval: m = Ee,
+    maxHistoryPoints: i = we
+  } = j, n = Math.max(m, Oe), [s, f] = ee(null), [d, v] = ee(null), [u, h] = ee(!0), [g, E] = ee(!1), T = re(null), b = re(null), a = re(!1), e = ue(() => {
     T.current && (window.clearTimeout(T.current), T.current = null);
   }, []), p = ue(async () => {
     var t, c, _, w;
@@ -1657,37 +1657,40 @@ function ke(M = {}) {
     const r = new AbortController();
     b.current = r, v(null), a.current && E(!0);
     try {
-      const O = await Re(W, z, r.signal), x = Oe(O, W);
-      if (!(x != null && x.priceUsd))
+      const O = await ke(W, Y, r.signal), R = Re(O, W);
+      if (!(R != null && R.priceUsd))
         throw new Error("FNDRY pair data is unavailable right now.");
-      const q = Number(x.priceUsd), A = ((c = x.priceChange) == null ? void 0 : c.h24) ?? 0, G = ((_ = x.volume) == null ? void 0 : _.h24) ?? null, J = x.marketCap ?? null, X = x.fdv ?? null, Z = ((w = x.liquidity) == null ? void 0 : w.usd) ?? null;
+      const V = Number.parseFloat(R.priceUsd);
+      if (!Number.isFinite(V))
+        throw new Error("FNDRY pair price is invalid or unavailable.");
+      const A = ((c = R.priceChange) == null ? void 0 : c.h24) ?? 0, G = ((_ = R.volume) == null ? void 0 : _.h24) ?? null, J = R.marketCap ?? null, X = R.fdv ?? null, Z = ((w = R.liquidity) == null ? void 0 : w.usd) ?? null;
       f((D) => ({
-        priceUsd: q,
+        priceUsd: V,
         priceChange24h: A,
         volume24h: G,
         marketCap: J,
         fdv: X,
         liquidityUsd: Z,
-        pairAddress: x.pairAddress,
-        pairUrl: x.url,
-        dexId: x.dexId,
-        baseSymbol: x.baseToken.symbol,
-        quoteSymbol: x.quoteToken.symbol,
+        pairAddress: R.pairAddress,
+        pairUrl: R.url,
+        dexId: R.dexId,
+        baseSymbol: R.baseToken.symbol,
+        quoteSymbol: R.quoteToken.symbol,
         updatedAt: Date.now(),
-        history: xe((D == null ? void 0 : D.history) ?? [], q, i)
+        history: xe((D == null ? void 0 : D.history) ?? [], V, i)
       })), v(null), a.current = !0;
     } catch (O) {
       if (O.name === "AbortError")
         return;
-      const x = O instanceof Error ? O.message : "Unable to load FNDRY price data.";
-      v(x), T.current = window.setTimeout(() => {
+      const R = O instanceof Error ? O.message : "Unable to load FNDRY price data.";
+      v(R), T.current = window.setTimeout(() => {
         p();
       }, Math.min(n, 15e3));
     } finally {
       h(!1), E(!1);
     }
-  }, [W, e, n, i, z]);
-  return pe(() => {
+  }, [W, e, n, i, Y]);
+  return ve(() => {
     h(!0), p();
     const r = window.setInterval(() => {
       p();
@@ -1704,75 +1707,80 @@ function ke(M = {}) {
     retry: p
   };
 }
-function Pe(M, z = 6) {
-  if (M == null || Number.isNaN(M))
-    return "--";
-  const W = M >= 1 ? 2 : M >= 0.01 ? 4 : z;
-  return new Intl.NumberFormat("en-US", {
+const de = /* @__PURE__ */ new Map();
+function Se(j) {
+  let Y = de.get(j);
+  return Y || (Y = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: W
-  }).format(M);
+    maximumFractionDigits: j
+  }), de.set(j, Y)), Y;
 }
-function ne(M) {
-  return M == null || Number.isNaN(M) ? "--" : new Intl.NumberFormat("en-US", {
+function je(j, Y = 6) {
+  if (j == null || Number.isNaN(j))
+    return "--";
+  const W = j >= 1 ? 2 : j >= 0.01 ? 4 : Y;
+  return Se(W).format(j);
+}
+function ne(j) {
+  return j == null || Number.isNaN(j) ? "--" : new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 2
-  }).format(M);
+  }).format(j);
 }
-function Se(M) {
-  return M == null || Number.isNaN(M) ? "--" : `${M > 0 ? "+" : ""}${M.toFixed(2)}%`;
+function Me(j) {
+  return j == null || !Number.isFinite(j) ? "--" : `${j > 0 ? "+" : ""}${j.toFixed(2)}%`;
 }
-function je(M) {
-  if (!M)
+function Ne(j) {
+  if (j == null)
     return "Waiting for live data";
-  const z = Math.max(0, Math.floor((Date.now() - M) / 1e3));
-  return z < 5 ? "Updated just now" : z < 60 ? `Updated ${z}s ago` : `Updated ${Math.floor(z / 60)}m ago`;
+  const Y = Math.max(0, Math.floor((Date.now() - j) / 1e3));
+  return Y < 5 ? "Updated just now" : Y < 60 ? `Updated ${Y}s ago` : `Updated ${Math.floor(Y / 60)}m ago`;
 }
-const Me = "_widget_1ot14_1", Ne = "_light_1ot14_43", Ae = "_dark_1ot14_51", De = "_small_1ot14_64", Le = "_medium_1ot14_68", Ie = "_large_1ot14_72", Ue = "_header_1ot14_76", Fe = "_priceBlock_1ot14_77", Ce = "_footer_1ot14_78", Be = "_chartHeader_1ot14_79", We = "_metaActions_1ot14_80", Ye = "_subtitle_1ot14_91", ze = "_priceLabel_1ot14_92", Ve = "_statLabel_1ot14_93", qe = "_title_1ot14_101", He = "_tokenBadge_1ot14_107", Ge = "_priceValue_1ot14_129", Je = "_changePill_1ot14_137", Xe = "_positive_1ot14_147", Ze = "_negative_1ot14_152", Qe = "_changeDot_1ot14_157", Ke = "_chartCard_1ot14_165", $e = "_statCard_1ot14_166", et = "_statePanel_1ot14_167", tt = "_inlineError_1ot14_168", nt = "_chartShell_1ot14_186", rt = "_statsGrid_1ot14_196", at = "_statValue_1ot14_207", it = "_retryButton_1ot14_226", ot = "_stateTitle_1ot14_246", ut = "_stateCopy_1ot14_252", j = {
-  widget: Me,
-  light: Ne,
-  dark: Ae,
-  small: De,
-  medium: Le,
-  large: Ie,
-  header: Ue,
-  priceBlock: Fe,
-  footer: Ce,
-  chartHeader: Be,
-  metaActions: We,
-  subtitle: Ye,
-  priceLabel: ze,
-  statLabel: Ve,
-  title: qe,
-  tokenBadge: He,
-  priceValue: Ge,
-  changePill: Je,
-  positive: Xe,
-  negative: Ze,
-  changeDot: Qe,
-  chartCard: Ke,
-  statCard: $e,
-  statePanel: et,
-  inlineError: tt,
-  chartShell: nt,
-  statsGrid: rt,
-  statValue: at,
-  retryButton: it,
-  stateTitle: ot,
-  stateCopy: ut
-}, lt = {
-  small: j.small,
-  medium: j.medium,
-  large: j.large
-}, st = {
-  light: j.light,
-  dark: j.dark
+const Ae = "_widget_1rlag_1", De = "_light_1rlag_43", Le = "_dark_1rlag_51", Ie = "_small_1rlag_64", Fe = "_medium_1rlag_68", Ue = "_large_1rlag_72", Ce = "_header_1rlag_76", Be = "_priceBlock_1rlag_77", Ye = "_footer_1rlag_78", We = "_chartHeader_1rlag_79", ze = "_metaActions_1rlag_80", Ve = "_subtitle_1rlag_91", qe = "_priceLabel_1rlag_92", He = "_statLabel_1rlag_93", Ge = "_title_1rlag_101", Je = "_tokenBadge_1rlag_107", Xe = "_priceValue_1rlag_129", Ze = "_changePill_1rlag_137", Qe = "_positive_1rlag_147", Ke = "_negative_1rlag_152", $e = "_changeDot_1rlag_157", et = "_chartCard_1rlag_165", tt = "_statCard_1rlag_166", nt = "_statePanel_1rlag_167", rt = "_inlineError_1rlag_168", at = "_chartShell_1rlag_186", it = "_statsGrid_1rlag_196", ot = "_statValue_1rlag_207", ut = "_retryButton_1rlag_226", lt = "_stateTitle_1rlag_246", st = "_stateCopy_1rlag_252", M = {
+  widget: Ae,
+  light: De,
+  dark: Le,
+  small: Ie,
+  medium: Fe,
+  large: Ue,
+  header: Ce,
+  priceBlock: Be,
+  footer: Ye,
+  chartHeader: We,
+  metaActions: ze,
+  subtitle: Ve,
+  priceLabel: qe,
+  statLabel: He,
+  title: Ge,
+  tokenBadge: Je,
+  priceValue: Xe,
+  changePill: Ze,
+  positive: Qe,
+  negative: Ke,
+  changeDot: $e,
+  chartCard: et,
+  statCard: tt,
+  statePanel: nt,
+  inlineError: rt,
+  chartShell: at,
+  statsGrid: it,
+  statValue: ot,
+  retryButton: ut,
+  stateTitle: lt,
+  stateCopy: st
+}, ct = {
+  small: M.small,
+  medium: M.medium,
+  large: M.large
+}, ft = {
+  light: M.light,
+  dark: M.dark
 };
-function ft({
-  size: M = "medium",
-  theme: z = "light",
+function pt({
+  size: j = "medium",
+  theme: Y = "light",
   className: W,
   style: m,
   title: i = "FNDRY Price",
@@ -1782,8 +1790,8 @@ function ft({
   showMarketCap: d = !0,
   ...v
 }) {
-  const { data: u, error: h, isLoading: g, isRefreshing: E, retry: T } = ke(v), [b, a] = ee("flat"), e = re(null);
-  pe(() => {
+  const { data: u, error: h, isLoading: g, isRefreshing: E, retry: T } = Pe(v), [b, a] = ee("flat"), e = re(null);
+  ve(() => {
     if (!u)
       return;
     const c = e.current;
@@ -1792,12 +1800,12 @@ function ft({
     return () => window.clearTimeout(_);
   }, [u]);
   const p = u != null && u.history.length ? u.history.length === 1 ? new Array(8).fill(u.history[0].value) : u.history.map((c) => c.value) : [], r = ((u == null ? void 0 : u.priceChange24h) ?? 0) >= 0, t = [
-    j.widget,
-    lt[M],
-    st[z],
+    M.widget,
+    ct[j],
+    ft[Y],
     W
   ].filter(Boolean).join(" ");
-  return /* @__PURE__ */ R.jsxs(
+  return /* @__PURE__ */ x.jsxs(
     "section",
     {
       className: t,
@@ -1805,57 +1813,57 @@ function ft({
       "data-direction": b,
       "aria-live": "polite",
       children: [
-        /* @__PURE__ */ R.jsxs("header", { className: j.header, children: [
-          /* @__PURE__ */ R.jsxs("div", { children: [
-            /* @__PURE__ */ R.jsx("p", { className: j.subtitle, children: n }),
-            /* @__PURE__ */ R.jsx("h2", { className: j.title, children: i })
+        /* @__PURE__ */ x.jsxs("header", { className: M.header, children: [
+          /* @__PURE__ */ x.jsxs("div", { children: [
+            /* @__PURE__ */ x.jsx("p", { className: M.subtitle, children: n }),
+            /* @__PURE__ */ x.jsx("h2", { className: M.title, children: i })
           ] }),
-          /* @__PURE__ */ R.jsx("span", { className: j.tokenBadge, children: s })
+          /* @__PURE__ */ x.jsx("span", { className: M.tokenBadge, children: s })
         ] }),
-        h && !u ? /* @__PURE__ */ R.jsxs("div", { className: j.statePanel, role: "status", children: [
-          /* @__PURE__ */ R.jsx("p", { className: j.stateTitle, children: "Price feed unavailable" }),
-          /* @__PURE__ */ R.jsx("p", { className: j.stateCopy, children: h }),
-          /* @__PURE__ */ R.jsx("button", { className: j.retryButton, type: "button", onClick: () => void T(), children: "Retry now" })
+        h && !u ? /* @__PURE__ */ x.jsxs("div", { className: M.statePanel, role: "status", children: [
+          /* @__PURE__ */ x.jsx("p", { className: M.stateTitle, children: "Price feed unavailable" }),
+          /* @__PURE__ */ x.jsx("p", { className: M.stateCopy, children: h }),
+          /* @__PURE__ */ x.jsx("button", { className: M.retryButton, type: "button", onClick: () => void T(), children: "Retry now" })
         ] }) : null,
-        !h && g && !u ? /* @__PURE__ */ R.jsxs("div", { className: j.statePanel, role: "status", children: [
-          /* @__PURE__ */ R.jsx("p", { className: j.stateTitle, children: "Loading FNDRY" }),
-          /* @__PURE__ */ R.jsx("p", { className: j.stateCopy, children: "Connecting to DexScreener live pair data." })
+        !h && g && !u ? /* @__PURE__ */ x.jsxs("div", { className: M.statePanel, role: "status", children: [
+          /* @__PURE__ */ x.jsx("p", { className: M.stateTitle, children: "Loading FNDRY" }),
+          /* @__PURE__ */ x.jsx("p", { className: M.stateCopy, children: "Connecting to DexScreener live pair data." })
         ] }) : null,
-        u ? /* @__PURE__ */ R.jsxs(R.Fragment, { children: [
-          /* @__PURE__ */ R.jsxs("div", { className: j.priceBlock, children: [
-            /* @__PURE__ */ R.jsxs("div", { children: [
-              /* @__PURE__ */ R.jsx("p", { className: j.priceLabel, children: "Current price" }),
-              /* @__PURE__ */ R.jsx("p", { className: j.priceValue, children: Pe(u.priceUsd) })
+        u ? /* @__PURE__ */ x.jsxs(x.Fragment, { children: [
+          /* @__PURE__ */ x.jsxs("div", { className: M.priceBlock, children: [
+            /* @__PURE__ */ x.jsxs("div", { children: [
+              /* @__PURE__ */ x.jsx("p", { className: M.priceLabel, children: "Current price" }),
+              /* @__PURE__ */ x.jsx("p", { className: M.priceValue, children: je(u.priceUsd) })
             ] }),
-            /* @__PURE__ */ R.jsxs(
+            /* @__PURE__ */ x.jsxs(
               "div",
               {
-                className: `${j.changePill} ${r ? j.positive : j.negative}`,
+                className: `${M.changePill} ${r ? M.positive : M.negative}`,
                 children: [
-                  /* @__PURE__ */ R.jsx("span", { className: j.changeDot }),
-                  Se(u.priceChange24h)
+                  /* @__PURE__ */ x.jsx("span", { className: M.changeDot }),
+                  Me(u.priceChange24h)
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ R.jsxs("div", { className: j.chartCard, children: [
-            /* @__PURE__ */ R.jsxs("div", { className: j.chartHeader, children: [
-              /* @__PURE__ */ R.jsx("span", { children: "Session trend" }),
-              /* @__PURE__ */ R.jsxs("span", { children: [
+          /* @__PURE__ */ x.jsxs("div", { className: M.chartCard, children: [
+            /* @__PURE__ */ x.jsxs("div", { className: M.chartHeader, children: [
+              /* @__PURE__ */ x.jsx("span", { children: "Session trend" }),
+              /* @__PURE__ */ x.jsxs("span", { children: [
                 u.baseSymbol,
                 "/",
                 u.quoteSymbol
               ] })
             ] }),
-            /* @__PURE__ */ R.jsx("div", { className: j.chartShell, children: /* @__PURE__ */ R.jsxs(ie.Sparklines, { data: p, width: 100, height: 36, margin: 8, children: [
-              /* @__PURE__ */ R.jsx(
+            /* @__PURE__ */ x.jsx("div", { className: M.chartShell, children: /* @__PURE__ */ x.jsxs(ie.Sparklines, { data: p, width: 100, height: 36, margin: 8, children: [
+              /* @__PURE__ */ x.jsx(
                 ie.SparklinesLine,
                 {
                   color: r ? "var(--spark-positive)" : "var(--spark-negative)",
                   style: { fill: "none", strokeWidth: 3 }
                 }
               ),
-              /* @__PURE__ */ R.jsx(
+              /* @__PURE__ */ x.jsx(
                 ie.SparklinesSpots,
                 {
                   size: 3,
@@ -1864,34 +1872,34 @@ function ft({
               )
             ] }) })
           ] }),
-          /* @__PURE__ */ R.jsxs("div", { className: j.statsGrid, children: [
-            f ? /* @__PURE__ */ R.jsxs("div", { className: j.statCard, children: [
-              /* @__PURE__ */ R.jsx("span", { className: j.statLabel, children: "24h Volume" }),
-              /* @__PURE__ */ R.jsx("strong", { className: j.statValue, children: ne(u.volume24h) })
+          /* @__PURE__ */ x.jsxs("div", { className: M.statsGrid, children: [
+            f ? /* @__PURE__ */ x.jsxs("div", { className: M.statCard, children: [
+              /* @__PURE__ */ x.jsx("span", { className: M.statLabel, children: "24h Volume" }),
+              /* @__PURE__ */ x.jsx("strong", { className: M.statValue, children: ne(u.volume24h) })
             ] }) : null,
-            d ? /* @__PURE__ */ R.jsxs("div", { className: j.statCard, children: [
-              /* @__PURE__ */ R.jsx("span", { className: j.statLabel, children: "Market Cap" }),
-              /* @__PURE__ */ R.jsx("strong", { className: j.statValue, children: ne(u.marketCap) })
+            d ? /* @__PURE__ */ x.jsxs("div", { className: M.statCard, children: [
+              /* @__PURE__ */ x.jsx("span", { className: M.statLabel, children: "Market Cap" }),
+              /* @__PURE__ */ x.jsx("strong", { className: M.statValue, children: ne(u.marketCap) })
             ] }) : null,
-            /* @__PURE__ */ R.jsxs("div", { className: j.statCard, children: [
-              /* @__PURE__ */ R.jsx("span", { className: j.statLabel, children: "Liquidity" }),
-              /* @__PURE__ */ R.jsx("strong", { className: j.statValue, children: ne(u.liquidityUsd) })
+            /* @__PURE__ */ x.jsxs("div", { className: M.statCard, children: [
+              /* @__PURE__ */ x.jsx("span", { className: M.statLabel, children: "Liquidity" }),
+              /* @__PURE__ */ x.jsx("strong", { className: M.statValue, children: ne(u.liquidityUsd) })
             ] }),
-            /* @__PURE__ */ R.jsxs("div", { className: j.statCard, children: [
-              /* @__PURE__ */ R.jsx("span", { className: j.statLabel, children: "FDV" }),
-              /* @__PURE__ */ R.jsx("strong", { className: j.statValue, children: ne(u.fdv) })
+            /* @__PURE__ */ x.jsxs("div", { className: M.statCard, children: [
+              /* @__PURE__ */ x.jsx("span", { className: M.statLabel, children: "FDV" }),
+              /* @__PURE__ */ x.jsx("strong", { className: M.statValue, children: ne(u.fdv) })
             ] })
           ] }),
-          /* @__PURE__ */ R.jsxs("footer", { className: j.footer, children: [
-            /* @__PURE__ */ R.jsx("span", { children: je(u.updatedAt) }),
-            /* @__PURE__ */ R.jsxs("span", { className: j.metaActions, children: [
+          /* @__PURE__ */ x.jsxs("footer", { className: M.footer, children: [
+            /* @__PURE__ */ x.jsx("span", { children: Ne(u.updatedAt) }),
+            /* @__PURE__ */ x.jsxs("span", { className: M.metaActions, children: [
               E ? "Refreshing..." : u.dexId,
-              /* @__PURE__ */ R.jsx("a", { href: u.pairUrl, target: "_blank", rel: "noreferrer", children: "View pair" })
+              /* @__PURE__ */ x.jsx("a", { href: u.pairUrl, target: "_blank", rel: "noreferrer", children: "View pair" })
             ] })
           ] }),
-          h ? /* @__PURE__ */ R.jsxs("div", { className: j.inlineError, role: "status", children: [
-            /* @__PURE__ */ R.jsx("span", { children: h }),
-            /* @__PURE__ */ R.jsx("button", { type: "button", onClick: () => void T(), children: "Retry" })
+          h ? /* @__PURE__ */ x.jsxs("div", { className: M.inlineError, role: "status", children: [
+            /* @__PURE__ */ x.jsx("span", { children: h }),
+            /* @__PURE__ */ x.jsx("button", { type: "button", onClick: () => void T(), children: "Retry" })
           ] }) : null
         ] }) : null
       ]
@@ -1899,6 +1907,6 @@ function ft({
   );
 }
 export {
-  ft as FNDRYPriceWidget,
-  ke as useFNDRYPrice
+  pt as FNDRYPriceWidget,
+  Pe as useFNDRYPrice
 };

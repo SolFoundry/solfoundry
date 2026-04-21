@@ -1,3 +1,21 @@
+const currencyFormatters = new Map<number, Intl.NumberFormat>();
+
+function getCurrencyFormatter(digits: number): Intl.NumberFormat {
+  let formatter = currencyFormatters.get(digits);
+
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: digits,
+    });
+    currencyFormatters.set(digits, formatter);
+  }
+
+  return formatter;
+}
+
 export function formatCurrency(value: number | null | undefined, maximumFractionDigits = 6): string {
   if (value == null || Number.isNaN(value)) {
     return '--';
@@ -8,12 +26,7 @@ export function formatCurrency(value: number | null | undefined, maximumFraction
     value >= 0.01 ? 4 :
     maximumFractionDigits;
 
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: digits,
-  }).format(value);
+  return getCurrencyFormatter(digits).format(value);
 }
 
 export function formatCompactNumber(value: number | null | undefined): string {
@@ -28,7 +41,7 @@ export function formatCompactNumber(value: number | null | undefined): string {
 }
 
 export function formatPercentage(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) {
+  if (value == null || !Number.isFinite(value)) {
     return '--';
   }
 
@@ -36,7 +49,7 @@ export function formatPercentage(value: number | null | undefined): string {
 }
 
 export function formatRelativeUpdate(timestamp: number | null | undefined): string {
-  if (!timestamp) {
+  if (timestamp == null) {
     return 'Waiting for live data';
   }
 
