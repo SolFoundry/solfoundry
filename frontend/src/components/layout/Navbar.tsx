@@ -33,6 +33,8 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const closeMobileMenu = () => setMenuOpen(false);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
@@ -168,6 +170,8 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
             className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -189,12 +193,32 @@ export function Navbar() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={closeMobileMenu}
                   className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
                 >
                   {link.label}
                 </Link>
               ))}
+              <div className="my-2 border-t border-border/60" />
+              {isAuthenticated ? (
+                <Link
+                  to="/profile"
+                  onClick={closeMobileMenu}
+                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                >
+                  Profile
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    closeMobileMenu();
+                    handleGitHubSignIn();
+                  }}
+                  className="text-left px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                >
+                  Sign in with GitHub
+                </button>
+              )}
             </div>
           </motion.div>
         )}

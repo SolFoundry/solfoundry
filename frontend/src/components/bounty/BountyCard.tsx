@@ -61,10 +61,10 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group min-h-[236px] flex flex-col"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-start justify-between gap-3 text-sm">
         <div className="flex items-center gap-2 min-w-0">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
@@ -101,11 +101,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-3 pb-8 sm:pb-0">
+        <span className="font-mono text-base sm:text-lg font-semibold text-emerald break-words">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
@@ -120,7 +120,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+      <span className={`absolute bottom-4 right-4 sm:right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         {statusLabel}
       </span>
