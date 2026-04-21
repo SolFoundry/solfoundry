@@ -76,8 +76,8 @@ export function useActivityFeed({ endpoint, initialUserId }: UseActivityFeedOpti
       }
       const payload = (await response.json()) as ActivityPollResponse;
       setActivities((current) => mergeActivities(current, payload.activities));
-      if (payload.activities.length) {
-        latestSinceRef.current = payload.activities[payload.activities.length - 1]?.createdAt ?? latestSinceRef.current;
+      if (payload.nextSince) {
+        latestSinceRef.current = payload.nextSince;
       }
       setLastUpdatedAt(payload.serverTime);
       setError(null);
@@ -141,7 +141,13 @@ export function useActivityFeed({ endpoint, initialUserId }: UseActivityFeedOpti
     socket.on(SOCKET_EVENTS.BATCH, (payload) => {
       setActivities((current) => mergeActivities(current, payload.activities));
       if (payload.activities.length) {
-        latestSinceRef.current = payload.activities[payload.activities.length - 1]?.createdAt ?? latestSinceRef.current;
+        const [firstActivity, ...remainingActivities] = payload.activities as ActivityEvent[];
+        const newestActivity = remainingActivities.reduce(
+          (latest: ActivityEvent, activity: ActivityEvent) =>
+            Date.parse(activity.createdAt) > Date.parse(latest.createdAt) ? activity : latest,
+          firstActivity
+        );
+        latestSinceRef.current = newestActivity.createdAt;
       }
       setLastUpdatedAt(payload.deliveredAt);
     });
@@ -201,6 +207,7 @@ export function useActivityFeed({ endpoint, initialUserId }: UseActivityFeedOpti
     subscription,
     updateSubscription: setSubscription,
     retryConnection: () => {
+      setStatus("connecting");
       reconnectAttemptsRef.current = 0;
       stopPolling();
       socketRef.current?.connect();

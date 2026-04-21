@@ -54,10 +54,17 @@ input {
 .feed-card {
   padding: 1.5rem;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(8, 15, 27, 0.82);
+  background: rgba(8, 15, 27, 0.95);
   border-radius: 24px;
-  backdrop-filter: blur(16px);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+@supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+  .feed-card {
+    background: rgba(8, 15, 27, 0.82);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
 }
 
 .feed-header,

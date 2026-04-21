@@ -28,15 +28,17 @@ export function ActivityFeed({ endpoint, initialUserId }: ActivityFeedProps) {
   } = useActivityFeed({ endpoint, initialUserId });
 
   const toggleType = (type: ActivityType) => {
-    const exists = subscription.filter.types.includes(type);
-    updateSubscription({
-      ...subscription,
-      filter: {
-        ...subscription.filter,
-        types: exists
-          ? subscription.filter.types.filter((value) => value !== type)
-          : [...subscription.filter.types, type],
-      },
+    updateSubscription((current) => {
+      const exists = current.filter.types.includes(type);
+      return {
+        ...current,
+        filter: {
+          ...current.filter,
+          types: exists
+            ? current.filter.types.filter((value) => value !== type)
+            : [...current.filter.types, type],
+        },
+      };
     });
   };
 
@@ -44,28 +46,30 @@ export function ActivityFeed({ endpoint, initialUserId }: ActivityFeedProps) {
     key: "userIds" | "bountyIds",
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    updateSubscription({
-      ...subscription,
+    updateSubscription((current) => ({
+      ...current,
       filter: {
-        ...subscription.filter,
+        ...current.filter,
         [key]: event.target.value
           .split(",")
           .map((value) => value.trim())
           .filter(Boolean),
       },
-    });
+    }));
   };
 
   const toggleMutedType = (type: ActivityType) => {
-    const exists = subscription.notifications.mutedTypes.includes(type);
-    updateSubscription({
-      ...subscription,
-      notifications: {
-        ...subscription.notifications,
-        mutedTypes: exists
-          ? subscription.notifications.mutedTypes.filter((value) => value !== type)
-          : [...subscription.notifications.mutedTypes, type],
-      },
+    updateSubscription((current) => {
+      const exists = current.notifications.mutedTypes.includes(type);
+      return {
+        ...current,
+        notifications: {
+          ...current.notifications,
+          mutedTypes: exists
+            ? current.notifications.mutedTypes.filter((value) => value !== type)
+            : [...current.notifications.mutedTypes, type],
+        },
+      };
     });
   };
 
@@ -93,13 +97,13 @@ export function ActivityFeed({ endpoint, initialUserId }: ActivityFeedProps) {
             <input
               checked={subscription.notifications.enabled}
               onChange={(event) =>
-                updateSubscription({
-                  ...subscription,
+                updateSubscription((current) => ({
+                  ...current,
                   notifications: {
-                    ...subscription.notifications,
+                    ...current.notifications,
                     enabled: event.target.checked,
                   },
-                })
+                }))
               }
               type="checkbox"
             />
@@ -109,13 +113,13 @@ export function ActivityFeed({ endpoint, initialUserId }: ActivityFeedProps) {
             <input
               checked={subscription.notifications.inAppOnly}
               onChange={(event) =>
-                updateSubscription({
-                  ...subscription,
+                updateSubscription((current) => ({
+                  ...current,
                   notifications: {
-                    ...subscription.notifications,
+                    ...current.notifications,
                     inAppOnly: event.target.checked,
                   },
-                })
+                }))
               }
               type="checkbox"
             />
@@ -183,7 +187,7 @@ export function ActivityFeed({ endpoint, initialUserId }: ActivityFeedProps) {
 
       {error ? <p className="error-banner">{error}</p> : null}
 
-      <ol className="activity-list">
+      <ol aria-atomic="true" aria-live="polite" className="activity-list" role="log">
         {activities.map((activity) => (
           <li className="activity-item" key={activity.id}>
             <div className="activity-meta">

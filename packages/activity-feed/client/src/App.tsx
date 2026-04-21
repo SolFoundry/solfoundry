@@ -1,6 +1,9 @@
 import { ActivityFeed } from "./components/ActivityFeed";
 
 export function App() {
+  const endpoint = import.meta.env.VITE_WS_ENDPOINT || "http://localhost:4000";
+  const initialUserId = import.meta.env.VITE_ACTIVITY_USER_ID || "anonymous";
+
   return (
     <main className="shell">
       <section className="hero">
@@ -11,10 +14,7 @@ export function App() {
           resilient reconnection, and an HTTP polling fallback.
         </p>
       </section>
-      <ActivityFeed
-        endpoint="http://localhost:4000"
-        initialUserId="akira"
-      />
+      <ActivityFeed endpoint={endpoint} initialUserId={initialUserId} />
     </main>
   );
 }

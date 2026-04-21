@@ -30,6 +30,7 @@
 
 ## Operational constraints
 
-- HTTP event ingestion and socket preference updates are rate limited in memory.
-- Broadcasts are throttled to reduce fan-out pressure during bursts.
+- HTTP event ingestion and socket preference updates are rate limited in memory, so limits apply per instance rather than globally across a cluster.
+- Broadcasts are throttled to reduce fan-out pressure during bursts, but each node throttles independently in a multi-instance deployment.
 - Activity history is capped in memory and intended to be replaceable with Redis or a database-backed event log in a larger deployment.
+- For consistent delivery, abuse protection, and history across multiple nodes, centralize state with a shared store such as Redis or a durable event log, and pair it with a distributed rate limiter.

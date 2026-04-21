@@ -8,7 +8,6 @@ import {
   ClientToServerEvents,
   ConnectedPayload,
   defaultFilter,
-  defaultNotificationPreferences,
   defaultSubscription,
   ActivityEvent,
   ActivityQuery,
@@ -66,10 +65,28 @@ const subscriptionSchema = z.object({
 
 class SlidingWindowLimiter {
   private readonly buckets = new Map<string, number[]>();
+  private consumeCount = 0;
 
   constructor(private readonly windowMs: number, private readonly maxEvents: number) {}
 
+  private pruneOldEntries(): void {
+    const start = Date.now() - this.windowMs;
+    for (const [key, values] of this.buckets) {
+      const current = values.filter((value) => value >= start);
+      if (!current.length) {
+        this.buckets.delete(key);
+        continue;
+      }
+      this.buckets.set(key, current);
+    }
+  }
+
   consume(key: string): boolean {
+    this.consumeCount += 1;
+    if (this.consumeCount % 100 === 0) {
+      this.pruneOldEntries();
+    }
+
     const now = Date.now();
     const start = now - this.windowMs;
     const current = (this.buckets.get(key) ?? []).filter((value) => value >= start);
@@ -127,11 +144,19 @@ const apiLimiter = new SlidingWindowLimiter(API_RATE_LIMIT_WINDOW_MS, API_RATE_L
 const pendingActivities: ActivityEvent[] = [];
 
 const app = express();
+app.set("trust proxy", true);
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "128kb" }));
 
 app.use((req, res, next) => {
-  const key = req.ip || "unknown";
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const realIp = req.headers["x-real-ip"];
+  const key =
+    req.ip ??
+    (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(",")[0]?.trim()) ??
+    (Array.isArray(realIp) ? realIp[0] : realIp) ??
+    req.socket.remoteAddress ??
+    "unknown";
   if (!apiLimiter.consume(key)) {
     res.status(429).json({ message: "API rate limit exceeded" });
     return;
@@ -250,7 +275,7 @@ setInterval(() => {
   io.to(roomName.all).emit(SOCKET_EVENTS.BATCH, { activities: batch, deliveredAt });
 
   for (const activity of batch) {
-    let broadcaster = io.to(roomName.type(activity.type)).to(roomName.user(activity.actor.id));
+    let broadcaster = io.except(roomName.all).to(roomName.type(activity.type)).to(roomName.user(activity.actor.id));
     if (activity.metadata.bountyId) {
       broadcaster = broadcaster.to(roomName.bounty(activity.metadata.bountyId));
     }
@@ -306,7 +331,9 @@ app.post("/api/activities", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  const initialSubscription = defaultSubscription(socket.handshake.query.userId?.toString() || "anonymous");
+  const requestedUserId = socket.handshake.query.userId?.toString() ?? "anonymous";
+  const sanitizedUserId = requestedUserId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) || "anonymous";
+  const initialSubscription = defaultSubscription(sanitizedUserId);
   socket.data.subscription = initialSubscription;
   applySubscriptionRooms(socket, initialSubscription);
 

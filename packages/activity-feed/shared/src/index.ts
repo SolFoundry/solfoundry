@@ -118,8 +118,16 @@ export const defaultNotificationPreferences: NotificationPreferences = {
 
 export const defaultSubscription = (userId = "anonymous"): ActivitySubscription => ({
   userId,
-  filter: defaultFilter,
-  notifications: defaultNotificationPreferences,
+  filter: {
+    types: [...defaultFilter.types],
+    userIds: [...defaultFilter.userIds],
+    bountyIds: [...defaultFilter.bountyIds],
+  },
+  notifications: {
+    enabled: defaultNotificationPreferences.enabled,
+    inAppOnly: defaultNotificationPreferences.inAppOnly,
+    mutedTypes: [...defaultNotificationPreferences.mutedTypes],
+  },
 });
 
 export const isActivityType = (value: string): value is ActivityType =>
