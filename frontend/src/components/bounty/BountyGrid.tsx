@@ -28,10 +28,10 @@ export function BountyGrid() {
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Link
               to="/bounties/create"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150"
             >
               <Plus className="w-4 h-4" />
               Post a Bounty
@@ -41,7 +41,7 @@ export function BountyGrid() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
+                className="w-full appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
               >
                 <option value="open">Open</option>
                 <option value="funded">Funded</option>
@@ -54,12 +54,12 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 whitespace-nowrap ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
