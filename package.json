@@ -1,0 +1,43 @@
+{
+  "name": "solfoundry-price-widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Embeddable FNDRY token price widget for SolFoundry",
+  "main": "./dist/solfoundry-price-widget.cjs",
+  "module": "./dist/solfoundry-price-widget.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/solfoundry-price-widget.js",
+      "require": "./dist/solfoundry-price-widget.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:lib": "tsc -b && vite build --config vite.lib.config.ts",
+    "preview": "vite preview",
+    "type-check": "tsc -b --noEmit",
+    "typecheck": "npm run type-check"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "react-sparklines": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}
