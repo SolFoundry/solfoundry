@@ -22,7 +22,8 @@
     "build": "tsc -b && vite build",
     "build:lib": "tsc -b && vite build --config vite.lib.config.ts",
     "preview": "vite preview",
-    "type-check": "tsc -b --noEmit"
+    "type-check": "tsc -b --noEmit",
+    "typecheck": "npm run type-check"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",

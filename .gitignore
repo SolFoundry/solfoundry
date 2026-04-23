@@ -75,6 +75,12 @@ deploy-keypair.json
 # Logs
 *.log
 
+# Generated TypeScript declarations
+src/**/*.d.ts
+src/**/*.d.ts.map
+!src/types/react-sparklines.d.ts
+!src/vite-env.d.ts
+
 # Data
 data/
 *.sqlite
