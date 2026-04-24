@@ -98,7 +98,7 @@ export function HeroSection() {
         variants={fadeIn}
         initial="initial"
         animate="animate"
-        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
+        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50 hero-terminal"
       >
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
