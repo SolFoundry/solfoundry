@@ -143,3 +143,8 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* ============================================================================
+   Review Dashboard Styles
+   ============================================================================ */
+@import "./components/review/ReviewDashboard.css";
