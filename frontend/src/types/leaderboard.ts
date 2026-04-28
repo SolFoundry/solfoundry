@@ -1,3 +1,47 @@
+// ─── Badge Types ─────────────────────────────────────────────────
+export type BadgeTier = 'gold' | 'silver' | 'bronze';
+
+export type BadgeType =
+  | 'first_bounty'
+  | 'speed_demon'
+  | 'streak_master'
+  | 'high_roller'
+  | 'top_contributor'
+  | 'sharpshooter'
+  | 'team_player'
+  | 'veteran'
+  | 'code_slinger'
+  | 'mentor';
+
+export interface Badge {
+  type: BadgeType;
+  tier: BadgeTier;
+  icon: string;
+  label: string;
+  description: string;
+}
+
+// ─── Streak Types ────────────────────────────────────────────────
+export interface StreakInfo {
+  current: number;
+  longest: number;
+  isActive: boolean;
+  milestones: number[];
+}
+
+// ─── Tier Types ──────────────────────────────────────────────────
+export type TierName = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+
+export interface ContributorTier {
+  name: TierName;
+  level: number;
+  currentXP: number;
+  nextTierXP: number;
+  color: string;
+  glowColor: string;
+}
+
+// ─── Leaderboard Entry ───────────────────────────────────────────
 export interface LeaderboardEntry {
   rank: number;
   username: string;
@@ -11,6 +55,10 @@ export interface LeaderboardEntry {
   reputation: number;
   stakedFndry: number;
   reputationBoost: number;
+  // Gamification-enriched fields (added client-side)
+  badges?: Badge[];
+  tier?: ContributorTier;
+  streakInfo?: StreakInfo;
 }
 
 export interface PlatformStats {
