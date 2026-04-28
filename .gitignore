@@ -1,5 +1,7 @@
-# Backend (moved to private repo: SolFoundry/solfoundry-api)
-backend/
+# Backend build artifacts (source code is tracked)
+backend/__pycache__/
+backend/.venv/
+backend/*.pyc
 
 # Environment & Secrets
 .env

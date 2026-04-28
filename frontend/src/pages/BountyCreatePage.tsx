@@ -9,7 +9,7 @@ export function BountyCreatePage() {
     <PageLayout>
       <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-3xl mx-auto px-4 py-12">
         <div className="mb-10 text-center">
-          <h1 className="font-display text-4xl font-bold text-text-primary mb-3">Post a Bounty</h1>
+          <h1 className="font-display text-2xl sm:text-4xl font-bold text-text-primary mb-3">Post a Bounty</h1>
           <p className="text-text-secondary text-lg">Fund a challenge, attract contributors, ship better code.</p>
         </div>
         <BountyCreateWizard />
