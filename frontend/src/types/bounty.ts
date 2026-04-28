@@ -72,3 +72,108 @@ export interface EscrowVerifyResult {
   amount_verified?: number;
   error?: string;
 }
+
+// ── Advanced Search / Filter Types ──
+
+/** Filter set persisted in localStorage */
+export interface SavedFilterSet {
+  id: string;
+  name: string;
+  filters: AdvancedFilters;
+  createdAt: string;
+}
+
+/** Advanced filters for the bounty search experience */
+export interface AdvancedFilters {
+  query: string;
+  languages: string[];
+  tiers: BountyTier[];
+  domains: string[];
+  rewardMin: number;
+  rewardMax: number;
+}
+
+/** Simpler board-level filters used by BountyFilters component */
+export type BountyCategory = 'all' | 'defi' | 'infra' | 'security' | 'nft' | 'dao' | 'gaming' | 'ai-ml' | 'data' | 'mobile';
+
+export interface BountyBoardFilters {
+  category: BountyCategory;
+  skills: string[];
+  status: BountyStatus | 'all';
+  deadlineBefore: string;
+  rewardMin: number;
+  rewardMax: number;
+}
+
+// ── Constants ──
+
+export const AVAILABLE_LANGUAGES = [
+  'TypeScript',
+  'JavaScript',
+  'Rust',
+  'Python',
+  'Go',
+  'Solidity',
+  'Move',
+  'C++',
+  'Java',
+  'Swift',
+  'Kotlin',
+  'C#',
+] as const;
+
+export const AVAILABLE_TIERS: BountyTier[] = ['T1', 'T2', 'T3'];
+
+export const AVAILABLE_DOMAINS = [
+  'DeFi',
+  'Infrastructure',
+  'Security',
+  'NFT / Gaming',
+  'DAO / Governance',
+  'AI / ML',
+  'Data Analytics',
+  'Mobile',
+  'DevTools',
+  'Cross-chain',
+] as const;
+
+export const REWARD_PRESETS = [
+  { label: 'All', min: 0, max: Infinity },
+  { label: '< 1K', min: 0, max: 1000 },
+  { label: '1K–5K', min: 1000, max: 5000 },
+  { label: '5K–25K', min: 5000, max: 25000 },
+  { label: '25K–100K', min: 25000, max: 100000 },
+  { label: '100K+', min: 100000, max: Infinity },
+] as const;
+
+export const SAVED_FILTERS_KEY = 'solfoundry_saved_filters';
+
+export const DEFAULT_ADVANCED_FILTERS: AdvancedFilters = {
+  query: '',
+  languages: [],
+  tiers: [],
+  domains: [],
+  rewardMin: 0,
+  rewardMax: Infinity,
+};
+
+export const DEFAULT_FILTERS: BountyBoardFilters = {
+  category: 'all',
+  skills: [],
+  status: 'all',
+  deadlineBefore: '',
+  rewardMin: 0,
+  rewardMax: Infinity,
+};
+
+export const BOUNTY_CATEGORIES: { value: BountyCategory; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'defi', label: 'DeFi' },
+  { value: 'infra', label: 'Infrastructure' },
+  { value: 'security', label: 'Security' },
+  { value: 'nft', label: 'NFT / Gaming' },
+  { value: 'dao', label: 'DAO / Governance' },
+  { value: 'ai-ml', label: 'AI / ML' },
+  { value: 'data', label: 'Data Analytics' },
+  { value: 'mobile', label: 'Mobile' },
+];
