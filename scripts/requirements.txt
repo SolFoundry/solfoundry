@@ -1,0 +1,4 @@
+flask>=3.0
+requests>=2.31
+gunicorn>=21.2
+pytest>=8.0

@@ -31,6 +31,10 @@ from flask import Flask, request, jsonify, abort
 # Configuration
 # ============================================================
 
+# Bounty payout wallet (ERC-20/USDT accepted — Solana available on request)
+# SolFoundry Bounty #840 — Tier T2 (600K $FNDRY)
+PAYOUT_WALLET = os.environ.get("PAYOUT_WALLET", "0x3fAdf13cdC3f51b67B7ff2d56F9be93C5051bd70")
+
 CONFIG = {
     "github_token": os.environ.get("GITHUB_TOKEN", ""),
     "solfoundry_api_url": os.environ.get("SOLFOUNDRY_API_URL", "https://solfoundry.xyz/api"),
@@ -40,6 +44,7 @@ CONFIG = {
     "webhook_secret": os.environ.get("WEBHOOK_SECRET", "solfoundry-secret-change-me"),
     "rate_limit_sleep": int(os.environ.get("RATE_LIMIT_SLEEP", 2)),
     "max_retries": int(os.environ.get("MAX_RETRIES", 5)),
+    "payout_wallet": PAYOUT_WALLET,
 }
 
 # Default repos to watch
