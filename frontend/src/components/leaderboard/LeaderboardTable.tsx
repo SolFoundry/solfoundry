@@ -39,11 +39,11 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
-        <div className="w-[60px] text-center">Rank</div>
+      <div className="flex items-center px-3 sm:px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
+        <div className="w-[40px] sm:w-[60px] text-center">Rank</div>
         <div className="flex-1">User</div>
-        <div className="w-[100px] text-center">Bounties</div>
-        <div className="w-[120px] text-right">Earned</div>
+        <div className="w-[70px] sm:w-[100px] text-center">Bounties</div>
+        <div className="w-[80px] sm:w-[120px] text-right">Earned</div>
         <div className="w-[80px] text-center hidden sm:block">Streak</div>
       </div>
 
@@ -52,9 +52,9 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
           key={entry.username}
           layout
           layoutId={`leaderboard-${entry.username}`}
-          className="flex items-center px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-forge-850 transition-colors duration-150 cursor-pointer"
+          className="flex items-center px-3 sm:px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-forge-850 transition-colors duration-150 cursor-pointer"
         >
-          <div className="w-[60px] text-center font-mono text-sm text-text-muted">
+          <div className="w-[40px] sm:w-[60px] text-center font-mono text-sm text-text-muted">
             #{entry.rank}
           </div>
           <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -78,10 +78,10 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
               )}
             </div>
           </div>
-          <div className="w-[100px] text-center font-mono text-sm text-text-secondary">
+          <div className="w-[70px] sm:w-[100px] text-center font-mono text-xs sm:text-sm text-text-secondary">
             {entry.bountiesCompleted}
           </div>
-          <div className="w-[120px] text-right font-mono text-sm font-semibold text-emerald">
+          <div className="w-[80px] sm:w-[120px] text-right font-mono text-xs sm:text-sm font-semibold text-emerald">
             ${entry.earningsFndry.toLocaleString()}
           </div>
           <div className="w-[80px] text-center hidden sm:block">

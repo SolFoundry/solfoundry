@@ -107,6 +107,13 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
+
+  /* Mobile typewriter: same visual but without fixed width so text wraps */
+  --animate-typewriter-mobile: typewriter-mobile 2.5s steps(44) 0.5s forwards;
+  @keyframes typewriter-mobile {
+    from { max-width: 0; }
+    to { max-width: 100%; }
+  }
 }
 
 /* ============================================================================
@@ -123,6 +130,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #050505;
   color: #F0F0F5;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */

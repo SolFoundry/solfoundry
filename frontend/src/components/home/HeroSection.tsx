@@ -111,10 +111,10 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
+          <div className="overflow-hidden overflow-x-auto">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="text-text-secondary inline-block animate-typewriter-mobile sm:animate-typewriter sm:whitespace-nowrap sm:overflow-hidden">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
@@ -154,7 +154,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10 px-2"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +164,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg px-2"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -174,7 +174,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.5 }}
-        className="flex flex-wrap items-center justify-center gap-4 mt-8"
+        className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-8 px-4"
       >
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
@@ -211,7 +211,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:gap-6 mt-8 font-mono text-xs sm:text-sm text-text-muted px-4"
       >
         <span>
           <span className="text-text-primary font-semibold">
@@ -219,14 +219,14 @@ export function HeroSection() {
           </span>
           {' '}open bounties
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             $<CountUp target={stats?.total_paid_usdc ?? 24500} />
           </span>
           {' '}paid
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             <CountUp target={stats?.total_contributors ?? 89} />
