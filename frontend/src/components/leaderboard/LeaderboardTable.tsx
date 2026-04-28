@@ -1,9 +1,11 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Flame } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { LeaderboardEntry } from '../../types/leaderboard';
 import { LANG_COLORS } from '../../lib/utils';
-import { fadeIn } from '../../lib/animations';
+import { fadeIn, staggerItem } from '../../lib/animations';
+import { BadgeRow } from './BadgeSystem';
+import { StreakBadge } from './StreakTracker';
+import { TierBadge, TierProgressBar } from './TierProgress';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -25,7 +27,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
 
   if (tableEntries.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 p-8 text-center">
+      <div className="max-w-5xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 p-8 text-center">
         <p className="text-text-muted text-sm">No additional rankings yet.</p>
       </div>
     );
@@ -36,39 +38,50 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       variants={fadeIn}
       initial="initial"
       animate="animate"
-      className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-hidden"
+      className="max-w-5xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
         <div className="w-[60px] text-center">Rank</div>
-        <div className="flex-1">User</div>
-        <div className="w-[100px] text-center">Bounties</div>
-        <div className="w-[120px] text-right">Earned</div>
-        <div className="w-[80px] text-center hidden sm:block">Streak</div>
+        <div className="flex-1 min-w-0">User</div>
+        <div className="w-[80px] text-center hidden lg:block">Tier</div>
+        <div className="w-[80px] text-center hidden md:block">Streak</div>
+        <div className="w-[100px] text-center hidden sm:block">Bounties</div>
+        <div className="w-[130px] text-right">Earned</div>
+        <div className="w-[120px] text-center hidden xl:block">Badges</div>
       </div>
 
-      {tableEntries.map((entry) => (
+      {tableEntries.map((entry, idx) => (
         <motion.div
           key={entry.username}
           layout
           layoutId={`leaderboard-${entry.username}`}
-          className="flex items-center px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-forge-850 transition-colors duration-150 cursor-pointer"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: idx * 0.03, duration: 0.25 }}
+          className="flex items-center px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-forge-850 transition-colors duration-150"
         >
           <div className="w-[60px] text-center font-mono text-sm text-text-muted">
             #{entry.rank}
           </div>
           <div className="flex-1 flex items-center gap-3 min-w-0">
             {entry.avatarUrl ? (
-              <img src={entry.avatarUrl} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+              <img src={entry.avatarUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 border border-border/50" />
             ) : (
-              <div className="w-6 h-6 rounded-full bg-forge-700 flex-shrink-0 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-forge-700 flex-shrink-0 flex items-center justify-center border border-border/30">
                 <span className="font-mono text-xs text-text-muted">{entry.username[0]?.toUpperCase()}</span>
               </div>
             )}
             <div className="min-w-0">
-              <span className="font-sans text-sm font-medium text-text-primary truncate block">
-                {entry.username}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-sans text-sm font-medium text-text-primary truncate">
+                  {entry.username}
+                </span>
+                {/* Inline tier badge for small screens */}
+                <div className="lg:hidden">
+                  <TierBadge tier={entry.tier} points={entry.points} size="sm" />
+                </div>
+              </div>
               {entry.topSkills?.length > 0 && (
                 <div className="flex items-center gap-1 mt-0.5">
                   {entry.topSkills.slice(0, 4).map((s) => (
@@ -76,22 +89,29 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
                   ))}
                 </div>
               )}
+              {/* Mobile: streak + badges inline */}
+              <div className="flex items-center gap-2 mt-1 sm:hidden">
+                <StreakBadge streakInfo={entry.streakInfo} streak={entry.streak} size="sm" />
+              </div>
             </div>
           </div>
-          <div className="w-[100px] text-center font-mono text-sm text-text-secondary">
+          {/* Tier */}
+          <div className="w-[80px] text-center hidden lg:flex justify-center">
+            <TierBadge tier={entry.tier} points={entry.points} size="sm" />
+          </div>
+          {/* Streak */}
+          <div className="w-[80px] text-center hidden md:flex justify-center">
+            <StreakBadge streakInfo={entry.streakInfo} streak={entry.streak} size="sm" />
+          </div>
+          <div className="w-[100px] text-center font-mono text-sm text-text-secondary hidden sm:block">
             {entry.bountiesCompleted}
           </div>
-          <div className="w-[120px] text-right font-mono text-sm font-semibold text-emerald">
+          <div className="w-[130px] text-right font-mono text-sm font-semibold text-emerald">
             ${entry.earningsFndry.toLocaleString()}
           </div>
-          <div className="w-[80px] text-center hidden sm:block">
-            {entry.streak && entry.streak > 0 ? (
-              <span className="font-mono text-sm text-status-warning inline-flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5" /> {entry.streak}
-              </span>
-            ) : (
-              <span className="text-text-muted">—</span>
-            )}
+          {/* Badges */}
+          <div className="w-[120px] hidden xl:flex justify-center">
+            <BadgeRow badges={entry.badges ?? []} maxDisplay={3} size="sm" />
           </div>
         </motion.div>
       ))}

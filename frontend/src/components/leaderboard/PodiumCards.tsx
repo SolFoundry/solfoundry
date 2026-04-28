@@ -1,8 +1,11 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Crown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Crown, Trophy, Medal } from 'lucide-react';
 import type { LeaderboardEntry } from '../../types/leaderboard';
-import { staggerContainer, staggerItem } from '../../lib/animations';
+import { staggerContainer, staggerItem, fadeInScale } from '../../lib/animations';
+import { BadgeRow } from './BadgeSystem';
+import { StreakBadge } from './StreakTracker';
+import { TierBadge, TierProgressBar } from './TierProgress';
 
 interface PodiumCardsProps {
   entries: LeaderboardEntry[];
@@ -16,8 +19,8 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
   const borderClass = isGold
     ? 'border-yellow-500/30 shadow-lg shadow-yellow-500/10'
     : isSilver
-    ? 'border-zinc-400/30'
-    : 'border-orange-600/30';
+    ? 'border-zinc-400/30 shadow-lg shadow-zinc-400/5'
+    : 'border-orange-600/30 shadow-lg shadow-orange-600/5';
 
   const rankColor = isGold
     ? 'text-yellow-400'
@@ -25,24 +28,33 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
     ? 'text-zinc-400'
     : 'text-orange-500';
 
-  const avatarBorderClass = isGold ? 'border-yellow-500/50' : 'border-zinc-600';
-  const avatarSize = isGold ? 'w-14 h-14' : 'w-12 h-12';
-  const padding = isGold ? 'py-8 px-6' : 'py-6 px-6';
+  const avatarBorderClass = isGold ? 'border-yellow-500/50 ring-2 ring-yellow-500/20' : isSilver ? 'border-zinc-400/50 ring-2 ring-zinc-400/20' : 'border-orange-500/50 ring-2 ring-orange-500/20';
+  const avatarSize = isGold ? 'w-16 h-16' : 'w-14 h-14';
+  const padding = isGold ? 'py-8 px-6' : 'py-6 px-5';
+
+  const RankIcon = isGold ? Crown : isSilver ? Trophy : Medal;
 
   return (
     <motion.div
       variants={staggerItem}
-      className={`relative flex flex-col items-center rounded-xl border bg-forge-900 ${borderClass} ${padding} min-w-[140px]`}
+      className={`relative flex flex-col items-center rounded-xl border bg-forge-900/80 backdrop-blur-sm ${borderClass} ${padding} min-w-[160px] max-w-[200px] w-full`}
     >
       {/* Crown for #1 */}
       {isGold && (
-        <Crown className="absolute -top-4 text-yellow-400 w-6 h-6" />
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+        >
+          <Crown className="absolute -top-5 text-yellow-400 w-7 h-7 drop-shadow-lg" />
+        </motion.div>
       )}
 
       <span className={`absolute -top-3 font-display text-sm font-bold ${rankColor}`}>
         #{rank}
       </span>
 
+      {/* Avatar */}
       {entry.avatarUrl ? (
         <img
           src={entry.avatarUrl}
@@ -51,15 +63,40 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
         />
       ) : (
         <div className={`${avatarSize} rounded-full border-2 ${avatarBorderClass} bg-forge-700 flex items-center justify-center`}>
-          <span className="font-display text-lg text-text-muted">{entry.username[0]?.toUpperCase()}</span>
+          <span className="font-display text-xl text-text-muted">{entry.username[0]?.toUpperCase()}</span>
         </div>
       )}
 
-      <span className="mt-3 font-sans text-sm font-semibold text-text-primary">{entry.username}</span>
-      <span className="mt-1 font-mono text-xs text-text-muted">{entry.bountiesCompleted} bounties</span>
+      {/* Tier badge */}
+      <div className="mt-2">
+        <TierBadge tier={entry.tier} points={entry.points} size="sm" />
+      </div>
+
+      {/* Username */}
+      <span className="mt-2 font-sans text-sm font-semibold text-text-primary truncate max-w-full">
+        {entry.username}
+      </span>
+
+      {/* Streak */}
+      <div className="mt-1.5">
+        <StreakBadge streakInfo={entry.streakInfo} streak={entry.streak} size="sm" />
+      </div>
+
+      {/* Stats */}
+      <span className="mt-2 font-mono text-xs text-text-muted">{entry.bountiesCompleted} bounties</span>
       <span className="mt-1 font-mono text-lg font-semibold text-emerald">
         ${entry.earningsFndry.toLocaleString()}
       </span>
+
+      {/* Badges */}
+      <div className="mt-3">
+        <BadgeRow badges={entry.badges ?? []} maxDisplay={3} size="sm" />
+      </div>
+
+      {/* Tier progress */}
+      <div className="mt-3 w-full">
+        <TierProgressBar tier={entry.tier} points={entry.points} />
+      </div>
     </motion.div>
   );
 }
