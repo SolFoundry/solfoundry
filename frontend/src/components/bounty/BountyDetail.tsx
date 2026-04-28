@@ -6,6 +6,7 @@ import type { Bounty } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { CommentSection } from './CommentSection';
 import { fadeIn } from '../../lib/animations';
 
 interface BountyDetailProps {
@@ -111,6 +112,11 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               )}
             </div>
           ) : null}
+
+          {/* Comments / Discussion Thread */}
+          <div className="lg:col-span-2">
+            <CommentSection bountyId={bounty.id} />
+          </div>
         </div>
 
         {/* Sidebar */}
