@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { BountyCountdownTimer, BountyCountdownDetailed } from './BountyCountdownTimer';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -136,11 +137,9 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               <span className="font-mono text-text-primary">{bounty.tier ?? 'T1'}</span>
             </div>
             {bounty.deadline && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
-                </span>
+              <div className="pt-4 border-t border-border">
+                <span className="text-text-muted text-sm block mb-2">Time Remaining</span>
+                <BountyCountdownDetailed deadline={bounty.deadline} />
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
