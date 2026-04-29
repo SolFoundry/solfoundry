@@ -306,7 +306,7 @@ function Step3({
     <div className="space-y-5">
       <div>
         <p className="text-sm text-text-secondary mb-3">Send USDC to the following address:</p>
-        <div className="font-mono text-sm bg-forge-700 border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-forge-700 px-4 py-3 font-mono text-sm">
           <span className="truncate text-text-primary">{treasuryAddress}</span>
           <button
             onClick={copyAddr}
@@ -325,7 +325,7 @@ function Step3({
 
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-2">Paste Transaction Signature</label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="text"
             value={state.tx_signature}
@@ -337,7 +337,7 @@ function Step3({
           <button
             onClick={handleVerify}
             disabled={!state.tx_signature.trim() || verifying || state.verified || !state.bounty_id}
-            className="px-4 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+            className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-emerald px-4 py-3 text-sm font-semibold text-text-inverse transition-colors duration-200 hover:bg-emerald-light disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : state.verified ? <Check className="w-4 h-4" /> : null}
             {state.verified ? 'Verified' : verifying ? 'Verifying...' : 'Verify Payment'}

@@ -53,18 +53,20 @@ function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boo
         <motion.div
           key={b.id}
           variants={staggerItem}
-          className="flex items-center gap-4 px-4 py-3 rounded-lg bg-forge-900 border border-border hover:bg-forge-850 transition-colors cursor-pointer"
+          className="flex flex-col items-start gap-3 rounded-lg border border-border bg-forge-900 px-4 py-3 transition-colors cursor-pointer hover:bg-forge-850 sm:flex-row sm:items-center"
           onClick={() => window.location.href = `/bounties/${b.id}`}
         >
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{b.title}</p>
             <p className="text-xs text-text-muted mt-0.5">{timeAgo(b.created_at)}</p>
           </div>
-          <span className="font-mono text-sm font-semibold text-emerald">{formatCurrency(b.reward_amount, b.reward_token)}</span>
-          <BountyStatusBadge status={b.status} />
-          <span className="text-xs text-text-muted inline-flex items-center gap-1">
-            <GitPullRequest className="w-3.5 h-3.5" /> {b.submission_count}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-mono text-sm font-semibold text-emerald">{formatCurrency(b.reward_amount, b.reward_token)}</span>
+            <BountyStatusBadge status={b.status} />
+            <span className="text-xs text-text-muted inline-flex items-center gap-1">
+              <GitPullRequest className="w-3.5 h-3.5" /> {b.submission_count}
+            </span>
+          </div>
         </motion.div>
       ))}
     </motion.div>
@@ -86,7 +88,7 @@ function EarningsTab() {
   const totalEarned = MONTHLY_MOCK.reduce((s, m) => s + m.usdc, 0);
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: 'Total Earned', value: `$${totalEarned}`, color: 'text-emerald' },
           { label: 'This Month', value: '$800', color: 'text-emerald' },
@@ -165,7 +167,7 @@ export function ProfileDashboard() {
     <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="rounded-xl border border-border bg-forge-900 p-6 mb-6">
-        <div className="flex items-start gap-5">
+        <div className="flex flex-col items-start gap-5 sm:flex-row">
           {user.avatar_url ? (
             <img src={user.avatar_url} className="w-16 h-16 rounded-full border-2 border-border" alt={user.username} />
           ) : (
@@ -182,7 +184,7 @@ export function ProfileDashboard() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
+        <div className="mt-6 flex flex-wrap items-center gap-1 rounded-lg bg-forge-800 p-1">
           {TABS.map((tab) => (
             <button
               key={tab}

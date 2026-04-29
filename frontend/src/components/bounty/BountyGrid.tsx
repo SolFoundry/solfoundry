@@ -26,22 +26,22 @@ export function BountyGrid() {
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Link
               to="/bounties/create"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald px-3 py-2 text-sm font-semibold text-forge-950 transition-colors duration-150 hover:bg-emerald/90"
             >
               <Plus className="w-4 h-4" />
               Post a Bounty
             </Link>
             {/* Status filter */}
-            <div className="relative">
+            <div className="relative sm:min-w-[140px]">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
+                className="w-full cursor-pointer appearance-none rounded-lg border border-border bg-forge-800 px-3 py-2 pr-8 text-sm font-medium text-text-secondary outline-none transition-colors duration-150 focus:border-emerald"
               >
                 <option value="open">Open</option>
                 <option value="funded">Funded</option>
@@ -54,7 +54,7 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="mb-8 flex flex-wrap items-center gap-2">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}

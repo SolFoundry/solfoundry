@@ -36,9 +36,9 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         <div className="lg:col-span-2 space-y-6">
           {/* Title + meta */}
           <div className="rounded-xl border border-border bg-forge-900 p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3 text-xs font-mono text-text-muted">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="mb-3 flex flex-wrap items-center gap-2 break-all text-xs font-mono text-text-muted">
                   {bounty.org_avatar_url && (
                     <img src={bounty.org_avatar_url} alt="" className="w-4 h-4 rounded-full" />
                   )}
@@ -57,7 +57,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
 
             {/* Skills */}
             {bounty.skills?.length > 0 && (
-              <div className="flex items-center gap-3 mb-4">
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
                 {bounty.skills.map((lang) => (
                   <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: LANG_COLORS[lang] ?? '#888' }} />
@@ -125,33 +125,33 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
 
           {/* Info card */}
           <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-start justify-between gap-3 text-sm">
               <span className="text-text-muted">Status</span>
-              <span className={`font-medium ${bounty.status === 'open' ? 'text-emerald' : 'text-magenta'}`}>
+              <span className={`text-right font-medium ${bounty.status === 'open' ? 'text-emerald' : 'text-magenta'}`}>
                 {bounty.status}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-start justify-between gap-3 text-sm">
               <span className="text-text-muted">Tier</span>
               <span className="font-mono text-text-primary">{bounty.tier ?? 'T1'}</span>
             </div>
             {bounty.deadline && (
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-start justify-between gap-3 text-sm">
                 <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
+                <span className="font-mono text-status-warning inline-flex items-center gap-1 text-right">
                   <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-start justify-between gap-3 text-sm">
               <span className="text-text-muted">Submissions</span>
               <span className="font-mono text-text-primary inline-flex items-center gap-1">
                 <GitPullRequest className="w-3.5 h-3.5" /> {bounty.submission_count}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-start justify-between gap-3 text-sm">
               <span className="text-text-muted">Posted</span>
-              <span className="font-mono text-text-muted">{timeAgo(bounty.created_at)}</span>
+              <span className="text-right font-mono text-text-muted">{timeAgo(bounty.created_at)}</span>
             </div>
           </div>
         </div>

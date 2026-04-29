@@ -27,8 +27,8 @@ export function LeaderboardPage() {
         </div>
 
         {/* Time filter */}
-        <div className="flex items-center justify-center mb-10">
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800">
+        <div className="mb-10 flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-1 rounded-lg bg-forge-800 p-1">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
