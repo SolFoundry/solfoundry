@@ -12,14 +12,14 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, noFooter = false, className = '' }: PageLayoutProps) {
   return (
-    <div className="min-h-screen bg-forge-950 text-text-primary">
+    <div className="min-h-screen overflow-x-clip bg-forge-950 text-text-primary">
       <Navbar />
       <motion.main
         variants={pageTransition}
         initial="initial"
         animate="animate"
         exit="exit"
-        className={`pt-16 ${className}`}
+        className={`overflow-x-clip pt-16 ${className}`}
       >
         {children}
       </motion.main>

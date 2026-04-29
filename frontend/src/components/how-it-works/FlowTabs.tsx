@@ -188,7 +188,7 @@ function StepFlow({ steps, color = 'emerald' }: { steps: Step[]; color?: 'emeral
           <p className="mt-2 text-sm text-text-secondary leading-relaxed">{step.description}</p>
 
           {/* Terminal snippet */}
-          <div className="mt-3 rounded-lg bg-forge-800 border border-border px-3 py-2">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-forge-800 px-3 py-2">
             <code className={`font-mono text-xs ${step.isMagenta ? 'text-magenta' : 'text-emerald'}`}>
               {step.snippet}
             </code>
@@ -205,10 +205,10 @@ export function FlowTabs() {
   return (
     <div>
       {/* Tab switcher */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-forge-800 mx-auto w-fit mb-12">
+      <div className="mx-auto mb-12 flex w-full max-w-md flex-col gap-1 rounded-xl bg-forge-800 p-1 sm:w-fit sm:max-w-none sm:flex-row sm:items-center">
         <button
           onClick={() => setActiveTab('usdc')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
             activeTab === 'usdc'
               ? 'bg-emerald text-text-inverse'
               : 'text-text-muted hover:text-text-secondary'
@@ -218,7 +218,7 @@ export function FlowTabs() {
         </button>
         <button
           onClick={() => setActiveTab('fndry')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
             activeTab === 'fndry'
               ? 'bg-magenta text-text-inverse'
               : 'text-text-muted hover:text-text-secondary'

@@ -36,10 +36,10 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       variants={fadeIn}
       initial="initial"
       animate="animate"
-      className="max-w-4xl mx-auto mt-6 rounded-xl border border-border bg-forge-900 overflow-hidden"
+      className="max-w-4xl mx-auto mt-6 overflow-x-auto rounded-xl border border-border bg-forge-900"
     >
       {/* Header */}
-      <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
+      <div className="flex min-w-[640px] items-center border-b border-border/50 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
         <div className="w-[60px] text-center">Rank</div>
         <div className="flex-1">User</div>
         <div className="w-[100px] text-center">Bounties</div>
@@ -52,7 +52,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
           key={entry.username}
           layout
           layoutId={`leaderboard-${entry.username}`}
-          className="flex items-center px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-forge-850 transition-colors duration-150 cursor-pointer"
+          className="flex min-w-[640px] cursor-pointer items-center border-b border-border/30 px-4 py-3 transition-colors duration-150 last:border-b-0 hover:bg-forge-850"
         >
           <div className="w-[60px] text-center font-mono text-sm text-text-muted">
             #{entry.rank}

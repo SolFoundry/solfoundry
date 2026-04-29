@@ -32,7 +32,7 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
   return (
     <motion.div
       variants={staggerItem}
-      className={`relative flex flex-col items-center rounded-xl border bg-forge-900 ${borderClass} ${padding} min-w-[140px]`}
+      className={`relative flex min-w-0 flex-col items-center rounded-xl border bg-forge-900 ${borderClass} ${padding} w-full sm:min-w-[140px]`}
     >
       {/* Crown for #1 */}
       {isGold && (
@@ -55,7 +55,7 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
         </div>
       )}
 
-      <span className="mt-3 font-sans text-sm font-semibold text-text-primary">{entry.username}</span>
+      <span className="mt-3 max-w-full truncate font-sans text-sm font-semibold text-text-primary">{entry.username}</span>
       <span className="mt-1 font-mono text-xs text-text-muted">{entry.bountiesCompleted} bounties</span>
       <span className="mt-1 font-mono text-lg font-semibold text-emerald">
         ${entry.earningsFndry.toLocaleString()}
@@ -84,7 +84,7 @@ export function PodiumCards({ entries }: PodiumCardsProps) {
       variants={staggerContainer}
       initial="initial"
       animate="animate"
-      className="flex items-end justify-center gap-4 md:gap-6 mb-12"
+      className="mb-12 flex flex-col items-stretch justify-center gap-4 sm:flex-row sm:items-end md:gap-6"
     >
       {ordered.map((entry, i) => (
         <PodiumCard key={entry.username} entry={entry} rank={ranks[i]} />
