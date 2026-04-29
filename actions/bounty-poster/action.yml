@@ -1,0 +1,36 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Automatically post labeled GitHub issues as SolFoundry bounties'
+author: 'jshaofa-ui'
+
+inputs:
+  solfoundry-api-key:
+    description: 'SolFoundry API key for authentication'
+    required: true
+  solfoundry-base-url:
+    description: 'SolFoundry API base URL'
+    required: false
+    default: 'https://api.solfoundry.io'
+  labels:
+    description: 'Comma-separated list of labels that trigger bounty posting'
+    required: false
+    default: 'bounty,solfoundry'
+  default-tier:
+    description: 'Default bounty tier (1, 2, or 3)'
+    required: false
+    default: '2'
+  reward-amount:
+    description: 'Default reward amount in $FNDRY tokens'
+    required: false
+    default: '500000'
+  dry-run:
+    description: 'If true, only log actions without posting'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'award'
+  color: 'purple'

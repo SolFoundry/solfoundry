@@ -1,0 +1,27 @@
+{
+  "name": "solfoundry-github-action",
+  "version": "1.0.0",
+  "description": "GitHub Action to automatically post labeled issues as SolFoundry bounties",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "package": "ncc build src/index.ts -o dist"
+  },
+  "keywords": ["github-action", "solfoundry", "bounty", "solana"],
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
+    "@actions/exec": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.2.0",
+    "@vercel/ncc": "^0.38.1",
+    "eslint": "^8.56.0"
+  }
+}
