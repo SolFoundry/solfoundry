@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { useActivityFeed, ActivityEvent, ActivityType } from '../../hooks/useActivityFeed';
 
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
+interface ActivityFeedProps {
+  events?: ActivityEvent[];
+  wsEnabled?: boolean;
+  maxEvents?: number;
+}
+
+// Map WebSocket activity types to display types
+function mapActivityType(type: ActivityType): ActivityEvent['type'] {
+  switch (type) {
+    case 'bounty_posted': return 'posted';
+    case 'bounty_submitted': return 'submitted';
+    case 'bounty_reviewed': return 'review';
+    case 'bounty_completed': return 'completed';
+    case 'leaderboard_change': return 'review';
+    default: return 'review';
+  }
 }
 
 // Mock events for when API doesn't return activity
@@ -75,24 +85,104 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+export function ActivityFeed({ events, wsEnabled = true, maxEvents = 4 }: ActivityFeedProps) {
+  const [selectedFilters, setSelectedFilters] = useState<ActivityType[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  const {
+    events: wsEvents,
+    connected,
+    connecting,
+    error,
+    setFilters,
+    reconnect,
+  } = useActivityFeed({
+    autoConnect: wsEnabled,
+    filterTypes: selectedFilters.length > 0 ? selectedFilters : undefined,
+  });
+
+  // Combine WS events with provided events
+  const displayEvents = useMemo(() => {
+    if (events?.length) return events.slice(0, maxEvents);
+    if (wsEvents.length > 0) {
+      return wsEvents.slice(0, maxEvents).map((wsEvent) => ({
+        id: wsEvent.id,
+        type: mapActivityType(wsEvent.type),
+        username: wsEvent.actor,
+        detail: wsEvent.title,
+        timestamp: wsEvent.timestamp,
+      }));
+    }
+    return MOCK_EVENTS;
+  }, [events, wsEvents, maxEvents]);
+
+  const handleFilterChange = (type: ActivityType) => {
+    const newFilters = selectedFilters.includes(type)
+      ? selectedFilters.filter((t) => t !== type)
+      : [...selectedFilters, type];
+    setSelectedFilters(newFilters);
+    setFilters(newFilters);
+  };
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald animate-pulse-glow' : connecting ? 'bg-yellow animate-pulse' : 'bg-red'}`} />
+            <span className="font-mono text-xs text-text-muted uppercase tracking-wider">
+              Recent Activity {connected ? '(Live)' : wsEnabled ? '(Reconnecting...)' : '(Offline)'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="font-mono text-xs text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Toggle activity filters"
+            >
+              Filter
+            </button>
+            {error && (
+              <button
+                onClick={reconnect}
+                className="font-mono text-xs text-yellow hover:text-yellow/80 transition-colors"
+                aria-label="Reconnect WebSocket"
+              >
+                Reconnect
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Filter dropdown */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3 flex flex-wrap gap-2"
+            >
+              {(['bounty_posted', 'bounty_submitted', 'bounty_reviewed', 'bounty_completed', 'leaderboard_change'] as ActivityType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleFilterChange(type)}
+                  className={`font-mono text-xs px-2 py-1 rounded transition-colors ${
+                    selectedFilters.includes(type)
+                      ? 'bg-emerald/20 text-emerald'
+                      : 'bg-forge-800 text-text-muted hover:bg-forge-700'
+                  }`}
+                >
+                  {type.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="space-y-1">
           <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
+            {displayEvents.map((event) => (
               <motion.div
                 key={event.id}
                 variants={slideInRight}
