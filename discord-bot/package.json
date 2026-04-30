@@ -1,0 +1,30 @@
+{
+  "name": "@solfoundry/discord-bot",
+  "version": "0.1.0",
+  "description": "SolFoundry Discord bot for bounty notifications, leaderboards, and community engagement",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
