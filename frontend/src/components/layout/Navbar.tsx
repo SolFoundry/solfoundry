@@ -15,6 +15,7 @@ const GitHubIcon = () => (
 const NAV_LINKS = [
   { label: 'Bounties', to: '/bounties' },
   { label: 'Leaderboard', to: '/leaderboard' },
+  { label: 'Enhance', to: '/enhance' },
   { label: 'How It Works', to: '/how-it-works' },
 ];
 

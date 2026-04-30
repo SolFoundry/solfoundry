@@ -1,5 +1,6 @@
 # Backend (moved to private repo: SolFoundry/solfoundry-api)
-backend/
+# Temporarily un-ignored for bounty #848 — re-ignore after merge
+#backend/
 
 # Environment & Secrets
 .env
