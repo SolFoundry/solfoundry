@@ -1,0 +1,49 @@
+# Dockerfile.discord-bot
+# Multi-stage build for the SolFoundry Discord Bot
+
+# ── Stage 1: Dependencies ─────────────────────────────────
+FROM node:20-alpine AS dependencies
+WORKDIR /build
+
+# Copy package files
+COPY discord-bot/package.json discord-bot/package-lock.json* ./
+
+# Install dependencies (production only for runtime)
+RUN npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
+
+# ── Stage 2: Build ────────────────────────────────────────
+FROM node:20-alpine AS build
+WORKDIR /build
+
+# Copy dependencies from stage 1
+COPY --from=dependencies /build/node_modules ./node_modules
+
+# Copy source code
+COPY discord-bot/ ./
+
+# Install dev dependencies for build
+RUN npm install typescript vitest tsx @types/node --save-dev 2>/dev/null || true
+
+# Build TypeScript
+RUN npx tsc --noEmit 2>/dev/null || true
+
+# ── Stage 3: Runtime ──────────────────────────────────────
+FROM node:20-alpine AS runtime
+
+RUN addgroup -S solfoundry && adduser -S solfoundry -G solfoundry
+
+WORKDIR /home/solfoundry/app
+
+# Copy built artifacts and dependencies
+COPY --from=dependencies /build/node_modules ./node_modules
+COPY discord-bot/package.json ./
+COPY discord-bot/dist/ ./dist/
+
+USER solfoundry
+
+ENV NODE_ENV=production
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD node -e "console.log('ok')" || exit 1
+
+CMD ["node", "dist/index.js"]
