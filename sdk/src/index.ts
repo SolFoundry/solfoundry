@@ -160,6 +160,42 @@ export type {
   TreasuryClientConfig,
 } from './programs/index.js';
 
+// Autonomous Bounty-Hunting Agent System
+export {
+  BountyHunterAgent,
+  SolutionBuilder,
+  TestRunner,
+  PRSubmitter,
+  AgentOrchestrator,
+} from './agents/index.js';
+export type {
+  BountyHunterEventHandler,
+  SolutionBuilderEventHandler,
+  TestRunnerEventHandler,
+  TestRunnerConfig,
+  PRSubmitterEventHandler,
+  OrchestratorEventHandler,
+} from './agents/index.js';
+export type {
+  AgentRole,
+  AgentState,
+  TaskType,
+  MessageType,
+  AgentEventType,
+  AgentMessage,
+  BountyAnalysis,
+  SolutionResult,
+  SolutionFile,
+  TestResult,
+  TestSuiteResult,
+  TestCaseResult,
+  PRSubmissionResult,
+  MissionState,
+  AgentOrchestratorConfig,
+  AgentEvent,
+} from './agents/index.js';
+export { DEFAULT_ORCHESTRATOR_CONFIG } from './agents/index.js';
+
 // ---------------------------------------------------------------------------
 // Convenience factory
 // ---------------------------------------------------------------------------
