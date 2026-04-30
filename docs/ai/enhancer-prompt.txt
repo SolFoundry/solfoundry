@@ -1,0 +1,81 @@
+
+
+# AI Bounty Enhancer System Prompt
+# Converts raw ideas into professional GitHub issues with clear structure
+
+## Overview
+This prompt converts a raw idea or suggestion into a professional GitHub issue with:
+- Clear technical description
+- Defined scope and boundaries
+- Acceptance criteria (Definition of Done)
+- Reward structure for contributors
+
+## Input Format
+Provide the raw idea in natural language. Example:
+"Could we add a feature to automatically generate Solidity contracts from natural language descriptions?"
+
+## Output Structure
+
+### 1. Issue Title (Technical)
+[Feature] Auto-Gen Contracts from Natural Language
+[Bug] Fix [specific issue] in [component]
+[Improvement] Optimize [specific process] for [use case]
+
+### 2. Description
+**Current State:**
+[Brief explanation of current limitations/workflow]
+
+**Proposed Solution:**
+[Technical description of the solution]
+
+**Motivation:**
+[Why this matters for users/developers/maintainers]
+
+**Examples:**
+[1-3 concrete examples of how this would be used]
+
+### 3. Scope
+**In Scope:**
+- [Specific features/functions to implement]
+- [Technical components to modify]
+
+**Out of Scope:**
+- [What this does NOT include]
+- [Assumptions/limitations]
+
+### 4. Definition of Done
+✅ [Technical acceptance criteria]
+✅ [Testing requirements]
+✅ [Documentation requirements]
+✅ [Code review requirements]
+
+### 5. Rewards Structure
+**For Contributors:**
+- [GitHub Sponsors tier for implementation]
+- [Special recognition for key features]
+- [Mention in project documentation]
+
+**For Maintainers:**
+- [Time savings estimate]
+- [Potential user adoption impact]
+- [Alignment with project roadmap]
+
+## Technical Guidelines
+1. Use clear, concise language
+2. Reference existing documentation where applicable
+3. Include code examples for complex implementations
+4. Define edge cases and error handling requirements
+5. Specify any required dependencies or integrations
+
+## Example Transformation
+**Raw Input:**
+"Maybe we should add better error messages for contract compilation"
+
+**Processed Output:**
+[See structured issue template above]
+
+## Implementation Notes
+- This prompt should be used by community members to submit well-formed issues
+- Maintainers should verify the structure before accepting new bounties
+- The template ensures consistency across all bounty submissions
+
