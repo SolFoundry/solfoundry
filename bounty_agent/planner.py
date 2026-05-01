@@ -4,11 +4,11 @@ from typing import List
 from enum import Enum
 
 class Department(Enum):
-    SECURITY = "铁卫"
-    RESEARCH = "天机"
-    CODE = "玄码"
-    KNOWLEDGE = "博典"
-    OPS = "运维"
+    SECURITY = "security-guard"
+    RESEARCH = "research"
+    CODE = "code-expert"
+    KNOWLEDGE = "knowledge"
+    OPS = "ops"
 
 @dataclass
 class SubTask:
