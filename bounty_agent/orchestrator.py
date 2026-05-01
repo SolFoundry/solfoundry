@@ -63,16 +63,16 @@ class TeamOrchestrator:
     def _initialize_team(self):
         """Initialize all 51 agents across 7 gateways."""
         agent_configs = {
-            Department.SECURITY: 5,    # 铁卫·壹~伍
-            Department.RESEARCH: 10,   # 天机·壹~拾
-            Department.CODE: 9,        # 玄码·壹~玖
-            Department.KNOWLEDGE: 5,   # 博典·壹~伍
-            Department.OPS: 6,         # 核心6人
+            Department.SECURITY: 5,    # Security Guard 1-5
+            Department.RESEARCH: 10,   # Research 1-10
+            Department.CODE: 9,        # Code Expert 1-9
+            Department.KNOWLEDGE: 5,   # Knowledge 1-5
+            Department.OPS: 6,         # Core Ops 6
         }
         
         # Add 16 more specialized agents
-        agent_configs[Department.RESEARCH] += 7   # 乾元·壹~柒
-        agent_configs[Department.SECURITY] += 8   # 明瞳·壹~捌 (vision as security recon)
+        agent_configs[Department.RESEARCH] += 7   # Gen-Flagship 1-7
+        agent_configs[Department.SECURITY] += 8   # Vision-Heavy 1-8 (security recon)
         
         aid = 0
         for dept, count in agent_configs.items():
