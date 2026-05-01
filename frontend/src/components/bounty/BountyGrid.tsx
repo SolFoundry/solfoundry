@@ -27,6 +27,13 @@ export function BountyGrid() {
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="w-full">
+            <input
+              type="text"
+              placeholder="Search bounties..."
+              className="w-full p-2 mb-4 border rounded shadow-sm"
+            />
+          </div>
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
             <Link
