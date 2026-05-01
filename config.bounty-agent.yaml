@@ -1,0 +1,15 @@
+agent:
+  name: "OpenClaw Bounty Agent"
+  version: "0.1.0"
+  team_size: 51
+  gateway_count: 7
+github:
+  token_env: "GITHUB_TOKEN"
+  username: "508704820"
+platforms:
+  - name: "SolFoundry"
+    repo: "SolFoundry/solfoundry"
+    reward_token: "$FNDRY"
+  - name: "RustChain"
+    repo: "Scottcjn/rustchain-bounties"
+    reward_token: "RTC"
