@@ -1,0 +1,136 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Convert labeled GitHub issues into SolFoundry bounties with customizable reward amounts'
+author: '千绘 (Qianhui) - Agent Team'
+
+inputs:
+  solfoundry-api-url:
+    description: 'SolFoundry API endpoint URL'
+    required: true
+    default: 'https://api.solfoundry.com'
+  solfoundry-api-key:
+    description: 'SolFoundry API key for authentication'
+    required: true
+  bounty-label:
+    description: 'Label that triggers bounty posting'
+    required: false
+    default: 'bounty'
+  default-reward:
+    description: 'Default reward amount in $FNDRY'
+    required: false
+    default: '200000'
+  reward-tiers:
+    description: 'JSON mapping of labels to reward amounts'
+    required: false
+    default: '{"tier-1":"200000","tier-2":"450000","tier-3":"850000"}'
+  dry-run:
+    description: 'If true, log actions without posting to SolFoundry'
+    required: false
+    default: 'false'
+
+outputs:
+  bounty-id:
+    description: 'The ID of the posted bounty'
+    value: ${{ steps.post-bounty.outputs.bounty-id }}
+  bounty-url:
+    description: 'The URL of the posted bounty on SolFoundry'
+    value: ${{ steps.post-bounty.outputs.bounty-url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Post bounty to SolFoundry
+      id: post-bounty
+      shell: bash
+      env:
+        API_URL: ${{ inputs.solfoundry-api-url }}
+        API_KEY: ${{ inputs.solfoundry-api-key }}
+        BOUNTY_LABEL: ${{ inputs.bounty-label }}
+        DEFAULT_REWARD: ${{ inputs.default-reward }}
+        REWARD_TIERS: ${{ inputs.reward-tiers }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        ISSUE_TITLE: ${{ github.event.issue.title }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        ISSUE_URL: ${{ github.event.issue.html_url }}
+        ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+        REPO: ${{ github.repository }}
+        AUTHOR: ${{ github.event.issue.user.login }}
+      run: |
+        set -euo pipefail
+        echo "🔍 SolFoundry Bounty Poster Action"
+        echo "   Issue: #${ISSUE_NUMBER} - ${ISSUE_TITLE}"
+        echo "   Labels: ${ISSUE_LABELS}"
+        
+        IFS=',' read -ra LABELS <<< "${ISSUE_LABELS}"
+        BOUNTY_FOUND=false
+        for label in "${LABELS[@]}"; do
+          label=$(echo "$label" | xargs)
+          if [ "$label" = "${BOUNTY_LABEL}" ]; then
+            BOUNTY_FOUND=true
+            break
+          fi
+        done
+        
+        if [ "$BOUNTY_FOUND" = false ]; then
+          echo "⏭️ Skipping: no '${BOUNTY_LABEL}' label"
+          echo "bounty-id=skipped" >> "$GITHUB_OUTPUT"
+          echo "bounty-url=skipped" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        
+        REWARD="${DEFAULT_REWARD}"
+        for label in "${LABELS[@]}"; do
+          label=$(echo "$label" | xargs)
+          case "$label" in
+            tier-3) REWARD="850000"; break ;;
+            tier-2) REWARD="450000"; break ;;
+            tier-1) REWARD="200000"; break ;;
+          esac
+        done
+        
+        echo "💰 Reward: ${REWARD} \$FNDRY"
+        
+        PAYLOAD=$(python3 -c "
+import json, sys
+data = {
+    'title': sys.argv[1],
+    'description': (sys.argv[2] or '')[:5000],
+    'source_repo': sys.argv[3],
+    'source_issue_number': int(sys.argv[4]),
+    'source_issue_url': sys.argv[5],
+    'reward': sys.argv[6],
+    'labels': [x.strip() for x in sys.argv[7].split(',')],
+    'author': sys.argv[8]
+}
+print(json.dumps(data))
+" "${ISSUE_TITLE}" "${ISSUE_BODY}" "${REPO}" "${ISSUE_NUMBER}" "${ISSUE_URL}" "${REWARD}" "${ISSUE_LABELS}" "${AUTHOR}")
+        
+        if [ "${DRY_RUN}" = "true" ]; then
+          echo "🧪 Dry run — payload: ${PAYLOAD}"
+          echo "bounty-id=dry-run" >> "$GITHUB_OUTPUT"
+          echo "bounty-url=${API_URL}/bounties/dry-run" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        
+        RESPONSE=$(curl -sf -w "\n%{http_code}" \
+          -X POST -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${API_KEY}" \
+          -d "${PAYLOAD}" "${API_URL}/bounties" 2>&1) || true
+        
+        HTTP_CODE=$(echo "${RESPONSE}" | tail -1)
+        BODY=$(echo "${RESPONSE}" | sed '$d')
+        
+        if [ "${HTTP_CODE}" -ge 200 ] 2>/dev/null && [ "${HTTP_CODE}" -lt 300 ] 2>/dev/null; then
+          BOUNTY_ID=$(echo "${BODY}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          BOUNTY_URL=$(echo "${BODY}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('url',''))" 2>/dev/null || echo "")
+          echo "✅ Bounty posted! ID: ${BOUNTY_ID}"
+          echo "bounty-id=${BOUNTY_ID}" >> "$GITHUB_OUTPUT"
+          echo "bounty-url=${BOUNTY_URL}" >> "$GITHUB_OUTPUT"
+        else
+          echo "❌ API error: ${HTTP_CODE} — ${BODY}"
+          exit 1
+        fi
+
+branding:
+  icon: 'award'
+  color: 'orange'
