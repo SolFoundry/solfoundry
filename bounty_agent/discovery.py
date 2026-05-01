@@ -3,6 +3,7 @@ import subprocess, json, re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+
 @dataclass
 class BountyIssue:
     platform: str
@@ -14,12 +15,20 @@ class BountyIssue:
     url: str = ""
     difficulty: str = "unknown"
 
+    @property
+    def is_easy(self) -> bool:
+        """Check if this bounty is classified as easy/entry-level."""
+        return self.difficulty == "easy"
+
+
 class BountyScanner:
     def __init__(self, gh_token: str = ""):
         self.gh_token = gh_token
 
     def scan_github(self, keywords: str = "bounty", limit: int = 20) -> List[BountyIssue]:
-        cmd = ["gh", "search", "issues", keywords, "--label=bounty", f"--limit={limit}", "--sort=updated", "--json", "repository,title,number,labels,url"]
+        cmd = ["gh", "search", "issues", keywords, "--label=bounty",
+               f"--limit={limit}", "--sort=updated",
+               "--json", "repository,title,number,labels,url"]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
@@ -42,11 +51,32 @@ class BountyScanner:
             print(f"Scan error: {e}")
             return []
 
+    def prioritize(self, bounties: List[BountyIssue]) -> List[BountyIssue]:
+        """Sort bounties by difficulty: easy first, then medium, then hard."""
+        order = {"easy": 0, "unknown": 1, "medium": 2, "hard": 3}
+        return sorted(bounties, key=lambda b: order.get(b.difficulty, 1))
+
     def _extract_reward(self, title: str) -> str:
-        match = re.search(r'(\d+)\s*(RTC|\$FNDRY|USDC|SOL)', title, re.IGNORECASE)
-        return f"{match.group(1)} {match.group(2)}" if match else "unknown"
+        # Match patterns like "500K $FNDRY", "1M $FNDRY", "$250 USD"
+        match = re.search(r'([\d,.]+?\s*[KM]?\s*(?:\$FNDRY|RTC|USDC|SOL|USD))', title, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        # Match standalone dollar amounts like "$250"
+        match = re.search(r'(\$[\d,]+)', title)
+        if match:
+            return match.group(1)
+        # Match numbers with K/M suffix like "500K"
+        match = re.search(r'(\d+\s*[KM])', title, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        return "unknown"
 
     def _assess_difficulty(self, labels: List[str]) -> str:
-        if "easy" in labels or "good first issue" in labels: return "easy"
-        if "hard" in labels or "red-team" in labels: return "hard"
-        return "medium"
+        label_set = set(l.lower() for l in labels)
+        if label_set & {"easy", "good first issue", "tier-1"}:
+            return "easy"
+        if label_set & {"hard", "red-team", "tier-3"}:
+            return "hard"
+        if "tier-2" in label_set:
+            return "medium"
+        return "unknown"
