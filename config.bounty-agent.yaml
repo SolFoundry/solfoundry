@@ -5,7 +5,7 @@ agent:
   gateway_count: 7
 github:
   token_env: "GITHUB_TOKEN"
-  username: "508704820"
+  username: "${GITHUB_USERNAME}"
 platforms:
   - name: "SolFoundry"
     repo: "SolFoundry/solfoundry"
