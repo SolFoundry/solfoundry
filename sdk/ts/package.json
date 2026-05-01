@@ -1,0 +1,24 @@
+
+{
+  "name": "@solfoundry/sdk",
+  "version": "0.1.0",
+  "description": "SolFoundry TypeScript SDK for interacting with SolFoundry's bounty system",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "solfoundry",
+    "solana",
+    "bounty",
+    "typescript",
+    "sdk"
+  ],
+  "author": "SolFoundry",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
