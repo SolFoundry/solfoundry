@@ -1,0 +1,24 @@
+name: Post Bounty to SolFoundry (Example)
+
+on:
+  issues:
+    types: [labeled, opened]
+
+jobs:
+  post-bounty:
+    # Only run when the 'bounty' label is added
+    if: contains(github.event.issue.labels.*.name, 'bounty')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Post Bounty
+        uses: ./actions/bounty-poster
+        with:
+          solfoundry-api-url: 'https://api.solfoundry.com'
+          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+          bounty-label: 'bounty'
+          default-reward: '200000'
+          reward-tiers: '{"tier-1":"200000","tier-2":"450000","tier-3":"850000"}'
+          dry-run: 'false'
