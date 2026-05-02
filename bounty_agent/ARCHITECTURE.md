@@ -209,3 +209,96 @@ flowchart TD
     T4 -->|Error/Timeout| T5["Tier 5: Qwen Max<br/>Last Resort"]
     T5 -->|All Failed| ERR["Raise Error<br/>+ Dead Letter"]
 ```
+
+### Scheduler S/A/B/C Grading
+```mermaid
+graph TD
+    New["🆕 New Agent<br/>Default: C-tier"] -->|10+ tasks completed| B["B-tier<br/>Reliable"]
+    B -->|25+ tasks, >90% success| A["A-tier<br/>Expert"]
+    A -->|50+ tasks, >95% success| S["S-tier<br/>Elite"]
+
+    S -->|< 80% success rate| A
+    A -->|< 70% success rate| B
+    B -->|< 60% success rate| C
+
+    Memory["Memory Watermark<br/>850MB / 1600MB / 3200MB"] -->|controls| Dispatch["Task Dispatch<br/>Reject if over limit"]
+    Heartbeat["Heartbeat Monitor<br/>30s interval"] -->|timeout| Demote["Auto-demote<br/>+ mark offline"]
+
+    style S fill:#fbbf24,stroke:#92400e
+    style A fill:#34d399,stroke:#065f46
+    style B fill:#60a5fa,stroke:#1e40af
+    style C fill:#9ca3af,stroke:#374151
+```
+
+### Disaster Recovery (4-Layer)
+```mermaid
+graph TB
+    subgraph L1["Data Layer"]
+        D1["3-2-1 Backup<br/>3 copies, 2 media, 1 offsite"]
+    end
+
+    subgraph L2["Application Layer"]
+        D2["Process Guardian<br/>LaunchAgent KeepAlive=true<br/>Auto-restart on crash"]
+    end
+
+    subgraph L3["Business Layer"]
+        D3["Checkpoint Recovery<br/>Mayday bundles<br/>State persistence"]
+    end
+
+    subgraph L4["Disaster Layer"]
+        D4["Primary/Standby<br/>Gateway failover<br/>7 GW redundant"]
+    end
+
+    L1 -->|data safe| L2
+    L2 -->|process up| L3
+    L3 -->|business resume| L4
+```
+
+### React Dashboard Components
+```mermaid
+graph TB
+    subgraph Dashboard["BountyAgentDashboard.tsx (1060 lines)"]
+        MissionCtrl["Mission Control<br/>Start/Stop/Reset"]
+        Pipeline["Pipeline Progress<br/>Discover→Analyze→Implement→Submit"]
+        AgentGrid["Agent Status Grid<br/>51 agents, 5 departments"]
+        EconPanel["💰 Economic Panel<br/>ClawTasks → agent-token → MoltsPay"]
+        Confidence["🎯 Confidence Dashboard<br/>5 gauges + anti-hallucination"]
+        SchedQueue["⚙️ Scheduler Queue<br/>S/A/B/C ratings + memory bar"]
+        Disaster["🛡️ Disaster Recovery<br/>4-layer status"]
+        WSBar["WebSocket Status<br/>Latency + reconnect count"]
+    end
+
+    subgraph Hooks["useBountyAgent.ts (542 lines)"]
+        QHooks["Query Hooks<br/>8 auto-refresh endpoints"]
+        MutHooks["Mutation Hooks<br/>Start/Stop/Reset/Stage/Select"]
+        WSHook["WebSocket Hook<br/>Exponential backoff reconnect"]
+        SchedHook["Scheduler Hook<br/>Queue + ratings + memory"]
+    end
+
+    Hooks -->|data| Dashboard
+```
+
+### 4-Phase Pipeline Sequence
+```mermaid
+sequenceDiagram
+    participant User
+    participant Scanner as 🔍 BountyScanner
+    participant Planner as 📊 BountyPlanner
+    participant Scheduler as ⚙️ AgentScheduler
+    participant Orch as 🤖 TeamOrchestrator
+    participant Submitter as 📤 PRSubmitter
+
+    User->>Scanner: --scan --keywords "bounty"
+    Scanner->>Scanner: gh search issues
+    Scanner-->>Planner: DiscoveredBounty[]
+    Planner->>Planner: Decompose into SubTask[]
+    Planner-->>Scheduler: BountyPlan (4 subtasks)
+    loop For each subtask
+        Scheduler->>Orch: assign_task(department)
+        Orch-->>Orch: AgentNode executes
+        Orch-->>Scheduler: task completed
+    end
+    Scheduler-->>Submitter: Implementation ready
+    Submitter->>Submitter: _sanitize_pr_body()
+    Submitter-->>User: PR URL + wallet address
+```
