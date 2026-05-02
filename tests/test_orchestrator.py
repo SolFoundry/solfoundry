@@ -7,8 +7,9 @@ from bounty_agent.orchestrator import (
     AgentStatus,
     Gateway,
     MissionStage,
+    MissionState,
 )
-from bounty_agent.planner import Department, BountyPlan, SubTask, TaskPriority
+from bounty_agent.planner import Department, BountyPlan, SubTask
 
 
 class TestTeamOrchestrator:
@@ -36,8 +37,6 @@ class TestTeamOrchestrator:
             if a.department == Department.SECURITY:
                 a.status = AgentStatus.RUNNING
         agent = self.orch.assign_task(Department.SECURITY)
-        # Should retry failed agents
-        # With no failed agents either, returns None
         assert agent is None
 
     def test_complete_task(self):
