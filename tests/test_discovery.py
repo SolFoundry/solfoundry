@@ -8,7 +8,6 @@ from bounty_agent.discovery import (
     BountyTier,
     BountyStatus,
     SolFoundryAdapter,
-    GitHubAdapter,
 )
 
 

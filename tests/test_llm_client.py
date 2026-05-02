@@ -1,7 +1,6 @@
 """Unit tests for the multi-provider LLM client."""
-import pytest
 from bounty_agent.llm_client import (
-    LLMClient, LLMConfig, LLMResponse, Provider,
+    LLMClient, LLMResponse, Provider,
     RateLimitState, PROVIDER_PROFILES
 )
 

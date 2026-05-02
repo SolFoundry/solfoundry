@@ -2,7 +2,6 @@
 
 import time
 import threading
-import pytest
 from bounty_agent.scheduler import (
     AgentScheduler,
     AgentProfile,

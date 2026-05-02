@@ -5,8 +5,6 @@ from unittest.mock import patch, MagicMock
 from bounty_agent.orchestrator import (
     TeamOrchestrator,
     MissionStage,
-    MissionState,
-    AgentStatus,
 )
 from bounty_agent.discovery import BountyIssue, BountyTier, BountyStatus
 
