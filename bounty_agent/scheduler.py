@@ -466,8 +466,8 @@ class AgentScheduler:
     def get_status(self) -> dict:
         """Get comprehensive scheduler status."""
         with self._lock:
-            tier_counts = defaultdict(int)
-            status_counts = defaultdict(int)
+            tier_counts: Dict[str, int] = defaultdict(int)
+            status_counts: Dict[str, int] = defaultdict(int)
             for agent in self.agents.values():
                 tier_counts[agent.tier.value] += 1
                 status_counts[agent.status.value] += 1
@@ -496,7 +496,7 @@ class AgentScheduler:
 
     def get_department_summary(self) -> Dict[str, dict]:
         """Get agent summary grouped by department."""
-        dept_data = defaultdict(lambda: {"count": 0, "tiers": defaultdict(int), "available": 0})
+        dept_data: Dict[str, Dict[str, int]] = defaultdict(lambda: {"count": 0, "tiers": defaultdict(int), "available": 0})
         for agent in self.agents.values():
             dept = agent.department or "unassigned"
             dept_data[dept]["count"] += 1
