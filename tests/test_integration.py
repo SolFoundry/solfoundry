@@ -1,36 +1,94 @@
 """Integration tests for TeamOrchestrator (full pipeline)."""
-import unittest
-from unittest.mock import patch
-from bounty_agent.orchestrator import TeamOrchestrator
 
-class TestTeamOrchestratorIntegration(unittest.TestCase):
-    @patch("bounty_agent.discovery.BountyScanner.scan_bounties")
-    @patch("bounty_agent.planner.BountyPlanner.decompose")
-    @patch("bounty_agent.submitter.PRSubmitter.submit_pr")
-    def test_full_pipeline_discover_to_submit(self, mock_submit, mock_decompose, mock_scan):
-        # Mock discovery
-        mock_scan.return_value = [
-            {"number": 1, "title": "Test Bounty", "labels": [{"name": "tier-2"}]}
-        ]
-        # Mock planning
-        mock_decompose.return_value = [
-            {"title": "Implement feature", "department": "implementation"}
-        ]
-        # Mock submission
-        mock_submit.return_value = {"pr_number": 42, "status": "created"}
-        
-        agent = TeamOrchestrator(gh_token="test_token")
-        result = agent.run(repo="test/repo", max_bounties=1)
-        
-        self.assertIsNotNone(result)
-        mock_scan.assert_called_once()
-        mock_submit.assert_called_once()
-    
+import unittest
+from unittest.mock import patch, MagicMock, PropertyMock
+
+from bounty_agent.orchestrator import (
+    TeamOrchestrator,
+    MissionStage,
+    MissionState,
+    AgentStatus,
+)
+from bounty_agent.discovery import BountyIssue, BountyTier, BountyStatus
+
+
+class TestOrchestratorIntegration(unittest.TestCase):
+    """Integration tests for the full bounty pipeline."""
+
+    def _create_mock_bounty(self):
+        """Create a mock bounty for testing."""
+        return BountyIssue(
+            platform="SolFoundry",
+            repo="SolFoundry/solfoundry",
+            issue_number=861,
+            title="[T3] Autonomous Bounty-Hunting Agent 1M $FNDRY",
+            reward="1000000 FNDRY",
+            tier=BountyTier.T3_STANDARD,
+            status=BountyStatus.OPEN,
+            labels=["bounty", "T3", "agent"],
+            url="https://github.com/SolFoundry/solfoundry/issues/861",
+            difficulty="easy",
+        )
+
+    @patch("bounty_agent.discovery.BountyScanner.scan_all")
+    @patch("bounty_agent.discovery.BountyScanner.get_bounty_detail")
+    def test_full_pipeline_discover_to_complete(self, mock_detail, mock_scan):
+        """Test full pipeline from discover to completion."""
+        mock_bounty = self._create_mock_bounty()
+        mock_scan.return_value = [mock_bounty]
+        mock_detail.return_value = mock_bounty
+
+        orch = TeamOrchestrator()
+        state = orch.start_mission("861")
+        state = orch.run_pipeline(state)
+
+        self.assertTrue(state.is_complete)
+        self.assertFalse(state.is_failed)
+        self.assertEqual(
+            len(state.stage_results), 5,
+            "All 5 stages should have results",
+        )
+
+    @patch("bounty_agent.discovery.BountyScanner.scan_all")
+    def test_discover_stage_produces_results(self, mock_scan):
+        """Test that discover stage finds bounties."""
+        mock_bounty = self._create_mock_bounty()
+        mock_scan.return_value = [mock_bounty]
+
+        orch = TeamOrchestrator()
+        state = orch.start_mission("861")
+        result = orch.run_stage(state, MissionStage.DISCOVER)
+
+        self.assertEqual(result.status, "success")
+        self.assertIn("total_discovered", result.output)
+
     def test_agent_initialization(self):
-        agent = TeamOrchestrator(gh_token="test_token")
-        self.assertIsNotNone(agent.scanner)
-        self.assertIsNotNone(agent.planner)
-        self.assertIsNotNone(agent.submitter)
+        """Test orchestrator initializes agents correctly."""
+        orch = TeamOrchestrator()
+        status = orch.get_team_status()
+
+        self.assertEqual(status["total_agents"], 19)
+        self.assertIn("by_department", status)
+        self.assertEqual(status["idle"], 19)
+
+    def test_mission_state_tracking(self):
+        """Test mission state is properly tracked."""
+        orch = TeamOrchestrator()
+        state = orch.start_mission("861")
+
+        self.assertTrue(state.is_active)
+        self.assertEqual(state.bounty_id, "861")
+        self.assertEqual(state.current_stage, MissionStage.DISCOVER)
+
+    def test_get_active_missions(self):
+        """Test active mission tracking."""
+        orch = TeamOrchestrator()
+        state = orch.start_mission("861")
+
+        active = orch.get_active_missions()
+        self.assertEqual(len(active), 1)
+        self.assertEqual(active[0].mission_id, state.mission_id)
+
 
 if __name__ == "__main__":
     unittest.main()
