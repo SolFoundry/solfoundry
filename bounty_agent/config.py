@@ -1,6 +1,6 @@
 """Configuration management for the bounty agent system.
 
-Supports: YAML config files, environment variables, runtime overrides.
+Supports: JSON config files, environment variables, runtime overrides.
 Validates all config values and provides defaults.
 Author: Xeophon
 """
@@ -87,14 +87,14 @@ class BountyAgentConfig:
 
     @classmethod
     def from_file(cls, path: str) -> "BountyAgentConfig":
-        """Load configuration from a YAML file with env var overrides."""
+        """Load configuration from a JSON file with env var overrides."""
         config_path = Path(path)
         if not config_path.exists():
             logger.warning(f"[config] {path} not found, using defaults")
             return cls()
 
         with open(config_path) as f:
-            data = json.load(f) or {}
+            data = json.load(f)
 
         config = cls()
 
