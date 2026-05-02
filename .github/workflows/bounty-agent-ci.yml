@@ -129,7 +129,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://bountyagent:test@localhost:5432/bountyagent_test
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest bounty_agent/tests/ tests/ -v \
+          pytest tests/ -v \
             --cov=bounty_agent \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
