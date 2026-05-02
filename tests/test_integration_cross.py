@@ -14,11 +14,10 @@ Scenarios:
 4. Model Fallback with Retry: Circuit breaker + backoff across LLM calls
 """
 
-import asyncio
 import os
 import tempfile
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 from bounty_agent.orchestrator import TeamOrchestrator, MissionStage
 from bounty_agent.discovery import BountyIssue, BountyTier, BountyStatus
