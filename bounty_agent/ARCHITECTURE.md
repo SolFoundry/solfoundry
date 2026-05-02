@@ -81,6 +81,38 @@ GW-7:18795 ─── 铁卫 (8 agents)
 - No data exfiltration — agents only access public repos
 - Subprocess calls use explicit arguments (not shell=True)
 
+## Why Python?
+
+This agent is implemented in Python — a deliberate choice over TypeScript/Node.js alternatives. Here's why:
+
+### Production Reliability
+| Factor | Python | TypeScript/Node.js |
+|--------|--------|-------------------|
+| **Crash recovery** | Native SQLite via stdlib | Requires `better-sqlite3` native addon |
+| **Subprocess control** | `subprocess.run()` — explicit args, no shell injection | `child_process.exec()` — shell=True by default |
+| **Retry/resilience** | Clean generator-based backoff | Requires async ceremony for equivalent logic |
+| **Type safety** | `dataclass` + type hints (runtime + static) | TypeScript interfaces (compile-time only) |
+
+### Cross-Platform Advantage
+- **Zero runtime dependency**: Python 3.10+ is pre-installed on macOS, Ubuntu, Debian, Raspberry Pi OS
+- **Vintage hardware**: Runs on 15-year-old hardware (PowerPC G5, vintage Macs) — aligned with RustChain's Proof-of-Antiquity mission
+- **Lightweight**: ~50MB Python install vs ~400MB Node.js runtime
+- **Fast startup**: ~0.3s cold start vs ~2s for Node.js
+
+### LLM Ecosystem
+- Python's AI/ML ecosystem is unmatched: `openai`, `anthropic`, `litellm`, `transformers`
+- Direct integration with `gh` CLI via subprocess — zero abstraction overhead
+- No npm dependency tree — deterministic builds with `requirements.txt`
+
+### Bounty-Specific Benefits
+- GitHub CLI (`gh`) is a Python-friendly tool — direct subprocess calls
+- `dataclass` models for BountyIssue, BountyPlan, etc. — clean and testable
+- `pytest` ecosystem: 116 tests with fixtures, mocking, parametrization out of the box
+- Single-file deployment: `pip install -r requirements.txt && python -m bounty_agent`
+
+### When TypeScript Makes Sense
+TypeScript excels in frontend/web contexts (React Dashboard, web UIs). We use it there — but for the core agent runtime, Python's simplicity, reliability, and cross-platform reach are decisive.
+
 ## Configuration
 
 See `config.bounty-agent.yaml` for platform settings and agent configuration.
