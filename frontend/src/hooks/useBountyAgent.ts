@@ -292,3 +292,251 @@ export function useSelectBounty() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// WebSocket Connection Hook
+// ---------------------------------------------------------------------------
+
+export interface WSMessage {
+  type: 'agent_status' | 'mission_update' | 'relay_message' | 'event' | 'economic_update' | 'scheduler_update';
+  payload: unknown;
+  timestamp: string;
+}
+
+export interface WSConnectionState {
+  isConnected: boolean;
+  reconnectCount: number;
+  lastMessageAt: string | null;
+  latency: number;
+}
+
+/**
+ * WebSocket connection for real-time updates.
+ * Auto-reconnects with exponential backoff on disconnect.
+ */
+export function useBountyAgentWebSocket(url?: string) {
+  const queryClient = useQueryClient();
+  const wsRef = React.useRef<WebSocket | null>(null);
+  const reconnectCountRef = React.useRef(0);
+  const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout>>();
+  const [connectionState, setConnectionState] = React.useState<WSConnectionState>({
+    isConnected: false,
+    reconnectCount: 0,
+    lastMessageAt: null,
+    latency: 0,
+  });
+
+  const connect = React.useCallback(() => {
+    const wsUrl = url || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/ws`;
+
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      const connectTime = Date.now();
+
+      ws.onopen = () => {
+        const latency = Date.now() - connectTime;
+        setConnectionState(prev => ({
+          ...prev,
+          isConnected: true,
+          latency,
+          reconnectCount: reconnectCountRef.current,
+        }));
+        reconnectCountRef.current = 0;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg: WSMessage = JSON.parse(event.data);
+          setConnectionState(prev => ({
+            ...prev,
+            lastMessageAt: new Date().toISOString(),
+          }));
+
+          // Route messages to appropriate query cache invalidations
+          switch (msg.type) {
+            case 'agent_status':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.agents() });
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.team() });
+              break;
+            case 'mission_update':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.mission() });
+              break;
+            case 'relay_message':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.relay() });
+              break;
+            case 'event':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.events() });
+              break;
+            case 'economic_update':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.economics() });
+              break;
+            case 'scheduler_update':
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.agents() });
+              queryClient.invalidateQueries({ queryKey: bountyAgentKeys.team() });
+              break;
+          }
+        } catch {
+          // Ignore malformed messages
+        }
+      };
+
+      ws.onclose = () => {
+        setConnectionState(prev => ({ ...prev, isConnected: false }));
+        // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+        const delay = Math.min(1000 * Math.pow(2, reconnectCountRef.current), 30000);
+        reconnectCountRef.current += 1;
+        reconnectTimerRef.current = setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    } catch {
+      // WebSocket not available, fall back to polling
+      setConnectionState(prev => ({ ...prev, isConnected: false }));
+    }
+  }, [url, queryClient]);
+
+  React.useEffect(() => {
+    connect();
+    return () => {
+      wsRef.current?.close();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+    };
+  }, [connect]);
+
+  /** Send a message through the WebSocket */
+  const send = React.useCallback((msg: Partial<WSMessage>) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        ...msg,
+        timestamp: new Date().toISOString(),
+      }));
+    }
+  }, []);
+
+  return {
+    ...connectionState,
+    send,
+    wsRef,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler & Confidence Hooks
+// ---------------------------------------------------------------------------
+
+export interface ScheduleEntry {
+  agent_id: string;
+  department: string;
+  task: string;
+  priority: number;
+  scheduled_at: string;
+  estimated_duration_ms: number;
+}
+
+export interface SchedulerStatus {
+  queue_length: number;
+  active_tasks: number;
+  completed_today: number;
+  avg_wait_time_ms: number;
+  peak_concurrent: number;
+  current_concurrent: number;
+  memory_usage_mb: number;
+  memory_limit_mb: number;
+  agent_ratings: Record<string, { grade: string; score: number; tasks_completed: number }>;
+  queue: ScheduleEntry[];
+}
+
+/** Fetch scheduler status with queue visualization data */
+export function useSchedulerStatus() {
+  return useQuery({
+    queryKey: [...bountyAgentKeys.all, 'scheduler'] as const,
+    queryFn: () => fetchJSON<SchedulerStatus>(`${API_BASE}/scheduler`),
+    refetchInterval: 5000,
+  });
+}
+
+export interface ConfidenceMetrics {
+  overall_confidence: number;
+  discovery_confidence: number;
+  analysis_confidence: number;
+  implementation_confidence: number;
+  submission_confidence: number;
+  anti_hallucination_score: number;
+  cross_review_agreement: number;
+  model_consensus: number;
+}
+
+/** Fetch confidence and anti-hallucination metrics */
+export function useConfidenceMetrics() {
+  return useQuery({
+    queryKey: [...bountyAgentKeys.all, 'confidence'] as const,
+    queryFn: () => fetchJSON<ConfidenceMetrics>(`${API_BASE}/confidence`),
+    refetchInterval: 10000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Agent Configuration Hook
+// ---------------------------------------------------------------------------
+
+export interface AgentConfig {
+  auto_select_bounty: boolean;
+  min_reward_amount: number;
+  max_effort_hours: number;
+  agent_skills: string[];
+  target_repo: string;
+  anti_hallucination_enabled: boolean;
+  cross_review_required: boolean;
+  min_reviewers: number;
+  max_concurrent_tasks: number;
+  memory_limit_mb: number;
+  scheduling_strategy: 'round_robin' | 'priority' | 'capacity';
+}
+
+/** Fetch and update agent configuration */
+export function useAgentConfig() {
+  return useQuery({
+    queryKey: [...bountyAgentKeys.all, 'config'] as const,
+    queryFn: () => fetchJSON<AgentConfig>(`${API_BASE}/config`),
+  });
+}
+
+export function useUpdateAgentConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (config: Partial<AgentConfig>) => postJSON(`${API_BASE}/config`, config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...bountyAgentKeys.all, 'config'] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Disaster Recovery Hook
+// ---------------------------------------------------------------------------
+
+export interface DisasterRecoveryStatus {
+  checkpoint_enabled: boolean;
+  last_checkpoint_at: string | null;
+  checkpoint_interval_s: number;
+  recovery_count: number;
+  data_layer_status: 'healthy' | 'degraded' | 'failed';
+  app_layer_status: 'healthy' | 'degraded' | 'failed';
+  business_layer_status: 'healthy' | 'degraded' | 'failed';
+  backup_status: '3-2-1-compliant' | 'degraded' | 'at-risk';
+}
+
+/** Fetch disaster recovery status */
+export function useDisasterRecovery() {
+  return useQuery({
+    queryKey: [...bountyAgentKeys.all, 'disaster-recovery'] as const,
+    queryFn: () => fetchJSON<DisasterRecoveryStatus>(`${API_BASE}/disaster-recovery`),
+    refetchInterval: 30000,
+  });
+}
