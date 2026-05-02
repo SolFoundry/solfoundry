@@ -294,31 +294,35 @@ class KnowledgeGraph:
             conn.commit()
 
     def add_entity(self, name: str, entity_type: str, properties: dict = None) -> int:
-        """Add an entity. Returns entity ID."""
+        """Add an entity. Returns entity ID. If same name+type exists, returns existing ID."""
         props = json.dumps(properties or {})
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute(
-                "INSERT OR IGNORE INTO entities (name, type, properties) VALUES (?, ?, ?)",
-                (name, entity_type, props),
-            )
-            conn.commit()
-            if cursor.lastrowid:
-                return cursor.lastrowid
-            # Entity already exists, return existing ID
+            # Check if entity already exists by name+type
             row = conn.execute(
                 "SELECT id FROM entities WHERE name = ? AND type = ?",
                 (name, entity_type),
             ).fetchone()
-            return row[0] if row else 0
+            if row:
+                return row[0]
+            cursor = conn.execute(
+                "INSERT INTO entities (name, type, properties) VALUES (?, ?, ?)",
+                (name, entity_type, props),
+            )
+            conn.commit()
+            return cursor.lastrowid
 
     def add_relation(
         self, source_name: str, target_name: str, relation_type: str, weight: float = 1.0
     ) -> None:
         """Add a relationship between two entities."""
+        # Look up existing entities by name; create with "unknown" type if not found
+        source = self.get_entity(source_name)
+        source_id = source["id"] if source else self.add_entity(source_name, "unknown")
+
+        target = self.get_entity(target_name)
+        target_id = target["id"] if target else self.add_entity(target_name, "unknown")
+
         with sqlite3.connect(self.db_path) as conn:
-            # Get or create source and target
-            source_id = self.add_entity(source_name, "unknown")
-            target_id = self.add_entity(target_name, "unknown")
 
             conn.execute(
                 """INSERT INTO relations (source_id, target_id, relation_type, weight)
