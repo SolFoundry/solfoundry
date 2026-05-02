@@ -226,7 +226,7 @@ class LLMClient:
         """Generate deterministic cache key."""
         import hashlib
         raw = f"{system}|{prompt}|{max_tokens}|{temp}"
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
     def get_stats(self) -> Dict:
         """Get client usage statistics."""
