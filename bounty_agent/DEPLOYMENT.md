@@ -96,7 +96,7 @@ open http://localhost:3001  # admin / bountyagent_dev
 | PostgreSQL | 256MB | — |
 | Redis | 128MB | — |
 
-> ⚠️ Total stack requires ~2GB RAM. On Mac Mini 16GB, this leaves ample headroom for 7 gateway instances.
+> ⚠️ Total stack requires ~2GB RAM. On Mac Mini 16GB, this leaves ample headroom for distributed gateway instances.
 
 ---
 
@@ -152,7 +152,7 @@ Push/PR → Lint + Type Check → Test (Python 3.11/3.12) → Docker Build → D
 
 For production deployment with real OpenClaw gateways:
 
-1. Set up 7 gateway instances on ports 18789-18795
+1. Set up distributed gateway instances
 2. Configure each gateway with appropriate models:
    - GW-1: GLM-5.1 (甘九真, 诺依, 铁兰, 司雨-S)
    - GW-2: Kimi-K2.5 (千绘)

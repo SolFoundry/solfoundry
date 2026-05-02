@@ -13,8 +13,8 @@
 │ ┌───────┐ │ ┌────────┐│  ┌──────────┐ │ ┌───────┐ │
 │ │Scanner │ │ │Planner ││  │Orchestrator│ │ │Submit │ │
 │ │       │ │ │        ││  │          │ │ │       │ │
-│ │GitHub │ │ │Dept    ││  │51 agents │ │ │gh pr  │ │
-│ │Search │ │ │Mapping ││  │7 gateways│ │ │create │ │
+│ │GitHub │ │ │Dept    ││  │Multi-Agent│ │ │gh pr  │ │
+│ │Search │ │ │Mapping ││  │ Cluster  │ │ │create │ │
 │ └───────┘ │ └────────┘│  └──────────┘ │ └───────┘ │
 └───────────┴───────────┴───────────────┴──────────┘
 ```
@@ -30,47 +30,47 @@
 ### Phase 2: Planning (`BountyPlanner`)
 - Decomposes bounty into subtasks
 - Maps each subtask to a department:
-  - 🔍 **天机 (Research)** — Requirements analysis
-  - 💻 **玄码 (Code)** — Implementation
-  - 🛡️ **铁卫 (Security)** — Security review
-  - 📚 **博典 (Knowledge)** — Documentation
-  - ⚙️ **运维 (Ops)** — Infrastructure
+  - 🔍 **Research** — Requirements analysis
+  - 💻 **Code** — Implementation
+  - 🛡️ **Security** — Security review
+  - 📚 **Knowledge** — Documentation
+  - ⚙️ **Ops** — Infrastructure
 
 ### Phase 3: Execution (`TeamOrchestrator`)
-- 51 agents across 7 gateways
+- Multi-agent coordination across distributed gateways
 - Multi-LLM: GLM-5.1, DeepSeek-V4-Pro, Qwen-3.5-397B, Qwen-2.5-Coder-32B
 - Task assignment with idle detection
-- Gateway load balancing across 7 ports (18789-18795)
+- Gateway load balancing for high availability
 
 ### Phase 4: Submission (`PRSubmitter`)
 - Fork → Branch → Commit → PR workflow
 - Multi-LLM reviewed PR body template
 - Automatic PR creation via `gh` CLI
 
-## Agent Architecture (51 Agents)
+## Agent Architecture
 
 ```
 Department     │ Count │ Gateways │ Models
 ───────────────┼───────┼──────────┼──────────────────────
-铁卫 Security  │  13   │ GW-1,7  │ glm-5.1, deepseek-v4
-天机 Research  │  17   │ GW-2,3  │ glm-5.1, qwen-3.5
-玄码 Code      │   9   │ GW-4,5  │ qwen-2.5-coder, glm
-博典 Knowledge │   5   │ GW-6    │ glm-5.1
-运维 Ops       │   7   │ GW-1,2  │ glm-5.1
+Security  │  13   │ GW-1,7  │ glm-5.1, deepseek-v4
+Research  │  17   │ GW-2,3  │ glm-5.1, qwen-3.5
+Code      │   9   │ GW-4,5  │ qwen-2.5-coder, glm
+Knowledge │   5   │ GW-6    │ glm-5.1
+Ops       │   7   │ GW-1,2  │ glm-5.1
 ```
 
 ## Gateway Topology
 
 ```
-GW-1:18789 ─┬─ 铁卫 (5 agents)
-             └─ 运维 (4 agents)
-GW-2:18790 ─┬─ 天机 (9 agents)
-             └─ 运维 (3 agents)
-GW-3:18801 ─── 天机 (8 agents)
-GW-4:18792 ─── 玄码 (5 agents)
-GW-5:18793 ─── 玄码 (4 agents)
-GW-6:18794 ─── 博典 (5 agents)
-GW-7:18795 ─── 铁卫 (8 agents)
+GW-1 ─┬─ Security (primary)
+                   └─ Ops (shared)
+GW-2 ─┬─ Research (primary)
+                   └─ Ops (shared)
+GW-3 ─── Research (secondary)
+GW-4 ─── Code (primary)
+GW-5 ─── Code (secondary)
+GW-6 ─── Knowledge (dedicated)
+GW-7 ─── Security (secondary)
 ```
 
 ## Security Model
@@ -124,14 +124,14 @@ See `config.bounty-agent.yaml` for platform settings and agent configuration.
 
 ```mermaid
 graph TB
-    subgraph "51-Agent Cluster"
-        GW1["GW-1<br/>Orchestrator<br/>:18789"]
-        GW2["GW-2<br/>Research<br/>:18790"]
-        GW3["GW-3<br/>Security<br/>:18791"]
-        GW4["GW-4<br/>Monitor<br/>:18792"]
-        GW5["GW-5<br/>Scheduler<br/>:18793"]
-        GW6["GW-6<br/>Code<br/>:18794"]
-        GW7["GW-7<br/>Decision<br/>:18795"]
+    subgraph "Multi-Agent Cluster"
+        GW1["GW-1<br/>Orchestrator"]
+        GW2["GW-2<br/>Research"]
+        GW3["GW-3<br/>Security"]
+        GW4["GW-4<br/>Monitor"]
+        GW5["GW-5<br/>Scheduler"]
+        GW6["GW-6<br/>Code"]
+        GW7["GW-7<br/>Decision"]
     end
 
     subgraph "Core Services"
@@ -260,7 +260,7 @@ graph TB
     subgraph Dashboard["BountyAgentDashboard.tsx (1060 lines)"]
         MissionCtrl["Mission Control<br/>Start/Stop/Reset"]
         Pipeline["Pipeline Progress<br/>Discover→Analyze→Implement→Submit"]
-        AgentGrid["Agent Status Grid<br/>51 agents, 5 departments"]
+        AgentGrid["Agent Status Grid<br/>Multi-agent, 5 departments"]
         EconPanel["💰 Economic Panel<br/>ClawTasks → agent-token → MoltsPay"]
         Confidence["🎯 Confidence Dashboard<br/>5 gauges + anti-hallucination"]
         SchedQueue["⚙️ Scheduler Queue<br/>S/A/B/C ratings + memory bar"]

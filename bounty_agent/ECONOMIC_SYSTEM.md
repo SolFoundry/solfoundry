@@ -113,17 +113,17 @@ moltspay:
 1. Discovery:    BountyScanner finds #855 → creates ClawTask
 2. Planning:     BountyPlanner decomposes into 4 subtasks
 3. Execution:    4 agents complete their subtasks
-   → agent-014 (天机) earns 10 tokens (research)
-   → agent-031 (玄码) earns 25 tokens (code)  
-   → agent-001 (铁卫) earns 30 tokens (security)
-   → agent-044 (博典) earns 15 tokens (docs)
-4. Submission:   PR #1109 created, reviewed by 铁卫
+   → agent-014 (Research) earns 10 tokens (research)
+   → agent-031 (Code) earns 25 tokens (code)  
+   → agent-001 (Security) earns 30 tokens (security)
+   → agent-044 (Knowledge) earns 15 tokens (docs)
+4. Submission:   PR #1109 created, reviewed by Security
 5. Merge:        PR merged → 500K $FNDRY confirmed
 6. Settlement:   MoltsPay distributes:
-   → 天机: 10/80 × 500K = 62.5K $FNDRY
-   → 玄码: 25/80 × 500K = 156.25K $FNDRY
-   → 铁卫: 30/80 × 500K = 187.5K $FNDRY
-   → 博典: 15/80 × 500K = 93.75K $FNDRY
+   → Research: 10/80 × 500K = 62.5K $FNDRY
+   → Code: 25/80 × 500K = 156.25K $FNDRY
+   → Security: 30/80 × 500K = 187.5K $FNDRY
+   → Knowledge: 15/80 × 500K = 93.75K $FNDRY
 ```
 
 ## Why Three Layers?

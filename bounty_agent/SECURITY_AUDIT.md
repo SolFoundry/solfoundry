@@ -64,7 +64,7 @@ All tokens and API keys loaded from environment variables:
 `submitter.py` includes `_sanitize_pr_body()` that removes:
 - Agent count / gateway count leaks (regex: `N agents, M gateways`)
 - Internal IP addresses
-- Gateway port references (e.g., `GW-1:18789`)
+- Gateway port references
 
 ### ✅ No Shell Injection
 All subprocess calls use argument lists, never `shell=True`:
@@ -98,7 +98,7 @@ subprocess.run(f"gh pr create --repo={repo}", shell=True)
 | Issue | Severity | Fix | Date |
 |-------|----------|-----|------|
 | MD5 hash in LLM cache key | HIGH | → SHA-256 (truncated to 32 chars) | 2026-05-02 |
-| "51 agents, 7 gateways" in PR body | MEDIUM | → `_sanitize_pr_body()` regex strip | 2026-05-02 |
+| "agent/gateway counts" in PR body | MEDIUM | → `_sanitize_pr_body()` regex strip | 2026-05-02 |
 | `datetime.utcnow()` deprecation | LOW | → `datetime.now(timezone.utc)` | 2026-05-02 |
 
 ---

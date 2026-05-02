@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Autonomous Bounty Agent — Demo Output</title>
+<style>
+  body {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px;
+    margin: 0;
+  }
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+<pre>============================================================
+  <span style="font-size:1.1em">🤖</span> Autonomous Bounty Agent — Live Demo
+============================================================
+
+<span style="font-size:1.1em">📋</span> [1/5] Agent Scheduler — S/A/B/C Tier Rating
+----------------------------------------
+  <span style="font-size:1.1em">✅</span> sec-alpha [S] → security on gw-1
+  <span style="font-size:1.1em">✅</span> sec-beta [S] → security on gw-7
+  <span style="font-size:1.1em">✅</span> res-gamma [A] → research on gw-2
+  <span style="font-size:1.1em">✅</span> res-delta [A] → research on gw-3
+  <span style="font-size:1.1em">✅</span> code-epsilon [B] → code on gw-4
+  <span style="font-size:1.1em">✅</span> code-zeta [B] → code on gw-5
+  <span style="font-size:1.1em">✅</span> doc-eta [C] → knowledge on gw-6
+  <span style="font-size:1.1em">✅</span> ops-theta [C] → ops on gw-1
+  <span style="font-size:1.1em">📊</span> Team: 8 agents | Tiers: {"S": 2, "A": 2, "B": 2, "C": 2}
+  <span style="font-size:1.1em">💾</span> Memory: 640.0MB / 1600.0MB (40.0%)
+
+<span style="font-size:1.1em">🎯</span> [2/5] Task Dispatch — Priority Queue + Tier Matching
+----------------------------------------
+  <span style="font-size:1.1em">📥</span> Queued: t-sec-1 (diff=critical, pri=10)
+  <span style="font-size:1.1em">📥</span> Queued: t-code-1 (diff=medium, pri=5)
+  <span style="font-size:1.1em">📥</span> Queued: t-doc-1 (diff=easy, pri=2)
+  <span style="font-size:1.1em">🚀</span> Dispatched: t-sec-1 → sec-alpha [S] (security)
+  <span style="font-size:1.1em">🚀</span> Dispatched: t-code-1 → code-epsilon [B] (code)
+  <span style="font-size:1.1em">🚀</span> Dispatched: t-doc-1 → doc-eta [C] (knowledge)
+
+<span style="font-size:1.1em">🤖</span> [3/5] LLM Client — Multi-Provider + Fallback Chain
+----------------------------------------
+  <span style="font-size:1.1em">✅</span> openai: glm-5.1 (rpm=60)
+  <span style="font-size:1.1em">✅</span> anthropic: deepseek-v4-pro (rpm=40)
+  <span style="font-size:1.1em">✅</span> local: qwen-3.5-397b (rpm=30)
+  <span style="font-size:1.1em">📊</span> Fallback chain: openai/glm-5.1 → anthropic/deepseek-v4-pro → local/qwen-3.5-397b
+
+<span style="font-size:1.1em">📡</span> [4/5] Event Bus — Structured Events
+----------------------------------------
+  [stage_started] Discovery phase started
+  [agent_completed] Code implementation done
+  [mission_completed] Mission #861 completed
+
+<span style="font-size:1.1em">🔄</span> [5/5] Full Pipeline — 5-Stage Mission Execution
+----------------------------------------
+  <span style="font-size:1.1em">🎯</span> Mission started: #861
+  <span style="font-size:1.1em">✅</span> discover: <span style="color:#22c55e;font-weight:bold">success</span> (agent=planner-005, 0.0s)
+  <span style="font-size:1.1em">✅</span> analyze: <span style="color:#22c55e;font-weight:bold">success</span> (agent=analyst-006, 0.0s)
+  <span style="font-size:1.1em">✅</span> implement: <span style="color:#22c55e;font-weight:bold">success</span> (agent=coder-010, 0.0s)
+  <span style="font-size:1.1em">✅</span> test: <span style="color:#22c55e;font-weight:bold">success</span> (agent=tester-011, 0.0s)
+  <span style="font-size:1.1em">✅</span> submit: <span style="color:#22c55e;font-weight:bold">success</span> (agent=submitter-017, 0.0s)
+  <span style="font-size:1.1em">🏁</span> Mission complete: False | 0/5 stages
+
+============================================================
+<span style="font-size:1.1em">✅</span> All systems operational
+   Scheduler: 3 tasks dispatched
+   LLM: 3 providers with fallback
+   Pipeline: 5/5 stages passed
+============================================================
+</pre>
+</body>
+</html>
