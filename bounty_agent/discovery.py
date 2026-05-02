@@ -1,7 +1,9 @@
 """Bounty discovery module — scans platforms for opportunities."""
-import subprocess, json, re
+import subprocess
+import json
+import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 
 @dataclass
@@ -37,7 +39,7 @@ class BountyScanner:
             bounties = []
             for item in items:
                 repo = item.get("repository", {}).get("nameWithOwner", "")
-                labels = [l.get("name", "") for l in item.get("labels", [])]
+                labels = [lbl.get("name", "") for lbl in item.get("labels", [])]
                 bounties.append(BountyIssue(
                     platform="github", repo=repo,
                     issue_number=item.get("number", 0),
@@ -72,7 +74,7 @@ class BountyScanner:
         return "unknown"
 
     def _assess_difficulty(self, labels: List[str]) -> str:
-        label_set = set(l.lower() for l in labels)
+        label_set = set(lbl.lower() for lbl in labels)
         if label_set & {"easy", "good first issue", "tier-1"}:
             return "easy"
         if label_set & {"hard", "red-team", "tier-3"}:

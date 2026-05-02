@@ -40,7 +40,6 @@ from app.models.bounty import BountyCreate, BountyTier
 from app.services.bounty_spec_service import (
     parse_yaml_file,
     validate_spec,
-    generate_labels,
 )
 from app.services import bounty_service
 
