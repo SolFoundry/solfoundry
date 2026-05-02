@@ -124,7 +124,7 @@ See `config.bounty-agent.yaml` for platform settings and agent configuration.
 
 ```mermaid
 graph TB
-    subgraph "51-Agent Cluster"
+    subgraph "Agent Cluster"
         GW1["GW-1<br/>Orchestrator<br/>:18789"]
         GW2["GW-2<br/>Research<br/>:18790"]
         GW3["GW-3<br/>Security<br/>:18791"]
