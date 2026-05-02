@@ -17,7 +17,6 @@ import subprocess
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
 
@@ -114,13 +113,16 @@ class BountyIssue:
 class BountyAdapter(ABC):
     @property
     @abstractmethod
-    def platform_name(self) -> str: ...
+    def platform_name(self) -> str:
+        ...
 
     @abstractmethod
-    def scan(self, config: Dict[str, Any]) -> List[BountyIssue]: ...
+    def scan(self, config: Dict[str, Any]) -> List[BountyIssue]:
+        ...
 
     @abstractmethod
-    def get_bounty_detail(self, bounty_id: str, config: Dict[str, Any]) -> Optional[BountyIssue]: ...
+    def get_bounty_detail(self, bounty_id: str, config: Dict[str, Any]) -> Optional[BountyIssue]:
+        ...
 
 
 class SolFoundryAdapter(BountyAdapter):
@@ -150,7 +152,7 @@ class SolFoundryAdapter(BountyAdapter):
             if result.returncode != 0:
                 return None
             data = json.loads(result.stdout)
-            labels = [l.get("name", "") for l in data.get("labels", [])]
+            labels = [lbl.get("name", "") for lbl in data.get("labels", [])]
             return BountyIssue(
                 platform=self.platform_name, repo=repo,
                 issue_number=int(bounty_id), title=data.get("title", ""),
@@ -174,7 +176,7 @@ class SolFoundryAdapter(BountyAdapter):
         items = json.loads(result.stdout)
         bounties = []
         for item in items:
-            labels = [l.get("name", "") for l in item.get("labels", [])]
+            labels = [lbl.get("name", "") for lbl in item.get("labels", [])]
             tier = self._infer_tier(labels, item.get("title", ""))
             bounties.append(BountyIssue(
                 platform=self.platform_name, repo=repo,
@@ -188,7 +190,7 @@ class SolFoundryAdapter(BountyAdapter):
 
     @staticmethod
     def _infer_tier(labels: List[str], title: str) -> BountyTier:
-        label_set = {l.lower() for l in labels}
+        label_set = {lbl.lower() for lbl in labels}
         if "t1" in label_set or "critical" in label_set:
             return BountyTier.T1_CRITICAL
         if "t2" in label_set or "major" in label_set:
@@ -216,7 +218,12 @@ class SolFoundryAdapter(BountyAdapter):
 
     @staticmethod
     def _tier_to_difficulty(tier: BountyTier) -> str:
-        return {BountyTier.T1_CRITICAL: "hard", BountyTier.T2_MAJOR: "medium", BountyTier.T3_STANDARD: "easy"}.get(tier, "medium")
+        return {
+            BountyTier.T1_CRITICAL: "hard",
+            BountyTier.T2_MAJOR: "medium",
+            BountyTier.T3_STANDARD: "easy"}.get(
+            tier,
+            "medium")
 
 
 class GitHubAdapter(BountyAdapter):
@@ -261,7 +268,7 @@ class GitHubAdapter(BountyAdapter):
             if result.returncode != 0:
                 return None
             data = json.loads(result.stdout)
-            labels = [l.get("name", "") for l in data.get("labels", [])]
+            labels = [lbl.get("name", "") for lbl in data.get("labels", [])]
             return BountyIssue(
                 platform=self.platform_name, repo=repo,
                 issue_number=int(bounty_id), title=data.get("title", ""),
@@ -313,7 +320,7 @@ class RustChainAdapter(BountyAdapter):
             if result.returncode != 0:
                 return None
             data = json.loads(result.stdout)
-            labels = [l.get("name", "") for l in data.get("labels", [])]
+            labels = [lbl.get("name", "") for lbl in data.get("labels", [])]
             return BountyIssue(
                 platform=self.platform_name, repo=repo,
                 issue_number=int(bounty_id), title=data.get("title", ""),
@@ -337,7 +344,7 @@ class RustChainAdapter(BountyAdapter):
                 issue_number=i.get("number", 0), title=i.get("title", ""),
                 reward=self._extract_rtc_reward(i.get("title", "")),
                 tier=self._infer_rtc_tier(i.get("title", "")),
-                labels=[l.get("name", "") for l in i.get("labels", [])],
+                labels=[lbl.get("name", "") for lbl in i.get("labels", [])],
                 url=i.get("url", ""), updated_at=i.get("updatedAt"),
             ) for i in items]
         except Exception:
@@ -376,7 +383,7 @@ class ImmunefiAdapter(BountyAdapter):
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode == 0:
                 for item in json.loads(result.stdout):
-                    labels = [l.get("name", "") for l in item.get("labels", [])]
+                    labels = [lbl.get("name", "") for lbl in item.get("labels", [])]
                     bounties.append(BountyIssue(
                         platform=self.platform_name,
                         repo=item.get("repository", {}).get("nameWithOwner", ""),
@@ -435,7 +442,8 @@ class BountyScanner:
 
     def prioritize(self, bounties: List[BountyIssue], top_n: int = 10, strategy: str = "balanced") -> List[BountyIssue]:
         if strategy == "easy_first":
-            return sorted(bounties, key=lambda b: (0 if b.is_easy else (2 if b.difficulty == "hard" else 1), -b.reward_amount))[:top_n]
+            return sorted(bounties, key=lambda b: (0 if b.is_easy else (
+                2 if b.difficulty == "hard" else 1), -b.reward_amount))[:top_n]
         if strategy == "high_reward":
             return sorted(bounties, key=lambda b: -b.reward_amount)[:top_n]
         if strategy == "low_competition":
@@ -444,7 +452,12 @@ class BountyScanner:
         for b in bounties:
             reward_score = min(b.reward_amount / 100, 40)
             comp_score = max(30 - b.existing_prs * 6, 0)
-            diff_score = {BountyTier.T3_STANDARD: 20, BountyTier.T2_MAJOR: 15, BountyTier.T1_CRITICAL: 8}.get(b.tier, 10)
+            diff_score = {
+                BountyTier.T3_STANDARD: 20,
+                BountyTier.T2_MAJOR: 15,
+                BountyTier.T1_CRITICAL: 8}.get(
+                b.tier,
+                10)
             total = reward_score + comp_score + diff_score + b.skill_match_score * 10
             scored.append((total, b))
         scored.sort(key=lambda x: -x[0])
