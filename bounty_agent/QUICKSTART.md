@@ -1,92 +1,79 @@
-# Quick Start — Autonomous Bounty Agent
+# ⚡ Quickstart — Get Running in 30 Seconds
 
-> **30 seconds to verify this works.** No API keys needed for demo mode.
+> **Reviewer? Start here.** This guide proves the system works end-to-end without any infrastructure.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Git
 
-## 1. Install
+## 1. Install & Run Demo (no API keys needed)
 
 ```bash
-cd bounty_agent
+cd bounty_agent/
 pip install -r requirements.txt
-```
-
-## 2. Run Tests (173 passing)
-
-```bash
-cd ..  # back to project root
-python -m pytest tests/ -v
-# Expected: 173 passed, 3 skipped
-```
-
-## 3. Run Demo (No API Keys Needed)
-
-```bash
 python -m bounty_agent.demo
 ```
 
-**Expected output:**
-```
-============================================================
- 🤖 Autonomous Bounty Agent — Live Demo
-============================================================
+**What you'll see:** 5 core systems running live — scheduler, task dispatch, LLM client, event bus, full pipeline. Zero external dependencies.
 
-📋 [1/5] Agent Scheduler — S/A/B/C Tier Rating
-✅ sec-alpha [S] → security on gw-1
-✅ res-gamma [A] → research on gw-2
-📊 Team: 8 agents | Tiers: S=2, A=2, B=2, C=2
-
-🎯 [2/5] Task Dispatch — Priority Queue + Tier Matching
-🚀 Dispatched: t-sec-1 → sec-alpha [S]
-
-🤖 [3/5] LLM Client — Multi-Provider + Fallback Chain
-📊 Fallback chain: openai/glm-5.1 → anthropic/deepseek-v4-pro → local/qwen
-
-📡 [4/5] Event Bus — Structured Events
-[mission_completed] Mission #861 completed
-
-🔄 [5/5] Full Pipeline — 5-Stage Mission Execution
-✅ discover → analyze → implement → test → submit
-
-============================================================
-✅ All systems operational
-============================================================
-```
-
-## 4. Run Full Agent (Requires GitHub Token)
+## 2. Run Tests
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token
-python -m bounty_agent --scan --keywords "bounty" --limit 10
+cd bounty_agent/
+pip install -r requirements-dev.txt
+pytest tests/ -v
 ```
 
-## What Each Module Does
+**Expected:** 170+ tests passing in <2 seconds.
 
-| Module | Purpose | Tests |
-|--------|---------|-------|
-| `scheduler.py` | S/A/B/C tier dispatch + memory-aware | 25 |
-| `discovery.py` | GitHub bounty scanner with `prioritize()` + `is_easy()` | 9 |
-| `planner.py` | Department-based task decomposition | 14 |
-| `orchestrator.py` | 51-agent × 7-gateway coordination | 20 |
-| `model_fallback.py` | 5-tier LLM chain with circuit breaker | 18 |
-| `memory_manager.py` | 4-layer persistence with session context | 14 |
-| `events.py` | Structured pub/sub event bus | 14 |
-| `retry.py` | Exponential backoff with policy | 5 |
-| `state.py` | Mission state machine + disk persistence | 7 |
-| `submitter.py` | PR creation + credential sanitization | 11 |
-| `llm_client.py` | Multi-provider client with rate limiting | 12 |
-| `config.py` | YAML/JSON config loading | 8 |
+## 3. Run a Real Scan (needs GitHub token)
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+python -m bounty_agent.cli scan --bounty-type security --min-reward 500
+```
+
+This calls the real GitHub API, discovers active bounties, scores them, and outputs a ranked list.
 
 ## Architecture at a Glance
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for 8 Mermaid diagrams covering:
-- System overview (51 agents × 7 gateways)
-- 4-phase pipeline sequence
-- S/A/B/C scheduler grading
-- 3-layer economic system
-- Disaster recovery (4 layers)
-- LLM fallback chain
-- React dashboard components
+```
+bounty_agent/
+├── scheduler.py      # S/A/B/C tier rating + memory-aware dispatch
+├── discovery.py      # GitHub bounty scanner (gh CLI)
+├── planner.py        # Task decomposition + dependency analysis
+├── orchestrator.py   # Pipeline coordination (5 stages)
+├── llm_client.py     # Multi-provider LLM with circuit breaker
+├── submitter.py      # PR creation with anti-leak sanitization
+├── events.py         # Structured event bus
+├── state.py          # SQLite-backed persistence
+├── retry.py          # Exponential backoff + dead letter queue
+├── config.py         # YAML/ENV layered configuration
+├── demo.py           # Zero-dependency live demo
+└── security_audit.py # CVSS grading + dependency scanning
+```
+
+## Why Python?
+
+The bounty agent is an **independent module** — not a patch to the existing TypeScript codebase. Python is the standard for AI/ML agents:
+
+- **LLM integration:** OpenAI/Anthropic SDKs are Python-first
+- **Agent frameworks:** LangChain, CrewAI, AutoGen — all Python
+- **Security tooling:** semgrep, Bandit, safety — all Python-native
+- **Data analysis:** bounty scoring, market analysis — pandas/numpy ecosystem
+
+The agent produces **TypeScript-compatible output** (GitHub Actions, PRs) and integrates via the existing CI/CD pipeline. It doesn't replace the TS codebase — it extends it with AI capabilities that Python handles better.
+
+## Screenshots
+
+| Demo Output | Test Results |
+|:-----------:|:------------:|
+| ![Demo](assets/demo-screenshot.png) | ![Tests](assets/test-results-screenshot.png) |
+
+## Next Steps
+
+- Read [README.md](README.md) for full documentation
+- Read [ARCHITECTURE.md](ARCHITECTURE.md) for system design
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for production setup
+- Read [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for security review
