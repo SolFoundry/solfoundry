@@ -7,11 +7,11 @@ class TestDepartment:
     """Tests for Department enum."""
 
     def test_departments_exist(self):
-        assert Department.SECURITY.value == "铁卫"
-        assert Department.RESEARCH.value == "天机"
-        assert Department.CODE.value == "玄码"
-        assert Department.KNOWLEDGE.value == "博典"
-        assert Department.OPS.value == "运维"
+        assert Department.SECURITY.value == "security"
+        assert Department.RESEARCH.value == "research"
+        assert Department.CODE.value == "code"
+        assert Department.KNOWLEDGE.value == "knowledge"
+        assert Department.OPS.value == "ops"
 
 
 class TestSubTask:
