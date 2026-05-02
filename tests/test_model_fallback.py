@@ -1,6 +1,5 @@
 """Unit tests for model_fallback module."""
 
-import pytest
 from bounty_agent.model_fallback import (
     ModelFallbackChain,
     ModelConfig,

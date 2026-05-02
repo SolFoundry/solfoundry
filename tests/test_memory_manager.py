@@ -1,6 +1,5 @@
 """Unit tests for memory_manager module."""
 
-import pytest
 import time
 import tempfile
 import os
