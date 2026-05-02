@@ -12,7 +12,7 @@ Usage:
     python -m bounty_agent.demo
 """
 
-from bounty_agent.scheduler import AgentScheduler, AgentTier, AgentStatus, Task
+from bounty_agent.scheduler import AgentScheduler, AgentTier, Task
 from bounty_agent.discovery import BountyIssue, BountyTier
 from bounty_agent.orchestrator import TeamOrchestrator, MissionStage
 from bounty_agent.llm_client import LLMClient, Provider
@@ -135,7 +135,7 @@ def main():
     print("✅ All systems operational")
     print(f"   Scheduler: {sched.total_dispatched} tasks dispatched")
     print(f"   LLM: {len(client.get_stats()['providers'])} providers with fallback")
-    print(f"   Pipeline: 5/5 stages passed")
+    print("   Pipeline: 5/5 stages passed")
     print("=" * 60)
 
 

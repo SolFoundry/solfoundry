@@ -9,8 +9,7 @@ Covers end-to-end scenarios:
 Author: Xeophon
 """
 import time
-import pytest
-from bounty_agent.scheduler import AgentScheduler, AgentTier, AgentStatus, Task
+from bounty_agent.scheduler import AgentScheduler, AgentTier, Task
 from bounty_agent.config import BountyAgentConfig
 from bounty_agent.llm_client import LLMClient, Provider, RateLimitState
 
@@ -90,7 +89,9 @@ class TestEconomicConfigIntegration:
         assert config.agent_name == "bounty-agent"
 
     def test_config_from_file(self):
-        import tempfile, json, os
+        import tempfile
+        import json
+        import os
         data = {"agent_name": "custom-agent", "log_level": "DEBUG"}
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             json.dump(data, f)
