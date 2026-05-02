@@ -78,7 +78,7 @@ class AutonomousBountyAgent:
 
         bounties = self.discover(keywords, limit)
         plans = self.analyze(bounties)
-        
+
         for plan in plans[:3]:
             self.implement(plan)
 
