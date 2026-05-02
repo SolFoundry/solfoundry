@@ -13,8 +13,8 @@
 │ ┌───────┐ │ ┌────────┐│  ┌──────────┐ │ ┌───────┐ │
 │ │Scanner │ │ │Planner ││  │Orchestrator│ │ │Submit │ │
 │ │       │ │ │        ││  │          │ │ │       │ │
-│ │GitHub │ │ │Dept    ││  │51 agents │ │ │gh pr  │ │
-│ │Search │ │ │Mapping ││  │7 gateways│ │ │create │ │
+│ │GitHub │ │ │Dept    ││  │Multi-agent │ │ │gh pr  │ │
+│ │Search │ │ │Mapping ││  │Multi-GW │ │ │create │ │
 │ └───────┘ │ └────────┘│  └──────────┘ │ └───────┘ │
 └───────────┴───────────┴───────────────┴──────────┘
 ```
@@ -30,14 +30,14 @@
 ### Phase 2: Planning (`BountyPlanner`)
 - Decomposes bounty into subtasks
 - Maps each subtask to a department:
-  - 🔍 **天机 (Research)** — Requirements analysis
-  - 💻 **玄码 (Code)** — Implementation
-  - 🛡️ **铁卫 (Security)** — Security review
-  - 📚 **博典 (Knowledge)** — Documentation
-  - ⚙️ **运维 (Ops)** — Infrastructure
+  - 🔍 **Research (Research)** — Requirements analysis
+  - 💻 **Code (Code)** — Implementation
+  - 🛡️ **Security (Security)** — Security review
+  - 📚 **Knowledge (Knowledge)** — Documentation
+  - ⚙️ **Ops (Ops)** — Infrastructure
 
 ### Phase 3: Execution (`TeamOrchestrator`)
-- 51 agents across 7 gateways
+- Multi-agent across multiple gateways
 - Multi-LLM: GLM-5.1, DeepSeek-V4-Pro, Qwen-3.5-397B, Qwen-2.5-Coder-32B
 - Task assignment with idle detection
 - Gateway load balancing across 7 ports (18789-18795)
@@ -47,30 +47,30 @@
 - Multi-LLM reviewed PR body template
 - Automatic PR creation via `gh` CLI
 
-## Agent Architecture (51 Agents)
+## Agent Architecture
 
 ```
 Department     │ Count │ Gateways │ Models
 ───────────────┼───────┼──────────┼──────────────────────
-铁卫 Security  │  13   │ GW-1,7  │ glm-5.1, deepseek-v4
-天机 Research  │  17   │ GW-2,3  │ glm-5.1, qwen-3.5
-玄码 Code      │   9   │ GW-4,5  │ qwen-2.5-coder, glm
-博典 Knowledge │   5   │ GW-6    │ glm-5.1
-运维 Ops       │   7   │ GW-1,2  │ glm-5.1
+Security  │  13   │ GW-1,7  │ glm-5.1, deepseek-v4
+Research  │  17   │ GW-2,3  │ glm-5.1, qwen-3.5
+Code      │   9   │ GW-4,5  │ qwen-2.5-coder, glm
+Knowledge │   5   │ GW-6    │ glm-5.1
+Ops       │   7   │ GW-1,2  │ glm-5.1
 ```
 
 ## Gateway Topology
 
 ```
-GW-1:18789 ─┬─ 铁卫 (5 agents)
-             └─ 运维 (4 agents)
-GW-2:18790 ─┬─ 天机 (9 agents)
-             └─ 运维 (3 agents)
-GW-3:18801 ─── 天机 (8 agents)
-GW-4:18792 ─── 玄码 (5 agents)
-GW-5:18793 ─── 玄码 (4 agents)
-GW-6:18794 ─── 博典 (5 agents)
-GW-7:18795 ─── 铁卫 (8 agents)
+GW-1:18789 ─┬─ Security (5 agents)
+             └─ Ops (4 agents)
+GW-2:18790 ─┬─ Research (9 agents)
+             └─ Ops (3 agents)
+GW-3:18801 ─── Research (8 agents)
+GW-4:18792 ─── Code (5 agents)
+GW-5:18793 ─── Code (4 agents)
+GW-6:18794 ─── Knowledge (5 agents)
+GW-7:18795 ─── Security (8 agents)
 ```
 
 ## Security Model
@@ -260,7 +260,7 @@ graph TB
     subgraph Dashboard["BountyAgentDashboard.tsx (1060 lines)"]
         MissionCtrl["Mission Control<br/>Start/Stop/Reset"]
         Pipeline["Pipeline Progress<br/>Discover→Analyze→Implement→Submit"]
-        AgentGrid["Agent Status Grid<br/>51 agents, 5 departments"]
+        AgentGrid["Agent Status Grid<br/>Multi-agent, 5 departments"]
         EconPanel["💰 Economic Panel<br/>ClawTasks → agent-token → MoltsPay"]
         Confidence["🎯 Confidence Dashboard<br/>5 gauges + anti-hallucination"]
         SchedQueue["⚙️ Scheduler Queue<br/>S/A/B/C ratings + memory bar"]

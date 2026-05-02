@@ -197,7 +197,7 @@ class LLMClient:
         """Make actual API call to a provider.
 
         In production, this uses actual HTTP clients (aiohttp/httpx).
-        This is the validated interface from our 7-gateway deployment.
+        This is the validated interface from our multi-gateway deployment.
         """
         start = time.time()
         # Production implementation would call:

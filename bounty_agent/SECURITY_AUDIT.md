@@ -98,7 +98,7 @@ subprocess.run(f"gh pr create --repo={repo}", shell=True)
 | Issue | Severity | Fix | Date |
 |-------|----------|-----|------|
 | MD5 hash in LLM cache key | HIGH | → SHA-256 (truncated to 32 chars) | 2026-05-02 |
-| "51 agents, 7 gateways" in PR body | MEDIUM | → `_sanitize_pr_body()` regex strip | 2026-05-02 |
+| "multiple agents, multiple gateways" in PR body | MEDIUM | → `_sanitize_pr_body()` regex strip | 2026-05-02 |
 | `datetime.utcnow()` deprecation | LOW | → `datetime.now(timezone.utc)` | 2026-05-02 |
 
 ---

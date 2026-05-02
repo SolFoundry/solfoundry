@@ -70,7 +70,7 @@ python -m bounty_agent --scan --keywords "bounty" --limit 10
 | `scheduler.py` | S/A/B/C tier dispatch + memory-aware | 25 |
 | `discovery.py` | GitHub bounty scanner with `prioritize()` + `is_easy()` | 9 |
 | `planner.py` | Department-based task decomposition | 14 |
-| `orchestrator.py` | 51-agent × 7-gateway coordination | 20 |
+| `orchestrator.py` | Multi-agent × multi-gateway coordination | 20 |
 | `model_fallback.py` | 5-tier LLM chain with circuit breaker | 18 |
 | `memory_manager.py` | 4-layer persistence with session context | 14 |
 | `events.py` | Structured pub/sub event bus | 14 |
@@ -83,7 +83,7 @@ python -m bounty_agent --scan --keywords "bounty" --limit 10
 ## Architecture at a Glance
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for 8 Mermaid diagrams covering:
-- System overview (51 agents × 7 gateways)
+- System overview (Multi-agent × multi-gateway)
 - 4-phase pipeline sequence
 - S/A/B/C scheduler grading
 - 3-layer economic system
