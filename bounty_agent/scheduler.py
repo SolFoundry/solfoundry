@@ -1,309 +1,507 @@
-"""Agent scheduling module with tiered priority and memory-aware dispatch.
+"""Agent scheduler with S/A/B/C tier rating, memory-aware dispatch, and heartbeat monitoring."""
 
-Implements S/A/B/C four-tier agent rating system with:
-- Memory watermark scheduling (850MB limit per gateway)
-- Peak-shifting staggered online strategy
-- Rate limiting and queue management
-- Heartbeat-based health monitoring
-
-Production-validated on 7-gateway Mac Mini cluster.
-Author: Xeophon
-"""
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
 import time
+import threading
 import logging
-import heapq
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional, Callable
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
 class AgentTier(Enum):
-    """Agent performance tiers — higher tier = higher priority."""
-    S = 4  # Elite: proven high-output agents
-    A = 3  # Senior: reliable with good track record
-    B = 2  # Regular: standard capability
-    C = 1  # Junior: new or underperforming
+    """S/A/B/C four-tier agent rating system."""
+    S = "S"  # Elite: top performers, handle critical tasks
+    A = "A"  # Senior: reliable, handle complex tasks
+    B = "B"  # Standard: competent, handle routine tasks
+    C = "C"  # Junior: new/lightweight agents, handle easy tasks
 
 
 class AgentStatus(Enum):
-    IDLE = "idle"
+    """Agent lifecycle states."""
+    ONLINE = "online"
     BUSY = "busy"
-    OFFLINE = "offline"
+    IDLE = "idle"
     ERROR = "error"
-    DRAINING = "draining"  # Gracefully shutting down
+    OFFLINE = "offline"
 
 
 @dataclass
 class AgentProfile:
-    """Complete agent profile for scheduling decisions."""
+    """Profile for a single agent in the pool."""
     agent_id: str
-    tier: AgentTier = AgentTier.B
-    status: AgentStatus = AgentStatus.IDLE
-    gateway_id: int = 1
-    department: str = "general"
-
-    # Performance metrics
+    tier: AgentTier = AgentTier.C
+    status: AgentStatus = AgentStatus.OFFLINE
+    gateway_id: str = ""
+    model: str = ""
+    memory_usage_mb: float = 0.0
     tasks_completed: int = 0
     tasks_failed: int = 0
-    avg_completion_time: float = 0.0  # seconds
-    last_heartbeat: float = field(default_factory=time.time)
-
-    # Resource tracking
-    memory_usage_mb: float = 0.0
-    memory_limit_mb: float = 850.0  # Per-gateway limit
-    active_tasks: int = 0
-    max_concurrent_tasks: int = 3
-
-    # Scheduling metadata
-    priority_score: float = 0.0
-    assigned_bounty: Optional[str] = None
+    last_heartbeat: float = 0.0
+    current_task: Optional[str] = None
+    uptime_seconds: float = 0.0
+    department: str = ""
 
     @property
-    def success_rate(self) -> float:
+    def reliability_score(self) -> float:
+        """Calculate reliability score (0.0-1.0) based on task history."""
         total = self.tasks_completed + self.tasks_failed
-        return self.tasks_completed / total if total > 0 else 0.0
+        if total == 0:
+            return 0.5  # New agents start at neutral
+        return self.tasks_completed / total
 
     @property
     def is_available(self) -> bool:
-        return (
-            self.status in (AgentStatus.IDLE, AgentStatus.BUSY)
-            and self.active_tasks < self.max_concurrent_tasks
-            and self.memory_usage_mb < self.memory_limit_mb * 0.9
-            and (time.time() - self.last_heartbeat) < 300  # 5min heartbeat timeout
-        )
-
-    @property
-    def is_healthy(self) -> bool:
-        return self.status not in (AgentStatus.ERROR, AgentStatus.OFFLINE) \
-               and (time.time() - self.last_heartbeat) < 300
-
-    def update_tier(self):
-        """Auto-promote/demote based on performance."""
-        rate = self.success_rate
-        if self.tasks_completed >= 20 and rate >= 0.95:
-            self.tier = AgentTier.S
-        elif self.tasks_completed >= 10 and rate >= 0.85:
-            self.tier = AgentTier.A
-        elif self.tasks_completed >= 5 and rate >= 0.70:
-            self.tier = AgentTier.B
-        elif rate < 0.50 and self.tasks_failed >= 3:
-            self.tier = AgentTier.C
+        """Check if agent is available for task assignment."""
+        return self.status in (AgentStatus.ONLINE, AgentStatus.IDLE)
 
 
 @dataclass
 class Task:
-    """A schedulable task with priority."""
+    """A schedulable task."""
     task_id: str
-    bounty_id: str
-    task_type: str  # discovery, coding, testing, submission, review
-    priority: int = 5  # 1-10, higher = more urgent
-    estimated_time: float = 60.0  # seconds
+    difficulty: str = "medium"  # easy, medium, hard, critical
+    department: str = ""
     required_tier: AgentTier = AgentTier.B
-    required_memory_mb: float = 100.0
+    memory_estimate_mb: float = 50.0
+    priority: int = 0  # Higher = more urgent
     created_at: float = field(default_factory=time.time)
-    assigned_to: Optional[str] = None
+    assigned_agent: Optional[str] = None
     deadline: Optional[float] = None
 
-    def __lt__(self, other):
-        """Priority queue ordering — higher priority first."""
-        if self.priority != other.priority:
-            return self.priority > other.priority
-        return self.created_at < other.created_at
+
+# Tier-to-difficulty mapping
+TIER_DIFFICULTY_MAP = {
+    AgentTier.S: ["critical", "hard"],
+    AgentTier.A: ["hard", "medium"],
+    AgentTier.B: ["medium", "easy"],
+    AgentTier.C: ["easy"],
+}
+
+# Memory limits per environment
+MEMORY_LIMITS = {
+    "2gb": 850.0,    # 2GB environment → 850MB agent ceiling
+    "4gb": 1600.0,   # 4GB environment → 1.6GB agent ceiling
+    "8gb": 3200.0,   # 8GB environment → 3.2GB agent ceiling
+    "default": 1600.0,
+}
 
 
-class Scheduler:
-    """Agent scheduler with tiered dispatch and memory awareness.
-
-    Core algorithms:
-    1. Tiered priority matching — assign S-tier tasks to S-tier agents
-    2. Memory watermark scheduling — skip agents above 90% memory
-    3. Peak-shifting stagger — delay low-priority tasks during peak
-    4. Round-robin fallback — for equal-priority agents
+class AgentScheduler:
+    """
+    Production-grade agent scheduler with:
+    - S/A/B/C four-tier dynamic rating
+    - Memory-watermark dispatch
+    - Staggered onboarding (错峰上线)
+    - Peak load shedding (峰值限流)
+    - Heartbeat monitoring with auto-demotion
     """
 
-    # Memory watermark thresholds
-    MEMORY_HIGH_WATERMARK = 0.9   # 90% — reject new tasks
-    MEMORY_LOW_WATERMARK = 0.7   # 70% — allow all tasks
-    MEMORY_CRITICAL = 0.95       # 95% — force task migration
+    def __init__(
+        self,
+        memory_limit_mb: float = 1600.0,
+        heartbeat_timeout_sec: float = 300.0,
+        max_concurrent_tasks: int = 5,
+        peak_threshold: float = 0.85,
+        demotion_threshold: float = 0.4,
+        promotion_threshold: float = 0.9,
+    ):
+        self.memory_limit_mb = memory_limit_mb
+        self.heartbeat_timeout_sec = heartbeat_timeout_sec
+        self.max_concurrent_tasks = max_concurrent_tasks
+        self.peak_threshold = peak_threshold  # % of memory limit before shedding
+        self.demotion_threshold = demotion_threshold  # Reliability below this → demote
+        self.promotion_threshold = promotion_threshold  # Reliability above this → promote
 
-    def __init__(self, max_queue_size: int = 1000):
-        self._agents: Dict[str, AgentProfile] = {}
-        self._task_queue: List[Task] = []  # Min-heap by priority
-        self._max_queue_size = max_queue_size
-        self._schedule_history: List[Dict] = []
+        self.agents: Dict[str, AgentProfile] = {}
+        self.task_queue: List[Task] = []
+        self.completed_tasks: List[Task] = []
+        self._lock = threading.RLock()
+        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._running = False
 
-        # Peak-shifting configuration
-        self._peak_hours = [(9, 12), (14, 18)]  # 9-12, 14-18 UTC+8
-        self._peak_delay_multiplier = 2.0
+        # Metrics
+        self.total_dispatched = 0
+        self.total_rejected = 0
+        self.peak_shed_events = 0
 
-    def register_agent(self, profile: AgentProfile):
-        """Register an agent for scheduling."""
-        self._agents[profile.agent_id] = profile
-        profile.priority_score = profile.tier.value
-        logger.info(f"[scheduler] Registered {profile.agent_id} as tier-{profile.tier.name} on GW-{profile.gateway_id}")
+    # ── Agent Registration ──────────────────────────────────────
+
+    def register_agent(
+        self,
+        agent_id: str,
+        tier: AgentTier = AgentTier.C,
+        gateway_id: str = "",
+        model: str = "",
+        department: str = "",
+    ) -> AgentProfile:
+        """Register a new agent in the pool."""
+        with self._lock:
+            profile = AgentProfile(
+                agent_id=agent_id,
+                tier=tier,
+                gateway_id=gateway_id,
+                model=model,
+                department=department,
+                status=AgentStatus.OFFLINE,
+                last_heartbeat=time.time(),
+            )
+            self.agents[agent_id] = profile
+            logger.info(f"Registered agent {agent_id} as tier {tier.value}")
+            return profile
+
+    def deregister_agent(self, agent_id: str) -> bool:
+        """Remove an agent from the pool."""
+        with self._lock:
+            if agent_id in self.agents:
+                del self.agents[agent_id]
+                logger.info(f"Deregistered agent {agent_id}")
+                return True
+            return False
+
+    # ── Heartbeat Monitoring ────────────────────────────────────
+
+    def update_heartbeat(self, agent_id: str, memory_mb: float = 0.0) -> bool:
+        """Update agent heartbeat and memory usage."""
+        with self._lock:
+            if agent_id not in self.agents:
+                return False
+            agent = self.agents[agent_id]
+            agent.last_heartbeat = time.time()
+            agent.memory_usage_mb = memory_mb
+            if agent.status == AgentStatus.OFFLINE:
+                agent.status = AgentStatus.IDLE
+                agent.uptime_seconds = 0.0
+            return True
+
+    def check_heartbeats(self) -> List[str]:
+        """Check for agents with expired heartbeats. Returns list of timed-out agent IDs."""
+        now = time.time()
+        timed_out = []
+        with self._lock:
+            for agent_id, agent in self.agents.items():
+                if agent.status == AgentStatus.OFFLINE:
+                    continue
+                elapsed = now - agent.last_heartbeat
+                if elapsed > self.heartbeat_timeout_sec:
+                    logger.warning(
+                        f"Agent {agent_id} heartbeat expired "
+                        f"({elapsed:.0f}s > {self.heartbeat_timeout_sec}s)"
+                    )
+                    agent.status = AgentStatus.ERROR
+                    timed_out.append(agent_id)
+        return timed_out
+
+    def start_heartbeat_monitor(self, interval_sec: float = 60.0):
+        """Start background heartbeat monitoring thread."""
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            return
+        self._running = True
+
+        def _monitor():
+            while self._running:
+                timed_out = self.check_heartbeats()
+                for agent_id in timed_out:
+                    self._auto_demote(agent_id)
+                # Update uptime for active agents
+                now = time.time()
+                with self._lock:
+                    for agent in self.agents.values():
+                        if agent.status in (AgentStatus.ONLINE, AgentStatus.IDLE, AgentStatus.BUSY):
+                            agent.uptime_seconds += interval_sec
+                time.sleep(interval_sec)
+
+        self._heartbeat_thread = threading.Thread(target=_monitor, daemon=True)
+        self._heartbeat_thread.start()
+
+    def stop_heartbeat_monitor(self):
+        """Stop the heartbeat monitoring thread."""
+        self._running = False
+        if self._heartbeat_thread:
+            self._heartbeat_thread.join(timeout=5.0)
+
+    # ── Tier Rating ────────────────────────────────────────────
+
+    def _auto_demote(self, agent_id: str) -> bool:
+        """Demote agent one tier if reliability is below threshold."""
+        agent = self.agents.get(agent_id)
+        if not agent or agent.tier == AgentTier.C:
+            return False
+        if agent.reliability_score < self.demotion_threshold:
+            old_tier = agent.tier
+            tiers = list(AgentTier)
+            current_idx = tiers.index(agent.tier)
+            if current_idx < len(tiers) - 1:
+                agent.tier = tiers[current_idx + 1]
+                logger.warning(
+                    f"Demoted {agent_id} from {old_tier.value} → {agent.tier.value} "
+                    f"(reliability: {agent.reliability_score:.2f})"
+                )
+                return True
+        return False
+
+    def _auto_promote(self, agent_id: str) -> bool:
+        """Promote agent one tier if reliability is above threshold."""
+        agent = self.agents.get(agent_id)
+        if not agent or agent.tier == AgentTier.S:
+            return False
+        # Require minimum 10 tasks completed for promotion
+        if agent.tasks_completed < 10:
+            return False
+        if agent.reliability_score >= self.promotion_threshold:
+            old_tier = agent.tier
+            tiers = list(AgentTier)
+            current_idx = tiers.index(agent.tier)
+            if current_idx > 0:
+                agent.tier = tiers[current_idx - 1]
+                logger.info(
+                    f"Promoted {agent_id} from {old_tier.value} → {agent.tier.value} "
+                    f"(reliability: {agent.reliability_score:.2f})"
+                )
+                return True
+        return False
+
+    def evaluate_tiers(self) -> Dict[str, str]:
+        """Run tier evaluation for all agents. Returns {agent_id: new_tier}."""
+        changes = {}
+        with self._lock:
+            for agent_id in list(self.agents.keys()):
+                demoted = self._auto_demote(agent_id)
+                if not demoted:
+                    promoted = self._auto_promote(agent_id)
+                    if promoted:
+                        changes[agent_id] = self.agents[agent_id].tier.value
+                else:
+                    changes[agent_id] = self.agents[agent_id].tier.value
+        return changes
+
+    # ── Task Scheduling ────────────────────────────────────────
 
     def submit_task(self, task: Task) -> bool:
-        """Submit a task to the scheduling queue."""
-        if len(self._task_queue) >= self._max_queue_size:
-            logger.warning(f"[scheduler] Queue full, rejecting task {task.task_id}")
-            return False
-        heapq.heappush(self._task_queue, task)
-        logger.info(f"[scheduler] Task {task.task_id} queued (priority={task.priority})")
-        return True
+        """Add a task to the scheduling queue."""
+        with self._lock:
+            # Check if we can handle more tasks (peak shedding)
+            current_load = self._calculate_memory_load()
+            if current_load >= self.memory_limit_mb * self.peak_threshold:
+                logger.warning(
+                    f"Peak shedding: memory at {current_load:.0f}MB "
+                    f"(threshold: {self.memory_limit_mb * self.peak_threshold:.0f}MB). "
+                    f"Rejecting task {task.task_id}"
+                )
+                self.total_rejected += 1
+                self.peak_shed_events += 1
+                return False
 
-    def schedule_next(self) -> Optional[Tuple[Task, AgentProfile]]:
-        """Pick the highest-priority task and assign to best agent.
+            self.task_queue.append(task)
+            # Sort by priority (descending) then by created_at (ascending)
+            self.task_queue.sort(key=lambda t: (-t.priority, t.created_at))
+            logger.info(f"Task {task.task_id} queued (difficulty={task.difficulty}, priority={task.priority})")
+            return True
 
-        Scheduling algorithm:
-        1. Pop highest-priority task from queue
-        2. Filter agents by: status, tier >= required, memory < high watermark
-        3. If peak hours and task is low priority, delay
-        4. Sort candidates by: tier desc, success_rate desc, memory asc
-        5. Assign to top candidate
+    def dispatch_next(self) -> Optional[tuple]:
         """
-        if not self._task_queue:
-            return None
-
-        task = heapq.heappop(self._task_queue)
-
-        # Peak-shifting: delay low-priority tasks during peak hours
-        if self._is_peak_hour() and task.priority < 5:
-            task.priority = max(1, task.priority - 1)
-            if task.priority < 3:
-                heapq.heappush(self._task_queue, task)
-                logger.debug(f"[scheduler] Delaying low-priority task {task.task_id} (peak hours)")
+        Dispatch the highest-priority task to the best available agent.
+        Returns (task, agent) tuple or None if no dispatch possible.
+        """
+        with self._lock:
+            if not self.task_queue:
                 return None
 
-        # Find eligible agents
-        candidates = []
-        for agent in self._agents.values():
-            if not agent.is_available:
-                continue
-            if agent.tier.value < task.required_tier.value:
-                continue
-            if agent.memory_usage_mb + task.required_memory_mb > agent.memory_limit_mb * self.MEMORY_HIGH_WATERMARK:
-                continue
-            candidates.append(agent)
+            # Count currently busy agents
+            busy_count = sum(
+                1 for a in self.agents.values()
+                if a.status == AgentStatus.BUSY
+            )
+            if busy_count >= self.max_concurrent_tasks:
+                logger.debug("Max concurrent tasks reached, cannot dispatch")
+                return None
 
-        if not candidates:
-            # No eligible agent — re-queue with slight priority boost
-            task.priority = min(10, task.priority + 1)
-            heapq.heappush(self._task_queue, task)
-            logger.debug(f"[scheduler] No eligible agent for {task.task_id}, re-queued")
+            # Find best agent for highest-priority task
+            task = self.task_queue[0]
+            agent = self._find_best_agent(task)
+
+            if agent is None:
+                return None
+
+            # Assign
+            self.task_queue.pop(0)
+            agent.status = AgentStatus.BUSY
+            agent.current_task = task.task_id
+            task.assigned_agent = agent.agent_id
+            self.total_dispatched += 1
+
+            logger.info(
+                f"Dispatched {task.task_id} → {agent.agent_id} "
+                f"(tier={agent.tier.value}, dept={agent.department})"
+            )
+            return (task, agent)
+
+    def _find_best_agent(self, task: Task) -> Optional[AgentProfile]:
+        """Find the best available agent for a given task."""
+        eligible = [
+            a for a in self.agents.values()
+            if a.is_available
+            and self._tier_can_handle(a.tier, task.difficulty)
+            and a.memory_usage_mb + task.memory_estimate_mb <= self.memory_limit_mb
+        ]
+
+        if not eligible:
             return None
 
-        # Sort: highest tier first, then best success rate, then least memory
-        candidates.sort(key=lambda a: (
-            -a.tier.value,
-            -a.success_rate,
-            a.memory_usage_mb
-        ))
+        # Prefer: same department → higher tier → higher reliability → less memory
+        def agent_score(a: AgentProfile) -> tuple:
+            dept_match = 0 if a.department == task.department else 1
+            tier_order = list(AgentTier).index(a.tier)  # S=0, A=1, B=2, C=3
+            return (dept_match, tier_order, -a.reliability_score, a.memory_usage_mb)
 
-        assigned = candidates[0]
-        task.assigned_to = assigned.agent_id
-        assigned.active_tasks += 1
-        assigned.assigned_bounty = task.bounty_id
-        assigned.memory_usage_mb += task.required_memory_mb
+        eligible.sort(key=agent_score)
+        return eligible[0]
 
-        self._schedule_history.append({
-            "task_id": task.task_id,
-            "agent_id": assigned.agent_id,
-            "tier": assigned.tier.name,
-            "timestamp": time.time(),
-        })
+    def _tier_can_handle(self, tier: AgentTier, difficulty: str) -> bool:
+        """Check if a tier can handle a given difficulty level."""
+        allowed = TIER_DIFFICULTY_MAP.get(tier, [])
+        return difficulty in allowed
 
-        logger.info(f"[scheduler] Assigned {task.task_id} → {assigned.agent_id} (tier-{assigned.tier.name})")
-        return (task, assigned)
+    def complete_task(self, agent_id: str, task_id: str, success: bool = True):
+        """Mark a task as completed and release the agent."""
+        with self._lock:
+            agent = self.agents.get(agent_id)
+            if not agent:
+                return
 
-    def complete_task(self, agent_id: str, success: bool, duration: float = 0):
-        """Mark a task as completed and update agent metrics."""
-        agent = self._agents.get(agent_id)
-        if not agent:
-            return
-        agent.active_tasks = max(0, agent.active_tasks - 1)
-        agent.assigned_bounty = None
-        if success:
-            agent.tasks_completed += 1
-        else:
-            agent.tasks_failed += 1
-        if duration > 0:
-            total = agent.avg_completion_time * (agent.tasks_completed + agent.tasks_failed - 1) + duration
-            agent.avg_completion_time = total / (agent.tasks_completed + agent.tasks_failed)
-        agent.update_tier()
-        logger.info(f"[scheduler] {agent_id} task {'succeeded' if success else 'failed'} → tier-{agent.tier.name}")
+            agent.status = AgentStatus.IDLE
+            agent.current_task = None
 
-    def update_heartbeat(self, agent_id: str, memory_mb: float = None):
-        """Update agent heartbeat and optionally memory usage."""
-        agent = self._agents.get(agent_id)
-        if not agent:
-            return
-        agent.last_heartbeat = time.time()
-        if memory_mb is not None:
-            old = agent.memory_usage_mb
-            agent.memory_usage_mb = memory_mb
-            if memory_mb > agent.memory_limit_mb * self.MEMORY_CRITICAL:
-                logger.warning(f"[scheduler] CRITICAL: {agent_id} memory {memory_mb:.0f}MB > {agent.memory_limit_mb * self.MEMORY_CRITICAL:.0f}MB")
+            if success:
+                agent.tasks_completed += 1
+            else:
+                agent.tasks_failed += 1
 
-    def _is_peak_hour(self) -> bool:
-        """Check if current time is in configured peak hours."""
-        from datetime import datetime
-        hour = datetime.now().hour
-        return any(start <= hour < end for start, end in self._peak_hours)
+            # Find and archive the task
+            for i, t in enumerate(self.task_queue):
+                if t.task_id == task_id:
+                    t.assigned_agent = None
+                    self.completed_tasks.append(t)
+                    break
 
-    def get_cluster_status(self) -> Dict:
-        """Get full cluster status for monitoring dashboard."""
-        tier_counts = {t.name: 0 for t in AgentTier}
-        status_counts = {s.value: 0 for s in AgentStatus}
-        total_memory = 0
-        available = 0
+            logger.info(
+                f"Agent {agent_id} completed {task_id} "
+                f"({'success' if success else 'failed'})"
+            )
 
-        for agent in self._agents.values():
-            tier_counts[agent.tier.name] += 1
-            status_counts[agent.status.value] += 1
-            total_memory += agent.memory_usage_mb
+    # ── Memory Management ──────────────────────────────────────
+
+    def _calculate_memory_load(self) -> float:
+        """Calculate total memory usage across all active agents."""
+        return sum(
+            a.memory_usage_mb for a in self.agents.values()
+            if a.status != AgentStatus.OFFLINE
+        )
+
+    def memory_usage_percent(self) -> float:
+        """Get current memory usage as percentage of limit."""
+        if self.memory_limit_mb == 0:
+            return 0.0
+        return (self._calculate_memory_load() / self.memory_limit_mb) * 100
+
+    # ── Staggered Onboarding (错峰上线) ─────────────────────────
+
+    def staggered_onboarding(
+        self,
+        agent_configs: List[dict],
+        delay_seconds: float = 2.0,
+    ) -> List[str]:
+        """
+        Register agents with staggered delays to avoid API rate limits.
+        
+        Args:
+            agent_configs: List of dicts with keys: agent_id, tier, gateway_id, model, department
+            delay_seconds: Delay between each agent registration
+            
+        Returns:
+            List of registered agent IDs
+        """
+        registered = []
+        for i, config in enumerate(agent_configs):
+            agent_id = config.get("agent_id", f"agent-{i}")
+            profile = self.register_agent(
+                agent_id=agent_id,
+                tier=AgentTier(config.get("tier", "C")),
+                gateway_id=config.get("gateway_id", ""),
+                model=config.get("model", ""),
+                department=config.get("department", ""),
+            )
+            # Stagger the status change to online
+            if i > 0:
+                time.sleep(delay_seconds)
+            profile.status = AgentStatus.IDLE
+            profile.last_heartbeat = time.time()
+            registered.append(agent_id)
+            logger.info(f"Onboarded {agent_id} (delay={delay_seconds}s)")
+        return registered
+
+    # ── Peak Load Shedding (峰值限流) ──────────────────────────
+
+    def enable_load_shedding(self) -> int:
+        """
+        Activate load shedding: idle low-tier agents to free memory.
+        Returns number of agents shed.
+        """
+        shed_count = 0
+        with self._lock:
+            # Shed C-tier agents first, then B-tier
+            for tier in [AgentTier.C, AgentTier.B]:
+                for agent in self.agents.values():
+                    if agent.tier == tier and agent.status == AgentStatus.IDLE:
+                        agent.status = AgentStatus.OFFLINE
+                        shed_count += 1
+                        logger.info(f"Load shedding: idled {agent.agent_id} (tier {tier.value})")
+                if self._calculate_memory_load() < self.memory_limit_mb * 0.7:
+                    break  # Enough memory freed
+        return shed_count
+
+    # ── Status & Metrics ───────────────────────────────────────
+
+    def get_status(self) -> dict:
+        """Get comprehensive scheduler status."""
+        with self._lock:
+            tier_counts = defaultdict(int)
+            status_counts = defaultdict(int)
+            for agent in self.agents.values():
+                tier_counts[agent.tier.value] += 1
+                status_counts[agent.status.value] += 1
+
+            return {
+                "total_agents": len(self.agents),
+                "tier_distribution": dict(tier_counts),
+                "status_distribution": dict(status_counts),
+                "queued_tasks": len(self.task_queue),
+                "completed_tasks": len(self.completed_tasks),
+                "memory_usage_mb": self._calculate_memory_load(),
+                "memory_limit_mb": self.memory_limit_mb,
+                "memory_usage_percent": round(self.memory_usage_percent(), 1),
+                "total_dispatched": self.total_dispatched,
+                "total_rejected": self.total_rejected,
+                "peak_shed_events": self.peak_shed_events,
+            }
+
+    def get_agents_by_tier(self, tier: AgentTier) -> List[AgentProfile]:
+        """Get all agents of a specific tier."""
+        return [a for a in self.agents.values() if a.tier == tier]
+
+    def get_available_agents(self) -> List[AgentProfile]:
+        """Get all currently available agents."""
+        return [a for a in self.agents.values() if a.is_available]
+
+    def get_department_summary(self) -> Dict[str, dict]:
+        """Get agent summary grouped by department."""
+        dept_data = defaultdict(lambda: {"count": 0, "tiers": defaultdict(int), "available": 0})
+        for agent in self.agents.values():
+            dept = agent.department or "unassigned"
+            dept_data[dept]["count"] += 1
+            dept_data[dept]["tiers"][agent.tier.value] += 1
             if agent.is_available:
-                available += 1
-
-        return {
-            "total_agents": len(self._agents),
-            "available_agents": available,
-            "tier_distribution": tier_counts,
-            "status_distribution": status_counts,
-            "total_memory_mb": total_memory,
-            "queued_tasks": len(self._task_queue),
-            "total_scheduled": len(self._schedule_history),
-        }
-
-    def check_memory_watermarks(self) -> List[Dict]:
-        """Check all agents against memory watermarks."""
-        alerts = []
-        for agent in self._agents.values():
-            ratio = agent.memory_usage_mb / agent.memory_limit_mb
-            if ratio > self.MEMORY_CRITICAL:
-                alerts.append({"agent": agent.agent_id, "level": "CRITICAL", "usage_mb": agent.memory_usage_mb, "ratio": round(ratio, 2)})
-            elif ratio > self.MEMORY_HIGH_WATERMARK:
-                alerts.append({"agent": agent.agent_id, "level": "HIGH", "usage_mb": agent.memory_usage_mb, "ratio": round(ratio, 2)})
-        return alerts
-
-    def rebalance(self) -> List[Dict]:
-        """Rebalance tasks from overloaded agents to idle ones."""
-        migrations = []
-        overloaded = [a for a in self._agents.values()
-                      if a.memory_usage_mb > a.memory_limit_mb * self.MEMORY_HIGH_WATERMARK
-                      and a.active_tasks > 0]
-        underloaded = [a for a in self._agents.values()
-                       if a.is_available and a.active_tasks == 0]
-
-        for src in overloaded:
-            if not underloaded:
-                break
-            dst = underloaded.pop(0)
-            migrations.append({
-                "from": src.agent_id,
-                "to": dst.agent_id,
-                "reason": f"memory overload ({src.memory_usage_mb:.0f}MB)"
-            })
-            logger.info(f"[scheduler] Rebalancing: {src.agent_id} → {dst.agent_id}")
-        return migrations
+                dept_data[dept]["available"] += 1
+        return dict(dept_data)
