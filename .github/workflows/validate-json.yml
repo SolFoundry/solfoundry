@@ -1,42 +1,18 @@
-
-name: Validate JSON in Submissions
-
+name: "ci: JSON Validation"
 on:
   pull_request:
     paths:
-      - 'submissions/**/*.json'
-
+      - 'submissions/**.json'
 jobs:
-  validate-json:
-    name: Validate JSON files
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Validate JSON files
         run: |
-          # Find all JSON files in submissions directory
-          json_files=$(find submissions -name "*.json" -type f)
-
-          # Check if any JSON files were found
-          if [ -z "$json_files" ]; then
-            echo "No JSON files found in submissions directory"
-            exit 0
-          fi
-
-          # Validate each JSON file using Python's json module
-          for file in $json_files; do
-            echo "Validating $file"
-            python -c "
-import json, sys
-try:
-    with open('$file') as f:
-        json.load(f)
-    print('✅ $file is valid JSON')
-except Exception as e:
-    print('❌ $file is NOT valid JSON')
-    print('Error details: ' + str(e))
-    sys.exit(1)
-"
+          for file in submissions/*.json; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              python3 -c "import json; json.load(open('$file'))" || exit 1
+            fi
           done
