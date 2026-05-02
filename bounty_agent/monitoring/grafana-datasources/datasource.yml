@@ -1,0 +1,27 @@
+# =============================================================================
+# Grafana Datasource Configuration — Auto-provisioned
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: '15s'
+
+  - name: PostgreSQL
+    type: postgres
+    url: postgres:5432
+    database: bountyagent
+    user: bountyagent
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2

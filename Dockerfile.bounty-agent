@@ -1,0 +1,83 @@
+# =============================================================================
+# Dockerfile.bounty-agent — Production-grade container for OpenClaw Bounty Agent
+# Multi-stage build: minimal attack surface, non-root runtime, health checks
+# Repository: SolFoundry/solfoundry | Bounty #861
+# =============================================================================
+
+# ── Stage 1: Build dependencies ──────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# System packages required for compiled dependencies (aiohttp, cffi, etc.)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libffi-dev \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment with pinned versions
+COPY bounty_agent/requirements.txt ./requirements.txt
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/SolFoundry/solfoundry"
+LABEL org.opencontainers.image.description="OpenClaw Autonomous Bounty Agent — 51-Agent Cluster"
+LABEL org.opencontainers.image.title="bounty-agent"
+LABEL org.opencontainers.image.version="0.2.0"
+
+# Runtime system packages (libffi for cffi, curl for healthcheck, git for gh CLI)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libffi7 \
+        curl \
+        git \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://github.com/cli/cli/releases/download/v2.42.1/gh_2.42.1_linux_arm64.tar.gz | \
+       tar xz -C /tmp && \
+       mv /tmp/gh_2.42.1_linux_arm64/bin/gh /usr/local/bin/gh && \
+       rm -rf /tmp/gh_2.42.1_linux_arm64
+
+# Non-root user for security (CIS Docker Benchmark 4.1)
+RUN groupadd -r bountyagent && \
+    useradd -r -g bountyagent -d /home/bountyagent -s /bin/bash bountyagent
+
+USER bountyagent
+WORKDIR /home/bountyagent/app
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=bountyagent:bountyagent /opt/venv /opt/venv
+
+# Copy application source
+COPY --chown=bountyagent:bountyagent main_bounty_agent.py ./
+COPY --chown=bountyagent:bountyagent config.bounty-agent.yaml ./
+COPY --chown=bountyagent:bountyagent bounty_agent/ ./bounty_agent/
+COPY --chown=bountyagent:bountyagent tests/ ./tests/
+COPY --chown=bountyagent:bountyagent pytest.ini ./
+
+# Create data directories
+RUN mkdir -p /home/bountyagent/app/data/{state,logs,earnings}
+
+# Environment configuration
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/home/bountyagent/app \
+    BOUNTY_AGENT_HOME=/home/bountyagent/app \
+    BOUNTY_STATE_DIR=/home/bountyagent/app/data/state \
+    BOUNTY_LOG_DIR=/home/bountyagent/app/data/logs \
+    BOUNTY_EARNINGS_DIR=/home/bountyagent/app/data/earnings
+
+EXPOSE 8080
+
+# Health check: agent responds to status endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Default: run autonomous bounty hunting cycle
+CMD ["python", "main_bounty_agent.py", "--run"]

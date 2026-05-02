@@ -1,0 +1,200 @@
+# =============================================================================
+# docker-compose.bounty-agent.yml — Production Bounty Agent Stack
+# Services: bounty-agent + postgres + redis + prometheus + grafana
+# Usage: cp .env.bounty-agent.example .env && docker compose -f docker-compose.bounty-agent.yml up -d
+# Repository: SolFoundry/solfoundry | Bounty #861
+# =============================================================================
+
+services:
+  # ── Bounty Agent (main service) ────────────────────────────────────────────
+  bounty-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.bounty-agent
+    container_name: solfoundry-bounty-agent
+    restart: unless-stopped
+    ports:
+      - "${AGENT_PORT:-8080}:8080"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?GITHUB_TOKEN is required}
+      GITHUB_USERNAME: ${GITHUB_USERNAME:-}
+      # LLM provider keys (at least one required)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Database
+      DATABASE_URL: postgresql+asyncpg://bountyagent:${POSTGRES_PASSWORD:-bountyagent_dev}@postgres:5432/bountyagent
+      # Redis for event bus & caching
+      REDIS_URL: redis://redis:6379/0
+      # Agent configuration
+      AGENT_MAX_CONCURRENT: ${AGENT_MAX_CONCURRENT:-5}
+      AGENT_SCAN_INTERVAL: ${AGENT_SCAN_INTERVAL:-300}
+      AGENT_CONFIDENCE_THRESHOLD: ${AGENT_CONFIDENCE_THRESHOLD:-0.8}
+      # Economic system
+      MOLTSPAY_WALLET: ${MOLTSPAY_WALLET:-}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      # Observability
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+    volumes:
+      - agent_state:/home/bountyagent/app/data/state
+      - agent_logs:/home/bountyagent/app/data/logs
+      - agent_earnings:/home/bountyagent/app/data/earnings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+    networks:
+      - bounty-net
+
+  # ── Bounty Agent Scheduler (cron-like scanner) ─────────────────────────────
+  bounty-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.bounty-agent
+    container_name: solfoundry-bounty-scheduler
+    restart: unless-stopped
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?GITHUB_TOKEN is required}
+      GITHUB_USERNAME: ${GITHUB_USERNAME:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DATABASE_URL: postgresql+asyncpg://bountyagent:${POSTGRES_PASSWORD:-bountyagent_dev}@postgres:5432/bountyagent
+      REDIS_URL: redis://redis:6379/0
+      AGENT_MODE: scheduler
+      AGENT_SCAN_INTERVAL: ${AGENT_SCAN_INTERVAL:-300}
+    volumes:
+      - agent_state:/home/bountyagent/app/data/state
+      - agent_logs:/home/bountyagent/app/data/logs
+    depends_on:
+      bounty-agent:
+        condition: service_healthy
+    entrypoint: ["python", "main_bounty_agent.py", "--scan", "--loop"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    networks:
+      - bounty-net
+
+  # ── PostgreSQL (state persistence) ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: solfoundry-bounty-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bountyagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bountyagent_dev}
+      POSTGRES_DB: bountyagent
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bountyagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - bounty-net
+
+  # ── Redis (event bus + caching) ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: solfoundry-bounty-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    networks:
+      - bounty-net
+
+  # ── Prometheus (metrics collection) ────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: solfoundry-bounty-prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./bounty_agent/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    networks:
+      - bounty-net
+
+  # ── Grafana (dashboard visualization) ──────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.3.3
+    container_name: solfoundry-bounty-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-bountyagent_dev}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./bounty_agent/monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./bounty_agent/monitoring/grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - bounty-net
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  agent_state:
+    driver: local
+  agent_logs:
+    driver: local
+  agent_earnings:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ── Network ──────────────────────────────────────────────────────────────────
+networks:
+  bounty-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
