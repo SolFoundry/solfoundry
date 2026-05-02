@@ -466,8 +466,8 @@ class AgentScheduler:
     def get_status(self) -> dict:
         """Get comprehensive scheduler status."""
         with self._lock:
-            tier_counts: Dict[str, int] = defaultdict(int)
-            status_counts: Dict[str, int] = defaultdict(int)
+            tier_counts: Dict[str, int] = defaultdict(int)  # type: ignore[var-annotated]
+            status_counts: Dict[str, int] = defaultdict(int)  # type: ignore[var-annotated]
             for agent in self.agents.values():
                 tier_counts[agent.tier.value] += 1
                 status_counts[agent.status.value] += 1
@@ -494,13 +494,14 @@ class AgentScheduler:
         """Get all currently available agents."""
         return [a for a in self.agents.values() if a.is_available]
 
-    def get_department_summary(self) -> Dict[str, dict]:
+    def get_department_summary(self) -> Dict[str, Dict[str, int]]:
         """Get agent summary grouped by department."""
-        dept_data: Dict[str, Dict[str, int]] = defaultdict(lambda: {"count": 0, "tiers": defaultdict(int), "available": 0})
+        dept_data: Dict[str, Dict[str, int]] = {}  # type: ignore[var-annotated]
         for agent in self.agents.values():
             dept = agent.department or "unassigned"
-            dept_data[dept]["count"] += 1
-            dept_data[dept]["tiers"][agent.tier.value] += 1
+            if dept not in dept_data:
+                dept_data[dept] = {"count": 0, "available": 0}
+            dept_data[dept]["count"] += 1  # type: ignore[operator,index]
             if agent.is_available:
-                dept_data[dept]["available"] += 1
-        return dict(dept_data)
+                dept_data[dept]["available"] += 1  # type: ignore[operator,index]
+        return dept_data

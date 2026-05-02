@@ -167,8 +167,8 @@ class BountyAgentConfig:
         result = {}
         for fld in dataclasses.fields(self):
             val = getattr(self, fld.name)
-            if dataclasses.is_dataclass(val):
-                result[fld.name] = dataclasses.asdict(val)
+            if dataclasses.is_dataclass(val) and not isinstance(val, type):
+                result[fld.name] = dataclasses.asdict(val)  # type: ignore[arg-type]
             else:
                 result[fld.name] = val
         return result

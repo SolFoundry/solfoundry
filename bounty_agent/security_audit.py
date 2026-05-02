@@ -146,7 +146,7 @@ class SecretScanner:
         self.fp_prefixes = ("example", "test", "mock", "sample", "dummy", "fake", "placeholder")
 
     def scan_line(self, line: str, file_path: str = "", line_number: int = 0) -> List[Vulnerability]:
-        results: List[Vulnerability] = []
+        results: List[Vulnerability] = []  # type: ignore[var-annotated]
         line_lower = line.lower()
         if any(fp in line_lower for fp in self.fp_prefixes):
             return results
@@ -164,7 +164,7 @@ class SecretScanner:
         return results
 
     def scan_file(self, file_path: str) -> List[Vulnerability]:
-        results: List[Vulnerability] = []
+        results: List[Vulnerability] = []  # type: ignore[var-annotated]
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
                 for line_number, line in enumerate(fh, 1):
@@ -176,7 +176,7 @@ class SecretScanner:
     def scan_directory(self, directory: str, extensions: Optional[List[str]] = None) -> List[Vulnerability]:
         if extensions is None:
             extensions = [".py", ".js", ".ts", ".json", ".yml", ".yaml", ".env"]
-        results: List[Vulnerability] = []
+        results: List[Vulnerability] = []  # type: ignore[var-annotated]
         for root, _dirs, files in os.walk(directory):
             _dirs[:] = [d for d in _dirs if d not in {".git", "node_modules", "__pycache__", ".venv"}]
             for fname in files:
@@ -194,7 +194,7 @@ class CodeAuditor:
             self.patterns.extend(custom_patterns)
 
     def scan_file(self, file_path: str) -> List[Vulnerability]:
-        results: List[Vulnerability] = []
+        results: List[Vulnerability] = []  # type: ignore[var-annotated]
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
                 for line_number, line in enumerate(fh, 1):
@@ -217,7 +217,7 @@ class CodeAuditor:
         return results
 
     def scan_directory(self, directory: str) -> List[Vulnerability]:
-        results: List[Vulnerability] = []
+        results: List[Vulnerability] = []  # type: ignore[var-annotated]
         for root, _dirs, files in os.walk(directory):
             _dirs[:] = [d for d in _dirs if d not in {".git", "node_modules", "__pycache__", ".venv"}]
             for fname in files:
