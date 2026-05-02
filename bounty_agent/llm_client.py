@@ -7,10 +7,9 @@ Production-validated across 6 NVIDIA API endpoints.
 Author: Xeophon
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, AsyncIterator
+from typing import Dict, List
 from enum import Enum
 import time
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -132,8 +131,8 @@ class LLMClient:
         logger.info(f"[llm] Fallback chain: {' → '.join(chain)}")
 
     async def complete(self, prompt: str, system_prompt: str = "",
-                        max_tokens: int = None, temperature: float = None,
-                        prefer_provider: str = None) -> LLMResponse:
+                max_tokens: int = None, temperature: float = None,
+                prefer_provider: str = None) -> LLMResponse:
         """Send a completion request with automatic fallback.
 
         Tries providers in fallback chain order. If rate-limited or errored,
@@ -192,8 +191,8 @@ class LLMClient:
         raise RuntimeError(f"All LLM providers failed. Last error: {last_error}")
 
     async def _call_provider(self, config: LLMConfig, prompt: str,
-                              system_prompt: str, max_tokens: int,
-                              temperature: float) -> LLMResponse:
+                      system_prompt: str, max_tokens: int,
+                      temperature: float) -> LLMResponse:
         """Make actual API call to a provider.
 
         In production, this uses actual HTTP clients (aiohttp/httpx).

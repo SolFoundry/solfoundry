@@ -5,7 +5,7 @@ import threading
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,6 @@ class AgentScheduler:
                 for agent_id in timed_out:
                     self._auto_demote(agent_id)
                 # Update uptime for active agents
-                now = time.time()
                 with self._lock:
                     for agent in self.agents.values():
                         if agent.status in (AgentStatus.ONLINE, AgentStatus.IDLE, AgentStatus.BUSY):
@@ -415,11 +414,11 @@ class AgentScheduler:
     ) -> List[str]:
         """
         Register agents with staggered delays to avoid API rate limits.
-        
+
         Args:
             agent_configs: List of dicts with keys: agent_id, tier, gateway_id, model, department
             delay_seconds: Delay between each agent registration
-            
+
         Returns:
             List of registered agent IDs
         """
