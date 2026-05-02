@@ -39,7 +39,7 @@ class PipelineEvent:
     mission_id: str
     message: str
     metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(datetime.UTC).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
