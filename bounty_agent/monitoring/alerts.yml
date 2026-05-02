@@ -1,0 +1,75 @@
+# =============================================================================
+# Prometheus Alert Rules for Bounty Agent
+# Severity levels: critical → page, warning → notify
+# =============================================================================
+
+groups:
+  - name: bounty-agent-alerts
+    rules:
+      # Agent health
+      - alert: BountyAgentDown
+        expr: up{job="bounty-agent"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bounty Agent is down"
+          description: "Bounty Agent has been unreachable for 2 minutes."
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(bounty_agent_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate exceeds 0.1/s over 5 minutes."
+
+      # Stale earnings (no new income)
+      - alert: NoEarningsFor24h
+        expr: increase(bounty_agent_earnings_total[24h]) == 0
+        for: 24h
+        labels:
+          severity: warning
+        annotations:
+          summary: "No bounty earnings in 24 hours"
+          description: "Agent has not earned any RTC in the past 24 hours."
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: bounty_agent_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker has tripped. Agent is not processing requests."
+
+      # Memory usage high
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes{job="bounty-agent"} > 850000000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent memory usage exceeds 850MB"
+          description: "Memory usage is above safe threshold for 2GB host environments."
+
+      # PostgreSQL health
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+
+      # Redis health
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
