@@ -90,10 +90,10 @@ class TestEconomicConfigIntegration:
         assert config.agent_name == "bounty-agent"
 
     def test_config_from_file(self):
-        import tempfile, yaml, os
+        import tempfile, json, os
         data = {"agent_name": "custom-agent", "log_level": "DEBUG"}
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.dump(data, f)
+            json.dump(data, f)
             f.flush()
             cfg = BountyAgentConfig.from_file(f.name)
             os.unlink(f.name)
