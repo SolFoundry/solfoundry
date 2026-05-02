@@ -1,15 +1,13 @@
 """Unit tests for TeamOrchestrator — orchestration module."""
 
-import pytest
 from bounty_agent.orchestrator import (
     TeamOrchestrator,
     AgentNode,
     AgentStatus,
     Gateway,
     MissionStage,
-    MissionState,
 )
-from bounty_agent.planner import Department, BountyPlan, SubTask
+from bounty_agent.planner import Department
 
 
 class TestTeamOrchestrator:

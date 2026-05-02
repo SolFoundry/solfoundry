@@ -121,6 +121,7 @@ class LLMClient:
         self._providers[key] = config
         self._fallback_chain.append(key)
         self._rate_limits[key] = RateLimitState(
+            request_tokens=float(rate_limit_rpm),
             max_requests=rate_limit_rpm, max_tokens=rate_limit_tpm
         )
         logger.info(f"[llm] Added provider {key}")

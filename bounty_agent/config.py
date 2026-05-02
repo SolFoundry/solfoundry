@@ -5,7 +5,7 @@ Validates all config values and provides defaults.
 Author: Xeophon
 """
 import os
-import yaml
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -86,7 +86,7 @@ class BountyAgentConfig:
     max_prs_per_day: int = 10
 
     @classmethod
-    def from_yaml(cls, path: str) -> "BountyAgentConfig":
+    def from_file(cls, path: str) -> "BountyAgentConfig":
         """Load configuration from a YAML file with env var overrides."""
         config_path = Path(path)
         if not config_path.exists():
@@ -94,7 +94,7 @@ class BountyAgentConfig:
             return cls()
 
         with open(config_path) as f:
-            data = yaml.safe_load(f) or {}
+            data = json.load(f) or {}
 
         config = cls()
 
