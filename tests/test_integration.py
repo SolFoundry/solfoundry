@@ -1,9 +1,9 @@
-"""Integration tests for AutonomousBountyAgent (full pipeline)."""
+"""Integration tests for TeamOrchestrator (full pipeline)."""
 import unittest
-from unittest.mock import patch, MagicMock
-from bounty_agent.orchestrator import AutonomousBountyAgent
+from unittest.mock import patch
+from bounty_agent.orchestrator import TeamOrchestrator
 
-class TestAutonomousBountyAgentIntegration(unittest.TestCase):
+class TestTeamOrchestratorIntegration(unittest.TestCase):
     @patch("bounty_agent.discovery.BountyScanner.scan_bounties")
     @patch("bounty_agent.planner.BountyPlanner.decompose")
     @patch("bounty_agent.submitter.PRSubmitter.submit_pr")
@@ -19,7 +19,7 @@ class TestAutonomousBountyAgentIntegration(unittest.TestCase):
         # Mock submission
         mock_submit.return_value = {"pr_number": 42, "status": "created"}
         
-        agent = AutonomousBountyAgent(gh_token="test_token")
+        agent = TeamOrchestrator(gh_token="test_token")
         result = agent.run(repo="test/repo", max_bounties=1)
         
         self.assertIsNotNone(result)
@@ -27,7 +27,7 @@ class TestAutonomousBountyAgentIntegration(unittest.TestCase):
         mock_submit.assert_called_once()
     
     def test_agent_initialization(self):
-        agent = AutonomousBountyAgent(gh_token="test_token")
+        agent = TeamOrchestrator(gh_token="test_token")
         self.assertIsNotNone(agent.scanner)
         self.assertIsNotNone(agent.planner)
         self.assertIsNotNone(agent.submitter)

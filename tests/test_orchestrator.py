@@ -1,5 +1,4 @@
 """Unit tests for TeamOrchestrator — orchestration module."""
-import pytest
 from bounty_agent.orchestrator import TeamOrchestrator, AgentNode, Gateway
 from bounty_agent.planner import Department, BountyPlan, SubTask
 

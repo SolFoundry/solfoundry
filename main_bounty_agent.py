@@ -7,11 +7,10 @@ Addresses: SolFoundry/solfoundry#861
 Architecture: 51 agents across 7 gateways with multi-LLM orchestration.
 """
 import os
-import sys
 import json
 import argparse
-from bounty_agent.discovery import BountyScanner, BountyIssue
-from bounty_agent.planner import BountyPlanner, BountyPlan, Department
+from bounty_agent.discovery import BountyScanner
+from bounty_agent.planner import BountyPlanner, BountyPlan
 from bounty_agent.submitter import PRSubmitter
 from bounty_agent.orchestrator import TeamOrchestrator
 
@@ -66,7 +65,7 @@ class AutonomousBountyAgent:
             print(f"   ✅ PR created: {result}")
         else:
             self.failed.append(title)
-            print(f"   ❌ PR failed")
+            print("   ❌ PR failed")
         return result or ""
 
     def run(self, keywords: str = "bounty", limit: int = 20):
@@ -83,7 +82,7 @@ class AutonomousBountyAgent:
         for plan in plans[:3]:
             self.implement(plan)
 
-        print(f"\n📊 Session Summary:")
+        print("\n📊 Session Summary:")
         print(f"   Discovered: {len(bounties)} bounties")
         print(f"   Planned: {len(plans)} plans")
         print(f"   Completed: {len(self.completed)}")
