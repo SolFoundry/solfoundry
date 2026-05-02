@@ -8,7 +8,7 @@ import os
 import yaml
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
