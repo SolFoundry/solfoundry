@@ -7,6 +7,7 @@ const HomePage = React.lazy(() => import('./pages/HomePage').then((m) => ({ defa
 const BountyDetailPage = React.lazy(() => import('./pages/BountyDetailPage').then((m) => ({ default: m.BountyDetailPage })));
 const BountyCreatePage = React.lazy(() => import('./pages/BountyCreatePage').then((m) => ({ default: m.BountyCreatePage })));
 const LeaderboardPage = React.lazy(() => import('./pages/LeaderboardPage').then((m) => ({ default: m.LeaderboardPage })));
+const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const GitHubCallbackPage = React.lazy(() => import('./pages/GitHubCallbackPage').then((m) => ({ default: m.GitHubCallbackPage })));
@@ -27,6 +28,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route
           path="/profile"
