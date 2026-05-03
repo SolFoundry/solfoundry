@@ -3,7 +3,8 @@
 Goal: deliver a narrow, reviewable first PR for SolFoundry issue #859 without broad backend rewrites.
 
 ## In Progress
-- [ ] T5. Build/test validation and PR submission.
+
+No pending tasks for issue #859 PR slice.
 
 ## Pending
 
@@ -18,3 +19,6 @@ Goal: deliver a narrow, reviewable first PR for SolFoundry issue #859 without br
 - [x] T4. Add CSV export and empty/loading/error states.
       Result: dashboard includes CSV export plus loading, API error, and empty data states. Also restored missing shared frontend `lib/animations` and `lib/utils` modules required by the existing app.
       Verification: `cd frontend && npm run build` PASS.
+- [x] T5. Build/test validation and PR submission.
+      Result: added focused analytics metrics tests, pushed branch `feat/bounty-analytics-dashboard`, and opened PR.
+      Verification: `cd frontend && npx vitest run src/__tests__/analytics-metrics.test.ts` PASS; `cd frontend && npm run build` PASS. Full `npm test` is blocked by existing missing test imports such as `components/bounties/Pagination` unrelated to this slice.
