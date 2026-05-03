@@ -325,19 +325,19 @@ function Step3({
 
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-2">Paste Transaction Signature</label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="text"
             value={state.tx_signature}
             onChange={(e) => onChange('tx_signature', e.target.value)}
             disabled={state.verified}
             placeholder="5KfR8xMn..."
-            className={`flex-1 bg-forge-700 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150`}
+            className={`w-full sm:flex-1 bg-forge-700 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150`}
           />
           <button
             onClick={handleVerify}
             disabled={!state.tx_signature.trim() || verifying || state.verified || !state.bounty_id}
-            className="px-4 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+            className="w-full justify-center sm:w-auto px-4 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
           >
             {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : state.verified ? <Check className="w-4 h-4" /> : null}
             {state.verified ? 'Verified' : verifying ? 'Verifying...' : 'Verify Payment'}
@@ -361,14 +361,14 @@ function Step3({
         )}
       </div>
 
-      <div className="flex justify-between">
-        <button onClick={onBack} className="px-6 py-2.5 rounded-lg border border-border text-text-secondary text-sm font-medium hover:border-border-hover hover:text-text-primary transition-all duration-200">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+        <button onClick={onBack} className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-border text-text-secondary text-sm font-medium hover:border-border-hover hover:text-text-primary transition-all duration-200">
           ← Back
         </button>
         <button
           onClick={onSubmit}
           disabled={!state.verified || creating}
-          className="px-6 py-2.5 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="w-full justify-center sm:w-auto px-6 py-2.5 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {creating && <Loader2 className="w-4 h-4 animate-spin" />}
           Publish Bounty
