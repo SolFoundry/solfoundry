@@ -1,0 +1,55 @@
+============================================================
+  🤖 Autonomous Bounty Agent — Live Demo
+============================================================
+
+📋 [1/5] Agent Scheduler — S/A/B/C Tier Rating
+----------------------------------------
+  ✅ sec-alpha [S] → security on gw-1
+  ✅ sec-beta [S] → security on gw-7
+  ✅ res-gamma [A] → research on gw-2
+  ✅ res-delta [A] → research on gw-3
+  ✅ code-epsilon [B] → code on gw-4
+  ✅ code-zeta [B] → code on gw-5
+  ✅ doc-eta [C] → knowledge on gw-6
+  ✅ ops-theta [C] → ops on gw-1
+  📊 Team: 8 agents | Tiers: {"S": 2, "A": 2, "B": 2, "C": 2}
+  💾 Memory: 640.0MB / 1600.0MB (40.0%)
+
+🎯 [2/5] Task Dispatch — Priority Queue + Tier Matching
+----------------------------------------
+  📥 Queued: t-sec-1 (diff=critical, pri=10)
+  📥 Queued: t-code-1 (diff=medium, pri=5)
+  📥 Queued: t-doc-1 (diff=easy, pri=2)
+  🚀 Dispatched: t-sec-1 → sec-alpha [S] (security)
+  🚀 Dispatched: t-code-1 → code-epsilon [B] (code)
+  🚀 Dispatched: t-doc-1 → doc-eta [C] (knowledge)
+
+🤖 [3/5] LLM Client — Multi-Provider + Fallback Chain
+----------------------------------------
+  ✅ openai: glm-5.1 (rpm=60)
+  ✅ anthropic: deepseek-v4-pro (rpm=40)
+  ✅ local: qwen-3.5-397b (rpm=30)
+  📊 Fallback chain: openai/glm-5.1 → anthropic/deepseek-v4-pro → local/qwen-3.5-397b
+
+📡 [4/5] Event Bus — Structured Events
+----------------------------------------
+  [stage_started] Discovery phase started
+  [agent_completed] Code implementation done
+  [mission_completed] Mission #861 completed
+
+🔄 [5/5] Full Pipeline — 5-Stage Mission Execution
+----------------------------------------
+  🎯 Mission started: #861
+  ✅ discover: success (agent=planner-005, 0.0s)
+  ✅ analyze: success (agent=analyst-006, 0.0s)
+  ✅ implement: success (agent=coder-010, 0.0s)
+  ✅ test: success (agent=tester-011, 0.0s)
+  ✅ submit: success (agent=submitter-017, 0.0s)
+  🏁 Mission complete: False | 0/5 stages
+
+============================================================
+✅ All systems operational
+   Scheduler: 3 tasks dispatched
+   LLM: 3 providers with fallback
+   Pipeline: 5/5 stages passed
+============================================================

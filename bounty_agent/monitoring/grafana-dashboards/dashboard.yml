@@ -1,0 +1,16 @@
+# =============================================================================
+# Grafana Dashboard Provisioning
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Bounty Agent Dashboards'
+    orgId: 1
+    folder: 'Bounty Agent'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false
