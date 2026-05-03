@@ -3,7 +3,8 @@
 Goal: deliver a narrow first PR for issue #838: bounty detail discussion UI + typed API client, without overbuilding real-time/moderation backend in the first slice.
 
 ## In Progress
-- [ ] T5. Build validation and PR submission.
+
+No pending tasks for issue #838 PR slice.
 
 ## Pending
 
@@ -17,4 +18,7 @@ Goal: deliver a narrow first PR for issue #838: bounty detail discussion UI + ty
       Result: added `BountyComments` with root threads, one-level replies, reply form, auth gate, moderation note/status, and API error/loading/empty states.
 - [x] T4. Integrate on bounty detail page.
       Result: discussion section appears before solution submission. Restored missing shared frontend `lib/animations` and `lib/utils` modules needed by existing imports.
+      Verification: `cd frontend && npm run build` PASS.
+- [x] T5. Build validation and PR submission.
+      Result: pushed branch `feat/bounty-comments-thread` and opened PR.
       Verification: `cd frontend && npm run build` PASS.
