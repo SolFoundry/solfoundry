@@ -5,7 +5,7 @@ export interface BountyCommentsResponse {
   items: BountyComment[];
 }
 
-function normalizeComment(value: BountyComment): BountyComment {
+export function normalizeComment(value: BountyComment): BountyComment {
   return {
     ...value,
     moderation_status: value.moderation_status ?? 'visible',
