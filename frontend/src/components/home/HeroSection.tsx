@@ -5,6 +5,7 @@ import { useStats } from '../../hooks/useStats';
 import { getGitHubAuthorizeUrl } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { buttonHover, fadeIn } from '../../lib/animations';
+import { FndryPriceWidget } from '../token/FndryPriceWidget';
 
 const GitHubIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -92,6 +93,10 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <EmberParticles count={5} />
+
+      <div className="mb-6 w-full max-w-md">
+        <FndryPriceWidget compact />
+      </div>
 
       {/* Terminal card */}
       <motion.div
