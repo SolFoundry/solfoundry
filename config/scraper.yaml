@@ -1,0 +1,33 @@
+# SolFoundry GitHub Issue Scraper Configuration
+# Copy to config/scraper.local.yaml and fill in your tokens
+
+repos:
+  - owner: SolFoundry
+    repo: SolFoundry
+    label_filter: ["bounty", "help wanted", "good first issue"]
+    state_filter: open
+    priority: 10
+    rate_limit_rpm: 60
+
+  - owner: SolFoundry
+    repo: solfoundry-website
+    label_filter: ["bounty", "bug", "feature"]
+    state_filter: open
+    priority: 5
+
+  - owner: SolFoundry
+    repo: solfoundry-sdk
+    label_filter: ["bounty", "bug", "enhancement"]
+    state_filter: open
+    priority: 3
+
+poll_interval_seconds: 300
+webhook_port: 8090
+webhook_secret: ""  # Set via SOLFOUNDRY_WEBHOOK_SECRET env var
+solfoundry_api_url: "https://solfoundry.org/api"
+solfoundry_api_key: ""  # Set via SOLFOUNDRY_API_KEY env var
+github_token: ""  # Set via GITHUB_TOKEN env var
+max_issues_per_repo: 100
+dedup_similarity_threshold: 0.85
+log_level: INFO
+database_url: "sqlite:///scraper.db"
