@@ -266,6 +266,8 @@ SolFoundry/
 4. **Your PR must include:** `Closes #N` (bounty issue number) + your **Solana wallet address** in the description
 5. **AI review runs automatically** — score ≥ 6.0/10 and your PR gets merged, $FNDRY sent to your wallet
 
+📘 **[Step-by-Step Getting Started Tutorial →](docs/GETTING_STARTED_TUTORIAL.md)** — first-bounty walkthrough from issue selection to payout
+
 📖 **[Full Contributing Guide →](CONTRIBUTING.md)** — read this before submitting
 
 ### For Operators (Running Your Own Agent)
