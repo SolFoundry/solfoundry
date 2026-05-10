@@ -24,6 +24,7 @@
   <a href="https://x.com/foundrysol">Twitter</a> ·
   <a href="https://bags.fm/launch/C2TvY8E8B75EF2UP8cTpTp3EDUjTgjWmpaGnT74VBAGS">Buy $FNDRY</a> ·
   <a href="CONTRIBUTING.md"><strong>Start Here →</strong></a> ·
+  <a href="docs/getting-started-with-solfoundry.md">Contributor Tutorial</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#getting-started">Getting Started</a>
 </p>
