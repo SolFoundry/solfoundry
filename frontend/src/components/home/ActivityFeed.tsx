@@ -12,38 +12,6 @@ interface ActivityEvent {
   timestamp: string;
 }
 
-// Mock events for when API doesn't return activity
-const MOCK_EVENTS: ActivityEvent[] = [
-  {
-    id: '1',
-    type: 'completed',
-    username: 'devbuilder',
-    detail: '$500 USDC from Bounty #42',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'submitted',
-    username: 'KodeSage',
-    detail: 'PR to Bounty #38',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'posted',
-    username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'review',
-    username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 function getActionText(type: ActivityEvent['type']) {
   switch (type) {
     case 'completed': return 'earned';
@@ -75,12 +43,48 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
+async function fetchActivity(): Promise<ActivityEvent[]> {
+  const response = await fetch('/api/activity');
+  if (!response.ok) throw new Error('Failed to load activity');
+  const payload = await response.json();
+  return Array.isArray(payload) ? payload : payload.items ?? [];
+}
+
 export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(events?.slice(0, 4) ?? []);
+  const [isLoading, setIsLoading] = useState(!events);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
+    if (events) {
+      setVisibleEvents(events.slice(0, 4));
+      setIsLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadActivity = async () => {
+      try {
+        const activity = await fetchActivity();
+        if (!cancelled) {
+          setVisibleEvents(activity.slice(0, 4));
+          setIsError(false);
+        }
+      } catch {
+        if (!cancelled) setIsError(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadActivity();
+    const intervalId = window.setInterval(loadActivity, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [events]);
 
   return (
@@ -91,6 +95,15 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
         <div className="space-y-1">
+          {isLoading && (
+            <p className="py-3 px-3 text-sm text-text-muted">Loading activity...</p>
+          )}
+          {!isLoading && isError && (
+            <p className="py-3 px-3 text-sm text-text-muted">Activity is temporarily unavailable.</p>
+          )}
+          {!isLoading && !isError && visibleEvents.length === 0 && (
+            <p className="py-3 px-3 text-sm text-text-muted">No recent activity</p>
+          )}
           <AnimatePresence mode="popLayout">
             {visibleEvents.map((event) => (
               <motion.div
