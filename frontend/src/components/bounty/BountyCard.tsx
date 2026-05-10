@@ -61,10 +61,10 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-4 pb-12 sm:p-5 sm:pb-12 cursor-pointer transition-colors duration-200 overflow-hidden group"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-start justify-between gap-3 text-sm">
         <div className="flex items-center gap-2 min-w-0">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
@@ -84,7 +84,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
 
       {/* Row 3: Language dots */}
       {skills.length > 0 && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex items-center gap-x-3 gap-y-2 mt-3 flex-wrap">
           {skills.map((lang) => (
             <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
               <span
@@ -101,11 +101,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-3">
+        <span className="font-mono text-base sm:text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
