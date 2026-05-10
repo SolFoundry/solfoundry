@@ -5,6 +5,7 @@ import { ChevronDown, Loader2, Plus } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import { BountyCardSkeleton } from '../skeletons/LoadingSkeletons';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
@@ -73,14 +74,7 @@ export function BountyGrid() {
         {/* Loading state */}
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
-              >
-                <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-              </div>
-            ))}
+            <BountyCardSkeleton count={6} />
           </div>
         )}
 
