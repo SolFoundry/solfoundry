@@ -15,6 +15,7 @@ export interface BountiesListParams {
   skill?: string;
   tier?: string;
   reward_token?: string;
+  search?: string;
 }
 
 export interface BountiesListResponse {
