@@ -5,11 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { exchangeGitHubCode } from '../api/auth';
 import { setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
+import { useToast } from '../components/toast/ToastProvider';
 
 export function GitHubCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const toast = useToast();
   const didRun = useRef(false);
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export function GitHubCallbackPage() {
     const error = searchParams.get('error');
 
     if (error || !code) {
+      toast.error('GitHub sign-in was cancelled or failed.');
       navigate('/', { replace: true });
       return;
     }
@@ -35,12 +38,14 @@ export function GitHubCallbackPage() {
         if (response.refresh_token) {
           localStorage.setItem('sf_refresh_token', response.refresh_token);
         }
+        toast.success('Signed in with GitHub.');
         navigate('/', { replace: true });
       })
       .catch(() => {
+        toast.error('Could not complete GitHub sign-in.');
         navigate('/', { replace: true });
       });
-  }, []);
+  }, [login, navigate, searchParams, toast]);
 
   return (
     <div className="min-h-screen bg-forge-950 flex items-center justify-center">
