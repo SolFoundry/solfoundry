@@ -87,7 +87,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 pt-24 pb-16 overflow-hidden">
+    <section className="relative min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center overflow-hidden px-4 pt-12 pb-10 sm:pt-16 sm:pb-14 md:pt-24 md:pb-16">
       {/* Background layers */}
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
@@ -101,20 +101,23 @@ export function HeroSection() {
         className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
       >
         {/* Title bar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
+        <div className="flex min-w-0 items-center gap-2 px-3 sm:px-4 py-2.5 bg-forge-800 border-b border-border">
           <div className="flex gap-1.5">
             <span className="w-3 h-3 rounded-full bg-status-error/80" />
             <span className="w-3 h-3 rounded-full bg-status-warning/80" />
             <span className="w-3 h-3 rounded-full bg-status-success/80" />
           </div>
-          <span className="font-mono text-xs text-text-muted ml-2">solfoundry — terminal</span>
+          <span className="ml-2 truncate font-mono text-xs text-text-muted">solfoundry terminal</span>
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter sm:hidden">
+              forge bounty --reward 100 --tier 2
+            </span>
+            <span className="text-text-secondary overflow-hidden whitespace-nowrap hidden sm:inline-block animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
@@ -154,7 +157,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center leading-tight mt-8 sm:mt-10"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +167,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -174,12 +177,12 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.5 }}
-        className="flex flex-wrap items-center justify-center gap-4 mt-8"
+        className="flex w-full max-w-sm flex-col items-stretch justify-center gap-3 mt-8 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
       >
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
             to="/bounties"
-            className="px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 shadow-lg shadow-emerald/20 inline-block"
+            className="inline-flex w-full justify-center px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 shadow-lg shadow-emerald/20 sm:w-auto"
           >
             Browse Bounties
           </Link>
@@ -188,7 +191,7 @@ export function HeroSection() {
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
             to="/bounties/create"
-            className="px-6 py-3 rounded-lg border border-emerald text-emerald font-semibold text-sm hover:bg-emerald-bg transition-colors duration-200 inline-block"
+            className="inline-flex w-full justify-center px-6 py-3 rounded-lg border border-emerald text-emerald font-semibold text-sm hover:bg-emerald-bg transition-colors duration-200 sm:w-auto"
           >
             Post a Bounty
           </Link>
@@ -198,7 +201,7 @@ export function HeroSection() {
           <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
             <button
               onClick={handleSignIn}
-              className="px-6 py-3 rounded-lg border border-border text-text-secondary font-medium text-sm hover:border-border-hover hover:text-text-primary transition-all duration-200 inline-flex items-center gap-2"
+              className="inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-lg border border-border text-text-secondary font-medium text-sm hover:border-border-hover hover:text-text-primary transition-all duration-200 sm:w-auto"
             >
               <GitHubIcon /> GitHub
             </button>
@@ -211,7 +214,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex max-w-sm flex-wrap items-center justify-center gap-x-4 gap-y-2 px-2 mt-8 font-mono text-xs sm:max-w-none sm:gap-x-6 sm:text-sm text-text-muted"
       >
         <span>
           <span className="text-text-primary font-semibold">
@@ -219,14 +222,14 @@ export function HeroSection() {
           </span>
           {' '}open bounties
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden text-text-muted sm:inline">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             $<CountUp target={stats?.total_paid_usdc ?? 24500} />
           </span>
           {' '}paid
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden text-text-muted sm:inline">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             <CountUp target={stats?.total_contributors ?? 89} />
