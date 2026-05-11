@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { PageLayout } from '../components/layout/PageLayout';
 import { PodiumCards } from '../components/leaderboard/PodiumCards';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
+import { LeaderboardSkeleton } from '../components/ui/Skeleton';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import type { TimePeriod } from '../types/leaderboard';
 import { fadeIn } from '../lib/animations';
@@ -46,11 +47,7 @@ export function LeaderboardPage() {
         </div>
 
         {/* Loading */}
-        {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
-          </div>
-        )}
+        {isLoading && <LeaderboardSkeleton />}
 
         {/* Error */}
         {isError && !isLoading && (
