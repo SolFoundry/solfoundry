@@ -121,8 +121,10 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
   background-color: #050505;
   color: #F0F0F5;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */
