@@ -111,11 +111,14 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
+          <div className="min-w-0 overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="hidden sm:inline-block text-text-secondary overflow-hidden whitespace-nowrap max-w-[calc(100%-1.25rem)] animate-typewriter align-bottom">
               forge bounty --reward 100 --lang typescript --tier 2
+            </span>
+            <span className="inline text-text-secondary sm:hidden">
+              forge bounty --reward 100 --lang ts
             </span>
             {typewriterDone && (
               <span className="inline-block w-2 h-5 bg-emerald animate-blink ml-0.5 align-middle" />
@@ -154,7 +157,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10 max-w-5xl"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +167,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -211,7 +214,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-x-6 mt-8 font-mono text-xs sm:text-sm text-text-muted"
       >
         <span>
           <span className="text-text-primary font-semibold">
@@ -219,14 +222,14 @@ export function HeroSection() {
           </span>
           {' '}open bounties
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             $<CountUp target={stats?.total_paid_usdc ?? 24500} />
           </span>
           {' '}paid
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             <CountUp target={stats?.total_contributors ?? 89} />
