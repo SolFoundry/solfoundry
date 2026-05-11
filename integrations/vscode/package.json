@@ -1,0 +1,40 @@
+{
+  "name": "solfoundry-bounties",
+  "displayName": "SolFoundry Bounties",
+  "description": "Browse and claim SolFoundry bounties directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "solfoundry",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onView:solfoundry-bounties"],
+  "main": "./extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [{
+        "id": "solfoundry-bounties",
+        "name": "SolFoundry Bounties",
+        "icon": "$(trophy)"
+      }]
+    },
+    "commands": [
+      { "command": "solfoundry.refresh", "title": "SolFoundry: Refresh Bounties", "icon": "$(refresh)" },
+      { "command": "solfoundry.openBounty", "title": "SolFoundry: Open Bounty in Browser" },
+      { "command": "solfoundry.claimBounty", "title": "SolFoundry: Claim Bounty" },
+      { "command": "solfoundry.filterByTier", "title": "SolFoundry: Filter by Tier" },
+      { "command": "solfoundry.filterByLanguage", "title": "SolFoundry: Filter by Language" },
+      { "command": "solfoundry.clearFilter", "title": "SolFoundry: Clear Filters" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "solfoundry.refresh", "when": "view == solfoundry-bounties", "group": "navigation" },
+        { "command": "solfoundry.filterByTier", "when": "view == solfoundry-bounties", "group": "navigation" },
+        { "command": "solfoundry.filterByLanguage", "when": "view == solfoundry-bounties", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "solfoundry.openBounty", "when": "view == solfoundry-bounties && viewItem == bounty", "group": "inline" },
+        { "command": "solfoundry.claimBounty", "when": "view == solfoundry-bounties && viewItem == bounty", "group": "inline" }
+      ]
+    }
+  },
+  "devDependencies": { "@types/vscode": "^1.85.0" }
+}
