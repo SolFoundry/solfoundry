@@ -1,0 +1,54 @@
+/* Hero Background — Forge/Factory animated theme */
+
+.hero-background-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+
+.hero-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.hero-vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.4) 80%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+}
+
+/* Responsive scaling */
+@media (max-width: 768px) {
+  .hero-background-container {
+    height: 60vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-background-container {
+    height: 50vh;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .hero-canvas {
+    animation: none !important;
+  }
+}
