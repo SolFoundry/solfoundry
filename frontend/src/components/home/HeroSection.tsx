@@ -111,10 +111,10 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+        <div className="p-3 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
+          <div className="sm:overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="text-text-secondary whitespace-normal break-words sm:overflow-hidden sm:whitespace-nowrap sm:inline-block sm:animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
@@ -211,7 +211,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-8 font-mono text-xs sm:text-sm text-text-muted"
       >
         <span>
           <span className="text-text-primary font-semibold">
@@ -219,14 +219,14 @@ export function HeroSection() {
           </span>
           {' '}open bounties
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             $<CountUp target={stats?.total_paid_usdc ?? 24500} />
           </span>
           {' '}paid
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden sm:inline text-text-muted">·</span>
         <span>
           <span className="text-text-primary font-semibold">
             <CountUp target={stats?.total_contributors ?? 89} />
