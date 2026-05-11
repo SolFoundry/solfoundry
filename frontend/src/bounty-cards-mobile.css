@@ -1,0 +1,209 @@
+/* ============================================
+   Mobile Responsive Polish for Bounty Cards (Bounty #824)
+   Focus: Bounty cards, navigation, hero, footer
+   Breakpoints: 375px and 768px
+   ============================================ */
+
+/* === Bounty Card Mobile Fixes === */
+@media (max-width: 767px) {
+  /* Bounty grid: single column on mobile */
+  .bounty-grid,
+  [class*="bounty-grid"],
+  [class*="BountyGrid"] {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+  }
+
+  /* Bounty card: reduce padding and font sizes */
+  .bounty-card,
+  [class*="BountyCard"] {
+    padding: 1rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .bounty-card .bounty-title,
+  [class*="BountyCard"] h2,
+  [class*="BountyCard"] h3 {
+    font-size: 0.9375rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .bounty-card .bounty-description,
+  [class*="BountyCard"] p {
+    font-size: 0.8125rem !important;
+    -webkit-line-clamp: 3 !important;
+    line-clamp: 3 !important;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  /* Bounty card footer: stack on mobile */
+  .bounty-card .bounty-footer,
+  [class*="BountyCard"] footer,
+  [class*="BountyCard"] [class*="footer"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Bounty card skills/tags: wrap */
+  .bounty-card .bounty-skills,
+  [class*="BountyCard"] [class*="skill"],
+  [class*="BountyCard"] [class*="tag"] {
+    flex-wrap: wrap !important;
+    gap: 0.375rem !important;
+  }
+
+  /* Bounty card tier badge: smaller on mobile */
+  .bounty-card .tier-badge,
+  [class*="BountyCard"] [class*="tier"],
+  [class*="BountyCard"] [class*="badge"] {
+    font-size: 0.6875rem !important;
+    padding: 0.125rem 0.5rem !important;
+  }
+
+  /* === Hero Section Mobile === */
+  .hero-section,
+  [class*="HeroSection"],
+  [class*="hero"] {
+    padding: 2rem 1rem !important;
+  }
+
+  .hero-section .terminal,
+  [class*="HeroSection"] pre,
+  [class*="hero"] pre,
+  [class*="hero"] code {
+    font-size: 0.7rem !important;
+    padding: 0.75rem !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+  }
+
+  .hero-section h1,
+  [class*="HeroSection"] h1,
+  [class*="hero"] h1 {
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .hero-section h2,
+  [class*="HeroSection"] h2,
+  [class*="hero"] h2 {
+    font-size: 0.875rem !important;
+  }
+
+  /* === Navigation Mobile === */
+  .nav-desktop,
+  [class*="desktop-nav"],
+  [class*="DesktopNav"] {
+    display: none !important;
+  }
+
+  .nav-mobile-trigger,
+  [class*="hamburger"],
+  [class*="HamburgerMenu"] {
+    display: flex !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Mobile nav panel */
+  .mobile-nav-panel,
+  [class*="MobileNav"],
+  [class*="mobile-nav"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
+    background: rgba(10, 15, 28, 0.95) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .mobile-nav-panel a,
+  [class*="MobileNav"] a {
+    display: block !important;
+    padding: 1rem 1.25rem !important;
+    font-size: 1rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+
+  /* === Footer Mobile Fix === */
+  footer,
+  [class*="Footer"],
+  [class*="footer"] {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  footer .footer-grid,
+  [class*="Footer"] [class*="grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+    padding: 2rem 1rem !important;
+  }
+
+  footer .footer-links,
+  [class*="Footer"] a {
+    font-size: 0.8125rem !important;
+    padding: 0.25rem 0 !important;
+  }
+
+  footer .footer-bottom,
+  [class*="Footer"] [class*="bottom"] {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 0.5rem !important;
+    padding: 1rem !important;
+  }
+
+  /* === Touch Targets === */
+  button,
+  a.btn,
+  [role="button"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* === Prevent Horizontal Scroll === */
+  html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  * {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Safe area for notched phones */
+  body {
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
+/* === 768px Tablet Adjustments === */
+@media (min-width: 375px) and (max-width: 767px) {
+  .bounty-grid,
+  [class*="bounty-grid"],
+  [class*="BountyGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  .hero-section h1,
+  [class*="HeroSection"] h1 {
+    font-size: 2rem !important;
+  }
+}
