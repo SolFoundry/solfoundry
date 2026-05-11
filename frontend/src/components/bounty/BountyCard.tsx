@@ -61,11 +61,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative h-full rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
           )}
@@ -78,13 +78,13 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Row 2: Title */}
-      <h3 className="mt-3 font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
+      <h3 className="mt-3 break-words font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
         {bounty.title}
       </h3>
 
       {/* Row 3: Language dots */}
       {skills.length > 0 && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex flex-wrap items-center gap-3 mt-3">
           {skills.map((lang) => (
             <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
               <span
@@ -101,11 +101,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex flex-col gap-3 mt-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="font-mono text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
@@ -120,7 +120,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+      <span className={`mt-4 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         {statusLabel}
       </span>
