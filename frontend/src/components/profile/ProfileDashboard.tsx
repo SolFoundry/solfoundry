@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
+import { ProfileBountiesSkeleton, SkeletonBlock } from '../ui/Skeleton';
 import type { Bounty } from '../../types/bounty';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
@@ -35,7 +36,7 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return <ProfileBountiesSkeleton />;
   }
   if (!bounties.length) {
     return (
@@ -175,8 +176,13 @@ export function ProfileDashboard() {
           )}
           <div className="flex-1">
             <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
-            <p className="mt-1 font-mono text-sm text-text-muted">
-              Joined {joinDate} · {myBounties.length} bounties created
+            <p className="mt-1 flex items-center gap-2 font-mono text-sm text-text-muted">
+              <span>Joined {joinDate} ·</span>
+              {isLoading ? (
+                <SkeletonBlock className="h-4 w-32" />
+              ) : (
+                <span>{myBounties.length} bounties created</span>
+              )}
             </p>
           </div>
         </div>
