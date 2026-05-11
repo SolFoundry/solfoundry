@@ -1,112 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { slideInRight } from '../../lib/animations';
-import { timeAgo } from '../../lib/utils';
+import React from 'react';
+import { GitPullRequest, CheckCircle, DollarSign, Plus, Merge } from 'lucide-react';
+import { useActivityFeed } from '../../hooks/useActivityFeed';
+import type { ActivityEvent } from '../../api/activity';
 
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
+const eventConfig: Record<ActivityEvent['type'], {
+  icon: React.ElementType;
+  color: string;
+  label: string;
+}> = {
+  bounty_completed: { icon: CheckCircle, color: 'text-emerald', label: 'completed' },
+  pr_submitted: { icon: GitPullRequest, color: 'text-tier-t2', label: 'submitted PR' },
+  payout_sent: { icon: DollarSign, color: 'text-tier-t1', label: 'received payout' },
+  bounty_created: { icon: Plus, color: 'text-status-info', label: 'created bounty' },
+  pr_merged: { icon: Merge, color: 'text-emerald', label: 'merged PR' },
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }
 
-// Mock events for when API doesn't return activity
-const MOCK_EVENTS: ActivityEvent[] = [
-  {
-    id: '1',
-    type: 'completed',
-    username: 'devbuilder',
-    detail: '$500 USDC from Bounty #42',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'submitted',
-    username: 'KodeSage',
-    detail: 'PR to Bounty #38',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'posted',
-    username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'review',
-    username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
+function ActivityItem({ event }: { event: ActivityEvent }) {
+  const config = eventConfig[event.type];
+  const Icon = config.icon;
 
-function getActionText(type: ActivityEvent['type']) {
-  switch (type) {
-    case 'completed': return 'earned';
-    case 'submitted': return 'submitted';
-    case 'posted': return 'posted';
-    case 'review': return 'AI Review passed for';
-    default: return 'updated';
-  }
-}
-
-function EventItem({ event }: { event: ActivityEvent }) {
-  const isMagenta = event.type === 'review';
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-forge-850 transition-colors duration-150">
+    <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-surface-hover transition-colors">
+      {/* Avatar */}
       {event.avatar_url ? (
-        <img src={event.avatar_url} className="w-6 h-6 rounded-full flex-shrink-0" alt="" />
+        <img src={event.avatar_url} alt={event.username} className="w-8 h-8 rounded-full" />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-forge-700 flex-shrink-0 flex items-center justify-center">
-          <span className="font-mono text-xs text-text-muted">{event.username[0]?.toUpperCase()}</span>
+        <div className="w-8 h-8 rounded-full bg-surface-card flex items-center justify-center text-xs font-mono text-text-muted">
+          {event.username.slice(0, 2).toUpperCase()}
         </div>
       )}
-      <p className="text-sm text-text-secondary flex-1 truncate">
-        <span className="font-medium text-text-primary">{event.username}</span>
-        {' '}{getActionText(event.type)}{' '}
-        <span className={`font-mono ${isMagenta ? 'text-magenta' : 'text-emerald'}`}>{event.detail}</span>
-      </p>
-      <span className="font-mono text-xs text-text-muted flex-shrink-0">{timeAgo(event.timestamp)}</span>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-text-primary truncate">
+          <span className="font-medium">{event.username}</span>{' '}
+          <span className="text-text-secondary">{config.label}</span>
+          {' — '}
+          <span className="font-medium truncate">{event.bounty_title}</span>
+        </p>
+        {event.amount && (
+          <span className="text-xs text-tier-t1 font-medium">{event.amount} $FNDRY</span>
+        )}
+      </div>
+
+      {/* Icon + Time */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Icon className={`w-4 h-4 ${config.color}`} />
+        <span className="text-xs text-text-muted">{timeAgo(event.created_at)}</span>
+      </div>
     </div>
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+export function ActivityFeed() {
+  const { events, isLoading, isError, refetch } = useActivityFeed();
 
-  useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  if (isLoading && events.length === 0) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2 px-3">
+            <div className="w-8 h-8 rounded-full bg-surface-card animate-pulse" />
+            <div className="flex-1 space-y-1">
+              <div className="h-4 bg-surface-card rounded animate-pulse w-3/4" />
+              <div className="h-3 bg-surface-card rounded animate-pulse w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-text-muted text-sm">No recent activity</p>
+        {isError && (
+          <button
+            onClick={refetch}
+            className="mt-2 text-xs text-emerald hover:underline"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
-        </div>
-        <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
-    </section>
+    <div className="space-y-1">
+      {events.map((event) => (
+        <ActivityItem key={event.id} event={event} />
+      ))}
+    </div>
   );
 }
+
+export default ActivityFeed;
