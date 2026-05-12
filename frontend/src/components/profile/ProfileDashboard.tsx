@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { GitPullRequest } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
-import { useBounties } from '../../hooks/useBounties';
+import { useBounties, useMySubmissions } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
 import type { Bounty } from '../../types/bounty';
+import { ContributorStatsPanel } from './ContributorStatsPanel';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
 type Tab = typeof TABS[number];
@@ -152,6 +153,7 @@ export function ProfileDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('My Bounties');
   const { data: bountiesData, isLoading } = useBounties({ limit: 50 });
+  const { data: mySubmissions } = useMySubmissions(!!user);
 
   if (!user) return null;
 
@@ -160,11 +162,13 @@ export function ProfileDashboard() {
     : 'Recently';
 
   const myBounties = bountiesData?.items.filter((b) => b.creator_id === user.id) ?? [];
+  const submissions = mySubmissions ?? [];
+  const allBounties = bountiesData?.items ?? [];
 
   return (
-    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
+    <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="rounded-xl border border-border bg-forge-900 p-6 mb-6">
+      <div className="rounded-xl border border-border bg-forge-900 p-6">
         <div className="flex items-start gap-5">
           {user.avatar_url ? (
             <img src={user.avatar_url} className="w-16 h-16 rounded-full border-2 border-border" alt={user.username} />
@@ -180,9 +184,18 @@ export function ProfileDashboard() {
             </p>
           </div>
         </div>
+      </div>
 
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
+      {/* Contributor stats dashboard: stats row, GitHub activity, earnings */}
+      <ContributorStatsPanel
+        username={user.username}
+        submissions={submissions}
+        bounties={allBounties}
+      />
+
+      {/* Tab switcher */}
+      <div className="rounded-xl border border-border bg-forge-900 p-4">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 w-fit">
           {TABS.map((tab) => (
             <button
               key={tab}
@@ -197,14 +210,13 @@ export function ProfileDashboard() {
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Tab content */}
-      <div>
-        {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
-        {activeTab === 'My Submissions' && <SubmissionsTab />}
-        {activeTab === 'Earnings' && <EarningsTab />}
-        {activeTab === 'Settings' && <SettingsTab />}
+        <div className="mt-4">
+          {activeTab === 'My Bounties' && <MyBountiesTab bounties={myBounties} loading={isLoading} />}
+          {activeTab === 'My Submissions' && <SubmissionsTab />}
+          {activeTab === 'Earnings' && <EarningsTab />}
+          {activeTab === 'Settings' && <SettingsTab />}
+        </div>
       </div>
     </motion.div>
   );
