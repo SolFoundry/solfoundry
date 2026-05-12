@@ -58,6 +58,25 @@ export async function listSubmissions(bountyId: string): Promise<Submission[]> {
   return apiClient<Submission[]>(`/api/bounties/${bountyId}/submissions`);
 }
 
+/**
+ * List the current authenticated user's submissions. Returns an empty array
+ * if the backend does not yet expose this endpoint, so callers can render a
+ * "no submissions yet" state instead of an error toast.
+ */
+export async function listMySubmissions(): Promise<Submission[]> {
+  try {
+    const response = await apiClient<Submission[] | { items: Submission[] }>(
+      '/api/users/me/submissions',
+    );
+    if (Array.isArray(response)) return response;
+    return response.items ?? [];
+  } catch (err) {
+    const status = (err as { status?: number } | null)?.status;
+    if (status === 404 || status === 501) return [];
+    throw err;
+  }
+}
+
 export async function createSubmission(
   bountyId: string,
   payload: { repo_url?: string; pr_url?: string; description?: string; tx_signature?: string }

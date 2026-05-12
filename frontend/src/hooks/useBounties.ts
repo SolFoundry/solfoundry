@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { listBounties, getBounty } from '../api/bounties';
+import { listBounties, getBounty, listMySubmissions } from '../api/bounties';
 import type { BountiesListParams } from '../api/bounties';
 
 export function useBounties(params?: BountiesListParams) {
@@ -30,6 +30,15 @@ export function useBounty(id: string | undefined) {
     queryKey: ['bounty', id],
     queryFn: () => getBounty(id!),
     enabled: !!id,
+    staleTime: 30_000,
+  });
+}
+
+export function useMySubmissions(enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['my-submissions'],
+    queryFn: listMySubmissions,
+    enabled,
     staleTime: 30_000,
   });
 }
