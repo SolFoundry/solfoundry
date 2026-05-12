@@ -3,6 +3,7 @@ import * as THREE from 'three';
 
 export function ForgeVisualization() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -91,6 +92,7 @@ export function ForgeVisualization() {
     let lastForge = 0;
     const forgeIntervalMs = 2200;
     const clock = new THREE.Clock();
+    let userPulse = 0;
 
     const triggerForge = () => {
       fireLight.intensity = 3.7;
@@ -106,6 +108,21 @@ export function ForgeVisualization() {
         sparkVelocities[j + 2] = Math.sin(angle) * speed * 0.4;
       }
       sparkGeo.attributes.position.needsUpdate = true;
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!mount) return;
+      const rect = mount.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+      pointerRef.current.x = x;
+      pointerRef.current.y = y;
+      userPulse = 0.7;
+    };
+
+    const onPointerDown = () => {
+      triggerForge();
+      userPulse = 1;
     };
 
     const animate = () => {
@@ -148,8 +165,15 @@ export function ForgeVisualization() {
       }
       sparkGeo.attributes.position.needsUpdate = true;
 
-      camera.position.x = Math.sin(elapsed * 0.24) * 0.85;
-      camera.lookAt(0, 0.35, 0);
+      const targetX = Math.sin(elapsed * 0.24) * 0.85 + pointerRef.current.x * 0.45;
+      const targetY = 1.6 + pointerRef.current.y * 0.28;
+      camera.position.x += (targetX - camera.position.x) * 0.06;
+      camera.position.y += (targetY - camera.position.y) * 0.06;
+      camera.lookAt(pointerRef.current.x * 0.2, 0.35 + pointerRef.current.y * 0.1, 0);
+
+      userPulse = Math.max(0, userPulse - delta * 1.8);
+      sparks.material.opacity = 0.72 + userPulse * 0.2;
+      fireLight.color.setHSL(0.06 + userPulse * 0.04, 1, 0.5);
 
       renderer.render(scene, camera);
       frame = requestAnimationFrame(animate);
@@ -164,10 +188,14 @@ export function ForgeVisualization() {
       renderer.setSize(mount.clientWidth, mount.clientHeight);
     };
     window.addEventListener('resize', onResize);
+    mount.addEventListener('pointermove', onPointerMove);
+    mount.addEventListener('pointerdown', onPointerDown);
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
+      mount.removeEventListener('pointermove', onPointerMove);
+      mount.removeEventListener('pointerdown', onPointerDown);
       renderer.dispose();
       sparkGeo.dispose();
       mount.removeChild(renderer.domElement);
