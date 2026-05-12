@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="g" x1="64" y1="64" x2="448" y2="448"><stop offset="0" stop-color="#00E676"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs>
+<circle cx="256" cy="256" r="220" fill="#0A0A0F" stroke="url(#g)" stroke-width="16"/>
+<circle cx="256" cy="256" r="172" fill="#111120" stroke="#2E2E42" stroke-width="8"/>
+<text x="256" y="230" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="36" font-weight="700" text-anchor="middle">SOLFOUNDRY</text>
+<text x="256" y="286" fill="#00E676" font-family="JetBrains Mono,monospace" font-size="46" font-weight="700" text-anchor="middle">AGENT</text>
+<text x="256" y="336" fill="#A0A0B8" font-family="Inter,Arial,sans-serif" font-size="22" text-anchor="middle">BUILD • EARN • OWN</text>
+</svg>
