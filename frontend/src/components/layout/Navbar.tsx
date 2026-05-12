@@ -33,6 +33,20 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+    setDropdownOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (menuOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
@@ -168,6 +182,7 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
