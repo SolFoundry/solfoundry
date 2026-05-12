@@ -5,6 +5,7 @@ import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
 import type { BountyCreatePayload } from '../../types/bounty';
 import { createBounty, getTreasuryDepositInfo, verifyEscrowDeposit } from '../../api/bounties';
 import { pageTransition } from '../../lib/animations';
+import { useToast } from '../../contexts/ToastContext';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
 const PLATFORM_FEE_PCT = 0.05;
@@ -263,12 +264,14 @@ function Step3({
   onBack,
   onSubmit,
   creating,
+  pushToast,
 }: {
   state: WizardState;
   onChange: (k: keyof WizardState, v: unknown) => void;
   onBack: () => void;
   onSubmit: () => void;
   creating: boolean;
+  pushToast: (toast: { title: string; message?: string; variant?: 'success' | 'error' | 'warning' | 'info' }) => void;
 }) {
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -280,6 +283,7 @@ function Step3({
     if (!state.treasury_address) return;
     navigator.clipboard.writeText(state.treasury_address).then(() => {
       setCopiedAddr(true);
+      pushToast({ title: 'Address copied', message: 'Treasury address copied to clipboard.', variant: 'success' });
       setTimeout(() => setCopiedAddr(false), 2000);
     });
   };
@@ -292,11 +296,15 @@ function Step3({
       const result = await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
       if (result.verified) {
         onChange('verified', true);
+        pushToast({ title: 'Payment verified', message: 'Escrow deposit was confirmed.', variant: 'success' });
       } else {
-        setVerifyError(result.error ?? 'Verification failed. Check your transaction signature.');
+        const msg = result.error ?? 'Verification failed. Check your transaction signature.';
+        setVerifyError(msg);
+        pushToast({ title: 'Verification failed', message: msg, variant: 'error' });
       }
     } catch {
       setVerifyError('Verification failed. Try again.');
+      pushToast({ title: 'Verification failed', message: 'Please try again in a moment.', variant: 'error' });
     } finally {
       setVerifying(false);
     }
@@ -380,6 +388,7 @@ function Step3({
 
 export function BountyCreateWizard() {
   const navigate = useNavigate();
+  const { pushToast } = useToast();
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -418,12 +427,15 @@ export function BountyCreateWizard() {
       };
       const bounty = await createBounty(payload);
       const depositInfo = await getTreasuryDepositInfo(bounty.id);
+      pushToast({ title: 'Draft bounty created', message: 'Now fund escrow to publish it.', variant: 'info' });
       onChange('bounty_id', bounty.id);
       onChange('treasury_address', depositInfo.treasury_address);
       onChange('total_to_fund', depositInfo.total_to_fund);
       setStep(2);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create bounty. Try again.');
+      const msg = e instanceof Error ? e.message : 'Failed to create bounty. Try again.';
+      setError(msg);
+      pushToast({ title: 'Create failed', message: msg, variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -436,8 +448,11 @@ export function BountyCreateWizard() {
     try {
       await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
       setSuccess(true);
+      pushToast({ title: 'Bounty published', message: 'Your bounty is now live.', variant: 'success' });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
+      const msg = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
+      setError(msg);
+      pushToast({ title: 'Publish failed', message: msg, variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -476,7 +491,7 @@ export function BountyCreateWizard() {
         >
           {step === 0 && <Step1 state={state} onChange={onChange} onNext={handleStep1Next} />}
           {step === 1 && <Step2 state={state} onChange={onChange} onNext={handleStep2Next} onBack={() => setStep(0)} />}
-          {step === 2 && <Step3 state={state} onChange={onChange} onBack={() => setStep(1)} onSubmit={handlePublish} creating={creating} />}
+          {step === 2 && <Step3 state={state} onChange={onChange} onBack={() => setStep(1)} onSubmit={handlePublish} creating={creating} pushToast={pushToast} />}
         </motion.div>
       </AnimatePresence>
     </div>

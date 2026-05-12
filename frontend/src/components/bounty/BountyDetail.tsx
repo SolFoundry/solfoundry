@@ -7,6 +7,7 @@ import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils'
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { useToast } from '../../contexts/ToastContext';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -14,12 +15,14 @@ interface BountyDetailProps {
 
 export function BountyDetail({ bounty }: BountyDetailProps) {
   const { isAuthenticated } = useAuth();
+  const { pushToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
       setCopied(true);
+      pushToast({ title: 'Link copied', message: 'Bounty link copied to clipboard.', variant: 'success' });
       setTimeout(() => setCopied(false), 2000);
     });
   };
