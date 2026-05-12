@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
 import type { BountyCreatePayload } from '../../types/bounty';
 import { createBounty, getTreasuryDepositInfo, verifyEscrowDeposit } from '../../api/bounties';
+import { useToast } from '../ui/Toast';
 import { pageTransition } from '../../lib/animations';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
@@ -379,11 +380,12 @@ function Step3({
 }
 
 export function BountyCreateWizard() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(0);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+ const navigate = useNavigate();
+ const { addToast } = useToast();
+ const [step, setStep] = useState(0);
+ const [creating, setCreating] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+ const [success, setSuccess] = useState(false);
   const [state, setState] = useState<WizardState>({
     title: '',
     description: '',
@@ -416,32 +418,38 @@ export function BountyCreateWizard() {
         github_repo_url: state.github_repo_url || undefined,
         github_issue_url: state.github_issue_url || undefined,
       };
-      const bounty = await createBounty(payload);
-      const depositInfo = await getTreasuryDepositInfo(bounty.id);
-      onChange('bounty_id', bounty.id);
-      onChange('treasury_address', depositInfo.treasury_address);
-      onChange('total_to_fund', depositInfo.total_to_fund);
-      setStep(2);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create bounty. Try again.');
-    } finally {
-      setCreating(false);
-    }
-  };
+  const bounty = await createBounty(payload);
+  const depositInfo = await getTreasuryDepositInfo(bounty.id);
+  onChange('bounty_id', bounty.id);
+  onChange('treasury_address', depositInfo.treasury_address);
+  onChange('total_to_fund', depositInfo.total_to_fund);
+  addToast({ variant: 'success', title: 'Bounty created!', message: 'Deposit escrow to fund your bounty.' });
+  setStep(2);
+ } catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : 'Failed to create bounty. Try again.';
+  setError(msg);
+  addToast({ variant: 'error', title: 'Creation failed', message: msg });
+ } finally {
+  setCreating(false);
+ }
+ };
 
-  const handlePublish = async () => {
-    if (!state.bounty_id) return;
-    setCreating(true);
-    setError(null);
-    try {
-      await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
-      setSuccess(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
-    } finally {
-      setCreating(false);
-    }
-  };
+ const handlePublish = async () => {
+ if (!state.bounty_id) return;
+ setCreating(true);
+ setError(null);
+ try {
+  await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+  setSuccess(true);
+  addToast({ variant: 'success', title: 'Bounty published!', message: 'Your bounty is now live and visible to contributors.' });
+ } catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
+  setError(msg);
+  addToast({ variant: 'error', title: 'Publish failed', message: msg });
+ } finally {
+  setCreating(false);
+ }
+ };
 
   if (success) {
     return (
