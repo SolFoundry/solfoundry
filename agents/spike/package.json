@@ -1,0 +1,19 @@
+{
+  "name": "spike",
+  "version": "2.0.0",
+  "description": "Multi-LLM autonomous bounty-hunting agent",
+  "main": "src/agent.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "dotenv": "^17.4.2"
+  },
+  "bin": {
+    "spike": "./bin/spike"
+  }
+}
