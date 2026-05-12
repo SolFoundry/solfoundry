@@ -145,8 +145,15 @@ export function BountyGrid() {
           </div>
         )}
 
+        {/* Partial search warning: search only covers loaded bounties */}
+        {isSearching && !isLoading && hasNextPage && allBounties.length > 0 && (
+          <p className="text-xs text-text-muted mb-4">
+            Showing {allBounties.length} results from {totalCount} total for &quot;{debouncedSearch}&quot; — load more to search deeper
+          </p>
+        )}
+
         {/* Result count when searching */}
-        {isSearching && !isLoading && allBounties.length > 0 && (
+        {isSearching && !isLoading && !hasNextPage && allBounties.length > 0 && (
           <p className="text-sm text-text-muted mb-6">
             {totalCount} result{totalCount !== 1 ? 's' : ''} for &quot;{debouncedSearch}&quot;
           </p>

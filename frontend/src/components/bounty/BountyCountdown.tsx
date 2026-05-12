@@ -44,11 +44,13 @@ interface BountyCountdownProps {
   compact?: boolean;
   /** Show seconds tick. Default: false. */
   showSeconds?: boolean;
+  /** Visual variant. 'badge' applies badge-specific styling. Default: undefined (auto). */
+  variant?: 'badge';
   /** Additional CSS classes. */
   className?: string;
 }
 
-export function BountyCountdown({ deadline, compact = false, showSeconds = false, className = '' }: BountyCountdownProps) {
+export function BountyCountdown({ deadline, compact = false, showSeconds = false, variant, className = '' }: BountyCountdownProps) {
   const [parts, setParts] = useState(() => getTimeParts(deadline));
 
   useEffect(() => {
@@ -62,22 +64,24 @@ export function BountyCountdown({ deadline, compact = false, showSeconds = false
   const urgency = getUrgency(parts.expired, parts.days, parts.hours);
   const style = urgencyStyles[urgency];
 
-  if (compact) {
-    const icon = <Clock className="w-3.5 h-3.5" />;
+  // Variant-specific branch is handled before the expired early return,
+  // so badge variant gets proper styling even when expired.
+  if (compact || variant === 'badge') {
+    const icon = style.icon;
     return (
-      <span className={`inline-flex items-center gap-1 font-mono text-xs ${urgencyStyles[urgency].text}`}>
+      <span className={`inline-flex items-center gap-1 font-mono text-xs ${style.text}`}>
         {icon}
         {parts.expired ? 'Expired' : `${parts.days}d ${parts.hours}h ${parts.minutes}m`}
       </span>
     );
   }
 
-  const icon = urgencyStyles[urgency].icon;
-  const textStyle = urgencyStyles[urgency].text;
+  const icon = style.icon;
+  const textStyle = style.text;
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${urgencyStyles[urgency].bg} ${urgencyStyles[urgency].border} ${className}`}
+      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${style.bg} ${style.border} ${className}`}
     >
       <span className={textStyle}>{icon}</span>
       {parts.expired ? (
