@@ -39,7 +39,16 @@ export function FeaturedBounties() {
         {isLoading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-forge-900 h-48 animate-pulse" />
+              <div key={i} className="rounded-xl border border-border bg-forge-900 h-48 p-4 animate-pulse">
+                <div className="h-4 w-14 rounded bg-forge-700 mb-3" />
+                <div className="h-5 w-4/5 rounded bg-forge-700 mb-3" />
+                <div className="h-3 w-full rounded bg-forge-800 mb-2" />
+                <div className="h-3 w-2/3 rounded bg-forge-800 mb-6" />
+                <div className="mt-auto flex items-center justify-between">
+                  <div className="h-4 w-20 rounded bg-forge-700" />
+                  <div className="h-4 w-10 rounded bg-forge-700" />
+                </div>
+              </div>
             ))}
           </div>
         )}
