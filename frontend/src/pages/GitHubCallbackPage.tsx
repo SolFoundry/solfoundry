@@ -19,8 +19,15 @@ export function GitHubCallbackPage() {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
+    const expectedState = sessionStorage.getItem('sf_oauth_state');
 
     if (error || !code) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    if (expectedState && state && expectedState !== state) {
+      sessionStorage.removeItem('sf_oauth_state');
       navigate('/', { replace: true });
       return;
     }
@@ -29,15 +36,13 @@ export function GitHubCallbackPage() {
       .then((response) => {
         // Store tokens + user in auth context
         const authUser = { ...response.user, wallet_verified: false };
-        login(response.access_token, response.refresh_token ?? '', authUser);
+        login(response.access_token, response.refresh_token, authUser);
         setAuthToken(response.access_token);
-        // Store refresh token for future use
-        if (response.refresh_token) {
-          localStorage.setItem('sf_refresh_token', response.refresh_token);
-        }
+        sessionStorage.removeItem('sf_oauth_state');
         navigate('/', { replace: true });
       })
       .catch(() => {
+        sessionStorage.removeItem('sf_oauth_state');
         navigate('/', { replace: true });
       });
   }, []);

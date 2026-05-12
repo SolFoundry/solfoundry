@@ -80,6 +80,12 @@ export function HeroSection() {
   const handleSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
+      try {
+        const state = new URL(url).searchParams.get('state');
+        if (state) sessionStorage.setItem('sf_oauth_state', state);
+      } catch {
+        // ignore parse errors
+      }
       window.location.href = url;
     } catch {
       window.location.href = '/api/auth/github/authorize';

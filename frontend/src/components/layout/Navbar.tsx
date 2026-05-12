@@ -36,6 +36,12 @@ export function Navbar() {
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
+      try {
+        const state = new URL(url).searchParams.get('state');
+        if (state) sessionStorage.setItem('sf_oauth_state', state);
+      } catch {
+        // ignore parse errors
+      }
       window.location.href = url;
     } catch {
       // Fallback: direct to backend authorize endpoint
