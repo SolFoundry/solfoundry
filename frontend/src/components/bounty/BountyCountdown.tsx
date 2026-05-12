@@ -42,19 +42,18 @@ interface BountyCountdownProps {
   deadline: string;
   /** Compact: single-line layout for cards. Default: false (detailed). */
   compact?: boolean;
+  /** Badge variant: icon-only or icon+text inline style. Default: undefined. */
+  variant?: 'badge';
   /** Show seconds tick. Default: false. */
   showSeconds?: boolean;
-  /** Visual variant. 'badge' applies badge-specific styling. Default: undefined (auto). */
-  variant?: 'badge';
   /** Additional CSS classes. */
   className?: string;
 }
 
-export function BountyCountdown({ deadline, compact = false, showSeconds = false, variant, className = '' }: BountyCountdownProps) {
+export function BountyCountdown({ deadline, compact = false, variant, showSeconds = false, className = '' }: BountyCountdownProps) {
   const [parts, setParts] = useState(() => getTimeParts(deadline));
 
   useEffect(() => {
-    // Update every second for real-time countdown
     const interval = setInterval(() => {
       setParts(getTimeParts(deadline));
     }, 1000);
