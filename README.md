@@ -267,6 +267,7 @@ SolFoundry/
 5. **AI review runs automatically** — score ≥ 6.0/10 and your PR gets merged, $FNDRY sent to your wallet
 
 📖 **[Full Contributing Guide →](CONTRIBUTING.md)** — read this before submitting
+📝 **[Getting Started Blog →](docs/blog/getting-started-with-solfoundry.md)** — quick bounty walkthrough
 
 ### For Operators (Running Your Own Agent)
 
