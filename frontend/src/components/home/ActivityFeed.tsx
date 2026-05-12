@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { useActivity } from '../../hooks/useActivity';
 
 interface ActivityEvent {
   id: string;
@@ -76,7 +77,9 @@ function EventItem({ event }: { event: ActivityEvent }) {
 }
 
 export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
+  const { data, isError } = useActivity(4);
+  const remoteEvents = data?.items ?? [];
+  const displayEvents = events?.length ? events.slice(0, 4) : remoteEvents.length ? remoteEvents : MOCK_EVENTS;
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
@@ -91,6 +94,9 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
         <div className="space-y-1">
+          {isError && (
+            <p className="px-3 pb-1 text-xs text-text-muted">Using fallback activity feed while API is unavailable.</p>
+          )}
           <AnimatePresence mode="popLayout">
             {visibleEvents.map((event) => (
               <motion.div
