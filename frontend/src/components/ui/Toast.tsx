@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
@@ -33,32 +33,51 @@ export function useToast() {
 /* ─── Provider ─── */
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const counter = useRef(0);
+ const [toasts, setToasts] = useState<Toast[]>([]);
+ const counter = useRef(0);
+ const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+ const removeToast = useCallback((id: string) => {
+   // Clear auto-dismiss timer when manually dismissed
+   const timer = timers.current.get(id);
+   if (timer) {
+     clearTimeout(timer);
+     timers.current.delete(id);
+   }
+   setToasts((prev) => prev.filter((t) => t.id !== id));
+ }, []);
 
-  const addToast = useCallback(
-    (toast: Omit<Toast, 'id'>) => {
-      const id = `toast-${++counter.current}`;
-      const duration = toast.duration ?? 5000;
-      setToasts((prev) => [...prev, { ...toast, id }]);
+ const addToast = useCallback(
+ (toast: Omit<Toast, 'id'>) => {
+   const id = `toast-${++counter.current}`;
+   const duration = toast.duration ?? 5000;
+   setToasts((prev) => [...prev, { ...toast, id }]);
 
-      if (duration > 0) {
-        setTimeout(() => removeToast(id), duration);
-      }
-    },
-    [removeToast],
-  );
+   if (duration > 0) {
+     const timer = setTimeout(() => {
+       timers.current.delete(id);
+       removeToast(id);
+     }, duration);
+     timers.current.set(id, timer);
+   }
+ },
+ [removeToast],
+ );
 
-  return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-      {children}
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
-    </ToastContext.Provider>
-  );
+ // Cleanup all timers on unmount
+ useEffect(() => {
+   return () => {
+     timers.current.forEach((timer) => clearTimeout(timer));
+     timers.current.clear();
+   };
+ }, []);
+
+ return (
+ <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+ {children}
+ <ToastContainer toasts={toasts} onDismiss={removeToast} />
+ </ToastContext.Provider>
+ );
 }
 
 /* ─── Toast Container ─── */

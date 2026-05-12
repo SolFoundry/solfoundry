@@ -439,15 +439,21 @@ export function BountyCreateWizard() {
  setCreating(true);
  setError(null);
  try {
-  await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
-  setSuccess(true);
-  addToast({ variant: 'success', title: 'Bounty published!', message: 'Your bounty is now live and visible to contributors.' });
+ const result = await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+ if (result.verified === false) {
+   const msg = result.error ?? 'Escrow verification failed. Check your transaction signature.';
+   setError(msg);
+   addToast({ variant: 'error', title: 'Verification failed', message: msg });
+ } else {
+   setSuccess(true);
+   addToast({ variant: 'success', title: 'Bounty published!', message: 'Your bounty is now live and visible to contributors.' });
+ }
  } catch (e: unknown) {
-  const msg = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
-  setError(msg);
-  addToast({ variant: 'error', title: 'Publish failed', message: msg });
+ const msg = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
+ setError(msg);
+ addToast({ variant: 'error', title: 'Publish failed', message: msg });
  } finally {
-  setCreating(false);
+ setCreating(false);
  }
  };
 
