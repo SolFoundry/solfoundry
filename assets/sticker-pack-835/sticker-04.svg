@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="24" y1="24" x2="488" y2="488">
+      <stop offset="0" stop-color="#00E676"/>
+      <stop offset="0.5" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#E040FB"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="476" height="476" rx="96" fill="#0A0A0F" stroke="url(#g)" stroke-width="14"/>
+  <circle cx="256" cy="188" r="68" fill="#111120" stroke="#2E2E42" stroke-width="8"/>
+  <text x="256" y="206" fill="#00E676" font-family="JetBrains Mono,monospace" font-size="40" font-weight="700" text-anchor="middle">SF</text>
+  <rect x="88" y="286" width="336" height="94" rx="47" fill="#111120" stroke="#2E2E42" stroke-width="8"/>
+  <text x="256" y="344" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="33" font-weight="700" text-anchor="middle">AI REVIEW</text>
+</svg>
