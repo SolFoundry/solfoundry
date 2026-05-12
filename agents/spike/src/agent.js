@@ -1,369 +1,318 @@
 #!/usr/bin/env node
 /**
- * Spike — Autonomous Bounty-Hunting Agent
- * A self-contained AI agent that finds, audits, and fixes open-source security bounties.
+ * Spike v2 — Autonomous Multi-LLM Bounty-Hunting Agent
  * 
- * No external dependencies beyond npm packages (Anthropic SDK + Octokit).
- * Run anywhere: `npm install && spike discover`
+ * True multi-agent orchestration:
+ *   Planner (DeepSeek) → Auditor (Semgrep + Patterns) → Fixer (Claude/GLM) → Validator (DeepSeek)
+ * 
+ * Run: npm install && spike pipeline
  */
 
 const fs = require('fs');
 const path = require('path');
-const { Octokit } = require('@octokit/rest');
+const { execSync, spawnSync } = require('child_process');
+const https = require('https');
 require('dotenv').config();
 
-// ── Configuration ──
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-// For AI fix generation, uses Anthropic Claude as fallback if SILICONFLOW_KEY is not set
+// ── Config ──
+const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const SILICONFLOW_KEY = process.env.SILICONFLOW_KEY;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+const STATE = path.join(__dirname, '..', 'state');
 
-if (!GITHUB_TOKEN) {
-  console.error('❌ GITHUB_TOKEN required. Set it in .env or export it.');
-  process.exit(1);
-}
+if (!TOKEN) { console.error('❌ GITHUB_TOKEN required'); process.exit(1); }
+fs.mkdirSync(STATE, { recursive: true });
 
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
+function log(lvl, msg) { console.error(`${new Date().toISOString().slice(11, 19)} [${lvl}] ${msg}`); }
 
-// ── Agent State ──
-const STATE_DIR = path.join(__dirname, '..', 'state');
-fs.mkdirSync(STATE_DIR, { recursive: true });
-
-function log(level, msg) {
-  const ts = new Date().toISOString().slice(11, 19);
-  console.log(`${ts} [${level}] ${msg}`);
-}
-
-// ── Tool 1: Discover Bounties ──
-async function discoverBounties() {
-  log('INFO', '🔍 Scanning for bounty opportunities...');
-  const results = [];
-
-  // GitHub issues with bounty label
-  try {
-    const { data } = await octokit.search.issuesAndPullRequests({
-      q: 'label:bounty is:issue is:open',
-      sort: 'updated',
-      per_page: 15,
+// ── Multi-LLM Router ──
+async function callLLM(provider, prompt) {
+  if (provider === 'deepseek' && DEEPSEEK_KEY) {
+    return await apiPost('api.deepseek.com', '/v1/chat/completions', DEEPSEEK_KEY, {
+      model: "deepseek-v4-flash", messages: [{ role: 'user', content: prompt }], max_tokens: 2000
     });
-    for (const issue of data.items.slice(0, 10)) {
-      results.push({
-        source: 'github',
-        url: issue.html_url,
-        repo: issue.repository_url?.replace('https://api.github.com/repos/', ''),
-        title: issue.title,
-        labels: issue.labels.map(l => l.name),
-      });
-    }
-    log('INFO', `  GitHub: ${data.items.length} bounty issues found`);
-  } catch (e) {
-    log('WARN', `  GitHub search: ${e.message}`);
   }
-
-  // Security advisories
-  try {
-    const { data } = await octokit.request('GET /advisories', {
-      per_page: 10,
-      type: 'reviewed',
+  if (provider === 'anthropic' && ANTHROPIC_KEY) {
+    return await apiPost('api.anthropic.com', '/v1/messages', ANTHROPIC_KEY, {
+      model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    }, 'x-api-key');
+  }
+  if (provider === 'siliconflow' && SILICONFLOW_KEY) {
+    return await apiPost('api.siliconflow.cn', '/v1/chat/completions', SILICONFLOW_KEY, {
+      model: 'THUDM/GLM-4.1V-9B-Thinking', messages: [{ role: 'user', content: prompt }], max_tokens: 2000
     });
-    for (const adv of data) {
-      results.push({
-        source: 'ghsa',
-        id: adv.ghsa_id,
-        severity: adv.severity,
-        summary: adv.summary,
-        description: adv.description?.slice(0, 300),
-      });
-    }
-    log('INFO', `  Advisories: ${data.length} recent`);
-  } catch (e) {
-    log('WARN', `  Advisories: ${e.message}`);
   }
-
-  return results;
+  return null;
 }
 
-// ── Tool 2: Static Security Audit ──
-async function auditRepo(owner, repo) {
-  log('INFO', `🔬 Auditing ${owner}/${repo}...`);
+async function apiPost(host, path, key, body, authHeader = 'authorization') {
+  const data = JSON.stringify(body);
+  return new Promise((resolve) => {
+    const req = https.request({ hostname: host, path, method: 'POST',
+      headers: {
+        [authHeader]: authHeader === 'x-api-key' ? key : `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      }
+    }, res => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(d);
+          resolve(j.choices?.[0]?.message?.content || j.content?.[0]?.text || null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.write(data); req.end();
+  });
+}
+
+// ── Agent 1: Planner ──
+async function plan(repo) {
+  log('INFO', `🧠 [Planner] Analyzing ${repo}...`);
+  const prompt = `You are a security bounty planning agent. Given the repository "${repo}", 
+plan a step-by-step security audit. Consider:
+1. What type of project is this? (framework, library, app, CLI tool)
+2. What security vectors are most relevant? (XSS, injection, secrets, CI/CD, deps)
+3. What files should be prioritized? (config files, CI workflows, auth logic, user input handlers)
+4. What specific patterns to look for
+
+Output a concise plan (3-5 bullet points).`;
+
+  const plan = await callLLM('deepseek', prompt) 
+    || await callLLM('siliconflow', prompt)
+    || "1. Scan CI/CD for pull_request_target\n2. Check for hardcoded secrets\n3. Audit auth/input handling";
+  
+  log('INFO', `[Planner] Plan: ${plan.slice(0, 200)}`);
+  return plan;
+}
+
+// ── Agent 2: Auditor ──
+async function audit(owner, repo) {
+  log('INFO', `🔬 [Auditor] Scanning ${owner}/${repo}...`);
   const findings = [];
-
-  // Clone shallow
-  const dir = path.join(STATE_DIR, `${owner}_${repo}`);
+  const dir = path.join(STATE, `${owner}_${repo}`);
+  
   if (!fs.existsSync(dir)) {
     try {
-      const { execSync } = require('child_process');
-      execSync(`git clone --depth 1 "https://github.com/${owner}/${repo}.git" "${dir}"`, {
-        stdio: 'pipe', timeout: 60000,
-      });
-      log('INFO', `  Cloned ${owner}/${repo}`);
-    } catch (e) {
-      log('ERROR', `  Clone failed: ${e.message}`);
-      return findings;
-    }
+      execSync(`git clone --depth 1 "https://github.com/${owner}/${repo}.git" "${dir}"`, 
+        { stdio: 'pipe', timeout: 60000 });
+    } catch (e) { log('ERROR', `Clone: ${e.message}`); return findings; }
   }
 
-  // Pattern scan (no Semgrep dependency — pure regex)
-  const patterns = [
-    { re: /\.innerHTML\s*=/, msg: 'Direct innerHTML assignment — XSS risk', sev: 'high' },
-    { re: /eval\s*\(/, msg: 'eval() — potential code injection', sev: 'high' },
-    { re: /(api.?key|secret|password|token)\s*[=:]\s*['"`][A-Za-z0-9_\-=]{16,}/i, msg: 'Hardcoded credential', sev: 'high' },
-    { re: /exec(?:Sync)?\(/, msg: 'Command execution — injection risk', sev: 'high' },
-    { re: /child_process\./, msg: 'Child process usage', sev: 'medium' },
-    { re: /crypto\.createHash\(['"](md5|sha1)['"]/, msg: 'Weak hash function', sev: 'medium' },
-    { re: /http:\/\/(?!localhost|127\.0\.0\.1)/, msg: 'Insecure HTTP URL', sev: 'low' },
-    { re: /process\.env\./, msg: 'Environment variable access', sev: 'info' },
-    { re: /TODO|FIXME|HACK/, msg: 'Unresolved TODO marker', sev: 'info' },
-    { re: /console\.log\(/, msg: 'Debug logging in production code', sev: 'low' },
+  // Tool 1: Semgrep security scan
+  try {
+    const r = spawnSync('semgrep', [
+      '--config', 'p/security-audit', '--config', 'p/owasp-top-ten',
+      '--config', 'p/command-injection', '--config', 'p/xss',
+      '--json', '--no-git-ignore', '--quiet', '--metrics', 'off',
+      '--max-lines-per-finding', '3',
+      dir
+    ], { timeout: 120000, maxBuffer: 5 * 1024 * 1024 });
+
+    if (r.stdout) {
+      const sg = JSON.parse(r.stdout.toString());
+      for (const f of sg.results || []) {
+        findings.push({
+          tool: 'semgrep', severity: mapSev(f.extra?.severity),
+          check: f.check_id, file: f.path.replace(dir, '').slice(1),
+          line: f.start?.line, message: f.extra?.message || f.check_id,
+        });
+      }
+    }
+  } catch {}
+
+  // Tool 2: Pattern scan (CI/CD specific - our specialty)
+  const ciPatterns = [
+    { re: /pull_request_target/, msg: 'pull_request_target in CI — review access control', sev: 'high' },
+    { re: /\${{.*github\.event.*pull_request.*}}/, msg: 'GitHub context injection in CI', sev: 'critical' },
+    { re: /\${{.*github\.event\.issue.*}}/, msg: 'GitHub issue context in CI step — injection risk', sev: 'critical' },
+    { re: /\${{.*inputs\..*}}/, msg: 'Input interpolation in run step — injection risk', sev: 'high' },
+    { re: /actions\/checkout@.*\n\s+with:.*\n\s+ref:\s*\$/, msg: 'Checkout with dynamic ref — potential unsafe', sev: 'medium' },
+    { re: /secrets\.GITHUB_TOKEN.*run:.*\$\{\{/, msg: 'Token + interpolation in run step', sev: 'high' },
   ];
 
-  function walk(dirPath) {
+  const secPatterns = [
+    { re: /\.innerHTML\s*=/, msg: 'innerHTML assignment — XSS', sev: 'high' },
+    { re: /eval\s*\(/, msg: 'eval() — code injection risk', sev: 'high' },
+    { re: /(?:api[-_]?key|secret|password|token)\s*[=:]\s*['"`][A-Za-z0-9_\-=]{16,}/i, msg: 'Hardcoded credential', sev: 'high' },
+    { re: /child_process\.exec(?:Sync)?\s*\(/, msg: 'Command injection surface', sev: 'high' },
+    { re: /crypto\.createHash\(['"](md5|sha1)['"]/, msg: 'Weak hash (MD5/SHA1)', sev: 'medium' },
+    { re: /verify\s*=\s*False|check_hostname\s*=\s*False/, msg: 'TLS verification disabled', sev: 'high' },
+    { re: /http:\/\/(?!localhost|127\.0\.0\.1)/, msg: 'Insecure HTTP', sev: 'low' },
+    { re: /console\.log\(/, msg: 'Debug logging', sev: 'low' },
+  ];
+
+  function walk(d) {
     try {
-      for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
-        if (/^(\.|node_modules|dist|build|vendor|.git)/.test(entry.name)) continue;
-        const full = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (/\.(js|ts|jsx|tsx|py|rb|go)$/.test(entry.name)) {
-          try {
-            const content = fs.readFileSync(full, 'utf-8');
-            const rel = full.replace(dir, '').slice(1);
-            for (const p of patterns) {
-              const lines = content.split('\n');
-              const matchLine = lines.findIndex(l => p.re.test(l));
-              if (matchLine >= 0) {
-                findings.push({
-                  severity: p.sev,
-                  file: rel,
-                  line: matchLine + 1,
-                  message: p.msg,
-                  snippet: lines[matchLine].trim().slice(0, 100),
-                });
-              }
-            }
-          } catch { /* binary or unreadable */ }
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        if (/^(\.|node_modules|dist|build|vendor|.git)/.test(e.name)) continue;
+        const f = path.join(d, e.name);
+        if (e.isDirectory()) walk(f);
+        else if (/\.(yml|yaml)$/.test(e.name)) {
+          // CI config check
+          const content = fs.readFileSync(f, 'utf-8');
+          const rel = f.replace(dir, '').slice(1);
+          for (const p of ciPatterns) {
+            const lines = content.split('\n');
+            const ln = lines.findIndex(l => p.re.test(l)) + 1;
+            if (ln > 0) findings.push({
+              tool: 'ci-audit', severity: p.sev, file: rel, line: ln,
+              message: p.msg, snippet: lines[ln-1].trim().slice(0, 100)
+            });
+          }
+        } else if (/\.(js|ts|jsx|tsx|py|rb|go)$/.test(e.name)) {
+          const content = fs.readFileSync(f, 'utf-8');
+          const rel = f.replace(dir, '').slice(1);
+          for (const p of secPatterns) {
+            const lines = content.split('\n');
+            const ln = lines.findIndex(l => p.re.test(l)) + 1;
+            if (ln > 0) findings.push({
+              tool: 'pattern', severity: p.sev, file: rel, line: ln,
+              message: p.msg, snippet: lines[ln-1].trim().slice(0, 100)
+            });
+          }
         }
       }
-    } catch { /* permission */ }
+    } catch {}
   }
   walk(dir);
 
-  log('INFO', `  Found ${findings.length} issues`);
   return findings;
 }
 
-// ── Tool 3: AI Fix Generation ──
-async function generateFix(filePath, finding) {
-  log('INFO', `🧠 Generating fix for ${finding.file}:${finding.line}`);
-  
+function mapSev(s) { const m = { ERROR:'critical', WARNING:'high', INFO:'medium' }; return m[s] || (s||'').toLowerCase(); }
+
+// ── Agent 3: AI Fixer ──
+async function fix(filePath, finding) {
+  log('INFO', `🧪 [Fixer] ${finding.file}:${finding.line}`);
   if (!fs.existsSync(filePath)) return null;
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n');
-  const start = Math.max(0, (finding.line || 1) - 6);
-  const end = Math.min(lines.length, (finding.line || 1) + 4);
-  const context = lines.slice(start, end).join('\n');
+  const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+  const s = Math.max(0, (finding.line||1) - 8);
+  const e = Math.min(lines.length, (finding.line||1) + 6);
+  const ctx = lines.slice(s, e).join('\n');
 
-  let fix = null;
+  const prompt = `Fix this security issue. Return ONLY the fixed code (the changed lines).
 
-  // Try Anthropic API first
-  if (ANTHROPIC_API_KEY) {
-    try {
-      const Anthropic = require('@anthropic-ai/sdk');
-      const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-      const msg = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: `Fix this vulnerability. Return ONLY the fixed code snippet, no explanation.
+Issue: ${finding.message} (${finding.severity})
+File: ${finding.file}:${finding.line}
 
-Vulnerability: ${finding.message}
-File: ${finding.file}
-Line: ${finding.line || 'N/A'}
-
-Code context:
+Context:
 \`\`\`
-${context}
-\`\`\``
-        }]
-      });
-      fix = msg.content[0]?.text || null;
-    } catch {}
-  }
-
-  // Fallback: SiliconFlow API
-  if (!fix && SILICONFLOW_KEY) {
-    try {
-      const https = require('https');
-      const prompt = `Fix this vulnerability. Return ONLY the fixed code.
-
-Vulnerability: ${finding.message}
-Severity: ${finding.severity}
-File: ${finding.file}
-Line: ${finding.line || 'N/A'}
-
-Code context:
-\`\`\`
-${context}
+${ctx}
 \`\`\``;
 
-      fix = await new Promise((resolve) => {
-        const req = https.request({
-          hostname: 'api.siliconflow.cn', path: '/v1/chat/completions', method: 'POST',
-          headers: { 'Authorization': `Bearer ${SILICONFLOW_KEY}`, 'Content-Type': 'application/json' },
-        }, res => {
-          let d = ''; res.on('data', c => d += c);
-          res.on('end', () => {
-            try { resolve(JSON.parse(d).choices?.[0]?.message?.content); }
-            catch { resolve(null); }
-          });
-        });
-        req.on('error', () => resolve(null));
-        req.write(JSON.stringify({
-          model: 'THUDM/GLM-4.1V-9B-Thinking',
-          messages: [{ role: 'user', content: prompt }]
-        }));
-        req.end();
-      });
-    } catch {}
-  }
-
-  return fix;
+  // Try Claude, fallback to DeepSeek, fallback to SiliconFlow
+  return await callLLM('anthropic', prompt)
+    || await callLLM('deepseek', prompt)
+    || await callLLM('siliconflow', prompt);
 }
 
-// ── Tool 4: Submit PR ──
-async function submitPR(owner, repo, branch, title, body, files) {
-  log('INFO', `📤 Submitting PR to ${owner}/${repo}...`);
-
-  // Create branch from fork
-  const fork = `lloyd-c137`; // This would be the user's fork
-  try {
-    // Create or update files
-    for (const { path: fpath, content } of files) {
-      // Get current file SHA if it exists
-      let sha = null;
-      try {
-        const { data } = await octokit.repos.getContent({
-          owner: fork, repo, path: fpath, ref: branch,
-        });
-        sha = data.sha;
-      } catch {}
-
-      await octokit.repos.createOrUpdateFileContents({
-        owner: fork, repo, path: fpath,
-        message: `fix: ${title}`,
-        content: Buffer.from(content).toString('base64'),
-        sha: sha || undefined,
-        branch,
-      });
-    }
-
-    // Create PR to upstream
-    const { data: pr } = await octokit.pulls.create({
-      owner, repo,
-      title,
-      body,
-      head: `${fork}:${branch}`,
-      base: 'main',
-    });
-    
-    log('INFO', `  ✅ PR #${pr.number}: ${pr.html_url}`);
-    return pr.html_url;
-  } catch (e) {
-    log('ERROR', `  PR failed: ${e.message}`);
-    return null;
-  }
-}
-
-// ── Main Orchestration ──
-async function runPipeline() {
-  console.log('\n🎯 Spike — Autonomous Bounty Hunter\n');
-
-  // Phase 1: Discover
-  console.log('── Phase 1: Discovery ──');
-  const opportunities = await discoverBounties();
-  console.log(`\n  Found ${opportunities.length} opportunities\n`);
-
-  // Phase 2: Audit top targets
-  console.log('── Phase 2: Audit ──');
-  const targets = [
-    { owner: 'expressjs', repo: 'express' },
-  ];
+// ── Agent 4: Validator ──
+async function validate(findings, plan) {
+  log('INFO', `✅ [Validator] Scoring findings...`);
   
-  const auditResults = [];
-  for (const t of targets) {
-    console.log(`\n── ${t.owner}/${t.repo} ──`);
-    const findings = await auditRepo(t.owner, t.repo);
-    auditResults.push({ ...t, findings });
-    
-    // Print summary
-    const bySev = {};
-    for (const f of findings) {
-      bySev[f.severity] = (bySev[f.severity] || 0) + 1;
-    }
-    for (const [sev, count] of Object.entries(bySev)) {
-      console.log(`  ${sev}: ${count}`);
-    }
+  const bySev = {};
+  for (const f of findings) {
+    bySev[f.severity] = (bySev[f.severity] || 0) + 1;
   }
 
-  // Phase 3: Generate fixes for high-severity findings
-  console.log('\n── Phase 3: AI Fix Generation ──');
-  if (!ANTHROPIC_API_KEY && !SILICONFLOW_KEY) {
-    console.log('  ⚠️  No AI API key set. Set ANTHROPIC_API_KEY or SILICONFLOW_KEY for fix generation.');
-    console.log('  📄 Audit report saved to state/ for manual review.');
-  } else {
-    for (const r of auditResults) {
-      const critical = r.findings.filter(f => f.severity === 'high');
-      for (const f of critical.slice(0, 3)) {
-        const filePath = path.join(STATE_DIR, `${r.owner}_${r.repo}`, f.file);
-        const fix = await generateFix(filePath, f);
-        if (fix) {
-          console.log(`  ✅ ${f.file}:${f.line} — fix generated`);
-        }
-      }
+  const prompt = `You are a security review validator. Given this audit plan and findings:
+
+PLAN: ${plan?.slice(0,300)}
+
+FINDINGS:
+${Object.entries(bySev).map(([k,v]) => `${k}: ${v}`).join('\n')}
+Total: ${findings.length}
+
+Score this security audit:
+- Coverage (did we miss obvious areas?): 1-5
+- Severity (how critical are the findings?): 1-5  
+- Actionability (can these all be fixed?): 1-5
+
+Output: [total score /5] + brief recommendation`;
+
+  const score = await callLLM('deepseek', prompt) 
+    || await callLLM('siliconflow', prompt)
+    || `Score: 3/5 — review findings manually`;
+  
+  return score;
+}
+
+// ── Main Pipeline ──
+async function pipeline(repo) {
+  console.log(`\n🎯 Spike v2 — Multi-LLM Bounty Hunter\n`);
+  const [owner, r] = repo.split('/');
+  
+  // Phase 1: Plan
+  console.log('── Agent 1: Planner ──');
+  const planResult = await plan(repo);
+  console.log(`  ${planResult}\n`);
+  
+  // Phase 2: Audit
+  console.log('── Agent 2: Auditor ──');
+  const findings = await audit(owner, r);
+  const bySev = {};
+  for (const f of findings) bySev[f.severity] = (bySev[f.severity] || 0) + 1;
+  console.log(`  Total: ${findings.length} findings`);
+  for (const s of ['critical','high','medium','low','info']) {
+    if (bySev[s]) console.log(`  ${s}: ${bySev[s]}`);
+  }
+  
+  // Show top findings
+  const criticals = findings.filter(f => f.severity === 'critical' || f.severity === 'high');
+  for (const f of criticals.slice(0, 5)) {
+    console.log(`  ⚠️  ${f.file}:${f.line} — ${f.message.slice(0, 60)}`);
+  }
+  console.log();
+
+  // Phase 3: Fix (if AI keys available)
+  if (ANTHROPIC_KEY || DEEPSEEK_KEY || SILICONFLOW_KEY) {
+    console.log('── Agent 3: AI Fixer ──');
+    const toFix = criticals.filter(f => !f.file.includes('.github/')).slice(0, 3);
+    for (const f of toFix) {
+      const fp = path.join(STATE, `${owner}_${r}`, f.file);
+      const result = await fix(fp, f);
+      if (result) console.log(`  ✅ ${f.file}:${f.line} — fix generated`);
+      else console.log(`  ⏭️  ${f.file}:${f.line} — skipped`);
     }
+    console.log();
   }
 
-  // Phase 4: Report
-  const summary = {
-    timestamp: new Date().toISOString(),
-    opportunities,
-    audits: auditResults,
-  };
-  fs.writeFileSync(path.join(STATE_DIR, 'last-run.json'), JSON.stringify(summary, null, 2));
-  console.log(`\n💾 Full report saved to state/last-run.json`);
+  // Phase 4: Validate
+  console.log('── Agent 4: Validator ──');
+  const score = await validate(findings, planResult);
+  console.log(`  ${score}\n`);
+
+  return findings;
 }
 
 // ── CLI ──
-const cmd = process.argv[2] || 'help';
+const cmd = process.argv[2];
 (async () => {
   try {
-    if (cmd === 'discover') {
-      const results = await discoverBounties();
-      console.log(JSON.stringify(results, null, 2));
+    if (cmd === 'pipeline' && process.argv[3]) {
+      await pipeline(process.argv[3]);
     } else if (cmd === 'scan') {
-      const [owner, repo] = (process.argv[3] || '').split('/');
-      if (!owner || !repo) throw new Error('Usage: spike scan owner/repo');
-      const findings = await auditRepo(owner, repo);
-      console.log(JSON.stringify(findings, null, 2));
-    } else if (cmd === 'pipeline') {
-      await runPipeline();
+      const [owner, repo] = (process.argv[3]||'').split('/');
+      const findings = await audit(owner, repo);
+      console.log(JSON.stringify(findings));
     } else {
       console.log(`
-  🎯 Spike — Autonomous Bounty Hunter
+  🎯 Spike v2 — Multi-LLM Bounty Hunter
 
   Usage:
-    spike discover              Find bounty opportunities
-    spike scan <owner/repo>     Security audit a repo
-    spike pipeline              Full auto: discover → audit → fix
+    spike pipeline <owner/repo>   Full multi-agent pipeline
+    spike scan <owner/repo>       Quick security audit
 
-  Environment (.env):
-    GITHUB_TOKEN=...           (required)
-    ANTHROPIC_API_KEY=...      (for AI fix generation)
-    SILICONFLOW_KEY=...        (fallback for AI fix generation)
+  LLM Providers (env):
+    ANTHROPIC_API_KEY=...     Claude Sonnet (primary fixer)
+    DEEPSEEK_API_KEY=...      DeepSeek (planner + validator)
+    SILICONFLOW_KEY=...       GLM-4.1V (fix fallback)
+    GITHUB_TOKEN=...          GitHub API (required)
       `);
     }
-  } catch (e) {
-    console.error(`\n❌ ${e.message}`);
-    process.exit(1);
-  }
+  } catch (e) { console.error(`❌ ${e.message}`); }
 })();
