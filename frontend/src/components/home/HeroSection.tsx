@@ -91,6 +91,23 @@ export function HeroSection() {
       {/* Background layers */}
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          className="absolute -top-24 -left-20 w-72 h-72 rounded-full bg-emerald/10 blur-3xl"
+          animate={{ x: [0, 30, -10, 0], y: [0, 20, -15, 0], scale: [1, 1.08, 0.96, 1] }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute -bottom-20 -right-16 w-80 h-80 rounded-full bg-magenta/10 blur-3xl"
+          animate={{ x: [0, -28, 12, 0], y: [0, -18, 8, 0], scale: [1, 0.95, 1.06, 1] }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-1/2 w-[520px] h-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald/10"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 42, repeat: Infinity, ease: 'linear' }}
+        />
+      </div>
       <EmberParticles count={5} />
 
       {/* Terminal card */}
