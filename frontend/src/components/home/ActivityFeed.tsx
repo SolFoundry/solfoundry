@@ -2,15 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
-
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
+import type { ActivityEvent } from '../../api/activity';
+import { useActivity } from '../../hooks/useActivity';
 
 // Mock events for when API doesn't return activity
 const MOCK_EVENTS: ActivityEvent[] = [
@@ -76,12 +69,15 @@ function EventItem({ event }: { event: ActivityEvent }) {
 }
 
 export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
+  const { data: apiEvents, isError } = useActivity();
+  const displayEvents = events?.length
+    ? events.slice(0, 4)
+    : (apiEvents?.length ? apiEvents.slice(0, 4) : (isError ? MOCK_EVENTS : []));
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
     setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  }, [events, apiEvents, isError]);
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -90,22 +86,26 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
-        <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        {visibleEvents.length === 0 ? (
+          <p className="px-3 py-2 text-sm text-text-muted">No recent activity</p>
+        ) : (
+          <div className="space-y-1">
+            <AnimatePresence mode="popLayout">
+              {visibleEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </section>
   );
