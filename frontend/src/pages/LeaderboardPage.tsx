@@ -47,8 +47,17 @@ export function LeaderboardPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div className="space-y-4 py-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-32 rounded-xl border border-border bg-forge-900 overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+                </div>
+              ))}
+            </div>
+            <div className="h-72 rounded-xl border border-border bg-forge-900 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
+            </div>
           </div>
         )}
 
