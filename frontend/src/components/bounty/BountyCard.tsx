@@ -84,7 +84,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
 
       {/* Row 3: Language dots */}
       {skills.length > 0 && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex flex-wrap items-center gap-3 mt-3">
           {skills.map((lang) => (
             <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
               <span
@@ -101,11 +101,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex flex-wrap items-center justify-between mt-3 gap-2 pb-4 sm:pb-0">
         <span className="font-mono text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs

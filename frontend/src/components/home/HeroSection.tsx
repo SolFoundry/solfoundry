@@ -5,6 +5,7 @@ import { useStats } from '../../hooks/useStats';
 import { getGitHubAuthorizeUrl } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { buttonHover, fadeIn } from '../../lib/animations';
+import { ForgeVisualization } from './ForgeVisualization';
 
 const GitHubIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -91,6 +92,7 @@ export function HeroSection() {
       {/* Background layers */}
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
+      <ForgeVisualization />
       <EmberParticles count={5} />
 
       {/* Terminal card */}
@@ -111,14 +113,15 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
             <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
-              forge bounty --reward 100 --lang typescript --tier 2
+              <span className="hidden sm:inline">forge bounty --reward 100 --lang typescript --tier 2</span>
+              <span className="sm:hidden">forge bounty --reward 100 --lang ts</span>
             </span>
             {typewriterDone && (
-              <span className="inline-block w-2 h-5 bg-emerald animate-blink ml-0.5 align-middle" />
+              <span className="inline-block w-2 h-4 sm:h-5 bg-emerald animate-blink ml-0.5 align-middle" />
             )}
           </div>
 
@@ -211,7 +214,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-8 font-mono text-xs sm:text-sm text-text-muted"
       >
         <span>
           <span className="text-text-primary font-semibold">

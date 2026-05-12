@@ -182,7 +182,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden bg-forge-900 border-b border-border"
+            className="absolute top-full left-0 right-0 md:hidden overflow-hidden bg-forge-900 border-b border-border shadow-2xl"
           >
             <div className="px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
