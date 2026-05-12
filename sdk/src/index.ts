@@ -40,6 +40,10 @@ export type { RequestOptions } from './client.js';
 export { BountyClient } from './bounties.js';
 export { EscrowClient } from './escrow.js';
 export { ContributorClient } from './contributors.js';
+export { AuthClient } from './auth.js';
+export type { AuthTokens, GitHubAuthResponse, AuthUser, AuthClientConfig } from './auth.js';
+export { LeaderboardClient } from './leaderboard.js';
+export type { TimePeriod, LeaderboardEntry, PlatformStats } from './leaderboard.js';
 export { GitHubClient } from './github.js';
 export type { GitHubClientConfig } from './github.js';
 export { EventSubscriber } from './events.js';
@@ -168,6 +172,8 @@ import { HttpClient } from './client.js';
 import { BountyClient } from './bounties.js';
 import { EscrowClient } from './escrow.js';
 import { ContributorClient } from './contributors.js';
+import { AuthClient } from './auth.js';
+import { LeaderboardClient } from './leaderboard.js';
 import type { SolFoundryClientConfig } from './types.js';
 
 /**
@@ -176,13 +182,13 @@ import type { SolFoundryClientConfig } from './types.js';
  *
  * This is the recommended way to use the SDK. Create an instance with
  * {@link SolFoundry.create} and access resource-specific methods through
- * the `bounties`, `escrow`, and `contributors` properties.
+ * the `bounties`, `escrow`, `contributors`, `auth`, and `leaderboard` properties.
  *
  * @example
  * ```typescript
  * const sf = SolFoundry.create({
- *   baseUrl: 'https://api.solfoundry.io',
- *   authToken: 'eyJ...',
+ * baseUrl: 'https://api.solfoundry.io',
+ * authToken: 'eyJ...',
  * });
  *
  * // Access bounty operations
@@ -193,32 +199,46 @@ import type { SolFoundryClientConfig } from './types.js';
  *
  * // Access contributor operations
  * const stats = await sf.contributors.getStats();
+ *
+ * // Access authentication
+ * const authUrl = await sf.auth.getGitHubAuthorizeUrl();
+ *
+ * // Access leaderboard
+ * const leaders = await sf.leaderboard.getLeaderboard('30d');
  * ```
  */
 export class SolFoundry {
-  /** The underlying HTTP client used for all API requests. */
-  public readonly http: HttpClient;
+ /** The underlying HTTP client used for all API requests. */
+ public readonly http: HttpClient;
 
-  /** Client for bounty CRUD, search, and submission operations. */
-  public readonly bounties: BountyClient;
+ /** Client for bounty CRUD, search, and submission operations. */
+ public readonly bounties: BountyClient;
 
-  /** Client for escrow lifecycle management. */
-  public readonly escrow: EscrowClient;
+ /** Client for escrow lifecycle management. */
+ public readonly escrow: EscrowClient;
 
-  /** Client for contributor profiles and platform statistics. */
-  public readonly contributors: ContributorClient;
+ /** Client for contributor profiles and platform statistics. */
+ public readonly contributors: ContributorClient;
 
-  /**
-   * Create a SolFoundry SDK instance with the given configuration.
-   *
-   * @param config - Client configuration (base URL, auth, retry settings).
-   */
-  private constructor(config: SolFoundryClientConfig) {
-    this.http = new HttpClient(config);
-    this.bounties = new BountyClient(this.http);
-    this.escrow = new EscrowClient(this.http);
-    this.contributors = new ContributorClient(this.http);
-  }
+ /** Client for GitHub OAuth authentication and token lifecycle. */
+ public readonly auth: AuthClient;
+
+ /** Client for leaderboard rankings and platform-wide statistics. */
+ public readonly leaderboard: LeaderboardClient;
+
+ /**
+ * Create a SolFoundry SDK instance with the given configuration.
+ *
+ * @param config - Client configuration (base URL, auth, retry settings).
+ */
+ private constructor(config: SolFoundryClientConfig) {
+ this.http = new HttpClient(config);
+ this.bounties = new BountyClient(this.http);
+ this.escrow = new EscrowClient(this.http);
+ this.contributors = new ContributorClient(this.http);
+ this.auth = new AuthClient(this.http);
+ this.leaderboard = new LeaderboardClient(this.http);
+ }
 
   /**
    * Factory method to create a new SolFoundry SDK instance.
