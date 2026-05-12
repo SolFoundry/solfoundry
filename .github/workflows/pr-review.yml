@@ -29,11 +29,13 @@ jobs:
         id: bounty_check
         env:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          INPUT_PR_NUM: ${{ inputs.pr_number }}
+          EVENT_PR_NUM: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "${{ inputs.pr_number }}" ]; then
-            PR_NUM="${{ inputs.pr_number }}"
+          if [ -n "$INPUT_PR_NUM" ]; then
+            PR_NUM="$INPUT_PR_NUM"
           else
-            PR_NUM="${{ github.event.pull_request.number }}"
+            PR_NUM="$EVENT_PR_NUM"
           fi
           echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
 
@@ -333,7 +335,7 @@ jobs:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
         run: |
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
-          APPROVED_REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}/reviews" \
+          APPROVED_REVIEWS=$(gh api "repos/$REPO/pulls/${PR_NUM}/reviews" \
             --jq '[.[] | select(.user.login == "chronoeth-creator" and .state == "APPROVED")]' 2>/dev/null || echo "[]")
           APPROVED=$(echo "$APPROVED_REVIEWS" | python3 -c "import sys,json; print(len(json.loads(sys.stdin.read())))" 2>/dev/null || echo 0)
 
@@ -494,8 +496,8 @@ jobs:
           PR_NUM="${{ steps.bounty_check.outputs.pr_num }}"
 
           # Determine action type for smart dedup in private pipeline
-          if [ -n "${{ github.event.action }}" ]; then
-            ACTION="${{ github.event.action }}"
+          if [ -n "$ACTION" ]; then
+            ACTION="$ACTION"
           else
             ACTION="manual"
           fi

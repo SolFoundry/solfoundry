@@ -20,11 +20,12 @@ jobs:
       - name: Remove escrow lock if PR held one
         env:
           GH_TOKEN: ${{ secrets.SOLFOUNDRY_GITHUB_PAT }}
+          PR_NUM_VAL: ${{ github.event.pull_request.number }}
+          PR_TITLE_VAL: ${{ github.event.pull_request.title }}
+          REPO_VAL: $REPO_VAL
         run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
           PR_BODY=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM" \
+            "https://api.github.com/repos/$REPO_VAL/pulls/$PR_NUM_VAL" \
             | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('body','') or '')" 2>/dev/null)
 
           # Extract linked issue number
@@ -42,7 +43,7 @@ jobs:
 
           # Check if the bounty issue has review-passed label
           LABELS=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM" \
+            "https://api.github.com/repos/$REPO_VAL/issues/$ISSUE_NUM" \
             | python3 -c "import sys,json; print(','.join(l['name'] for l in json.loads(sys.stdin.read()).get('labels',[])))" 2>/dev/null)
 
           if ! echo "$LABELS" | grep -q "review-passed"; then
@@ -53,7 +54,7 @@ jobs:
           # Verify this closed PR is the one that holds the lock
           # Check for the escrow-lock-pr-N tracking comment
           LOCK_HOLDER=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/comments?per_page=100" \
+            "https://api.github.com/repos/$REPO_VAL/issues/$ISSUE_NUM/comments?per_page=100" \
             | python3 -c "
           import sys, json, re
           comments = json.loads(sys.stdin.read())
@@ -75,13 +76,13 @@ jobs:
           echo "Removing review-passed label from issue #$ISSUE_NUM (PR #$PR_NUM closed)"
           curl -s -X DELETE \
             -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/labels/review-passed"
+            "https://api.github.com/repos/$REPO_VAL/issues/$ISSUE_NUM/labels/review-passed"
 
           # Post a comment noting the unlock
           curl -s -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/comments" \
+            "https://api.github.com/repos/$REPO_VAL/issues/$ISSUE_NUM/comments" \
             -d "{\"body\":\"Escrow lock released — PR #$PR_NUM was closed without merging.\n\nThis bounty is open for new submissions.\n\n---\n*-- SolFoundry Bot*\"}"
 
           echo "Escrow lock cleaned up for issue #$ISSUE_NUM"
