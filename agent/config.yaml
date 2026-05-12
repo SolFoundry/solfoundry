@@ -1,0 +1,80 @@
+# SolFoundry Autonomous Bounty Agent Configuration
+
+# GitHub configuration
+github:
+  token: ${GITHUB_TOKEN}
+  default_branch: main
+  fork_prefix: "sepulchralvoid666"
+  pr_template: |
+    ## What this does
+    {description}
+    
+    ## How to test
+    {test_instructions}
+    
+    Closes #{issue_number}
+    
+    **Wallet:** {wallet_address}
+
+# Bounty platforms to scan
+platforms:
+  solfoundry:
+    repo: "SolFoundry/solfoundry"
+    labels: ["bounty"]
+    api_url: "https://api.github.com"
+  algora:
+    api_url: "https://algora.io/api"
+  opire:
+    api_url: "https://api.opire.dev"
+
+# LLM configuration per agent
+llm:
+  orchestrator:
+    model: "gpt-4o"
+    temperature: 0.3
+    max_tokens: 4096
+  scout:
+    model: "gpt-4o-mini"
+    temperature: 0.1
+    max_tokens: 2048
+  analyst:
+    model: "gpt-4o"
+    temperature: 0.2
+    max_tokens: 8192
+  coder:
+    model: "gpt-4o"
+    temperature: 0.1
+    max_tokens: 16384
+  submitter:
+    model: "gpt-4o-mini"
+    temperature: 0.0
+    max_tokens: 2048
+
+# Bounty filtering rules
+filters:
+  min_reward_fntry: 50000      # 50K $FNDRY minimum
+  max_comments: 15              # Skip high-competition bounties
+  preferred_tiers: ["T1", "T2"]
+  preferred_domains: ["frontend", "typescript", "react", "python", "agent"]
+  blacklisted_domains: ["solidity", "rust"]
+  deadline_min_hours: 48        # Skip bounties expiring in <48h
+
+# Implementation settings
+implementation:
+  repo_base_path: "/tmp/solfoundry-bounties"
+  branch_prefix: "feat/bounty-"
+  commit_message_template: "feat: {title} (Closes #{issue_number})"
+  run_lint: true
+  run_tests: true
+  test_command: "cd frontend && npm test -- --watchAll=false"
+
+# Wallet for bounty payments
+wallet:
+  address: ${SOLANA_WALLET}
+  network: "mainnet-beta"
+
+# Rate limits
+rate_limits:
+  github_api_per_hour: 4000
+  llm_calls_per_minute: 20
+  max_concurrent_bounties: 3
