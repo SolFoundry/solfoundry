@@ -27,7 +27,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
   return (
     <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
       {/* Back link */}
-      <Link to="/" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors mb-6">
+      <Link to="/bounties" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Bounties
       </Link>
 
@@ -35,7 +35,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Title + meta */}
-          <div className="rounded-xl border border-border bg-forge-900 p-6">
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3 text-xs font-mono text-text-muted">
@@ -57,7 +57,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
 
             {/* Skills */}
             {bounty.skills?.length > 0 && (
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
                 {bounty.skills.map((lang) => (
                   <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: LANG_COLORS[lang] ?? '#888' }} />
@@ -84,7 +84,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
           </div>
 
           {/* Description / requirements */}
-          <div className="rounded-xl border border-border bg-forge-900 p-6">
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
             <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Requirements</h2>
             <p className="text-sm text-text-secondary leading-relaxed">
               Submit a working solution that addresses the bounty requirements above.
@@ -94,7 +94,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (
-            <div className="rounded-xl border border-border bg-forge-900 p-6">
+            <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-6">
               <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Submit Your Solution</h2>
               {isAuthenticated ? (
                 <SubmissionForm bounty={bounty} />
@@ -103,7 +103,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
                   <p className="text-text-muted text-sm mb-4">Sign in with GitHub to submit a solution.</p>
                   <a
                     href="/api/auth/github/authorize"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200"
+                    className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200"
                   >
                     Sign in with GitHub
                   </a>
@@ -116,7 +116,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Reward card */}
-          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-5">
+          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-4 sm:p-5">
             <p className="text-xs text-text-muted font-mono mb-1">Reward</p>
             <p className="font-mono text-3xl font-bold text-emerald">
               {formatCurrency(bounty.reward_amount, bounty.reward_token)}
@@ -124,7 +124,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
           </div>
 
           {/* Info card */}
-          <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
+          <div className="rounded-xl border border-border bg-forge-900 p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-muted">Status</span>
               <span className={`font-medium ${bounty.status === 'open' ? 'text-emerald' : 'text-magenta'}`}>
