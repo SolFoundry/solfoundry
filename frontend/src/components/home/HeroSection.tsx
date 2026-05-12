@@ -87,7 +87,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 pt-24 pb-16 overflow-hidden">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 pt-24 pb-16 overflow-x-hidden">
       {/* Background layers */}
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
@@ -98,7 +98,7 @@ export function HeroSection() {
         variants={fadeIn}
         initial="initial"
         animate="animate"
-        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
+        className="w-full max-w-[calc(100vw-2rem)] sm:max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
       >
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
@@ -111,10 +111,10 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+        <div className="p-3 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
+          <div className="min-w-0 overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="max-w-[calc(100%-1rem)] text-text-secondary overflow-hidden whitespace-nowrap inline-block align-bottom animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
@@ -127,7 +127,7 @@ export function HeroSection() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="mt-3 space-y-1.5"
+              className="mt-3 space-y-1.5 break-words"
             >
               {[
                 { text: '✓ Bounty created: #142', delay: 0 },
@@ -139,7 +139,7 @@ export function HeroSection() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: line.delay, duration: 0.3 }}
-                  className="text-emerald"
+                  className="text-emerald break-words"
                 >
                   {line.text}
                 </motion.div>
@@ -154,7 +154,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-8 sm:mt-10 max-w-full"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +164,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -211,7 +211,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-x-6 mt-8 font-mono text-xs sm:text-sm text-text-muted text-center"
       >
         <span>
           <span className="text-text-primary font-semibold">
