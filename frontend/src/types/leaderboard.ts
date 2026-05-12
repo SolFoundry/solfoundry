@@ -11,6 +11,8 @@ export interface LeaderboardEntry {
   reputation: number;
   stakedFndry: number;
   reputationBoost: number;
+  tier?: string;
+  badges?: string[];
 }
 
 export interface PlatformStats {
