@@ -26,8 +26,8 @@ export function BountyGrid() {
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+    <h2 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
             <Link
               to="/bounties/create"
@@ -53,21 +53,21 @@ export function BountyGrid() {
           </div>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
-          {FILTER_SKILLS.map((skill) => (
-            <button
-              key={skill}
-              onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                activeSkill === skill
-                  ? 'bg-forge-700 text-text-primary'
-                  : 'text-text-muted hover:text-text-secondary bg-forge-800'
-              }`}
-            >
-              {skill}
-            </button>
-          ))}
+  {/* Filter pills — horizontal scroll on mobile */}
+  <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap mb-8 scrollbar-none">
+    {FILTER_SKILLS.map((skill) => (
+      <button
+        key={skill}
+        onClick={() => setActiveSkill(skill)}
+        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 whitespace-nowrap ${
+          activeSkill === skill
+            ? 'bg-forge-700 text-text-primary'
+            : 'text-text-muted hover:text-text-secondary bg-forge-800'
+        }`}
+      >
+        {skill}
+      </button>
+    ))}
         </div>
 
         {/* Loading state */}
