@@ -6,6 +6,7 @@ import type { Bounty } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { BountyReviewResults } from './BountyReviewResults';
 import { fadeIn } from '../../lib/animations';
 
 interface BountyDetailProps {
@@ -91,6 +92,8 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
             </p>
           </div>
+
+          <BountyReviewResults bounty={bounty} />
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (
