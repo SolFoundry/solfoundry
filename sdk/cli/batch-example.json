@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Fix alignment in BountyCard",
+    "reward_amount": 150000,
+    "tier": 1,
+    "category": "frontend",
+    "required_skills": ["react", "tailwind"]
+  },
+  {
+    "title": "Implement Redis Caching for Leaderboard",
+    "reward_amount": 500000,
+    "tier": 2,
+    "category": "backend",
+    "required_skills": ["python", "redis"]
+  }
+]

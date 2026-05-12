@@ -22,7 +22,7 @@ export interface ProfileOptions {
 }
 
 export async function profileCommand(
-  client: InstanceType<typeof SolFoundry>,
+  client: SolFoundry,
   username: string,
   options: ProfileOptions,
 ): Promise<void> {
@@ -34,7 +34,7 @@ export async function profileCommand(
 
   let contributor: Record<string, unknown>;
   try {
-    contributor = (await client.contributors.get(username)) as Record<string, unknown>;
+    contributor = (await client.contributors.get(username)) as unknown as Record<string, unknown>;
   } catch (err) {
     const msg = (err as Error).message;
     if (msg.includes('404') || msg.includes('not found')) {
@@ -59,9 +59,9 @@ export async function profileCommand(
     ['Username', `@${contributor.username ?? username}`],
     ['Display Name', String(contributor.display_name ?? '—')],
     ['Reputation', c.bold(`${Number(contributor.reputation_score ?? 0).toFixed(1)} pts`)],
-    ['Tier', contributor.tier ? `T${contributor.tier}` : c.dim('—')],
+    ['Tier', contributor.tier_unlocked ? `T${contributor.tier_unlocked}` : c.dim('—')],
     ['Bounties Completed', String(contributor.total_bounties_completed ?? 0)],
-    ['Total Earnings', `${Number(contributor.total_earnings ?? 0).toLocaleString()} $FNDRY`],
+    ['Total Earnings', `${Number(contributor.total_earned ?? 0).toLocaleString()} $FNDRY`],
     ['Skills', skills.length > 0 ? skills.join(', ') : c.dim('—')],
     ['Badges', badges.length > 0 ? badges.map((b) => `🏅 ${b}`).join('  ') : c.dim('—')],
     ['Wallet', contributor.wallet_address ? String(contributor.wallet_address) : c.dim('Not linked')],
@@ -70,7 +70,7 @@ export async function profileCommand(
   console.log('');
 }
 
-export function registerProfileCommand(program: Command, client: InstanceType<typeof SolFoundry>): void {
+export function registerProfileCommand(program: Command, client: SolFoundry): void {
   program
     .command('profile <github-username>')
     .description('View a contributor\'s stats, reputation, and earned badges')

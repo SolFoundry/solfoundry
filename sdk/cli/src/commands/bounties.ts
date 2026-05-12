@@ -23,7 +23,7 @@ export interface BountiesOptions {
 }
 
 export async function bountiesCommand(
-  client: InstanceType<typeof SolFoundry>,
+  client: SolFoundry,
   options: BountiesOptions,
 ): Promise<void> {
   const limit = Math.max(1, Math.min(100, parseInt(options.limit, 10) || 20));
@@ -53,7 +53,7 @@ export async function bountiesCommand(
     return;
   }
 
-  const bounties = result.bounties ?? result.items ?? (Array.isArray(result) ? result : []);
+  const bounties = result.items ?? [];
 
   if (bounties.length === 0) {
     console.log(c.dim(`\n  No ${options.status} bounties found.\n`));
@@ -62,7 +62,7 @@ export async function bountiesCommand(
 
   printSection(`${options.status.toUpperCase()} Bounties (${bounties.length})`);
   printBountiesTable(
-    bounties.map((b: Record<string, unknown>) => ({
+    bounties.map((b: any) => ({
       id: String(b.id ?? ''),
       title: String(b.title ?? ''),
       tier: Number(b.tier ?? 1),
@@ -74,7 +74,7 @@ export async function bountiesCommand(
   console.log(c.dim(`\n  Showing ${bounties.length} of ${result.total ?? bounties.length} results.\n`));
 }
 
-export function registerBountiesCommand(program: Command, client: InstanceType<typeof SolFoundry>): void {
+export function registerBountiesCommand(program: Command, client: SolFoundry): void {
   program
     .command('bounties')
     .description('List open bounties on the SolFoundry marketplace')
