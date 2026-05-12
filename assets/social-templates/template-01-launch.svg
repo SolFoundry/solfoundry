@@ -1,0 +1,22 @@
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="675">
+      <stop offset="0" stop-color="#050505"/>
+      <stop offset="1" stop-color="#1E1E2A"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="130" y1="90" x2="990" y2="620">
+      <stop offset="0" stop-color="#00E676"/>
+      <stop offset="0.5" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#E040FB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect x="70" y="70" width="1060" height="535" rx="28" stroke="url(#accent)" stroke-opacity="0.65" stroke-width="2"/>
+  <text x="130" y="190" fill="#A0A0B8" font-family="Inter,Arial,sans-serif" font-size="34">NEW BOUNTY LIVE</text>
+  <text x="130" y="290" fill="#F0F0F5" font-family="Orbitron,Inter,Arial,sans-serif" font-size="72" font-weight="700">SHIP CODE.</text>
+  <text x="130" y="365" fill="#00E676" font-family="Orbitron,Inter,Arial,sans-serif" font-size="72" font-weight="700">EARN FNDRY.</text>
+  <text x="130" y="462" fill="#A0A0B8" font-family="JetBrains Mono,monospace" font-size="30">solfoundry.org/bounties</text>
+  <circle cx="980" cy="168" r="56" fill="#00E676" fill-opacity="0.15"/>
+  <circle cx="1038" cy="224" r="38" fill="#E040FB" fill-opacity="0.15"/>
+  <circle cx="930" cy="248" r="30" fill="#7C3AED" fill-opacity="0.15"/>
+</svg>

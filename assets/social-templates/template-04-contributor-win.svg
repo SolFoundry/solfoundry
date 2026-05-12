@@ -1,0 +1,21 @@
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g4" x1="0" y1="0" x2="1200" y2="675">
+      <stop stop-color="#0A0A0F"/>
+      <stop offset="1" stop-color="#120A1F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#g4)"/>
+  <text x="118" y="158" fill="#A0A0B8" font-family="Inter,Arial,sans-serif" font-size="30">CONTRIBUTOR SPOTLIGHT</text>
+  <text x="118" y="257" fill="#F0F0F5" font-family="Orbitron,Inter,Arial,sans-serif" font-size="64" font-weight="700">FROM ISSUE</text>
+  <text x="118" y="325" fill="#00E676" font-family="Orbitron,Inter,Arial,sans-serif" font-size="64" font-weight="700">TO PAYOUT</text>
+  <text x="118" y="402" fill="#A0A0B8" font-family="Inter,Arial,sans-serif" font-size="30">Share your winning PR and inspire builders.</text>
+  <rect x="118" y="456" width="420" height="84" rx="14" fill="#00E676" fill-opacity="0.1" stroke="#00E676"/>
+  <text x="150" y="507" fill="#00E676" font-family="JetBrains Mono,monospace" font-size="30">#BuildEarnOwn</text>
+  <rect x="700" y="140" width="400" height="390" rx="20" fill="#0F0F18" stroke="#2E2E42"/>
+  <text x="748" y="214" fill="#E040FB" font-family="Inter,Arial,sans-serif" font-size="28" font-weight="700">WINNING CHECKLIST</text>
+  <text x="748" y="272" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="28">1) Pick a bounty</text>
+  <text x="748" y="322" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="28">2) Ship high-quality PR</text>
+  <text x="748" y="372" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="28">3) Pass AI review</text>
+  <text x="748" y="422" fill="#F0F0F5" font-family="Inter,Arial,sans-serif" font-size="28">4) Receive FNDRY</text>
+</svg>
