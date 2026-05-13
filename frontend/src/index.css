@@ -143,3 +143,12 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Smooth content appearance after skeleton */
+@keyframes content-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-content-appear {
+  animation: content-appear 0.3s ease-out;
+}
