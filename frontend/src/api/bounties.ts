@@ -9,12 +9,13 @@ import type {
 } from '../types/bounty';
 
 export interface BountiesListParams {
-  status?: string;
-  limit?: number;
-  offset?: number;
-  skill?: string;
-  tier?: string;
-  reward_token?: string;
+ status?: string;
+ limit?: number;
+ offset?: number;
+ skill?: string;
+ search?: string;
+ tier?: string;
+ reward_token?: string;
 }
 
 export interface BountiesListResponse {
