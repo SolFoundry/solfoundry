@@ -1,9 +1,12 @@
+
 import { apiClient } from '../services/apiClient';
 import type { ActivityEvent, ActivityEventType } from '../types/activity';
 
 interface ActivityListParams {
   limit?: number;
 }
+
+export const ACTIVITY_FEED_ENDPOINT = '/api/analytics/activity';
 
 type RawActivityEvent = Record<string, unknown>;
 type ActivityApiResponse =
@@ -105,7 +108,7 @@ function getEventsFromResponse(response: ActivityApiResponse): RawActivityEvent[
 }
 
 export async function getActivityEvents(params: ActivityListParams = {}): Promise<ActivityEvent[]> {
-  const response = await apiClient<ActivityApiResponse>('/api/activity', {
+  const response = await apiClient<ActivityApiResponse>(ACTIVITY_FEED_ENDPOINT, {
     params: { limit: params.limit ?? 8 },
   });
   return getEventsFromResponse(response).map(normalizeActivityEvent);
