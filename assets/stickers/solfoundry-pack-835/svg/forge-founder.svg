@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Forge Founder sticker</title>
+  <desc id="desc">Foundry badge with the SolFoundry anvil and forge sparks.</desc>
+  <defs>
+    <linearGradient id="sol" x1="97" y1="82" x2="411" y2="423" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="152" y1="78" x2="347" y2="431" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.5" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="112" y1="78" x2="398" y2="408" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+      <circle cx="256" cy="256" r="207" fill="#10111e" stroke="#FFFFFF" stroke-width="20"/>
+            <circle cx="256" cy="256" r="184" fill="none" stroke="url(#sol)" stroke-width="9"/>      <circle cx="256" cy="84" r="7" fill="#14F195" opacity=".88"/>
+      <circle cx="362" cy="124" r="7" fill="#9945FF" opacity=".88"/>
+      <circle cx="423" cy="240" r="7" fill="#14F195" opacity=".88"/>
+      <circle cx="365" cy="384" r="7" fill="#9945FF" opacity=".88"/>
+      <circle cx="218" cy="420" r="7" fill="#14F195" opacity=".88"/>
+      <circle cx="102" cy="333" r="7" fill="#9945FF" opacity=".88"/>
+      <circle cx="111" cy="180" r="7" fill="#14F195" opacity=".88"/>      <g transform="translate(256 223) scale(1.22)">
+            <path d="M-74 48-47-19H45l29 67H-74Z" fill="url(#sol)"/>
+            <path d="M-61 33H61l13 31H-76l15-31Z" fill="#9945FF" opacity=".62"/>
+            <rect x="-62" y="-55" width="124" height="34" rx="8" fill="url(#cool)"/>
+            <path d="M-62-44-114-51l12 25 40-4v-14Z" fill="#9945FF"/>
+            <rect x="-33" y="49" width="66" height="31" rx="7" fill="#14F195" opacity=".9"/>
+
+            <g transform="translate(0 -84) scale(0.88) rotate(-18)">
+              <rect x="-8" y="-12" width="16" height="92" rx="8" fill="#14F195"/>
+              <rect x="-38" y="-38" width="76" height="31" rx="10" fill="url(#sol)"/>
+            </g>
+
+            <g transform="translate(30 -78) scale(0.54)">
+              <path d="M0-34 8-8 34 0 8 8 0 34-8 8-34 0-8-8Z" fill="#FFD166"/>
+              <circle cx="45" cy="-27" r="7" fill="#14F195"/>
+              <circle cx="-42" cy="-22" r="6" fill="#9945FF"/>
+              <circle cx="36" cy="34" r="5" fill="#FFD166"/>
+            </g>
+          </g>      <text x="256" y="405" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="42" font-weight="900" letter-spacing="0" fill="#FFFFFF" stroke="#090A10" stroke-width="9" paint-order="stroke">FOUNDER</text>
+  </g>
+</svg>
