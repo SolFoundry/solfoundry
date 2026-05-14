@@ -1,0 +1,18 @@
+{
+  "issue": 834,
+  "asset": "solfoundry-flow-loop.gif",
+  "dimensions": "800x800",
+  "durationSeconds": 5.76,
+  "frameCount": 61,
+  "looping": true,
+  "fileSizeBytes": 2937446,
+  "fileSizeMB": 2.8,
+  "flow": [
+    "create bounty",
+    "fund",
+    "submit",
+    "AI review",
+    "payout"
+  ],
+  "under10MB": true
+}
