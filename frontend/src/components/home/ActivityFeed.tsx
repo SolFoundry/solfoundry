@@ -57,7 +57,7 @@ function getActionText(type: ActivityEvent['type']) {
 function EventItem({ event }: { event: ActivityEvent }) {
   const isMagenta = event.type === 'review';
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-forge-850 transition-colors duration-150">
+    <div className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-forge-850 transition-colors duration-150">
       {event.avatar_url ? (
         <img src={event.avatar_url} className="w-6 h-6 rounded-full flex-shrink-0" alt="" />
       ) : (
@@ -65,12 +65,12 @@ function EventItem({ event }: { event: ActivityEvent }) {
           <span className="font-mono text-xs text-text-muted">{event.username[0]?.toUpperCase()}</span>
         </div>
       )}
-      <p className="text-sm text-text-secondary flex-1 truncate">
+      <p className="min-w-0 text-sm text-text-secondary flex-1 break-words">
         <span className="font-medium text-text-primary">{event.username}</span>
         {' '}{getActionText(event.type)}{' '}
-        <span className={`font-mono ${isMagenta ? 'text-magenta' : 'text-emerald'}`}>{event.detail}</span>
+        <span className={`font-mono break-words ${isMagenta ? 'text-magenta' : 'text-emerald'}`}>{event.detail}</span>
       </p>
-      <span className="font-mono text-xs text-text-muted flex-shrink-0">{timeAgo(event.timestamp)}</span>
+      <span className="mt-0.5 font-mono text-xs text-text-muted flex-shrink-0 whitespace-nowrap">{timeAgo(event.timestamp)}</span>
     </div>
   );
 }

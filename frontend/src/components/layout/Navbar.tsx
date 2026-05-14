@@ -33,6 +33,11 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+    setDropdownOpen(false);
+  }, [location.pathname]);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
@@ -168,6 +173,10 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            type="button"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
             className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -179,6 +188,7 @@ export function Navbar() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div
+            id="mobile-navigation"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -190,7 +200,11 @@ export function Navbar() {
                   key={link.to}
                   to={link.to}
                   onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                    isActive(link.to)
+                      ? 'bg-forge-850 text-text-primary'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-forge-850'
+                  }`}
                 >
                   {link.label}
                 </Link>

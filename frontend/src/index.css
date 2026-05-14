@@ -115,6 +115,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  overflow-x: clip;
 }
 
 body {
@@ -123,6 +124,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #050505;
   color: #F0F0F5;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+#root {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
 }
 
 /* Custom scrollbar */
