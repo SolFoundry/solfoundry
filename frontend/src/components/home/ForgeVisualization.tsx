@@ -93,6 +93,8 @@ export function ForgeVisualization() {
     const forgeIntervalMs = 2200;
     const clock = new THREE.Clock();
     let userPulse = 0;
+    let hasRecentLiveForge = false;
+    let lastActivityId: string | null = null;
 
     const triggerForge = () => {
       fireLight.intensity = 3.7;
@@ -108,6 +110,11 @@ export function ForgeVisualization() {
         sparkVelocities[j + 2] = Math.sin(angle) * speed * 0.4;
       }
       sparkGeo.attributes.position.needsUpdate = true;
+    };
+
+    const triggerForgeFromLiveEvent = () => {
+      hasRecentLiveForge = true;
+      triggerForge();
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -129,7 +136,7 @@ export function ForgeVisualization() {
       const elapsed = clock.getElapsedTime();
       const delta = Math.min(clock.getDelta(), 0.03);
 
-      if (performance.now() - lastForge > forgeIntervalMs) {
+      if (!hasRecentLiveForge && performance.now() - lastForge > forgeIntervalMs) {
         lastForge = performance.now();
         triggerForge();
       }
@@ -187,13 +194,52 @@ export function ForgeVisualization() {
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
     };
+
+    const parseActivityEvents = (payload: unknown): Array<{ id?: string; type?: string }> => {
+      if (Array.isArray(payload)) return payload as Array<{ id?: string; type?: string }>;
+      if (payload && typeof payload === 'object' && 'items' in payload && Array.isArray((payload as { items: unknown[] }).items)) {
+        return (payload as { items: Array<{ id?: string; type?: string }> }).items;
+      }
+      return [];
+    };
+
+    const pollActivity = async () => {
+      try {
+        const response = await fetch('/api/activity');
+        if (!response.ok) return;
+        const data: unknown = await response.json();
+        const items = parseActivityEvents(data);
+        const newestPosted = items.find((item) => item?.type === 'posted');
+        if (!newestPosted?.id) return;
+        if (!lastActivityId) {
+          lastActivityId = newestPosted.id;
+          return;
+        }
+        if (newestPosted.id !== lastActivityId) {
+          lastActivityId = newestPosted.id;
+          triggerForgeFromLiveEvent();
+        }
+      } catch {
+        // Ignore polling failures and keep ambient fallback active.
+      }
+    };
+
+    const onBountyCreated = () => {
+      triggerForgeFromLiveEvent();
+    };
+
     window.addEventListener('resize', onResize);
+    window.addEventListener('bounty_created', onBountyCreated as EventListener);
+    const activityPoll = window.setInterval(pollActivity, 4000);
+    void pollActivity();
     mount.addEventListener('pointermove', onPointerMove);
     mount.addEventListener('pointerdown', onPointerDown);
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('bounty_created', onBountyCreated as EventListener);
+      window.clearInterval(activityPoll);
       mount.removeEventListener('pointermove', onPointerMove);
       mount.removeEventListener('pointerdown', onPointerDown);
       renderer.dispose();
@@ -202,5 +248,5 @@ export function ForgeVisualization() {
     };
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0 opacity-85 pointer-events-none" aria-hidden="true" />;
+  return <div ref={mountRef} className="absolute inset-0 opacity-85" aria-hidden="true" />;
 }
