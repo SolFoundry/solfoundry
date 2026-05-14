@@ -31,10 +31,10 @@ export function Footer() {
       {/* Magenta accent line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-footer opacity-50" />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 py-10 sm:py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-10">
           {/* Col 1: Brand */}
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-3">
               <img src="/logo-icon.png" alt="SolFoundry" className="w-6 h-6" />
               <span className="font-display text-lg font-semibold text-text-primary">SolFoundry</span>
@@ -92,11 +92,11 @@ export function Footer() {
           <div>
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">$FNDRY Token</h4>
             <p className="text-sm text-text-muted mb-3">Contract Address:</p>
-            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex items-center gap-2 w-full">
-              <span className="truncate">{FNDRY_CA.slice(0, 8)}...{FNDRY_CA.slice(-4)}</span>
+            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex items-center gap-2 w-full min-w-0">
+              <span className="min-w-0 truncate">{FNDRY_CA.slice(0, 8)}...{FNDRY_CA.slice(-4)}</span>
               <button
                 onClick={copyCA}
-                className="flex-shrink-0 text-text-muted hover:text-text-primary transition-colors duration-150"
+                className="min-h-11 min-w-11 flex-shrink-0 inline-flex items-center justify-center text-text-muted hover:text-text-primary transition-colors duration-150"
                 title="Copy contract address"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
