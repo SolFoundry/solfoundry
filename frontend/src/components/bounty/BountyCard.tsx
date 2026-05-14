@@ -108,8 +108,8 @@ export function BountyCard({ bounty }: BountyCardProps) {
     <div className="flex items-center gap-2 sm:gap-3 text-xs text-text-muted shrink-0">
       <span className="inline-flex items-center gap-1">
         <GitPullRequest className="w-3.5 h-3.5" />
-        <span className="hidden xs:inline">{bounty.submission_count} PRs</span>
-        <span className="xs:hidden">{bounty.submission_count}</span>
+ <span className="hidden sm:inline">{bounty.submission_count} PRs</span>
+ <span className="sm:hidden">{bounty.submission_count}</span>
       </span>
       {bounty.deadline && (
         <span className="inline-flex items-center gap-1">
@@ -123,7 +123,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
   {/* Status badge */}
   <span className={`absolute bottom-4 right-4 sm:right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
     <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-    <span className="hidden xs:inline">{statusLabel}</span>
+    <span className="hidden sm:inline">{statusLabel}</span>
   </span>
     </motion.div>
   );
