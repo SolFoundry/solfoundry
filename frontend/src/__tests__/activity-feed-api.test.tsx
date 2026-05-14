@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getActivityEvents } from '../api/activity';
+import { ACTIVITY_FEED_ENDPOINT, getActivityEvents } from '../api/activity';
 import { ActivityFeed } from '../components/home/ActivityFeed';
 
 const mockFetch = vi.fn();
@@ -40,7 +41,7 @@ describe('activity feed API integration', () => {
     vi.unstubAllGlobals();
   });
 
-  it('fetches and normalizes activity events from /api/activity', async () => {
+  it('fetches and normalizes activity events from the documented analytics endpoint', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({
       events: [
         {
@@ -57,7 +58,7 @@ describe('activity feed API integration', () => {
     const events = await getActivityEvents({ limit: 4 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/activity?limit=4'),
+      expect.stringContaining(`${ACTIVITY_FEED_ENDPOINT}?limit=4`),
       expect.objectContaining({ method: 'GET' }),
     );
     expect(events).toEqual([
