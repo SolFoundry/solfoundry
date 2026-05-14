@@ -1,0 +1,89 @@
+{
+  "issue": 835,
+  "pack": "SolFoundry Sticker Pack",
+  "dimensions": "512x512",
+  "pngBackground": "transparent",
+  "totalStickers": 10,
+  "stickers": [
+    {
+      "id": "forge-founder",
+      "title": "Forge Founder",
+      "category": "Logo variant",
+      "description": "Foundry badge with the SolFoundry anvil and forge sparks.",
+      "png": "png/forge-founder.png",
+      "source": "svg/forge-founder.svg"
+    },
+    {
+      "id": "audit-cleared",
+      "title": "Audit Cleared",
+      "category": "Developer meme",
+      "description": "Security review sticker with shield, check, and anvil motifs.",
+      "png": "png/audit-cleared.png",
+      "source": "svg/audit-cleared.svg"
+    },
+    {
+      "id": "paid-fast",
+      "title": "Paid Fast",
+      "category": "Emoji reaction",
+      "description": "Fast bounty payout reaction with FNDRY coin and bolt.",
+      "png": "png/paid-fast.png",
+      "source": "svg/paid-fast.svg"
+    },
+    {
+      "id": "review-ready",
+      "title": "Review Ready",
+      "category": "Developer meme",
+      "description": "Magnifier and checklist sticker for ready-to-review work.",
+      "png": "png/review-ready.png",
+      "source": "svg/review-ready.svg"
+    },
+    {
+      "id": "merge-party",
+      "title": "Merge Party",
+      "category": "Emoji reaction",
+      "description": "Celebratory merge sticker with branch lines and confetti.",
+      "png": "png/merge-party.png",
+      "source": "svg/merge-party.svg"
+    },
+    {
+      "id": "night-builder",
+      "title": "Night Builder",
+      "category": "Developer meme",
+      "description": "Late-night terminal builder sticker for developer culture.",
+      "png": "png/night-builder.png",
+      "source": "svg/night-builder.svg"
+    },
+    {
+      "id": "rank-up",
+      "title": "Rank Up",
+      "category": "Emoji reaction",
+      "description": "Medal sticker for leveling up through bounty completions.",
+      "png": "png/rank-up.png",
+      "source": "svg/rank-up.svg"
+    },
+    {
+      "id": "automaton-grid",
+      "title": "Automaton Grid",
+      "category": "Logo variant",
+      "description": "Cellular automaton grid sticker with SolFoundry anvil core.",
+      "png": "png/automaton-grid.png",
+      "source": "svg/automaton-grid.svg"
+    },
+    {
+      "id": "docs-done",
+      "title": "Docs Done",
+      "category": "Developer meme",
+      "description": "Checklist sticker for completed documentation bounties.",
+      "png": "png/docs-done.png",
+      "source": "svg/docs-done.svg"
+    },
+    {
+      "id": "target-locked",
+      "title": "Target Locked",
+      "category": "Emoji reaction",
+      "description": "Bounty target sticker for claiming and completing focused tasks.",
+      "png": "png/target-locked.png",
+      "source": "svg/target-locked.svg"
+    }
+  ]
+}

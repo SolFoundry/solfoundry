@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Docs Done sticker</title>
+  <desc id="desc">Checklist sticker for completed documentation bounties.</desc>
+  <defs>
+    <linearGradient id="sol" x1="97" y1="82" x2="411" y2="423" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="152" y1="78" x2="347" y2="431" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.5" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="112" y1="78" x2="398" y2="408" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+      <path d="M144 58h190l72 75v321H106V96c0-21 17-38 38-38Z" fill="#10111e" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round"/>
+            <path d="M336 66v75h72" stroke="#14F195" stroke-width="10" stroke-linejoin="round"/>
+            <rect x="132" y="91" width="248" height="334" rx="28" fill="none" stroke="#14F195" stroke-width="8"/>      <g transform="translate(174 133)">
+            <rect x="0" y="0" width="164" height="208" rx="24" fill="#FFFFFF" opacity=".96"/>
+            <path d="M37 62h87M37 105h87M37 148h63" stroke="#090A10" stroke-width="13" stroke-linecap="round" opacity=".7"/>
+            <path d="M-25 65-5 85 32 43M-25 109-5 129 32 87M-25 153-5 173 32 131" stroke="#14F195" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>      <g transform="translate(318 210) scale(0.68)">
+            <circle cx="0" cy="0" r="54" fill="#14F195" stroke="#FFFFFF" stroke-width="10"/>
+            <path d="M-29 1-7 23 34-29" stroke="#090A10" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>      <text x="256" y="398" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="66" font-weight="900" letter-spacing="0" fill="#FFFFFF" stroke="#090A10" stroke-width="9" paint-order="stroke">DOCS</text>
+  </g>
+</svg>

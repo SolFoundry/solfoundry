@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Paid Fast sticker</title>
+  <desc id="desc">Fast bounty payout reaction with FNDRY coin and bolt.</desc>
+  <defs>
+    <linearGradient id="sol" x1="97" y1="82" x2="411" y2="423" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="152" y1="78" x2="347" y2="431" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.5" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="112" y1="78" x2="398" y2="408" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+      <path d="M270 41 430 206 335 222 377 469 83 273l102-19L136 71Z" fill="#181305" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round"/>
+            <path d="M270 78 393 204l-82 13 34 192-226-151 91-17-39-132Z" fill="none" stroke="#FFD166" stroke-width="8" stroke-linejoin="round"/>      <g transform="translate(256 247)">
+            <ellipse cx="-52" cy="42" rx="71" ry="25" fill="#B77800"/>
+            <rect x="-123" y="-24" width="142" height="66" rx="20" fill="#FFD166"/>
+            <ellipse cx="-52" cy="-24" rx="71" ry="25" fill="#FFE59B"/>
+            <ellipse cx="58" cy="65" rx="78" ry="28" fill="#B77800"/>
+            <rect x="-20" y="-11" width="156" height="76" rx="23" fill="#FFD166"/>
+            <ellipse cx="58" cy="-11" rx="78" ry="28" fill="#FFE59B"/>
+            <text x="58" y="13" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="44" font-weight="900" fill="#090A10">F</text>
+          </g>      <path transform="translate(256 212) scale(1.18)" d="M17-116-70 26h54l-25 112 92-151H-5Z" fill="url(#hot)" stroke="#FFFFFF" stroke-width="9" stroke-linejoin="round" filter="url(#glow)"/>      <text x="256" y="382" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="74" font-weight="900" letter-spacing="0" fill="#FFD166" stroke="#090A10" stroke-width="9" paint-order="stroke">PAID</text>      <text x="256" y="430" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="32" font-weight="900" letter-spacing="0" fill="#FFFFFF">FAST</text>
+  </g>
+</svg>

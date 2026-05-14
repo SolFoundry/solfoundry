@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Merge Party sticker</title>
+  <desc id="desc">Celebratory merge sticker with branch lines and confetti.</desc>
+  <defs>
+    <linearGradient id="sol" x1="97" y1="82" x2="411" y2="423" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="152" y1="78" x2="347" y2="431" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.5" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="112" y1="78" x2="398" y2="408" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+      <path d="M256 43c26 37 63 44 111 23 2 49 26 75 72 88-31 34-30 72 3 116-48 10-72 37-73 83-49-13-85-2-110 36-29-37-66-43-112-21-2-49-26-75-72-88 31-34 30-72-3-116 48-10 72-37 73-83 49 13 85 2 111-38Z" fill="#151020" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round"/>
+            <path d="M257 76c21 29 51 35 90 18 1 39 20 60 57 70-25 27-25 58 2 93-39 8-59 30-60 67-39-10-69-1-89 29-23-30-53-35-90-18-2-39-21-60-57-70 25-27 24-58-2-93 39-8 59-30 60-67 39 10 69 1 89-29Z" fill="none" stroke="#9945FF" stroke-width="8" stroke-linejoin="round"/>      <g transform="translate(256 224)" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M-93-78v127c0 45 33 74 82 74h82" stroke="#14F195" stroke-width="18"/>
+            <path d="M-9-36 71-36" stroke="#9945FF" stroke-width="18"/>
+            <circle cx="-93" cy="-92" r="30" fill="#14F195" stroke="#FFFFFF" stroke-width="9"/>
+            <circle cx="-9" cy="-36" r="30" fill="#9945FF" stroke="#FFFFFF" stroke-width="9"/>
+            <circle cx="83" cy="123" r="34" fill="url(#sol)" stroke="#FFFFFF" stroke-width="9"/>
+          </g>      <rect x="129" y="135" width="13" height="31" rx="5" fill="#FFD166" transform="rotate(-34 129 135)"/>
+      <rect x="365" y="135" width="13" height="31" rx="5" fill="#14F195" transform="rotate(-6 365 135)"/>
+      <rect x="389" y="282" width="13" height="31" rx="5" fill="#FFD166" transform="rotate(22 389 282)"/>
+      <rect x="126" y="286" width="13" height="31" rx="5" fill="#5EE1FF" transform="rotate(50 126 286)"/>
+      <rect x="204" y="112" width="13" height="31" rx="5" fill="#FF4D6D" transform="rotate(78 204 112)"/>
+      <rect x="310" y="112" width="13" height="31" rx="5" fill="#9945FF" transform="rotate(106 310 112)"/>      <text x="256" y="401" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="48" font-weight="900" letter-spacing="0" fill="#FFFFFF" stroke="#090A10" stroke-width="9" paint-order="stroke">MERGED</text>
+  </g>
+</svg>
