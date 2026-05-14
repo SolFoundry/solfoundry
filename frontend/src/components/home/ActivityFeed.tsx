@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Filter } from 'lucide-react';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { useSocket } from '../../hooks/useSocket';
 
 interface ActivityEvent {
   id: string;
@@ -76,20 +78,80 @@ function EventItem({ event }: { event: ActivityEvent }) {
 }
 
 export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+  const [feedEvents, setFeedEvents] = useState<ActivityEvent[]>(events?.length ? events : MOCK_EVENTS);
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['completed', 'submitted', 'posted', 'review']));
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  const handleNewEvent = useCallback((newEvent: ActivityEvent) => {
+    setFeedEvents(prev => [newEvent, ...prev].slice(0, 20));
+  }, []);
+
+  const { isConnected } = useSocket<ActivityEvent>('activity_feed', handleNewEvent);
+
+  const toggleFilter = (type: string) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  };
+
+  const visibleEvents = feedEvents
+    .filter(e => activeFilters.has(e.type))
+    .slice(0, 4);
+
+  const ALL_TYPES = ['completed', 'submitted', 'posted', 'review'];
 
   return (
-    <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
+    <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden relative">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald animate-pulse-glow' : 'bg-status-error'}`} title={isConnected ? "Connected to live feed" : "Disconnected, attempting to reconnect..."} />
+            <span className="font-mono text-xs text-text-muted uppercase tracking-wider">
+              {isConnected ? "Live Activity" : "Offline"}
+            </span>
+          </div>
+          
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-1.5 rounded-md transition-colors flex items-center gap-2 ${showFilters ? 'bg-forge-800 text-text-primary' : 'text-text-muted hover:text-text-secondary hover:bg-forge-800/50'}`}
+            title="Filter feed"
+          >
+            <Filter className="w-3.5 h-3.5" />
+            <span className="text-xs font-mono">Filters</span>
+          </button>
         </div>
+
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="flex flex-wrap gap-2 mb-4 overflow-hidden"
+            >
+              {ALL_TYPES.map(type => (
+                <button
+                  key={type}
+                  onClick={() => toggleFilter(type)}
+                  className={`px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-md border transition-colors ${
+                    activeFilters.has(type) 
+                      ? 'bg-emerald/10 border-emerald/30 text-emerald' 
+                      : 'bg-forge-800 border-border text-text-muted hover:text-text-secondary'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="space-y-1">
           <AnimatePresence mode="popLayout">
             {visibleEvents.map((event) => (
@@ -104,6 +166,11 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
                 <EventItem event={event} />
               </motion.div>
             ))}
+            {visibleEvents.length === 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-4 text-center text-sm text-text-muted font-mono">
+                No events match your filters.
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </div>
