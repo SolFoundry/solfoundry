@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+const LAST_BOUNTY_CREATED_KEY = 'solfoundry:last_bounty_created';
+
 export function ForgeVisualization() {
   const mountRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
@@ -203,8 +205,29 @@ export function ForgeVisualization() {
       triggerForgeFromLiveEvent();
     };
 
+    const processPersistedSignal = () => {
+      try {
+        const raw = localStorage.getItem(LAST_BOUNTY_CREATED_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { id?: string };
+        const eventId = parsed?.id;
+        if (!eventId || eventId === lastLiveEventId) return;
+        lastLiveEventId = eventId;
+        triggerForgeFromLiveEvent();
+      } catch {
+        // Ignore malformed localStorage payloads.
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== LAST_BOUNTY_CREATED_KEY || !event.newValue) return;
+      processPersistedSignal();
+    };
+
     window.addEventListener('resize', onResize);
     window.addEventListener('bounty_created', onBountyCreated as EventListener);
+    window.addEventListener('storage', onStorage);
+    processPersistedSignal();
     mount.addEventListener('pointermove', onPointerMove);
     mount.addEventListener('pointerdown', onPointerDown);
 
@@ -212,6 +235,7 @@ export function ForgeVisualization() {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('bounty_created', onBountyCreated as EventListener);
+      window.removeEventListener('storage', onStorage);
       mount.removeEventListener('pointermove', onPointerMove);
       mount.removeEventListener('pointerdown', onPointerDown);
       renderer.dispose();
