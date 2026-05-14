@@ -242,30 +242,7 @@ export function BountyGrid() {
  )}
  </AnimatePresence>
 
- {/* Skill pills */}
- <div className="flex items-center gap-2 flex-wrap mb-8">
- {FILTER_SKILLS.map((skill) => (
- <button
- key={skill}
- onClick={() => setActiveSkill(skill)}
- className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
- activeSkill === skill
- ? 'bg-forge-700 text-text-primary'
- : 'text-text-muted hover:text-text-secondary bg-forge-800'
- }`}
- >
- {skill}
- </button>
- ))}
- {hasActiveFilters && (
- <button
- onClick={clearAllFilters}
- className="px-3 py-1.5 rounded-md text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
- >
- Clear all
- </button>
- )}
- </div>
+
 
  {/* Loading state */}
  {isLoading && (
@@ -294,7 +271,7 @@ export function BountyGrid() {
  <div className="text-center py-16">
  <p className="text-text-muted text-lg mb-2">No bounties found</p>
  <p className="text-text-muted text-sm">
- {debouncedSearch ? `No results for "${debouncedSearch}". Try a different search term.` : hasActiveFilters ? 'Try adjusting your filters.' : activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+ {debouncedSearch ? `No results for "${debouncedSearch}". Try a different search term.` : hasActiveFilters ? 'Try adjusting your filters.' : 'Check back soon for new bounties.'}
  </p>
  {hasActiveFilters && (
  <button
