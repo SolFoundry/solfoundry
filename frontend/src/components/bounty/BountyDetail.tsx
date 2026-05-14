@@ -7,6 +7,7 @@ import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils'
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { redirectToGitHubSignIn } from '../../api/auth';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -22,6 +23,10 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleGitHubSignIn = async () => {
+    await redirectToGitHubSignIn();
   };
 
   return (
@@ -101,12 +106,13 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               ) : (
                 <div className="text-center py-6">
                   <p className="text-text-muted text-sm mb-4">Sign in with GitHub to submit a solution.</p>
-                  <a
-                    href="/api/auth/github/authorize"
+                  <button
+                    type="button"
+                    onClick={handleGitHubSignIn}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200"
                   >
                     Sign in with GitHub
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
