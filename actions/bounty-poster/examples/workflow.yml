@@ -1,0 +1,19 @@
+name: 'Post SolFoundry Bounty'
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  post-bounty:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: SolFoundry/solfoundry/.github/actions/bounty-poster@main
+        with:
+          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+          bounty-label: 'bounty'
+          reward-amount: '500000'
+          reward-token: 'FNDRY'
+          tier: 't2'
+          deadline-days: '30'
+          skills: 'frontend,react'
+          github-token: ${{ secrets.GITHUB_TOKEN }}

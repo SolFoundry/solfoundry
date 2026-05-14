@@ -1,0 +1,46 @@
+name: 'SolFoundry Bounty Poster'
+description: 'Convert labeled GitHub issues into SolFoundry bounties automatically'
+branding:
+  icon: 'zap'
+  color: 'green'
+
+inputs:
+  solfoundry-api-url:
+    description: 'SolFoundry API base URL'
+    required: false
+    default: 'https://solfoundry.xyz'
+  solfoundry-api-key:
+    description: 'SolFoundry API key (store as GitHub secret)'
+    required: true
+  bounty-label:
+    description: 'Label that triggers bounty creation'
+    required: false
+    default: 'bounty'
+  reward-amount:
+    description: 'Default reward amount in $FNDRY tokens (overridable per issue)'
+    required: false
+    default: '500000'
+  reward-token:
+    description: 'Reward token type'
+    required: false
+    default: 'FNDRY'
+  tier:
+    description: 'Default bounty tier (t1, t2, t3)'
+    required: false
+    default: 't2'
+  deadline-days:
+    description: 'Default deadline in days from creation (0 = no deadline)'
+    required: false
+    default: '30'
+  skills:
+    description: 'Comma-separated skill tags for the bounty'
+    required: false
+    default: ''
+  dry-run:
+    description: 'If true, log what would be posted without actually creating bounties'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
