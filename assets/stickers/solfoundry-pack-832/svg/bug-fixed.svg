@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Bug Fixed sticker</title>
+  <desc id="desc">Bug-squash forge sticker for fixes and audits.</desc>
+  <defs>
+    <linearGradient id="sol" x1="96" y1="80" x2="416" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="forge" x1="142" y1="88" x2="358" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.45" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="111" y1="75" x2="399" y2="406" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="softShadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+
+            <path d="M251 43c25 38 61 46 111 27 1 49 24 76 69 91-32 32-33 70-2 116-48 8-73 34-76 80-48-15-84-6-110 31-27-39-64-47-112-27 0-49-23-76-69-91 34-32 34-70 2-116 48-8 73-34 76-80 48 16 84 6 111-31Z" fill="#1e1118" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round"/>
+            <path d="M253 76c21 30 51 37 91 22 0 39 19 61 55 73-27 26-27 56-2 92-39 7-59 27-62 64-38-12-68-5-89 25-22-32-52-38-91-23 0-39-18-61-55-73 27-25 27-56 2-92 39-7 60-28 62-64 39 13 68 5 89-24Z" fill="none" stroke="#FF4D6D" stroke-width="8" stroke-linejoin="round"/>
+            <g transform="translate(264 228) scale(1.2)">
+            <ellipse cx="0" cy="18" rx="72" ry="88" fill="#FF4D6D" stroke="#FFFFFF" stroke-width="10"/>
+            <circle cx="0" cy="-62" r="45" fill="#9945FF" stroke="#FFFFFF" stroke-width="10"/>
+            <circle cx="-18" cy="-72" r="7" fill="#0a0a0f"/>
+            <circle cx="18" cy="-72" r="7" fill="#0a0a0f"/>
+            <path d="M-22-36c12 12 32 12 44 0" stroke="#0a0a0f" stroke-width="8" stroke-linecap="round"/>
+            <path d="M-74-10h-48M74-10h48M-70 40l-43 29M70 40l43 29M-53 91l-28 42M53 91l28 42" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/>
+            <path d="M0-19v112" stroke="#0a0a0f" stroke-width="8" stroke-linecap="round" opacity=".45"/>
+          </g>
+            <g transform="translate(186 157) scale(1.02) rotate(-28)">
+            <rect x="-8" y="-12" width="16" height="94" rx="8" fill="#14F195"/>
+            <rect x="-37" y="-38" width="74" height="32" rx="10" fill="url(#sol)"/>
+            <rect x="-45" y="-31" width="90" height="18" rx="9" fill="#FFFFFF" opacity=".18"/>
+          </g>
+            <text x="256" y="412" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="40" font-weight="900" letter-spacing="0" fill="#FFFFFF" stroke="#0a0a0f" stroke-width="9" paint-order="stroke">BUG FIXED</text>
+
+  </g>
+</svg>
