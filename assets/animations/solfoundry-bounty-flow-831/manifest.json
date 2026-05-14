@@ -1,0 +1,18 @@
+{
+  "issue": 831,
+  "asset": "solfoundry-bounty-flow.gif",
+  "dimensions": "960x540",
+  "durationSeconds": 5.15,
+  "frameCount": 61,
+  "looping": true,
+  "fileSizeBytes": 2387329,
+  "fileSizeMB": 2.28,
+  "flow": [
+    "create bounty",
+    "fund",
+    "submit",
+    "AI review",
+    "payout"
+  ],
+  "under10MB": true
+}
