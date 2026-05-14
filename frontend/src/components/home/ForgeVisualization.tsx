@@ -94,7 +94,7 @@ export function ForgeVisualization() {
     const clock = new THREE.Clock();
     let userPulse = 0;
     let hasRecentLiveForge = false;
-    let lastActivityId: string | null = null;
+    let lastLiveEventId: string | null = null;
 
     const triggerForge = () => {
       fireLight.intensity = 3.7;
@@ -195,43 +195,16 @@ export function ForgeVisualization() {
       renderer.setSize(mount.clientWidth, mount.clientHeight);
     };
 
-    const parseActivityEvents = (payload: unknown): Array<{ id?: string; type?: string }> => {
-      if (Array.isArray(payload)) return payload as Array<{ id?: string; type?: string }>;
-      if (payload && typeof payload === 'object' && 'items' in payload && Array.isArray((payload as { items: unknown[] }).items)) {
-        return (payload as { items: Array<{ id?: string; type?: string }> }).items;
-      }
-      return [];
-    };
-
-    const pollActivity = async () => {
-      try {
-        const response = await fetch('/api/activity');
-        if (!response.ok) return;
-        const data: unknown = await response.json();
-        const items = parseActivityEvents(data);
-        const newestPosted = items.find((item) => item?.type === 'posted');
-        if (!newestPosted?.id) return;
-        if (!lastActivityId) {
-          lastActivityId = newestPosted.id;
-          return;
-        }
-        if (newestPosted.id !== lastActivityId) {
-          lastActivityId = newestPosted.id;
-          triggerForgeFromLiveEvent();
-        }
-      } catch {
-        // Ignore polling failures and keep ambient fallback active.
-      }
-    };
-
-    const onBountyCreated = () => {
+    const onBountyCreated = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string }>).detail;
+      const eventId = detail?.id;
+      if (eventId && eventId === lastLiveEventId) return;
+      if (eventId) lastLiveEventId = eventId;
       triggerForgeFromLiveEvent();
     };
 
     window.addEventListener('resize', onResize);
     window.addEventListener('bounty_created', onBountyCreated as EventListener);
-    const activityPoll = window.setInterval(pollActivity, 4000);
-    void pollActivity();
     mount.addEventListener('pointermove', onPointerMove);
     mount.addEventListener('pointerdown', onPointerDown);
 
@@ -239,7 +212,6 @@ export function ForgeVisualization() {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('bounty_created', onBountyCreated as EventListener);
-      window.clearInterval(activityPoll);
       mount.removeEventListener('pointermove', onPointerMove);
       mount.removeEventListener('pointerdown', onPointerDown);
       renderer.dispose();

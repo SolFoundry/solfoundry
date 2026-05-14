@@ -435,6 +435,16 @@ export function BountyCreateWizard() {
     setError(null);
     try {
       await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+      window.dispatchEvent(
+        new CustomEvent('bounty_created', {
+          detail: {
+            id: state.bounty_id,
+            title: state.title,
+            reward_amount: state.reward_amount,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
       setSuccess(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
