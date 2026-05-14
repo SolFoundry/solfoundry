@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
@@ -11,11 +11,22 @@ const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const params = {
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 250);
+
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+
+  const params = useMemo(() => ({
     status: statusFilter,
     skill: activeSkill !== 'All' ? activeSkill : undefined,
-  };
+    search: debouncedSearch || undefined,
+  }), [activeSkill, debouncedSearch, statusFilter]);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
     useInfiniteBounties(params);
@@ -53,21 +64,45 @@ export function BountyGrid() {
           </div>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
-          {FILTER_SKILLS.map((skill) => (
-            <button
-              key={skill}
-              onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                activeSkill === skill
-                  ? 'bg-forge-700 text-text-primary'
-                  : 'text-text-muted hover:text-text-secondary bg-forge-800'
-              }`}
-            >
-              {skill}
-            </button>
-          ))}
+        <div className="mb-8 space-y-4">
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search bounties by title, description, or tags"
+              aria-label="Search bounties"
+              className="w-full bg-forge-800 border border-border rounded-lg pl-10 pr-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-forge-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter pills */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {FILTER_SKILLS.map((skill) => (
+              <button
+                key={skill}
+                onClick={() => setActiveSkill(skill)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+                  activeSkill === skill
+                    ? 'bg-forge-700 text-text-primary'
+                    : 'text-text-muted hover:text-text-secondary bg-forge-800'
+                }`}
+              >
+                {skill}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Loading state */}
@@ -97,7 +132,11 @@ export function BountyGrid() {
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {debouncedSearch
+                ? 'Try a different search term or clear the search.'
+                : activeSkill !== 'All'
+                  ? 'Try a different language filter.'
+                  : 'Check back soon for new bounties.'}
             </p>
           </div>
         )}

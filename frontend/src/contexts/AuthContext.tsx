@@ -4,6 +4,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setAuthToken, setOnAuthExpired } from '../services/apiClient';
+import { useToast } from './ToastContext';
 
 export interface AuthUser {
   id: string;
@@ -37,6 +38,7 @@ const REFRESH_KEY = 'sf_refresh_token';
 const USER_KEY = 'sf_user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { showToast } = useToast();
   const [state, setState] = useState<AuthState>({
     user: null,
     accessToken: null,
@@ -83,11 +85,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
   }, []);
 
+  const handleAuthExpired = useCallback(() => {
+    logout();
+    showToast({
+      variant: 'warning',
+      title: 'Session expired',
+      message: 'Please sign in again to continue.',
+    });
+  }, [logout, showToast]);
+
   // Wire apiClient's auth-expired callback to logout
   useEffect(() => {
-    setOnAuthExpired(logout);
+    setOnAuthExpired(handleAuthExpired);
     return () => setOnAuthExpired(null);
-  }, [logout]);
+  }, [handleAuthExpired]);
 
   const updateUser = useCallback((updates: Partial<AuthUser>) => {
     setState(prev => {

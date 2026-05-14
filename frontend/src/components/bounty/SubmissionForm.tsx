@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { createSubmission, getReviewFee, verifyReviewFee } from '../../api/bounties';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SubmissionFormProps {
   bounty: Bounty;
@@ -9,6 +10,7 @@ interface SubmissionFormProps {
 }
 
 export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
+  const { showToast } = useToast();
   const hasRepo = bounty.has_repo ?? !!bounty.github_repo_url;
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -38,11 +40,16 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
       const result = await verifyReviewFee({ bounty_id: bounty.id, tx_signature: txSig });
       if (result.verified) {
         setFeeVerified(true);
+        showToast({ variant: 'success', title: 'Review fee verified' });
       } else {
-        setError(result.error ?? 'Fee verification failed. Check your transaction signature.');
+        const message = result.error ?? 'Fee verification failed. Check your transaction signature.';
+        setError(message);
+        showToast({ variant: 'error', title: 'Fee verification failed', message });
       }
     } catch {
-      setError('Fee verification failed. Try again.');
+      const message = 'Fee verification failed. Try again.';
+      setError(message);
+      showToast({ variant: 'error', title: 'Fee verification failed', message });
     } finally {
       setVerifying(false);
     }
@@ -61,9 +68,12 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
         tx_signature: txSig,
       });
       setSuccess(true);
+      showToast({ variant: 'success', title: 'Submission received', message: 'AI review will begin shortly.' });
       onSuccess?.();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Submission failed. Try again.');
+      const message = e instanceof Error ? e.message : 'Submission failed. Try again.';
+      setError(message);
+      showToast({ variant: 'error', title: 'Submission failed', message });
     } finally {
       setSubmitting(false);
     }

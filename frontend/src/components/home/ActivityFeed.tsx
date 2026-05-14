@@ -2,15 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
-
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
+import type { ActivityEvent } from '../../api/activity';
 
 // Mock events for when API doesn't return activity
 const MOCK_EVENTS: ActivityEvent[] = [
@@ -75,13 +67,23 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
+export function ActivityFeed({
+  events,
+  isLoading = false,
+  isError = false,
+}: {
+  events?: ActivityEvent[];
+  isLoading?: boolean;
+  isError?: boolean;
+}) {
+  const displayEvents = events?.length ? events.slice(0, 4) : [];
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
     setVisibleEvents(displayEvents.slice(0, 4));
   }, [events]);
+
+  const hasEvents = visibleEvents.length > 0;
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -90,9 +92,24 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
         </div>
+        {isLoading && (
+          <div className="space-y-2 px-3 py-2">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-6 rounded-md bg-forge-800 animate-pulse" />
+            ))}
+          </div>
+        )}
+        {isError && (
+          <p className="text-sm text-text-muted px-3 py-2">
+            Activity is unavailable right now. Showing demo activity.
+          </p>
+        )}
+        {!isLoading && !isError && !hasEvents && (
+          <p className="text-sm text-text-muted px-3 py-2">No recent activity</p>
+        )}
         <div className="space-y-1">
           <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
+            {(!isLoading ? (isError ? MOCK_EVENTS : visibleEvents) : []).map((event) => (
               <motion.div
                 key={event.id}
                 variants={slideInRight}

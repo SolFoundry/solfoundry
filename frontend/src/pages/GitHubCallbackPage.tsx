@@ -5,11 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { exchangeGitHubCode } from '../api/auth';
 import { setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
+import { useToast } from '../contexts/ToastContext';
 
 export function GitHubCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showToast } = useToast();
   const didRun = useRef(false);
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export function GitHubCallbackPage() {
     const error = searchParams.get('error');
 
     if (error || !code) {
+      showToast({ variant: 'error', title: 'GitHub sign-in failed', message: error ?? 'Missing authorization code.' });
       navigate('/', { replace: true });
       return;
     }
@@ -35,12 +38,18 @@ export function GitHubCallbackPage() {
         if (response.refresh_token) {
           localStorage.setItem('sf_refresh_token', response.refresh_token);
         }
+        showToast({ variant: 'success', title: 'Signed in with GitHub' });
         navigate('/', { replace: true });
       })
-      .catch(() => {
+      .catch((caught: unknown) => {
+        showToast({
+          variant: 'error',
+          title: 'GitHub sign-in failed',
+          message: caught instanceof Error ? caught.message : 'Please try again.',
+        });
         navigate('/', { replace: true });
       });
-  }, []);
+  }, [login, navigate, searchParams, showToast]);
 
   return (
     <div className="min-h-screen bg-forge-950 flex items-center justify-center">

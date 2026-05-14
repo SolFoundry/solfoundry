@@ -15,6 +15,7 @@ export interface BountiesListParams {
   skill?: string;
   tier?: string;
   reward_token?: string;
+  search?: string;
 }
 
 export interface BountiesListResponse {
@@ -26,11 +27,19 @@ export interface BountiesListResponse {
 
 // Map backend field names to frontend types (funding_token -> reward_token)
 function mapBounty(b: Bounty): Bounty {
-  const raw = b as Bounty & { funding_token?: string };
+  const raw = b as Bounty & {
+    funding_token?: string;
+    required_skills?: string[];
+    tier?: Bounty['tier'] | 1 | 2 | 3;
+  };
   if (!raw.reward_token && raw.funding_token) {
     raw.reward_token = raw.funding_token as Bounty['reward_token'];
   }
   if (!raw.reward_token) raw.reward_token = 'FNDRY';
+  if (!raw.skills && raw.required_skills) raw.skills = raw.required_skills;
+  if (typeof raw.tier === 'number') raw.tier = `T${raw.tier}` as Bounty['tier'];
+  if (!raw.skills) raw.skills = [];
+  if (raw.submission_count == null) raw.submission_count = 0;
   return raw;
 }
 
