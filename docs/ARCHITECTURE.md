@@ -178,6 +178,7 @@ All tasks are started in the FastAPI lifespan handler and cancelled on shutdown.
 - `GET /api/bounties/{id}` — Bounty detail
 - `GET /api/leaderboard` — Contributor rankings
 - `GET /api/stats` — Platform statistics
+- `GET /api/analytics/activity` — Recent bounty completions, PR submissions, and payouts for the home activity feed
 - `GET /api/contributors/{username}` — Contributor profile
 
 ### Authenticated
