@@ -13,9 +13,10 @@ const GitHubIcon = () => (
 );
 
 const NAV_LINKS = [
-  { label: 'Bounties', to: '/bounties' },
-  { label: 'Leaderboard', to: '/leaderboard' },
-  { label: 'How It Works', to: '/how-it-works' },
+ { label: 'Bounties', to: '/bounties' },
+ { label: 'Activity', to: '/activity' },
+ { label: 'Leaderboard', to: '/leaderboard' },
+ { label: 'How It Works', to: '/how-it-works' },
 ];
 
 export function Navbar() {
