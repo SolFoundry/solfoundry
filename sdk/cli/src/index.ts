@@ -15,6 +15,11 @@ import { registerBountiesCommand } from './commands/bounties.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerProfileCommand } from './commands/profile.js';
 import { registerVerifyCommand } from './commands/verify.js';
+import { registerCreateCommand } from './commands/create.js';
+import { registerUpdateCommand } from './commands/update.js';
+import { registerDeleteCommand } from './commands/delete.js';
+import { registerBatchCommand } from './commands/batch.js';
+import { registerMcpCommand } from './mcp.js';
 
 const program = new Command();
 const client = createClient();
@@ -43,5 +48,10 @@ registerBountiesCommand(program, client);
 registerStatusCommand(program, client);
 registerProfileCommand(program, client);
 registerVerifyCommand(program);
+registerCreateCommand(program, client);
+registerUpdateCommand(program, client);
+registerDeleteCommand(program, client);
+registerBatchCommand(program, client);
+registerMcpCommand(program);
 
 program.parse();

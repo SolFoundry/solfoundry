@@ -23,7 +23,7 @@ export interface StatusOptions {
 }
 
 export async function statusCommand(
-  client: InstanceType<typeof SolFoundry>,
+  client: SolFoundry,
   bountyId: string,
   options: StatusOptions,
 ): Promise<void> {
@@ -37,7 +37,7 @@ export async function statusCommand(
   let escrow: Record<string, unknown> | null = null;
 
   try {
-    bounty = (await client.bounties.get(bountyId)) as Record<string, unknown>;
+    bounty = (await client.bounties.get(bountyId)) as unknown as Record<string, unknown>;
   } catch (err) {
     const msg = (err as Error).message;
     if (msg.includes('404') || msg.includes('not found')) {
@@ -50,7 +50,7 @@ export async function statusCommand(
   }
 
   try {
-    escrow = (await client.escrow.getStatus(bountyId)) as Record<string, unknown>;
+    escrow = (await client.escrow.getStatus(bountyId)) as unknown as Record<string, unknown>;
   } catch {
     // escrow may not exist yet — non-fatal
   }
@@ -72,14 +72,15 @@ export async function statusCommand(
     ['Description', String(bounty.description ?? '—').slice(0, 120) + (String(bounty.description ?? '').length > 120 ? '…' : '')],
   ]);
 
-  if (escrow) {
+  if (escrow && escrow.escrow) {
+    const e = escrow.escrow as Record<string, unknown>;
     printSection('Escrow');
     printKeyValue([
-      ['State', statusBadge(String(escrow.state ?? 'unknown'))],
-      ['Amount Locked', `${Number(escrow.amount ?? 0).toLocaleString()} $FNDRY`],
-      ['Creator Wallet', String(escrow.creator_wallet ?? '—')],
-      ['Winner Wallet', escrow.winner_wallet ? String(escrow.winner_wallet) : c.dim('—')],
-      ['Expires At', escrow.expires_at ? new Date(String(escrow.expires_at)).toLocaleString() : c.dim('—')],
+      ['State', statusBadge(String(e.state ?? 'unknown'))],
+      ['Amount Locked', `${Number(e.amount ?? 0).toLocaleString()} $FNDRY`],
+      ['Creator Wallet', String(e.creator_wallet ?? '—')],
+      ['Winner Wallet', e.winner_wallet ? String(e.winner_wallet) : c.dim('—')],
+      ['Expires At', e.expires_at ? new Date(String(e.expires_at)).toLocaleString() : c.dim('—')],
     ]);
   } else {
     console.log(`\n  ${c.dim('No escrow record found for this bounty.')}`);
@@ -88,7 +89,7 @@ export async function statusCommand(
   console.log('');
 }
 
-export function registerStatusCommand(program: Command, client: InstanceType<typeof SolFoundry>): void {
+export function registerStatusCommand(program: Command, client: SolFoundry): void {
   program
     .command('status <bounty-id>')
     .description('Check the status and escrow state of a specific bounty')
