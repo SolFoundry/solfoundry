@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry PR Green sticker</title>
+  <desc id="desc">Green-check PR status sticker for passing reviews.</desc>
+  <defs>
+    <linearGradient id="sol" x1="96" y1="80" x2="416" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="forge" x1="142" y1="88" x2="358" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.45" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="111" y1="75" x2="399" y2="406" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="softShadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+
+            <rect x="66" y="62" width="380" height="388" rx="92" fill="#0a1915" stroke="#FFFFFF" stroke-width="20"/>
+            <rect x="90" y="86" width="332" height="340" rx="70" fill="none" stroke="#14F195" stroke-width="8"/>
+            <g transform="translate(122 138)">
+            <rect x="0" y="0" width="268" height="162" rx="28" fill="#181a2f" stroke="#FFFFFF" stroke-width="10"/>
+            <circle cx="42" cy="40" r="10" fill="#FF4D6D"/>
+            <circle cx="72" cy="40" r="10" fill="#FFD166"/>
+            <circle cx="102" cy="40" r="10" fill="#14F195"/>
+            <rect x="42" y="82" width="172" height="16" rx="8" fill="#FFFFFF" opacity=".24"/>
+            <rect x="42" y="116" width="116" height="16" rx="8" fill="#FFFFFF" opacity=".18"/>
+          </g>
+            <g transform="translate(284 218) scale(1.35)">
+            <circle cx="0" cy="0" r="53" fill="#14F195" stroke="#FFFFFF" stroke-width="10"/>
+            <path d="M-28 1-7 22 32-28" stroke="#0a0a0f" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+            <text x="256" y="412" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="43" font-weight="900" letter-spacing="0" fill="#FFFFFF" stroke="#0a0a0f" stroke-width="9" paint-order="stroke">PR GREEN</text>
+
+  </g>
+</svg>

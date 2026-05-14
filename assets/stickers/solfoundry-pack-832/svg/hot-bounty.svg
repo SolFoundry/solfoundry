@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SolFoundry Hot Bounty sticker</title>
+  <desc id="desc">High-energy bounty-card sticker for fresh tasks.</desc>
+  <defs>
+    <linearGradient id="sol" x1="96" y1="80" x2="416" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="forge" x1="142" y1="88" x2="358" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD166"/>
+      <stop offset="0.45" stop-color="#FF4D6D"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="111" y1="75" x2="399" y2="406" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EE1FF"/>
+      <stop offset="1" stop-color="#14F195"/>
+    </linearGradient>
+    <filter id="softShadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+
+            <path d="M251 43c25 38 61 46 111 27 1 49 24 76 69 91-32 32-33 70-2 116-48 8-73 34-76 80-48-15-84-6-110 31-27-39-64-47-112-27 0-49-23-76-69-91 34-32 34-70 2-116 48-8 73-34 76-80 48 16 84 6 111-31Z" fill="#1e1209" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round"/>
+            <path d="M253 76c21 30 51 37 91 22 0 39 19 61 55 73-27 26-27 56-2 92-39 7-59 27-62 64-38-12-68-5-89 25-22-32-52-38-91-23 0-39-18-61-55-73 27-25 27-56 2-92 39-7 60-28 62-64 39 13 68 5 89-24Z" fill="none" stroke="#FFD166" stroke-width="8" stroke-linejoin="round"/>
+            <g transform="translate(256 216) scale(1.55)">
+            <path d="M1-122c25 58 90 86 68 171-14 53-58 83-111 72-52-12-85-57-77-108 7-49 47-80 42-132 30 29 44 57 41 86 29-25 37-55 37-89Z" fill="url(#forge)" filter="url(#glow)"/>
+            <path d="M-1-50c32 40 48 68 35 101-11 28-42 42-70 25-25-16-31-48-12-76 14 17 29 23 47 17-13-23-13-45 0-67Z" fill="#FFD166"/>
+          </g>
+            <g transform="translate(156 208) rotate(-8)">
+            <rect x="0" y="0" width="210" height="112" rx="24" fill="#181a2f" stroke="#FFFFFF" stroke-width="9"/>
+            <rect x="24" y="26" width="118" height="14" rx="7" fill="#14F195"/>
+            <rect x="24" y="55" width="162" height="12" rx="6" fill="#FFFFFF" opacity=".24"/>
+            <rect x="24" y="80" width="92" height="12" rx="6" fill="#FFD166"/>
+          </g>
+            <text x="256" y="402" text-anchor="middle" font-family="Arial Black, Impact, Helvetica, sans-serif" font-size="70" font-weight="900" letter-spacing="0" fill="#FFD166" stroke="#0a0a0f" stroke-width="9" paint-order="stroke">HOT</text>
+
+  </g>
+</svg>

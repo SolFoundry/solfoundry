@@ -1,0 +1,89 @@
+{
+  "issue": 832,
+  "pack": "SolFoundry Sticker Pack",
+  "dimensions": "512x512",
+  "pngBackground": "transparent",
+  "totalStickers": 10,
+  "stickers": [
+    {
+      "id": "anvil-badge",
+      "title": "Anvil Badge",
+      "category": "Logo variant",
+      "description": "Core SolFoundry anvil logo sticker with forge sparks.",
+      "png": "png/anvil-badge.png",
+      "source": "svg/anvil-badge.svg"
+    },
+    {
+      "id": "forge-sparks",
+      "title": "Forge Sparks",
+      "category": "Logo variant",
+      "description": "Anvil and hammer logo variant with a hotter forge treatment.",
+      "png": "png/forge-sparks.png",
+      "source": "svg/forge-sparks.svg"
+    },
+    {
+      "id": "lgtm-reaction",
+      "title": "LGTM Reaction",
+      "category": "Emoji reaction",
+      "description": "Approval reaction sticker for bounty reviews.",
+      "png": "png/lgtm-reaction.png",
+      "source": "svg/lgtm-reaction.svg"
+    },
+    {
+      "id": "ship-it",
+      "title": "Ship It",
+      "category": "Developer meme",
+      "description": "Rocket and code trail sticker for completed bounty work.",
+      "png": "png/ship-it.png",
+      "source": "svg/ship-it.svg"
+    },
+    {
+      "id": "pr-green",
+      "title": "PR Green",
+      "category": "Developer meme",
+      "description": "Green-check PR status sticker for passing reviews.",
+      "png": "png/pr-green.png",
+      "source": "svg/pr-green.svg"
+    },
+    {
+      "id": "bug-fixed",
+      "title": "Bug Fixed",
+      "category": "Developer meme",
+      "description": "Bug-squash forge sticker for fixes and audits.",
+      "png": "png/bug-fixed.png",
+      "source": "svg/bug-fixed.svg"
+    },
+    {
+      "id": "bounty-claimed",
+      "title": "Bounty Claimed",
+      "category": "Emoji reaction",
+      "description": "Reward claim sticker with FNDRY coin stack styling.",
+      "png": "png/bounty-claimed.png",
+      "source": "svg/bounty-claimed.svg"
+    },
+    {
+      "id": "on-chain",
+      "title": "On Chain",
+      "category": "Logo variant",
+      "description": "Blockchain-themed SolFoundry sticker with linked blocks.",
+      "png": "png/on-chain.png",
+      "source": "svg/on-chain.svg"
+    },
+    {
+      "id": "gm-builder",
+      "title": "GM Builder",
+      "category": "Emoji reaction",
+      "description": "Friendly builder reaction sticker for community chat.",
+      "png": "png/gm-builder.png",
+      "source": "svg/gm-builder.svg"
+    },
+    {
+      "id": "hot-bounty",
+      "title": "Hot Bounty",
+      "category": "Developer meme",
+      "description": "High-energy bounty-card sticker for fresh tasks.",
+      "png": "png/hot-bounty.png",
+      "source": "svg/hot-bounty.svg"
+    }
+  ]
+}
