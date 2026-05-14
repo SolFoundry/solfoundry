@@ -8,6 +8,7 @@ import { pageTransition } from '../../lib/animations';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
 const PLATFORM_FEE_PCT = 0.05;
+const LAST_BOUNTY_CREATED_KEY = 'solfoundry:last_bounty_created';
 
 const inputClass =
   'w-full bg-forge-700 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150';
@@ -435,6 +436,18 @@ export function BountyCreateWizard() {
     setError(null);
     try {
       await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
+      const createdSignal = {
+        id: state.bounty_id,
+        title: state.title,
+        reward_amount: state.reward_amount,
+        timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(LAST_BOUNTY_CREATED_KEY, JSON.stringify(createdSignal));
+      window.dispatchEvent(
+        new CustomEvent('bounty_created', {
+          detail: createdSignal,
+        }),
+      );
       setSuccess(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
