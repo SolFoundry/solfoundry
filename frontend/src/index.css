@@ -115,6 +115,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  overflow-x: hidden;
 }
 
 body {
@@ -123,6 +124,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #050505;
   color: #F0F0F5;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .animate-typewriter {
+    animation: none;
+    width: auto;
+  }
 }
 
 /* Custom scrollbar */

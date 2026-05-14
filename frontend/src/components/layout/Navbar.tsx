@@ -61,16 +61,16 @@ export function Navbar() {
         }`}
       />
 
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto h-full px-3 sm:px-4 flex items-center justify-between gap-3">
         {/* Left: Logo + Nav */}
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="flex items-center gap-4 lg:gap-8 min-w-0">
+          <Link to="/" className="flex items-center gap-2.5 group min-w-0">
             <img
               src="/logo-icon.png"
               alt="SolFoundry"
               className="w-7 h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200"
             />
-            <span className="font-display text-lg font-semibold text-text-primary tracking-wide">
+            <span className="font-display text-base sm:text-lg font-semibold text-text-primary tracking-wide truncate">
               SolFoundry
             </span>
           </Link>
@@ -100,7 +100,7 @@ export function Navbar() {
         </div>
 
         {/* Right: Live count + Auth */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Live bounty count */}
           {stats && (
             <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-bg border border-emerald-border">
@@ -157,7 +157,7 @@ export function Navbar() {
           ) : (
             <button
               onClick={handleGitHubSignIn}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700"
+              className="min-h-11 inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700"
             >
               <GitHubIcon />
               <span className="hidden sm:block">Sign in with GitHub</span>
@@ -168,7 +168,9 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            className="md:hidden min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -182,7 +184,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden bg-forge-900 border-b border-border"
+            className="md:hidden overflow-hidden bg-forge-900 border-b border-border shadow-2xl shadow-black/40"
           >
             <div className="px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
@@ -190,7 +192,7 @@ export function Navbar() {
                   key={link.to}
                   to={link.to}
                   onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                  className="min-h-11 px-4 py-3 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
                 >
                   {link.label}
                 </Link>
