@@ -16,6 +16,7 @@ type ActivityResponse =
   | {
       items?: unknown[];
       events?: unknown[];
+      activities?: unknown[];
       activity?: unknown[];
     };
 
@@ -93,13 +94,13 @@ export function normalizeActivityEvent(raw: unknown, index: number): ActivityEve
 
 export async function listActivity(params: ActivityListParams = {}): Promise<ActivityEvent[]> {
   const limit = params.limit ?? 4;
-  const response = await apiClient<ActivityResponse>('/api/activity', {
+  const response = await apiClient<ActivityResponse>('/api/analytics/activity', {
     params: { limit },
   });
 
   const rawEvents = Array.isArray(response)
     ? response
-    : response.items ?? response.events ?? response.activity ?? [];
+    : response.items ?? response.events ?? response.activities ?? response.activity ?? [];
 
   return rawEvents
     .map((event, index) => normalizeActivityEvent(event, index))

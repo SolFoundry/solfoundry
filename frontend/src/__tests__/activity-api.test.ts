@@ -13,7 +13,7 @@ describe('activity API', () => {
     vi.unstubAllGlobals();
   });
 
-  it('fetches /api/activity and normalizes event payloads', async () => {
+  it('fetches the analytics activity endpoint and normalizes event payloads', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         items: [
@@ -32,7 +32,7 @@ describe('activity API', () => {
     const events = await listActivity({ limit: 2 });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/activity?limit=2',
+      '/api/analytics/activity?limit=2',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(events).toEqual([
@@ -49,5 +49,32 @@ describe('activity API', () => {
 
   it('drops malformed events that lack a timestamp or detail', () => {
     expect(normalizeActivityEvent({ id: 'bad' }, 0)).toBeNull();
+  });
+
+  it('accepts the backend activities response envelope', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        activities: [
+          {
+            type: 'bounty_completed',
+            user: { username: 'builder' },
+            title: 'Bounty #822 completed',
+            timestamp: '2026-05-12T12:00:00.000Z',
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(listActivity()).resolves.toEqual([
+      {
+        id: 'completed-2026-05-12T12:00:00.000Z-0',
+        type: 'completed',
+        username: 'builder',
+        avatar_url: null,
+        detail: 'Bounty #822 completed',
+        timestamp: '2026-05-12T12:00:00.000Z',
+      },
+    ]);
   });
 });
