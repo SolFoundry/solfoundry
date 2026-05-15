@@ -143,3 +143,88 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* ============================================================================
+   Mobile Responsive Fixes (Bounty #824)
+   ============================================================================ */
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Fix hero terminal section readability on small screens */
+  .hero-terminal {
+    font-size: 0.75rem;
+    padding: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Stack bounty cards on mobile */
+  .bounty-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Fix footer overflow */
+  footer .grid {
+    grid-template-columns: 1fr !important;
+    gap: 2rem;
+  }
+
+  /* Fix footer token address overflow */
+  footer .font-mono {
+    max-width: 100%;
+    word-break: break-all;
+  }
+
+  /* Navbar mobile menu fixes */
+  nav .max-w-7xl {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Make hero text readable */
+  h1, .font-display {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+/* 375px specific fixes */
+@media (max-width: 375px) {
+  html {
+    font-size: 14px;
+  }
+
+  .hero-terminal {
+    font-size: 0.65rem;
+    padding: 0.75rem;
+  }
+
+  /* Ensure cards don't overflow */
+  .bounty-card, [class*="rounded-xl"] {
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+  }
+
+  /* Fix navigation logo sizing */
+  nav img {
+    max-width: 24px;
+    max-height: 24px;
+  }
+}
+
+/* Ensure no horizontal scroll */
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Fix any fixed-width elements */
+.bounty-card {
+  max-width: 100%;
+  box-sizing: border-box;
+}
