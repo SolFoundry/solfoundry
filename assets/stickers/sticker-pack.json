@@ -1,0 +1,77 @@
+{
+  "name": "SolFoundry Sticker Pack",
+  "version": "1.0",
+  "description": "10 SolFoundry-themed stickers for the community",
+  "stickers": [
+    {
+      "id": 1,
+      "name": "Forge On!",
+      "description": "SolFoundry forge with flames",
+      "emoji": "🏭🔥"
+    },
+    {
+      "id": 2,
+      "name": "Bounty Hunter",
+      "description": "Developer with magnifying glass tracking bounties",
+      "emoji": "🔍💰"
+    },
+    {
+      "id": 3,
+      "name": "PR Approved",
+      "description": "Green checkmark on a pull request",
+      "emoji": "✅🎉"
+    },
+    {
+      "id": 4,
+      "name": "Code Review AI",
+      "description": "Robot reading code with a thought bubble",
+      "emoji": "🤖📝"
+    },
+    {
+      "id": 5,
+      "name": "FNDRY Token",
+      "description": "Glowing FNDRY coin with circuit patterns",
+      "emoji": "🪙⚡"
+    },
+    {
+      "id": 6,
+      "name": "SOL Powered",
+      "description": "Solana logo with rocket boosters",
+      "emoji": "🚀💜"
+    },
+    {
+      "id": 7,
+      "name": "Bug Squasher",
+      "description": "Developer stomping on a bug",
+      "emoji": "🐛💥"
+    },
+    {
+      "id": 8,
+      "name": "First Bounty",
+      "description": "Trophy with '1st' and confetti",
+      "emoji": "🏆🎊"
+    },
+    {
+      "id": 9,
+      "name": "Merge Master",
+      "description": "Git merge commit sparkle",
+      "emoji": "🔀✨"
+    },
+    {
+      "id": 10,
+      "name": "Night Owl Dev",
+      "description": "Owl wearing headphones at a laptop",
+      "emoji": "🦉💻"
+    }
+  ],
+  "formats": [
+    "png",
+    "svg",
+    "webp"
+  ],
+  "sizes": {
+    "small": "128x128",
+    "medium": "256x256",
+    "large": "512x512"
+  }
+}
