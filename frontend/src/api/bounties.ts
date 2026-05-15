@@ -15,6 +15,8 @@ export interface BountiesListParams {
   skill?: string;
   tier?: string;
   reward_token?: string;
+  /** Free-text bounty search by title, description, tags/skills, repo, or org. */
+  q?: string;
 }
 
 export interface BountiesListResponse {
