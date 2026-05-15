@@ -1,58 +1,65 @@
-import React, { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth';
-import { exchangeGitHubCode } from '../api/auth';
-import { setAuthToken } from '../services/apiClient';
-import { fadeIn } from '../lib/animations';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 export function GitHubCallbackPage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const didRun = useRef(false);
+  const { handleCallback } = useAuth();
 
   useEffect(() => {
-    if (didRun.current) return;
-    didRun.current = true;
+    async function processCallback() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const error = params.get('error');
 
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const error = searchParams.get('error');
+        if (error) {
+          console.error('OAuth error:', error);
+          // Redirect to home with error
+          navigate('/?auth_error=' + encodeURIComponent(error));
+          return;
+        }
 
-    if (error || !code) {
-      navigate('/', { replace: true });
-      return;
+        if (!code) {
+          console.error('No code in callback');
+          navigate('/?auth_error=no_code');
+          return;
+        }
+
+        // Validate state to prevent CSRF
+        const savedState = sessionStorage.getItem('oauth_state');
+        if (state && savedState && state !== savedState) {
+          console.error('State mismatch');
+          navigate('/?auth_error=state_mismatch');
+          return;
+        }
+
+        // Exchange code for token
+        const success = await handleCallback(code);
+        if (success) {
+          sessionStorage.removeItem('oauth_state');
+          const redirectTo = sessionStorage.getItem('auth_redirect') || '/';
+          sessionStorage.removeItem('auth_redirect');
+          navigate(redirectTo);
+        } else {
+          navigate('/?auth_error=callback_failed');
+        }
+      } catch (err) {
+        console.error('Callback error:', err);
+        navigate('/?auth_error=unknown');
+      }
     }
 
-    exchangeGitHubCode(code, state ?? undefined)
-      .then((response) => {
-        // Store tokens + user in auth context
-        const authUser = { ...response.user, wallet_verified: false };
-        login(response.access_token, response.refresh_token ?? '', authUser);
-        setAuthToken(response.access_token);
-        // Store refresh token for future use
-        if (response.refresh_token) {
-          localStorage.setItem('sf_refresh_token', response.refresh_token);
-        }
-        navigate('/', { replace: true });
-      })
-      .catch(() => {
-        navigate('/', { replace: true });
-      });
-  }, []);
+    processCallback();
+  }, [handleCallback, navigate]);
 
   return (
-    <div className="min-h-screen bg-forge-950 flex items-center justify-center">
-      <motion.div
-        variants={fadeIn}
-        initial="initial"
-        animate="animate"
-        className="text-center"
-      >
-        <div className="w-12 h-12 rounded-full border-2 border-emerald border-t-transparent animate-spin mx-auto mb-4" />
-        <p className="text-text-muted font-mono text-sm">Signing in with GitHub...</p>
-      </motion.div>
+    <div className="min-h-screen flex items-center justify-center bg-forge-950">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-emerald border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-text-muted">Completing sign in...</p>
+      </div>
     </div>
   );
 }
