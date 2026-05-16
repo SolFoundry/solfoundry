@@ -8,6 +8,18 @@ import { staggerContainer, staggerItem } from '../../lib/animations';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
+/**
+ * Interactive bounty listing page with search, filtering, and infinite scroll.
+ *
+ * Renders the full Open Bounties section including a search bar, skill filter pills,
+ * a status dropdown, and a responsive card grid powered by infinite query pagination.
+ * Search is debounced (300 ms) and applied server-side via the `query` parameter.
+ *
+ * @see BountyCard
+ * @see useInfiniteBounties
+ * @see staggerContainer
+ * @see staggerItem
+ */
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');

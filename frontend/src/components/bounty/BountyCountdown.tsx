@@ -2,8 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Clock, AlertTriangle, Zap } from 'lucide-react';
 import { getTimeParts } from '../../lib/utils';
 
+/**
+ * Urgency level for the countdown display.
+ * Determines color scheme and warning icon shown to the user.
+ */
 export type CountdownUrgency = 'normal' | 'warning' | 'urgent' | 'expired';
 
+/**
+ * Determines the urgency level based on time remaining.
+ *
+ * @param expired  - Whether the deadline has already passed.
+ * @param days     - Whole days remaining.
+ * @param hours    - Whole hours remaining in the current day.
+ * @returns The corresponding urgency tier.
+ */
 function getUrgency(expired: boolean, days: number, hours: number): CountdownUrgency {
   if (expired) return 'expired';
   if (days === 0 && hours < 1) return 'urgent';
@@ -50,6 +62,19 @@ interface BountyCountdownProps {
   className?: string;
 }
 
+/**
+ * Live countdown timer for bounty deadlines.
+ *
+ * Displays the time remaining until a deadline in a visually distinct card or inline badge.
+ * Urgency escalates automatically — normal → warning → urgent → expired — as the deadline
+ * approaches, using colour and icon changes to draw the user's attention.
+ *
+ * @param deadline    - ISO-8601 date string (e.g. "2025-12-31T23:59:59Z").
+ * @param compact     - Single-line badge layout suitable for cards. Default false (detailed).
+ * @param variant     - Render as "badge" (icon + text, inline). Default undefined.
+ * @param showSeconds - Whether to tick through seconds. Default false.
+ * @param className  - Additional CSS classes to apply to the root element.
+ */
 export function BountyCountdown({ deadline, compact = false, variant, showSeconds = false, className = '' }: BountyCountdownProps) {
   const [parts, setParts] = useState(() => getTimeParts(deadline));
 

@@ -1,3 +1,10 @@
+/**
+ * Reusable Framer Motion animation variants for UI components.
+ *
+ * Provides preset ` Variants` objects for common animation patterns such as
+ * hover effects, page transitions, fade-ins, and stagger containers used
+ * throughout the SolFoundry frontend.
+ */
 import type { Variants } from 'framer-motion';
 
 /**
