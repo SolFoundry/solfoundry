@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { PageLayout } from '../components/layout/PageLayout';
+import { BountyFlowDiagram } from '../components/how-it-works/BountyFlowDiagram';
 import { FlowTabs } from '../components/how-it-works/FlowTabs';
 import { fadeIn } from '../lib/animations';
 
@@ -12,6 +13,7 @@ export function HowItWorksPage() {
           <h1 className="font-display text-4xl font-bold text-text-primary mb-3">How It Works</h1>
           <p className="text-text-secondary text-lg">Two paths to earning on SolFoundry</p>
         </div>
+        <BountyFlowDiagram />
         <FlowTabs />
       </motion.div>
     </PageLayout>
