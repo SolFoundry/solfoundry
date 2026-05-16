@@ -1,0 +1,100 @@
+{
+  "name": "solfoundry-bounties",
+  "displayName": "SolFoundry Bounties",
+  "description": "Browse and claim SolFoundry bounties directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "solfoundry",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:solfoundryBounties"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "solfoundry-view-container",
+          "title": "SolFoundry",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "solfoundry-view-container": [
+        {
+          "id": "solfoundryBounties",
+          "name": "Bounties",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "solfoundryBounties",
+        "contents": "[Configure SolFoundry API URL](command:solfoundry.configureApiUrl) to get started.\n[View All Bounties](command:solfoundry.refreshBounties)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "solfoundry.refreshBounties",
+        "title": "Refresh Bounties",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "solfoundry.configureApiUrl",
+        "title": "Configure API URL"
+      },
+      {
+        "command": "solfoundry.openBounty",
+        "title": "Open Bounty Details",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "solfoundry.claimBounty",
+        "title": "Claim Bounty",
+        "icon": "$(check)"
+      },
+      {
+        "command": "solfoundry.searchBounties",
+        "title": "Search Bounties"
+      },
+      {
+        "command": "solfoundry.openBountyInBrowser",
+        "title": "Open in Browser"
+      }
+    ],
+    "configuration": [
+      {
+        "title": "SolFoundry",
+        "properties": {
+          "solfoundry.apiUrl": {
+            "type": "string",
+            "default": "https://solfoundry.xyz",
+            "description": "SolFoundry API base URL"
+          },
+          "solfoundry.accessToken": {
+            "type": "string",
+            "default": "",
+            "description": "Your SolFoundry access token (from GitHub OAuth)"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^6.0.0",
+    "vsce": "^2.15.0"
+  }
+}
