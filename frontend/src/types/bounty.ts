@@ -1,6 +1,17 @@
 export type BountyStatus = 'open' | 'in_review' | 'completed' | 'cancelled' | 'funded';
 export type BountyTier = 'T1' | 'T2' | 'T3';
 export type RewardToken = 'USDC' | 'FNDRY';
+export type LLMReviewProvider = 'Claude' | 'Codex' | 'Gemini';
+
+export interface LLMReview {
+  provider: LLMReviewProvider;
+  score: number;
+  confidence: number;
+  quality: 'excellent' | 'good' | 'needs_work';
+  summary: string;
+  suggested_improvements: string[];
+  reasoning_url?: string | null;
+}
 
 export interface Bounty {
   id: string;
@@ -24,6 +35,7 @@ export interface Bounty {
   creator_id?: string | null;
   creator_username?: string | null;
   has_repo?: boolean;
+  llm_reviews?: LLMReview[];
 }
 
 export interface Submission {
