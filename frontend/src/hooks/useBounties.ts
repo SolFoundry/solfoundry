@@ -10,14 +10,14 @@ export function useBounties(params?: BountiesListParams) {
   });
 }
 
-export function useInfiniteBounties(params?: Omit<BountiesListParams, 'offset'>) {
+export function useInfiniteBounties(params?: Omit<BountiesListParams, 'offset'> & { query?: string }) {
   return useInfiniteQuery({
     queryKey: ['bounties-infinite', params],
     queryFn: ({ pageParam = 0 }) =>
       listBounties({ ...params, offset: pageParam as number, limit: 12 }),
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((sum, p) => sum + p.items.length, 0);
-      if (loaded >= lastPage.total) return undefined;
+      if (loaded >= (lastPage.total ?? 0)) return undefined;
       return loaded;
     },
     initialPageParam: 0,

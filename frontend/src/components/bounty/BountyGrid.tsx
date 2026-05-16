@@ -1,16 +1,38 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
+/**
+ * Interactive bounty listing page with search, filtering, and infinite scroll.
+ *
+ * Renders the full Open Bounties section including a search bar, skill filter pills,
+ * a status dropdown, and a responsive card grid powered by infinite query pagination.
+ * Search is debounced (300 ms) and applied server-side via the `query` parameter.
+ *
+ * @see BountyCard
+ * @see useInfiniteBounties
+ * @see staggerContainer
+ * @see staggerItem
+ */
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search input (300ms)
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const effectiveSearch = debouncedSearch.trim();
 
   const params = {
     status: statusFilter,
@@ -18,9 +40,12 @@ export function BountyGrid() {
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useInfiniteBounties(params);
+    useInfiniteBounties({ ...params, query: effectiveSearch || undefined });
 
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
+  const totalCount = data?.pages?.[0]?.total ?? allBounties.length;
+
+  const isSearching = effectiveSearch.length > 0;
 
   return (
     <section id="bounties" className="py-16 md:py-24">
@@ -28,6 +53,26 @@ export function BountyGrid() {
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              aria-label="Search bounties by title, description, or skill"
+              placeholder="Search bounties..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-64 appearance-none bg-forge-800 border border-border rounded-lg pl-9 pr-8 py-2 text-sm text-text-secondary placeholder-text-muted focus:border-emerald outline-none transition-colors duration-150"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-text-muted hover:text-text-primary transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Link
               to="/bounties/create"
@@ -95,11 +140,35 @@ export function BountyGrid() {
         {/* Empty state */}
         {!isLoading && !isError && allBounties.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-text-muted text-lg mb-2">No bounties found</p>
+            <p className="text-text-muted text-lg mb-2">
+              {isSearching ? 'No bounties match your search' : 'No bounties found'}
+            </p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {isSearching ? (
+                <button onClick={() => setSearchQuery('')} className="text-emerald hover:underline">
+                  Clear search
+                </button>
+              ) : activeSkill !== 'All' ? (
+                'Try a different language filter.'
+              ) : (
+                'Check back soon for new bounties.'
+              )}
             </p>
           </div>
+        )}
+
+        {/* Partial search warning: search only covers loaded bounties */}
+        {isSearching && !isLoading && hasNextPage && allBounties.length > 0 && (
+          <p className="text-xs text-text-muted mb-4">
+            Showing {allBounties.length} results from {totalCount} total for &quot;{debouncedSearch}&quot; — load more to search deeper
+          </p>
+        )}
+
+        {/* Result count when searching */}
+        {isSearching && !isLoading && !hasNextPage && allBounties.length > 0 && (
+          <p className="text-sm text-text-muted mb-6">
+            {totalCount} result{totalCount !== 1 ? 's' : ''} for &quot;{debouncedSearch}&quot;
+          </p>
         )}
 
         {/* Bounty grid */}
