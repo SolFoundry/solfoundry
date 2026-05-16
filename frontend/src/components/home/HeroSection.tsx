@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, useInView, animate, useMotionValue } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { animate, motion, useInView, useMotionValue } from 'framer-motion';
 import { useStats } from '../../hooks/useStats';
 import { getGitHubAuthorizeUrl } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,7 +26,7 @@ function EmberParticles({ count = 5 }: { count?: number }) {
       {particles.map((p) => (
         <div
           key={p.id}
-          className="absolute pointer-events-none rounded-full animate-ember opacity-60"
+          className="absolute pointer-events-none rounded-full opacity-60 animate-ember"
           style={{
             left: p.left,
             bottom: '30%',
@@ -57,7 +57,10 @@ function CountUp({ target, prefix = '', suffix = '' }: { target: number; prefix?
         ref.current.textContent = `${prefix}${Math.round(v).toLocaleString()}${suffix}`;
       }
     });
-    return () => { controls.stop(); unsubscribe(); };
+    return () => {
+      controls.stop();
+      unsubscribe();
+    };
   }, [inView, target, motionValue, prefix, suffix]);
 
   return <span ref={ref}>{prefix}0{suffix}</span>;
@@ -66,15 +69,16 @@ function CountUp({ target, prefix = '', suffix = '' }: { target: number; prefix?
 export function HeroSection() {
   const { data: stats } = useStats();
   const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [resultLinesVisible, setResultLinesVisible] = useState(false);
 
   useEffect(() => {
-    // Typewriter takes ~3s (0.5s delay + 2.5s), then show result lines
     const t1 = setTimeout(() => setTypewriterDone(true), 3100);
     const t2 = setTimeout(() => setResultLinesVisible(true), 3400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   const handleSignIn = async () => {
@@ -87,38 +91,34 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 pt-24 pb-16 overflow-hidden">
-      {/* Background layers */}
+    <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-4 pt-24 pb-16">
       <div className="absolute inset-0 bg-grid-forge bg-grid-forge pointer-events-none" style={{ backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <EmberParticles count={5} />
 
-      {/* Terminal card */}
       <motion.div
         variants={fadeIn}
         initial="initial"
         animate="animate"
-        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
+        className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-forge-900/90 shadow-2xl shadow-black/50 backdrop-blur-sm"
       >
-        {/* Title bar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
+        <div className="flex items-center gap-2 border-b border-border bg-forge-800 px-4 py-2.5">
           <div className="flex gap-1.5">
             <span className="w-3 h-3 rounded-full bg-status-error/80" />
             <span className="w-3 h-3 rounded-full bg-status-warning/80" />
             <span className="w-3 h-3 rounded-full bg-status-success/80" />
           </div>
-          <span className="font-mono text-xs text-text-muted ml-2">solfoundry — terminal</span>
+          <span className="ml-2 font-mono text-xs text-text-muted">solfoundry terminal</span>
         </div>
 
-        {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-4 font-mono text-xs leading-relaxed sm:p-5 sm:text-sm">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="text-text-secondary inline-block max-w-[calc(100%-1.25rem)] overflow-hidden break-all whitespace-normal align-top sm:break-normal sm:whitespace-nowrap sm:animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
-              <span className="inline-block w-2 h-5 bg-emerald animate-blink ml-0.5 align-middle" />
+              <span className="ml-0.5 inline-block h-5 w-2 animate-blink bg-emerald align-middle" />
             )}
           </div>
 
@@ -130,9 +130,9 @@ export function HeroSection() {
               className="mt-3 space-y-1.5"
             >
               {[
-                { text: '✓ Bounty created: #142', delay: 0 },
-                { text: '✓ Escrow funded: 100 USDC', delay: 0.3 },
-                { text: '✓ 3 contributors notified', delay: 0.6 },
+                { text: 'Bounty created: #142', delay: 0 },
+                { text: 'Escrow funded: 100 USDC', delay: 0.3 },
+                { text: '3 contributors notified', delay: 0.6 },
               ].map((line, i) => (
                 <motion.div
                   key={i}
@@ -141,6 +141,7 @@ export function HeroSection() {
                   transition={{ delay: line.delay, duration: 0.3 }}
                   className="text-emerald"
                 >
+                  <span className="mr-2">+</span>
                   {line.text}
                 </motion.div>
               ))}
@@ -149,37 +150,34 @@ export function HeroSection() {
         </div>
       </motion.div>
 
-      {/* Headline */}
       <motion.h1
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="mt-10 text-center font-display text-3xl font-bold tracking-wider text-text-primary sm:text-4xl md:text-5xl"
       >
-        THE AI-POWERED BOUNTY{' '}
-        <span className="text-emerald">FORGE</span>
+        THE AI-POWERED BOUNTY <span className="text-emerald">FORGE</span>
       </motion.h1>
 
       <motion.p
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="mt-4 max-w-lg text-center font-sans text-base text-text-secondary sm:text-lg"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
 
-      {/* CTAs */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.5 }}
-        className="flex flex-wrap items-center justify-center gap-4 mt-8"
+        className="mt-8 flex flex-wrap items-center justify-center gap-4"
       >
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
             to="/bounties"
-            className="px-6 py-3 rounded-lg bg-emerald text-text-inverse font-semibold text-sm hover:bg-emerald-light transition-colors duration-200 shadow-lg shadow-emerald/20 inline-block"
+            className="inline-block rounded-lg bg-emerald px-6 py-3 text-sm font-semibold text-text-inverse shadow-lg shadow-emerald/20 transition-colors duration-200 hover:bg-emerald-light"
           >
             Browse Bounties
           </Link>
@@ -188,7 +186,7 @@ export function HeroSection() {
         <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
           <Link
             to="/bounties/create"
-            className="px-6 py-3 rounded-lg border border-emerald text-emerald font-semibold text-sm hover:bg-emerald-bg transition-colors duration-200 inline-block"
+            className="inline-block rounded-lg border border-emerald px-6 py-3 text-sm font-semibold text-emerald transition-colors duration-200 hover:bg-emerald-bg"
           >
             Post a Bounty
           </Link>
@@ -198,7 +196,7 @@ export function HeroSection() {
           <motion.div variants={buttonHover} initial="rest" whileHover="hover" whileTap="tap">
             <button
               onClick={handleSignIn}
-              className="px-6 py-3 rounded-lg border border-border text-text-secondary font-medium text-sm hover:border-border-hover hover:text-text-primary transition-all duration-200 inline-flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-medium text-text-secondary transition-all duration-200 hover:border-border-hover hover:text-text-primary"
             >
               <GitHubIcon /> GitHub
             </button>
@@ -206,32 +204,31 @@ export function HeroSection() {
         )}
       </motion.div>
 
-      {/* Live stats strip */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs text-text-muted sm:text-sm"
       >
         <span>
-          <span className="text-text-primary font-semibold">
+          <span className="font-semibold text-text-primary">
             <CountUp target={stats?.open_bounties ?? 142} />
-          </span>
-          {' '}open bounties
+          </span>{' '}
+          open bounties
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden text-text-muted sm:inline">·</span>
         <span>
-          <span className="text-text-primary font-semibold">
+          <span className="font-semibold text-text-primary">
             $<CountUp target={stats?.total_paid_usdc ?? 24500} />
-          </span>
-          {' '}paid
+          </span>{' '}
+          paid
         </span>
-        <span className="text-text-muted">·</span>
+        <span className="hidden text-text-muted sm:inline">·</span>
         <span>
-          <span className="text-text-primary font-semibold">
+          <span className="font-semibold text-text-primary">
             <CountUp target={stats?.total_contributors ?? 89} />
-          </span>
-          {' '}builders
+          </span>{' '}
+          builders
         </span>
       </motion.div>
     </section>
