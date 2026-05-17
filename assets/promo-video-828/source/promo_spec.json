@@ -1,0 +1,45 @@
+{
+  "duration_seconds": 30,
+  "fps": 24,
+  "width": 1920,
+  "height": 1080,
+  "tagline": "The AI factory that builds itself",
+  "scenes": [
+    {
+      "start": 0,
+      "end": 4,
+      "headline": "SolFoundry",
+      "subline": "Autonomous bounty-to-build workflows on Solana"
+    },
+    {
+      "start": 4,
+      "end": 9,
+      "headline": "Post a bounty",
+      "subline": "Turn ideas into funded, builder-ready work"
+    },
+    {
+      "start": 9,
+      "end": 14,
+      "headline": "Fund escrow",
+      "subline": "Transparent rewards keep the workflow moving"
+    },
+    {
+      "start": 14,
+      "end": 20,
+      "headline": "AI reviews submissions",
+      "subline": "Automated checks help surface the strongest work"
+    },
+    {
+      "start": 20,
+      "end": 26,
+      "headline": "Earn FNDRY",
+      "subline": "Contributors get rewarded for useful output"
+    },
+    {
+      "start": 26,
+      "end": 30,
+      "headline": "Forge. Review. Earn.",
+      "subline": "github.com/SolFoundry/solfoundry"
+    }
+  ]
+}
