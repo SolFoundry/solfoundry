@@ -1,0 +1,72 @@
+[
+  {
+    "slug": "forge-it",
+    "caption": "FORGE IT",
+    "motif": "anvil",
+    "accent": "#14F195",
+    "secondary": "#9945FF"
+  },
+  {
+    "slug": "ship-code",
+    "caption": "SHIP CODE",
+    "motif": "code",
+    "accent": "#9945FF",
+    "secondary": "#14F195"
+  },
+  {
+    "slug": "bounty-live",
+    "caption": "BOUNTY LIVE",
+    "motif": "target",
+    "accent": "#FF4FD8",
+    "secondary": "#14F195"
+  },
+  {
+    "slug": "bug-smash",
+    "caption": "BUG SMASH",
+    "motif": "bug",
+    "accent": "#FFD166",
+    "secondary": "#9945FF"
+  },
+  {
+    "slug": "audit-ready",
+    "caption": "AUDIT READY",
+    "motif": "shield",
+    "accent": "#14F195",
+    "secondary": "#6EE7FF"
+  },
+  {
+    "slug": "mint-fndry",
+    "caption": "MINT FNDRY",
+    "motif": "coin",
+    "accent": "#FFD166",
+    "secondary": "#14F195"
+  },
+  {
+    "slug": "agent-mode",
+    "caption": "AGENT MODE",
+    "motif": "agent",
+    "accent": "#6EE7FF",
+    "secondary": "#9945FF"
+  },
+  {
+    "slug": "merge-win",
+    "caption": "MERGE WIN",
+    "motif": "merge",
+    "accent": "#14F195",
+    "secondary": "#FF4FD8"
+  },
+  {
+    "slug": "launch",
+    "caption": "LAUNCH",
+    "motif": "rocket",
+    "accent": "#FF4FD8",
+    "secondary": "#FFD166"
+  },
+  {
+    "slug": "build-loop",
+    "caption": "BUILD LOOP",
+    "motif": "loop",
+    "accent": "#9945FF",
+    "secondary": "#14F195"
+  }
+]
