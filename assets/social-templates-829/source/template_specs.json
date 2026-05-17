@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "bounty-open",
+    "eyebrow": "NEW BOUNTY",
+    "title": "Bounty Title Goes Here",
+    "reward": "150,000 FNDRY",
+    "tier": "T1 OPEN RACE",
+    "accent": "#14F195",
+    "secondary": "#9945FF"
+  },
+  {
+    "slug": "high-reward",
+    "eyebrow": "HIGH REWARD",
+    "title": "Ship The Next Forge Upgrade",
+    "reward": "500,000 FNDRY",
+    "tier": "T2 FRONTEND",
+    "accent": "#FF4FD8",
+    "secondary": "#14F195"
+  },
+  {
+    "slug": "audit-call",
+    "eyebrow": "SECURITY REVIEW",
+    "title": "Audit A Critical Contract",
+    "reward": "300,000 FNDRY",
+    "tier": "T2 SECURITY",
+    "accent": "#FFD166",
+    "secondary": "#9945FF"
+  },
+  {
+    "slug": "builder-spotlight",
+    "eyebrow": "BUILDER SPOTLIGHT",
+    "title": "Top Contributor Wanted",
+    "reward": "100,000 FNDRY",
+    "tier": "T1 CREATIVE",
+    "accent": "#6EE7FF",
+    "secondary": "#14F195"
+  },
+  {
+    "slug": "launch-week",
+    "eyebrow": "LAUNCH WEEK",
+    "title": "Help Forge The Next Release",
+    "reward": "250,000 FNDRY",
+    "tier": "T1 FAST TRACK",
+    "accent": "#9945FF",
+    "secondary": "#FF4FD8"
+  }
+]

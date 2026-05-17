@@ -1,0 +1,22 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070914"/>
+      <stop offset="100%" stop-color="#161b35"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6EE7FF"/>
+      <stop offset="100%" stop-color="#14F195"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect x="70" y="70" width="940" height="940" rx="56" fill="#080A16" stroke="#6EE7FF" stroke-width="4"/>
+  <text x="140" y="145" fill="#eefaff" font-size="36" font-family="Arial" font-weight="700">SolFoundry</text>
+  <text x="140" y="388" fill="#6EE7FF" font-size="34" font-family="Arial" font-weight="700">BUILDER SPOTLIGHT</text>
+  <text x="140" y="507" fill="#ffffff" font-size="70" font-family="Arial" font-weight="700">Top Contributor Wanted</text>
+  <rect x="140" y="669" width="800" height="183" rx="28" fill="#0D1222" stroke="#14F195" stroke-width="4"/>
+  <text x="180" y="734" fill="#aab6c8" font-size="24" font-family="Arial" font-weight="700">REWARD</text>
+  <text x="180" y="810" fill="#14F195" font-size="48" font-family="Arial" font-weight="700">100,000 FNDRY</text>
+  <text x="720" y="756" fill="#ffffff" font-size="28" font-family="Arial" font-weight="700">T1 CREATIVE</text>
+  <text x="140" y="970" fill="#c2d0e0" font-size="24" font-family="Arial">Editable SVG source: replace title, reward, and tier text.</text>
+</svg>
