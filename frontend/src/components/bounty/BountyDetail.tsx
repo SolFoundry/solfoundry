@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
-import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { CountdownTimer } from './CountdownTimer';
+import { timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
@@ -78,69 +79,41 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 mt-4 text-sm text-emerald hover:text-emerald-light transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" /> View GitHub Issue
+                <ExternalLink className="w-4 h-4" />
+                View on GitHub
               </a>
             )}
           </div>
 
-          {/* Description / requirements */}
-          <div className="rounded-xl border border-border bg-forge-900 p-6">
-            <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Requirements</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              Submit a working solution that addresses the bounty requirements above.
-              All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
-            </p>
-          </div>
-
-          {/* Submission form */}
-          {bounty.status === 'open' || bounty.status === 'funded' ? (
+          {/* Submission Form */}
+          {isAuthenticated && !submitting && (
             <div className="rounded-xl border border-border bg-forge-900 p-6">
-              <h2 className="font-sans text-lg font-semibold text-text-primary mb-4">Submit Your Solution</h2>
-              {isAuthenticated ? (
-                <SubmissionForm bounty={bounty} />
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-text-muted text-sm mb-4">Sign in with GitHub to submit a solution.</p>
-                  <a
-                    href="/api/auth/github/authorize"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200"
-                  >
-                    Sign in with GitHub
-                  </a>
-                </div>
-              )}
+              <SubmissionForm bounty={bounty} />
             </div>
-          ) : null}
+          )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Reward card */}
-          <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-5">
-            <p className="text-xs text-text-muted font-mono mb-1">Reward</p>
-            <p className="font-mono text-3xl font-bold text-emerald">
+          {/* Reward */}
+          <div className="rounded-xl border border-border bg-forge-900 p-5">
+            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Reward</h3>
+            <p className="font-mono text-2xl font-bold text-emerald">
               {formatCurrency(bounty.reward_amount, bounty.reward_token)}
             </p>
           </div>
 
-          {/* Info card */}
-          <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-4">
+          {/* Details */}
+          <div className="rounded-xl border border-border bg-forge-900 p-5 space-y-3">
+            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Details</h3>
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-muted">Status</span>
-              <span className={`font-medium ${bounty.status === 'open' ? 'text-emerald' : 'text-magenta'}`}>
-                {bounty.status}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-text-muted">Tier</span>
-              <span className="font-mono text-text-primary">{bounty.tier ?? 'T1'}</span>
+              <span className="font-mono text-emerald capitalize">{bounty.status}</span>
             </div>
             {bounty.deadline && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-muted">Deadline</span>
-                <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
-                </span>
+                <CountdownTimer deadline={bounty.deadline} />
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
@@ -150,10 +123,25 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-text-muted">Posted</span>
-              <span className="font-mono text-text-muted">{timeAgo(bounty.created_at)}</span>
+              <span className="text-text-muted">Created</span>
+              <span className="font-mono text-text-primary">{timeAgo(bounty.created_at)}</span>
             </div>
           </div>
+
+          {/* GitHub Link */}
+          {bounty.github_repo_url && (
+            <a
+              href={bounty.github_repo_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-xl border border-border bg-forge-900 p-5 hover:bg-forge-800 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <ExternalLink className="w-4 h-4 text-text-muted" />
+                <span className="text-text-primary">View Repository</span>
+              </div>
+            </a>
+          )}
         </div>
       </div>
     </motion.div>
