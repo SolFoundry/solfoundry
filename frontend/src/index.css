@@ -80,6 +80,7 @@
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-gradient-shift: gradient-shift 6s ease infinite;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out;
 
   @keyframes typewriter {
     from { width: 0; }
@@ -106,6 +107,10 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
   }
 }
 

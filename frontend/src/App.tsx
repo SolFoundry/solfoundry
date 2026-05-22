@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { ToastProvider } from './contexts/ToastContext';
 
 // Lazy load pages
 const HomePage = React.lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -23,32 +24,34 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route path="/how-it-works" element={<HowItWorksPage />} />
-        <Route
-          path="/profile"
-          element={
-            <AuthGuard>
-              <ProfilePage />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/bounties/create"
-          element={
-            <AuthGuard>
-              <BountyCreatePage />
-            </AuthGuard>
-          }
-        />
-        <Route path="/bounties" element={<BountiesPage />} />
-        <Route path="/bounties/:id" element={<BountyDetailPage />} />
-        <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
+    <ToastProvider>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route
+            path="/profile"
+            element={
+              <AuthGuard>
+                <ProfilePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/bounties/create"
+            element={
+              <AuthGuard>
+                <BountyCreatePage />
+              </AuthGuard>
+            }
+          />
+          <Route path="/bounties" element={<BountiesPage />} />
+          <Route path="/bounties/:id" element={<BountyDetailPage />} />
+          <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </ToastProvider>
   );
 }
