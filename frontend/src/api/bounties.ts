@@ -12,6 +12,7 @@ export interface BountiesListParams {
   status?: string;
   limit?: number;
   offset?: number;
+  q?: string;
   skill?: string;
   tier?: string;
   reward_token?: string;
@@ -35,6 +36,33 @@ function mapBounty(b: Bounty): Bounty {
 }
 
 export async function listBounties(params?: BountiesListParams): Promise<BountiesListResponse> {
+  if (params?.q) {
+    const limit = params.limit ?? 20;
+    const offset = params.offset ?? 0;
+    const response = await apiClient<BountiesListResponse | Bounty[]>('/api/bounties/search', {
+      params: {
+        q: params.q,
+        status: params.status,
+        tier: params.tier,
+        skills: params.skill,
+        per_page: limit,
+        page: Math.floor(offset / limit) + 1,
+      },
+    });
+
+    if (Array.isArray(response)) {
+      return { items: response.map(mapBounty), total: response.length, limit, offset };
+    }
+
+    const searchResponse = response as BountiesListResponse & { per_page?: number; page?: number };
+    return {
+      items: searchResponse.items.map(mapBounty),
+      total: searchResponse.total,
+      limit: searchResponse.per_page ?? limit,
+      offset: ((searchResponse.page ?? Math.floor(offset / limit) + 1) - 1) * (searchResponse.per_page ?? limit),
+    };
+  }
+
   const response = await apiClient<BountiesListResponse | Bounty[]>('/api/bounties', {
     params: params as Record<string, string | number | boolean | undefined>,
   });
