@@ -33,6 +33,20 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+    setDropdownOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [menuOpen]);
+
   const handleGitHubSignIn = async () => {
     try {
       const url = await getGitHubAuthorizeUrl();
@@ -61,16 +75,16 @@ export function Navbar() {
         }`}
       />
 
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-3">
         {/* Left: Logo + Nav */}
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="flex min-w-0 items-center gap-8">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5 group">
             <img
               src="/logo-icon.png"
               alt="SolFoundry"
               className="w-7 h-7 group-hover:drop-shadow-[0_0_8px_rgba(0,230,118,0.4)] transition-all duration-200"
             />
-            <span className="font-display text-lg font-semibold text-text-primary tracking-wide">
+            <span className="truncate font-display text-base sm:text-lg font-semibold text-text-primary tracking-wide">
               SolFoundry
             </span>
           </Link>
@@ -100,7 +114,7 @@ export function Navbar() {
         </div>
 
         {/* Right: Live count + Auth */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
           {/* Live bounty count */}
           {stats && (
             <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-bg border border-emerald-border">
@@ -168,6 +182,9 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-controls="mobile-navigation"
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -182,7 +199,8 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden bg-forge-900 border-b border-border"
+            id="mobile-navigation"
+            className="absolute left-0 right-0 top-16 md:hidden max-h-[calc(100vh-4rem)] overflow-y-auto bg-forge-900 border-b border-border shadow-2xl shadow-black/40"
           >
             <div className="px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
