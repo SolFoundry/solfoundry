@@ -5,6 +5,7 @@ import { BountyDetail } from '../components/bounty/BountyDetail';
 import { useBounty } from '../hooks/useBounties';
 import { fadeIn } from '../lib/animations';
 import { motion } from 'framer-motion';
+import { BountyDetailSkeleton } from '../components/ui/Skeletons';
 
 export function BountyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,13 +14,7 @@ export function BountyDetailPage() {
   return (
     <PageLayout>
       {isLoading && (
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-border bg-forge-900 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-            </div>
-          ))}
-        </div>
+        <BountyDetailSkeleton />
       )}
 
       {isError && !isLoading && (
