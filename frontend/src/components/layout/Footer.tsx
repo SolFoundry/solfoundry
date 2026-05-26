@@ -27,14 +27,14 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative mt-24 border-t border-border bg-forge-950">
+    <footer className="relative mt-24 overflow-hidden border-t border-border bg-forge-950">
       {/* Magenta accent line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-footer opacity-50" />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        <div className="grid min-w-0 grid-cols-1 gap-8 md:grid-cols-4 md:gap-10">
           {/* Col 1: Brand */}
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-3">
               <img src="/logo-icon.png" alt="SolFoundry" className="w-6 h-6" />
               <span className="font-display text-lg font-semibold text-text-primary">SolFoundry</span>
@@ -45,7 +45,7 @@ export function Footer() {
           </div>
 
           {/* Col 2: Platform */}
-          <div>
+          <div className="min-w-0">
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">Platform</h4>
             <ul className="space-y-2">
               {[
@@ -64,7 +64,7 @@ export function Footer() {
           </div>
 
           {/* Col 3: Social */}
-          <div>
+          <div className="min-w-0">
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">Social</h4>
             <div className="flex flex-col gap-3">
               <a
@@ -89,11 +89,11 @@ export function Footer() {
           </div>
 
           {/* Col 4: Token */}
-          <div>
+          <div className="min-w-0">
             <h4 className="font-sans text-sm font-semibold text-text-primary mb-4">$FNDRY Token</h4>
             <p className="text-sm text-text-muted mb-3">Contract Address:</p>
-            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex items-center gap-2 w-full">
-              <span className="truncate">{FNDRY_CA.slice(0, 8)}...{FNDRY_CA.slice(-4)}</span>
+            <div className="font-mono text-xs text-text-muted bg-forge-800 rounded px-3 py-2 inline-flex min-w-0 w-full max-w-full items-center gap-2">
+              <span className="min-w-0 truncate">{FNDRY_CA.slice(0, 8)}...{FNDRY_CA.slice(-4)}</span>
               <button
                 onClick={copyCA}
                 className="flex-shrink-0 text-text-muted hover:text-text-primary transition-colors duration-150"
