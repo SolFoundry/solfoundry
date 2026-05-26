@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
@@ -11,8 +11,23 @@ const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+  };
 
   const params = {
+    q: debouncedSearchQuery || undefined,
     status: statusFilter,
     skill: activeSkill !== 'All' ? activeSkill : undefined,
   };
@@ -53,6 +68,30 @@ export function BountyGrid() {
           </div>
         </div>
 
+        {/* Search */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search title, description, or tags"
+            aria-label="Search bounties"
+            className="w-full rounded-lg border border-border bg-forge-900 py-2.5 pl-10 pr-11 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors duration-150 focus:border-emerald"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              aria-label="Clear bounty search"
+              title="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-muted transition-colors duration-150 hover:bg-forge-800 hover:text-text-primary"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Filter pills */}
         <div className="flex items-center gap-2 flex-wrap mb-8">
           {FILTER_SKILLS.map((skill) => (
@@ -88,7 +127,7 @@ export function BountyGrid() {
         {isError && !isLoading && (
           <div className="text-center py-16">
             <p className="text-text-muted mb-4">Could not load bounties. Backend may be offline.</p>
-            <p className="text-text-muted text-sm font-mono">Running in demo mode — no bounties to display.</p>
+            <p className="text-text-muted text-sm font-mono">Running in demo mode - no bounties to display.</p>
           </div>
         )}
 
@@ -97,7 +136,9 @@ export function BountyGrid() {
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {debouncedSearchQuery || activeSkill !== 'All'
+                ? 'Try a different search or language filter.'
+                : 'Check back soon for new bounties.'}
             </p>
           </div>
         )}

@@ -9,6 +9,7 @@ import type {
 } from '../types/bounty';
 
 export interface BountiesListParams {
+  q?: string;
   status?: string;
   limit?: number;
   offset?: number;
