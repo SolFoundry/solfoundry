@@ -55,21 +55,33 @@ export function BountyCard({ bounty }: BountyCardProps) {
     cancelled: 'bg-status-error',
   }[bounty.status] ?? 'bg-emerald';
 
+  const openBounty = () => navigate(`/bounties/${bounty.id}`);
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openBounty();
+    }
+  };
+
   return (
     <motion.div
       variants={cardHover}
       initial="rest"
       whileHover="hover"
-      onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      onClick={openBounty}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open bounty ${bounty.title}`}
+      className="relative min-w-0 w-full rounded-lg sm:rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/60"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-start justify-between gap-3 text-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
           )}
-          <span className="text-text-muted font-mono text-xs truncate">
+          <span className="min-w-0 break-all font-mono text-xs text-text-muted sm:truncate">
             {orgName}/{repoName}
             {issueNumber && <span className="ml-1">#{issueNumber}</span>}
           </span>
@@ -78,20 +90,20 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Row 2: Title */}
-      <h3 className="mt-3 font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
+      <h3 className="mt-3 break-words font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
         {bounty.title}
       </h3>
 
       {/* Row 3: Language dots */}
       {skills.length > 0 && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
           {skills.map((lang) => (
-            <span key={lang} className="inline-flex items-center gap-1.5 text-xs text-text-muted">
+            <span key={lang} className="inline-flex max-w-full items-center gap-1.5 text-xs text-text-muted">
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
                 style={{ backgroundColor: LANG_COLORS[lang] ?? '#888' }}
               />
-              {lang}
+              <span className="truncate">{lang}</span>
             </span>
           ))}
         </div>
@@ -101,11 +113,11 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <span className="min-w-0 break-words font-mono text-lg font-semibold text-emerald sm:whitespace-nowrap">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div data-testid="bounty-meta" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted sm:justify-end">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
@@ -120,7 +132,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+      <span data-testid="bounty-status" className={`mt-3 inline-flex items-center gap-1 self-start text-xs font-medium ${statusColor}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         {statusLabel}
       </span>

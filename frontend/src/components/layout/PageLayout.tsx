@@ -12,7 +12,7 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, noFooter = false, className = '' }: PageLayoutProps) {
   return (
-    <div className="min-h-screen bg-forge-950 text-text-primary">
+    <div className="min-h-screen overflow-x-hidden bg-forge-950 text-text-primary">
       <Navbar />
       <motion.main
         variants={pageTransition}
