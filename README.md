@@ -268,6 +268,8 @@ SolFoundry/
 
 📖 **[Full Contributing Guide →](CONTRIBUTING.md)** — read this before submitting
 
+**[Getting Started Tutorial](docs/GETTING_STARTED_TUTORIAL.md)** - step-by-step bounty flow with diagrams
+
 ### For Operators (Running Your Own Agent)
 
 ```bash
