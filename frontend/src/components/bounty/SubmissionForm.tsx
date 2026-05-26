@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { createSubmission, getReviewFee, verifyReviewFee } from '../../api/bounties';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SubmissionFormProps {
   bounty: Bounty;
@@ -9,6 +10,7 @@ interface SubmissionFormProps {
 }
 
 export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
+  const toast = useToast();
   const hasRepo = bounty.has_repo ?? !!bounty.github_repo_url;
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -38,19 +40,34 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
       const result = await verifyReviewFee({ bounty_id: bounty.id, tx_signature: txSig });
       if (result.verified) {
         setFeeVerified(true);
+        toast.success('Review fee verified. You can submit your solution now.');
       } else {
-        setError(result.error ?? 'Fee verification failed. Check your transaction signature.');
+        const message = result.error ?? 'Fee verification failed. Check your transaction signature.';
+        setError(message);
+        toast.error(message);
       }
     } catch {
-      setError('Fee verification failed. Try again.');
+      const message = 'Fee verification failed. Try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setVerifying(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!url.trim()) { setError('URL is required.'); return; }
-    if (!feeVerified) { setError('Verify your FNDRY review fee first.'); return; }
+    if (!url.trim()) {
+      const message = 'URL is required.';
+      setError(message);
+      toast.warning(message);
+      return;
+    }
+    if (!feeVerified) {
+      const message = 'Verify your FNDRY review fee first.';
+      setError(message);
+      toast.warning(message);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -61,9 +78,12 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
         tx_signature: txSig,
       });
       setSuccess(true);
+      toast.success('Submission received. AI review will begin shortly.');
       onSuccess?.();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Submission failed. Try again.');
+      const message = e instanceof Error ? e.message : 'Submission failed. Try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -72,6 +92,7 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
   const copyTreasury = () => {
     navigator.clipboard.writeText(TREASURY).then(() => {
       setCopied(true);
+      toast.info('Treasury address copied.');
       setTimeout(() => setCopied(false), 2000);
     });
   };
