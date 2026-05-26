@@ -12,7 +12,7 @@ export function BountiesPage() {
         initial="initial"
         animate="animate"
         exit="exit"
-        className="pt-16"
+        className="pt-0"
       >
         <BountyGrid />
       </motion.div>
