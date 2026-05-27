@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../contexts/ToastContext';
 import { exchangeGitHubCode } from '../api/auth';
 import { setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
@@ -27,11 +28,9 @@ export function GitHubCallbackPage() {
 
     exchangeGitHubCode(code, state ?? undefined)
       .then((response) => {
-        // Store tokens + user in auth context
         const authUser = { ...response.user, wallet_verified: false };
         login(response.access_token, response.refresh_token ?? '', authUser);
         setAuthToken(response.access_token);
-        // Store refresh token for future use
         if (response.refresh_token) {
           localStorage.setItem('sf_refresh_token', response.refresh_token);
         }

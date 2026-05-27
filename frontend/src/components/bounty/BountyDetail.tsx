@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../contexts/ToastContext';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
 
@@ -15,12 +16,11 @@ interface BountyDetailProps {
 export function BountyDetail({ bounty }: BountyDetailProps) {
   const { isAuthenticated } = useAuth();
   const [submitting, setSubmitting] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { success: toastSuccess } = useToast();
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      toastSuccess('Link copied', 'Bounty URL copied to clipboard');
     });
   };
 
@@ -51,7 +51,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
                 onClick={copyLink}
                 className="flex-shrink-0 p-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-muted hover:text-text-primary transition-colors duration-150"
               >
-                {copied ? <Check className="w-4 h-4 text-emerald" /> : <Copy className="w-4 h-4" />}
+                <Copy className="w-4 h-4" />
               </button>
             </div>
 
