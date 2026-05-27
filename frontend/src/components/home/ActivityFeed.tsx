@@ -1,18 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { getActivityFeed } from '../../api/activity';
+import type { ActivityEvent } from '../../api/activity';
 
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
-
-// Mock events for when API doesn't return activity
+// Fallback mock events when API is unavailable
 const MOCK_EVENTS: ActivityEvent[] = [
   {
     id: '1',
@@ -75,13 +68,41 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
+export function ActivityFeed({ events: propEvents }: { events?: ActivityEvent[] }) {
+  const [fetchedEvents, setFetchedEvents] = useState<ActivityEvent[] | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  const fetchActivity = useCallback(async () => {
+    const result = await getActivityFeed();
+    if (result.length > 0) {
+      setFetchedEvents(result);
+      setIsOnline(true);
+    } else if (fetchedEvents === null) {
+      // Only show fallback on first load if API returned nothing
+      // (Don't switch to mock if API was working and now empty)
+      setIsOnline(false);
+    }
+  }, [fetchedEvents]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    fetchActivity();
+    const interval = setInterval(fetchActivity, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use prop events if provided, otherwise fetched or mock
+  const displayEvents = propEvents?.length
+    ? propEvents
+    : fetchedEvents?.length
+      ? fetchedEvents
+      : MOCK_EVENTS;
+
   const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
 
   useEffect(() => {
     setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+  }, [displayEvents]);
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -89,22 +110,34 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
         <div className="flex items-center gap-3 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+          {fetchedEvents && fetchedEvents.length > 0 && (
+            <span className="text-[10px] font-mono text-emerald/60">LIVE</span>
+          )}
+          {!isOnline && (
+            <span className="text-[10px] font-mono text-text-muted/40">DEMO</span>
+          )}
         </div>
         <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {visibleEvents.length === 0 ? (
+            <p className="text-sm text-text-muted/50 text-center py-4 font-mono">
+              No recent activity
+            </p>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {visibleEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
         </div>
       </div>
     </section>
