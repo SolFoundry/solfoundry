@@ -4,6 +4,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { PodiumCards } from '../components/leaderboard/PodiumCards';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { useLeaderboard } from '../hooks/useLeaderboard';
+import { PodiumSkeleton, LeaderboardRowSkeleton } from '../components/ui/Skeleton';
 import type { TimePeriod } from '../types/leaderboard';
 import { fadeIn } from '../lib/animations';
 
@@ -47,8 +48,13 @@ export function LeaderboardPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div>
+            <PodiumSkeleton />
+            <div className="rounded-xl border border-border bg-forge-900 overflow-hidden">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <LeaderboardRowSkeleton key={i} />
+              ))}
+            </div>
           </div>
         )}
 
