@@ -54,7 +54,7 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar pb-2">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}

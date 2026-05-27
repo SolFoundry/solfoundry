@@ -112,7 +112,7 @@ export function HeroSection() {
 
         {/* Terminal body */}
         <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+          <div className="overflow-x-auto no-scrollbar">
             <span className="text-emerald">$ </span>
             <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
@@ -154,7 +154,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10 px-2"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
