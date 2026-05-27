@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="g-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9B59B6"/>
+      <stop offset="100%" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="g-magenta" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF007F"/>
+      <stop offset="100%" stop-color="#E91E63"/>
+    </linearGradient>
+    <linearGradient id="g-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFA000"/>
+    </linearGradient>
+    <linearGradient id="g-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A0A0F"/>
+      <stop offset="100%" stop-color="#1A1A2E"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="20" y="20" width="472" height="472" rx="60" fill="url(#g-deep)" stroke="url(#g-magenta)" stroke-width="2" opacity="0.95"/>
+
+  <!-- Monocle / glasses (builder cameo) -->
+  <g transform="translate(256, 170)">
+    <!-- Left eye -->
+    <circle cx="0" cy="0" r="50" fill="none" stroke="url(#g-emerald)" stroke-width="5"/>
+    <circle cx="0" cy="0" r="15" fill="url(#g-gold)" opacity="0.3"/>
+    <!-- Chain -->
+    <path d="M50 0 Q80 20 70 60 Q60 100 40 120" fill="none" stroke="url(#g-gold)" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <!-- Glint -->
+    <ellipse cx="-15" cy="-15" rx="8" ry="5" fill="#FFF" opacity="0.5" transform="rotate(-30, -15, -15)"/>
+  </g>
+
+  <!-- Stars around -->
+  <g fill="url(#g-gold)" opacity="0.7">
+    <polygon points="380,120 384,128 392,128 386,133 388,142 380,136 372,142 374,133 368,128 376,128" transform="scale(1.2) translate(-30, -20)"/>
+    <polygon points="120,280 124,288 132,288 126,293 128,302 120,296 112,302 114,293 108,288 116,288"/>
+  </g>
+  <circle cx="400" cy="250" r="2" fill="url(#g-emerald)" opacity="0.6"/>
+  <circle cx="130" cy="160" r="2" fill="url(#g-magenta)" opacity="0.6"/>
+
+  <!-- Big brain energy text -->
+  <text x="256" y="270" text-anchor="middle" font-family="'Courier New', monospace" font-size="44" font-weight="bold" fill="url(#g-emerald)" filter="url(#glow)">GIGA</text>
+  <text x="256" y="315" text-anchor="middle" font-family="'Courier New', monospace" font-size="44" font-weight="bold" fill="url(#g-magenta)" filter="url(#glow)">BRAIN</text>
+  <text x="256" y="355" text-anchor="middle" font-family="'Courier New', monospace" font-size="20" fill="url(#g-purple)" opacity="0.8">autonomous alpha</text>
+
+  <!-- Circuit-like line below -->
+  <g opacity="0.4">
+    <line x1="160" y1="390" x2="190" y2="390" stroke="url(#g-emerald)" stroke-width="2"/>
+    <line x1="190" y1="390" x2="190" y2="410" stroke="url(#g-emerald)" stroke-width="2"/>
+    <line x1="190" y1="410" x2="220" y2="410" stroke="url(#g-emerald)" stroke-width="2"/>
+    <line x1="220" y1="410" x2="220" y2="390" stroke="url(#g-emerald)" stroke-width="2"/>
+    <line x1="220" y1="390" x2="290" y2="390" stroke="url(#g-magenta)" stroke-width="2"/>
+    <line x1="290" y1="390" x2="290" y2="410" stroke="url(#g-magenta)" stroke-width="2"/>
+    <line x1="290" y1="410" x2="320" y2="410" stroke="url(#g-magenta)" stroke-width="2"/>
+    <line x1="320" y1="410" x2="320" y2="390" stroke="url(#g-magenta)" stroke-width="2"/>
+    <line x1="320" y1="390" x2="350" y2="390" stroke="url(#g-emerald)" stroke-width="2"/>
+    <circle cx="190" cy="390" r="3" fill="url(#g-emerald)"/>
+    <circle cx="220" cy="410" r="3" fill="url(#g-emerald)"/>
+    <circle cx="290" cy="390" r="3" fill="url(#g-magenta)"/>
+    <circle cx="320" cy="410" r="3" fill="url(#g-magenta)"/>
+  </g>
+
+  <text x="256" y="455" text-anchor="middle" font-family="'Courier New', monospace" font-size="16" fill="url(#g-gold)" opacity="0.6">100k IQ</text>
+</svg>
