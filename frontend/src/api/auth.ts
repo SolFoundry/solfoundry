@@ -11,9 +11,29 @@ export interface GitHubCallbackResponse extends AuthTokens {
   user: User;
 }
 
+/**
+ * Get the GitHub OAuth authorize URL.
+ * Falls back to client-side construction when the backend is unavailable.
+ */
 export async function getGitHubAuthorizeUrl(): Promise<string> {
-  const data = await apiClient<{ authorize_url: string }>('/api/auth/github/authorize');
-  return data.authorize_url;
+  try {
+    const data = await apiClient<{ authorize_url: string }>('/api/auth/github/authorize');
+    return data.authorize_url;
+  } catch {
+    // Fallback: build the URL client-side using the Vite env var.
+    // This fixes the 404 when the backend (separate repo) isn't deployed.
+    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      throw new Error('GitHub OAuth not configured. Set VITE_GITHUB_CLIENT_ID.');
+    }
+    const redirectUri = `${window.location.origin}/auth/github/callback`;
+    const state = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    // Store state for CSRF verification
+    sessionStorage.setItem('github_oauth_state', state);
+    return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user&state=${state}`;
+  }
 }
 
 export async function exchangeGitHubCode(code: string, state?: string): Promise<GitHubCallbackResponse> {
