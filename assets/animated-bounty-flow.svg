@@ -1,0 +1,432 @@
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- SolFoundry Brand Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0524"/>
+      <stop offset="50%" stop-color="#1a0a3e"/>
+      <stop offset="100%" stop-color="#0d0718"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9945FF"/>
+      <stop offset="100%" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14F195"/>
+      <stop offset="100%" stop-color="#0d9e6a"/>
+    </linearGradient>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9945FF" stop-opacity="0.3">
+        <animate attributeName="stop-color" values="#9945FF;#14F195;#9945FF" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" stop-color="#14F195" stop-opacity="0.5">
+        <animate attributeName="stop-color" values="#14F195;#9945FF;#14F195" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" stop-color="#9945FF" stop-opacity="0.3">
+        <animate attributeName="stop-color" values="#9945FF;#14F195;#9945FF" dur="3s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+    <linearGradient id="pathGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9945FF"/>
+      <stop offset="100%" stop-color="#14F195"/>
+    </linearGradient>
+    <linearGradient id="pathGradRev" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#14F195"/>
+      <stop offset="100%" stop-color="#9945FF"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9945FF" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#14F195" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="hardGlow">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="dropShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#9945FF" flood-opacity="0.4"/>
+    </filter>
+
+    <!-- Arrowhead marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#14F195"/>
+    </marker>
+    <marker id="arrowheadPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9945FF"/>
+    </marker>
+
+    <!-- Icons for each step -->
+    <!-- 1. Create Bounty - Plus/Money icon -->
+    <g id="icon-create">
+      <circle cx="20" cy="20" r="16" fill="none" stroke="#14F195" stroke-width="2"/>
+      <text x="12" y="26" font-size="20" font-family="sans-serif" fill="#14F195" font-weight="bold">+</text>
+      <text x="20" y="20" font-size="8" fill="#FFD700">$</text>
+    </g>
+    <!-- 2. Fund - Wallet icon -->
+    <g id="icon-fund">
+      <rect x="6" y="12" width="28" height="18" rx="3" fill="none" stroke="#14F195" stroke-width="2"/>
+      <rect x="18" y="18" width="10" height="6" rx="2" fill="#14F195"/>
+      <text x="22" y="23" font-size="6" fill="#0f0524" font-weight="bold">$</text>
+    </g>
+    <!-- 3. Submit - PR/Git branch icon -->
+    <g id="icon-submit">
+      <path d="M8 30 L8 8 Q8 4 12 4 L20 4" fill="none" stroke="#14F195" stroke-width="2"/>
+      <circle cx="8" cy="30" r="4" fill="none" stroke="#14F195" stroke-width="2"/>
+      <circle cx="20" cy="4" r="3" fill="#14F195"/>
+      <path d="M20 4 L28 4" stroke="#14F195" stroke-width="2"/>
+      <polygon points="28,2 32,4 28,6" fill="#14F195"/>
+    </g>
+    <!-- 4. AI Review - Brain/Chip icon -->
+    <g id="icon-review">
+      <rect x="6" y="8" width="28" height="24" rx="4" fill="none" stroke="#14F195" stroke-width="2"/>
+      <text x="12" y="26" font-size="14" fill="#14F195" font-family="sans-serif" font-weight="bold">AI</text>
+    </g>
+    <!-- 5. Payout - Coin/Payment icon -->
+    <g id="icon-payout">
+      <circle cx="20" cy="20" r="15" fill="none" stroke="#14F195" stroke-width="2"/>
+      <circle cx="20" cy="20" r="10" fill="#14F195" opacity="0.15"/>
+      <text x="13" y="26" font-size="16" fill="#FFD700" font-weight="bold">$</text>
+    </g>
+
+    <!-- Star/sparkle particle -->
+    <g id="sparkle">
+      <path d="M0,-6 L1.5,-1.5 L6,0 L1.5,1.5 L0,6 L-1.5,1.5 L-6,0 L-1.5,-1.5 Z" fill="#FFD700"/>
+    </g>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#14F195" stroke-width="0.5"/>
+    </pattern>
+    <rect width="800" height="600" fill="url(#grid)"/>
+  </g>
+
+  <!-- Ambient orb glow -->
+  <circle cx="400" cy="300" r="250" fill="url(#glowGrad)" opacity="0.06">
+    <animate attributeName="r" values="250;280;250" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.06;0.1;0.06" dur="5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Title -->
+  <text x="400" y="50" text-anchor="middle" font-family="'SF Mono','Fira Code','Courier New',monospace" font-size="22" font-weight="bold" fill="url(#purpleGrad)" filter="url(#dropShadow)">
+    SolFoundry Bounty Flow
+  </text>
+  <text x="400" y="70" text-anchor="middle" font-family="'SF Mono','Fira Code','Courier New',monospace" font-size="11" fill="#666" letter-spacing="2">
+    FROM CREATE TO PAYOUT
+  </text>
+
+  <!-- ========================================================================= -->
+  <!-- CONNECTION LINES (between steps) -->
+  <!-- ========================================================================= -->
+
+  <!-- Line 1 → 2 (Create → Fund) -->
+  <line x1="130" y1="275" x2="250" y2="275" stroke="url(#pathGrad)" stroke-width="3" stroke-dasharray="8,4" opacity="0.6">
+    <animate attributeName="stroke-dashoffset" values="0;-24" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" begin="0s" repeatCount="indefinite"/>
+  </line>
+  <!-- Animated dot on line 1→2 -->
+  <circle r="5" fill="#14F195" filter="url(#glow)">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="0s">
+      <mpath href="#line1-2-path"/>
+    </animateMotion>
+  </circle>
+  <path id="line1-2-path" d="M130 275 L250 275" fill="none" stroke="none"/>
+
+  <!-- Line 2 → 3 (Fund → Submit) -->
+  <line x1="330" y1="275" x2="450" y2="275" stroke="url(#pathGrad)" stroke-width="3" stroke-dasharray="8,4" opacity="0.6">
+    <animate attributeName="stroke-dashoffset" values="0;-24" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+  </line>
+  <circle r="5" fill="#14F195" filter="url(#glow)">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="0.5s">
+      <mpath href="#line2-3-path"/>
+    </animateMotion>
+  </circle>
+  <path id="line2-3-path" d="M330 275 L450 275" fill="none" stroke="none"/>
+
+  <!-- Line 3 → 4 (Submit → AI Review) - downward right -->
+  <line x1="530" y1="275" x2="650" y2="275" stroke="url(#pathGrad)" stroke-width="3" stroke-dasharray="8,4" opacity="0.6">
+    <animate attributeName="stroke-dashoffset" values="0;-24" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </line>
+  <circle r="5" fill="#14F195" filter="url(#glow)">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="1s">
+      <mpath href="#line3-4-path"/>
+    </animateMotion>
+  </circle>
+  <path id="line3-4-path" d="M530 275 L650 275" fill="none" stroke="none"/>
+
+  <!-- Line 4 → 5 (AI Review → Payout) -->
+  <line x1="730" y1="350" x2="730" y2="460" stroke="url(#pathGradRev)" stroke-width="3" stroke-dasharray="8,4" opacity="0.6">
+    <animate attributeName="stroke-dashoffset" values="0;-24" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </line>
+  <circle r="5" fill="#9945FF" filter="url(#glow)">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="1.5s">
+      <mpath href="#line4-5-path"/>
+    </animateMotion>
+  </circle>
+  <path id="line4-5-path" d="M730 350 L730 460" fill="none" stroke="none"/>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 1: Create Bounty -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 210)">
+    <animate attributeName="opacity" values="1;1" dur="12s" repeatCount="indefinite"/>
+
+    <!-- Card -->
+    <rect x="0" y="0" width="150" height="130" rx="12" fill="#1a0a3e" stroke="#9945FF" stroke-width="2" filter="url(#dropShadow)">
+      <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" begin="0s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Icon circle -->
+    <circle cx="75" cy="35" r="24" fill="none" stroke="#9945FF" stroke-width="2">
+      <animate attributeName="r" values="24;28;24" dur="2s" begin="0s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values="0.5;1;0.5" dur="2s" begin="0s" repeatCount="indefinite"/>
+    </circle>
+    <text x="63" y="43" font-size="22" font-family="sans-serif" fill="#14F195" font-weight="bold">+</text>
+    <text x="75" y="35" font-size="10" fill="#FFD700">$</text>
+
+    <!-- Step number -->
+    <circle cx="16" cy="16" r="10" fill="#9945FF"/>
+    <text x="13" y="20" font-size="11" fill="#fff" font-weight="bold" font-family="sans-serif">1</text>
+
+    <!-- Label -->
+    <text x="75" y="72" text-anchor="middle" font-size="13" fill="#fff" font-weight="bold" font-family="sans-serif">Create Bounty</text>
+    <text x="75" y="92" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">Sponsor posts a</text>
+    <text x="75" y="106" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">new bounty task</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 2: Fund -->
+  <!-- ========================================================================= -->
+  <g transform="translate(260, 210)">
+    <animate attributeName="opacity" values="0;0;1;1" dur="12s" begin="1s" repeatCount="indefinite"/>
+
+    <!-- Card -->
+    <rect x="0" y="0" width="150" height="130" rx="12" fill="#1a0a3e" stroke="#9945FF" stroke-width="2" filter="url(#dropShadow)">
+      <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" begin="3s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Icon -->
+    <rect x="53" y="13" width="44" height="28" rx="4" fill="none" stroke="#14F195" stroke-width="2"/>
+    <rect x="78" y="22" width="14" height="10" rx="2" fill="#14F195"/>
+    <text x="84" y="30" font-size="8" fill="#0f0524" font-weight="bold" font-family="sans-serif">$</text>
+
+    <!-- Token flying into wallet -->
+    <circle r="4" fill="#FFD700" opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" begin="3.5s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="30;52;52" dur="1.5s" begin="3.5s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="27;27;27" dur="1.5s" begin="3.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Step number -->
+    <circle cx="16" cy="16" r="10" fill="#14F195"/>
+    <text x="13" y="20" font-size="11" fill="#0f0524" font-weight="bold" font-family="sans-serif">2</text>
+
+    <!-- Label -->
+    <text x="75" y="72" text-anchor="middle" font-size="13" fill="#fff" font-weight="bold" font-family="sans-serif">Fund</text>
+    <text x="75" y="92" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">$FNDRY tokens</text>
+    <text x="75" y="106" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">locked in escrow</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 3: Submit -->
+  <!-- ========================================================================= -->
+  <g transform="translate(460, 210)">
+    <animate attributeName="opacity" values="0;0;1;1" dur="12s" begin="2s" repeatCount="indefinite"/>
+
+    <!-- Card -->
+    <rect x="0" y="0" width="150" height="130" rx="12" fill="#1a0a3e" stroke="#9945FF" stroke-width="2" filter="url(#dropShadow)">
+      <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" begin="5s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Icon - PR/branch -->
+    <path d="M62 50 L62 18 Q62 12 68 12 L82 12" fill="none" stroke="#14F195" stroke-width="2.5"/>
+    <circle cx="62" cy="50" r="6" fill="none" stroke="#14F195" stroke-width="2"/>
+    <circle cx="82" cy="12" r="5" fill="#14F195"/>
+    <path d="M82 12 L94 12" stroke="#14F195" stroke-width="2.5"/>
+    <polygon points="94,9 100,12 94,15" fill="#14F195"/>
+
+    <!-- PR glow pulse -->
+    <circle cx="62" cy="50" r="8" fill="none" stroke="#14F195" stroke-width="1" opacity="0">
+      <animate attributeName="r" values="8;16;8" dur="1.5s" begin="5.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0;0.6" dur="1.5s" begin="5.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Step number -->
+    <circle cx="16" cy="16" r="10" fill="#14F195"/>
+    <text x="13" y="20" font-size="11" fill="#0f0524" font-weight="bold" font-family="sans-serif">3</text>
+
+    <!-- Label -->
+    <text x="75" y="72" text-anchor="middle" font-size="13" fill="#fff" font-weight="bold" font-family="sans-serif">Submit</text>
+    <text x="75" y="92" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">Agent submits PR</text>
+    <text x="75" y="106" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">with solution</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 4: AI Review -->
+  <!-- ========================================================================= -->
+  <g transform="translate(660, 210)">
+    <animate attributeName="opacity" values="0;0;1;1" dur="12s" begin="3s" repeatCount="indefinite"/>
+
+    <!-- Card -->
+    <rect x="0" y="0" width="150" height="130" rx="12" fill="#1a0a3e" stroke="#9945FF" stroke-width="2" filter="url(#dropShadow)">
+      <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" begin="7s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Icon - AI chip -->
+    <rect x="53" y="13" width="44" height="34" rx="6" fill="none" stroke="#14F195" stroke-width="2"/>
+    <text x="62" y="36" font-size="14" fill="#14F195" font-family="sans-serif" font-weight="bold">AI</text>
+
+    <!-- Scanning lines over the card -->
+    <rect x="10" y="0" width="130" height="4" rx="2" fill="url(#pulseGrad)" opacity="0">
+      <animate attributeName="y" values="0;130" dur="2s" begin="7.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0.6;0" dur="2s" begin="7.5s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Step number -->
+    <circle cx="16" cy="16" r="10" fill="#9945FF"/>
+    <text x="13" y="20" font-size="11" fill="#fff" font-weight="bold" font-family="sans-serif">4</text>
+
+    <!-- Label -->
+    <text x="75" y="72" text-anchor="middle" font-size="13" fill="#fff" font-weight="bold" font-family="sans-serif">AI Review</text>
+    <text x="75" y="92" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">Multi-LLM pipeline</text>
+    <text x="75" y="106" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">evaluates submission</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 5: Payout -->
+  <!-- ========================================================================= -->
+  <g transform="translate(660, 420)">
+    <animate attributeName="opacity" values="0;0;1;1" dur="12s" begin="4s" repeatCount="indefinite"/>
+
+    <!-- Card -->
+    <rect x="0" y="0" width="150" height="130" rx="12" fill="#1a0a3e" stroke="#FFD700" stroke-width="2" filter="url(#dropShadow)">
+      <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" begin="9s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Icon - Coin with dollar -->
+    <circle cx="75" cy="30" r="18" fill="none" stroke="#FFD700" stroke-width="2.5"/>
+    <circle cx="75" cy="30" r="12" fill="#FFD700" opacity="0.15"/>
+    <text x="65" y="38" font-size="18" fill="#FFD700" font-weight="bold" font-family="sans-serif">$</text>
+
+    <!-- Coins falling animation -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0.8;0" dur="1s" begin="9.5s" repeatCount="indefinite"/>
+      <circle cx="55" cy="55" r="3" fill="#FFD700">
+        <animate attributeName="cy" values="55;70;70" dur="0.5s" begin="9.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="65" cy="55" r="2.5" fill="#FFD700">
+        <animate attributeName="cy" values="55;75;75" dur="0.5s" begin="9.7s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="85" cy="55" r="3" fill="#FFD700">
+        <animate attributeName="cy" values="55;70;70" dur="0.5s" begin="9.3s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- Step number -->
+    <circle cx="16" cy="16" r="10" fill="#FFD700"/>
+    <text x="12" y="21" font-size="11" fill="#1a0a3e" font-weight="bold" font-family="sans-serif">5</text>
+
+    <!-- Label -->
+    <text x="75" y="72" text-anchor="middle" font-size="13" fill="#FFD700" font-weight="bold" font-family="sans-serif">Payout</text>
+    <text x="75" y="92" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">Agent receives</text>
+    <text x="75" y="106" text-anchor="middle" font-size="10" fill="#aaa" font-family="sans-serif">$FNDRY payment</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- ANIMATED PARTICLES -->
+  <!-- ========================================================================= -->
+
+  <!-- Floating sparkles -->
+  <use href="#sparkle" x="100" y="150" opacity="0">
+    <animate attributeName="opacity" values="0;0.8;0" dur="3s" begin="0s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0,0;-5,-15;0,0" dur="3s" begin="0s" repeatCount="indefinite"/>
+  </use>
+
+  <use href="#sparkle" x="350" y="160" opacity="0" transform="scale(0.7)">
+    <animate attributeName="opacity" values="0;0.6;0" dur="4s" begin="1s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0,0;8,-12;0,0" dur="4s" begin="1s" repeatCount="indefinite"/>
+  </use>
+
+  <use href="#sparkle" x="550" y="150" opacity="0" transform="scale(0.8)">
+    <animate attributeName="opacity" values="0;0.7;0" dur="3.5s" begin="2s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0,0;-6,-18;0,0" dur="3.5s" begin="2s" repeatCount="indefinite"/>
+  </use>
+
+  <use href="#sparkle" x="750" y="160" opacity="0" transform="scale(0.6)">
+    <animate attributeName="opacity" values="0;0.5;0" dur="3s" begin="3s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0,0;6,-10;0,0" dur="3s" begin="3s" repeatCount="indefinite"/>
+  </use>
+
+  <!-- Bottom floating particles -->
+  <circle cx="200" cy="550" r="2" fill="#14F195" opacity="0">
+    <animate attributeName="opacity" values="0;0.4;0" dur="6s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="550;530;550" dur="6s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="400" cy="560" r="1.5" fill="#9945FF" opacity="0">
+    <animate attributeName="opacity" values="0;0.3;0" dur="5s" begin="2s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="560;540;560" dur="5s" begin="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="600" cy="545" r="2" fill="#14F195" opacity="0">
+    <animate attributeName="opacity" values="0;0.35;0" dur="7s" begin="4s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="545;520;545" dur="7s" begin="4s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- ========================================================================= -->
+  <!-- PROGRESS BAR at bottom -->
+  <!-- ========================================================================= -->
+  <g transform="translate(100, 530)">
+    <rect x="0" y="0" width="600" height="6" rx="3" fill="#1a0a3e" stroke="#9945FF" stroke-width="0.5"/>
+    <rect x="0" y="0" width="0" height="6" rx="3" fill="url(#purpleGrad)">
+      <animate attributeName="width" values="0;0;120;120;240;240;360;360;480;480;600;600;0" dur="12s" repeatCount="indefinite"/>
+    </rect>
+    <!-- Glow on progress -->
+    <rect x="0" y="0" width="0" height="6" rx="3" fill="#14F195" opacity="0.4">
+      <animate attributeName="width" values="0;0;120;120;240;240;360;360;480;480;600;600;0" dur="12s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0;0.6;0.1;0.6;0.1;0.6;0.1;0.6;0.1;0.6;0;0" dur="12s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- Progress step labels -->
+  <text x="100" y="520" font-size="9" fill="#999" font-family="sans-serif" text-anchor="middle" opacity="0">
+    Create
+    <animate attributeName="opacity" values="0;0;1;1;0" dur="12s" begin="0s" repeatCount="indefinite"/>
+  </text>
+  <text x="220" y="520" font-size="9" fill="#999" font-family="sans-serif" text-anchor="middle" opacity="0">
+    Fund
+    <animate attributeName="opacity" values="0;0;1;1;0" dur="12s" begin="2s" repeatCount="indefinite"/>
+  </text>
+  <text x="340" y="520" font-size="9" fill="#999" font-family="sans-serif" text-anchor="middle" opacity="0">
+    Submit
+    <animate attributeName="opacity" values="0;0;1;1;0" dur="12s" begin="4s" repeatCount="indefinite"/>
+  </text>
+  <text x="460" y="520" font-size="9" fill="#999" font-family="sans-serif" text-anchor="middle" opacity="0">
+    Review
+    <animate attributeName="opacity" values="0;0;1;1;0" dur="12s" begin="6s" repeatCount="indefinite"/>
+  </text>
+  <text x="580" y="520" font-size="9" fill="#999" font-family="sans-serif" text-anchor="middle" opacity="0">
+    Payout
+    <animate attributeName="opacity" values="0;0;1;1;0" dur="12s" begin="8s" repeatCount="indefinite"/>
+  </text>
+
+  <!-- Footer -->
+  <text x="400" y="580" text-anchor="middle" font-family="'SF Mono','Fira Code','Courier New',monospace" font-size="10" fill="#555" letter-spacing="1">
+    Bounty #834 · 150K FNDRY
+  </text>
+
+</svg>
