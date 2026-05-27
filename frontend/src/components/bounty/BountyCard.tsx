@@ -61,7 +61,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
     >
       {/* Row 1: Repo + Tier */}
       <div className="flex items-center justify-between text-sm">
@@ -69,7 +69,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
           )}
-          <span className="text-text-muted font-mono text-xs truncate">
+          <span className="text-text-muted font-mono text-[10px] sm:text-xs truncate">
             {orgName}/{repoName}
             {issueNumber && <span className="ml-1">#{issueNumber}</span>}
           </span>
@@ -120,7 +120,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+      <span className={`relative sm:absolute sm:bottom-4 sm:right-5 mt-2 sm:mt-0 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         {statusLabel}
       </span>
