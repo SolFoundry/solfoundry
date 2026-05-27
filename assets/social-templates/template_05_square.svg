@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+      text { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    </style>
+    <linearGradient id="bgGrad5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050510"/>
+      <stop offset="50%" stop-color="#0A0A20"/>
+      <stop offset="100%" stop-color="#050510"/>
+    </linearGradient>
+    <linearGradient id="rocketGrad5" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="30%" stop-color="#39FF14"/>
+      <stop offset="70%" stop-color="#9B59B6"/>
+      <stop offset="100%" stop-color="#FF007F"/>
+    </linearGradient>
+    <linearGradient id="launchAccent5" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9B59B6"/>
+      <stop offset="50%" stop-color="#FF007F"/>
+      <stop offset="100%" stop-color="#00E676"/>
+    </linearGradient>
+    <radialGradient id="starGlow5" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#9B59B6" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#9B59B6" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow5">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="rocketGlow5">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow5">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#9B59B6" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1080" fill="url(#bgGrad5)"/>
+  <circle cx="540" cy="540" r="420" fill="url(#starGlow5)"/>
+
+  <!-- Stars -->
+  <g fill="#FFFFFF" opacity="0.3">
+    <circle cx="120" cy="150" r="1.5"/>
+    <circle cx="250" cy="80" r="1"/>
+    <circle cx="880" cy="100" r="2"/>
+    <circle cx="950" cy="300" r="1.5"/>
+    <circle cx="100" cy="500" r="1"/>
+    <circle cx="60" cy="700" r="2"/>
+    <circle cx="950" cy="700" r="1.5"/>
+    <circle cx="800" cy="900" r="1"/>
+    <circle cx="300" cy="950" r="1.5"/>
+    <circle cx="700" cy="60" r="1"/>
+    <circle cx="1020" cy="500" r="1"/>
+    <circle cx="200" cy="300" r="0.8"/>
+    <circle cx="850" cy="600" r="1.2"/>
+    <circle cx="450" cy="100" r="0.8"/>
+    <circle cx="600" cy="980" r="1"/>
+  </g>
+
+  <!-- Corner accents -->
+  <rect x="40" y="40" width="60" height="3" rx="1.5" fill="#9B59B6" opacity="0.5"/>
+  <rect x="40" y="40" width="3" height="60" rx="1.5" fill="#9B59B6" opacity="0.5"/>
+
+  <!-- Logo -->
+  <g transform="translate(80, 80)">
+    <rect x="0" y="20" width="50" height="8" rx="2" fill="url(#rocketGrad5)"/>
+    <polygon points="10,28 40,28 35,55 15,55" fill="#00E676" opacity="0.9"/>
+    <rect x="20" y="55" width="10" height="15" rx="1" fill="#9B59B6"/>
+    <text x="65" y="42" font-size="26" font-weight="700" fill="#FFFFFF" letter-spacing="1">SolFoundry</text>
+  </g>
+
+  <!-- Rocket Icon -->
+  <g transform="translate(540, 240)">
+    <!-- Rocket body -->
+    <ellipse cx="0" cy="0" rx="30" ry="55" fill="none" stroke="url(#rocketGrad5)" stroke-width="3" filter="url(#rocketGlow5)"/>
+    <ellipse cx="0" cy="-20" rx="25" ry="35" fill="url(#rocketGrad5)" opacity="0.15"/>
+    <!-- Rocket window -->
+    <circle cx="0" cy="-15" r="10" fill="none" stroke="#00E676" stroke-width="2"/>
+    <circle cx="0" cy="-15" r="5" fill="#00E676" opacity="0.3"/>
+    <!-- Fins -->
+    <polygon points="-25,30 -40,55 -30,55 -20,30" fill="none" stroke="#FF007F" stroke-width="2"/>
+    <polygon points="25,30 40,55 30,55 20,30" fill="none" stroke="#FF007F" stroke-width="2"/>
+    <!-- Flame -->
+    <g filter="url(#rocketGlow5)">
+      <polygon points="-10,52 0,100 10,52" fill="#FF007F" opacity="0.6"/>
+      <polygon points="-6,52 0,85 6,52" fill="#FF5252" opacity="0.8"/>
+      <polygon points="-3,52 0,70 3,52" fill="#FFD700" opacity="0.9"/>
+    </g>
+  </g>
+
+  <!-- Badge -->
+  <g transform="translate(540, 370)">
+    <rect x="-80" y="-16" width="160" height="32" rx="16" fill="none" stroke="#9B59B6" stroke-width="1.5"/>
+    <text x="0" y="5" font-size="14" font-weight="700" fill="#9B59B6" text-anchor="middle" letter-spacing="3" filter="url(#glow5)">NEW BOUNTY</text>
+  </g>
+
+  <!-- Bounty Title (EDITABLE) -->
+  <text x="540" y="460" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-title">[BOUNTY TITLE]</text>
+  <text x="540" y="460" font-size="44" font-weight="800" fill="#9B59B6" text-anchor="middle" opacity="0.1" transform="translate(2,2)">[BOUNTY TITLE]</text>
+
+  <text x="540" y="510" font-size="20" font-weight="400" fill="#8899AA" text-anchor="middle">Fresh bounty just launched</text>
+
+  <!-- Reward (EDITABLE) -->
+  <text x="540" y="650" font-size="70" font-weight="900" fill="#FFFFFF" text-anchor="middle" class="editable-reward" filter="url(#shadow5)">[AMOUNT]</text>
+  <text x="540" y="720" font-size="28" font-weight="700" fill="url(#launchAccent5)" text-anchor="middle" letter-spacing="3">$FNDRY REWARD</text>
+
+  <!-- Difficulty -->
+  <g transform="translate(540, 820)">
+    <rect x="-100" y="-24" width="200" height="48" rx="24" fill="#0A0A20" stroke="#FF007F" stroke-width="1.5"/>
+    <text x="0" y="7" font-size="16" font-weight="600" fill="#CCCCDD" text-anchor="middle">[DIFFICULTY]</text>
+  </g>
+
+  <!-- CTA -->
+  <g transform="translate(540, 930)">
+    <rect x="-140" y="-28" width="280" height="56" rx="28" fill="url(#launchAccent5)"/>
+    <rect x="-140" y="-28" width="280" height="56" rx="28" fill="none" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="1"/>
+    <text x="0" y="7" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">LAUNCH →</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="540" y="1030" font-size="13" font-weight="400" fill="#445566" text-anchor="middle" letter-spacing="1">solfoundry.io / #BuildOnSolFoundry</text>
+</svg>

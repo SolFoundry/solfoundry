@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+      text { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    </style>
+    <linearGradient id="bgGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A0505"/>
+      <stop offset="50%" stop-color="#1A0808"/>
+      <stop offset="100%" stop-color="#0A0A0F"/>
+    </linearGradient>
+    <linearGradient id="alertGrad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF1744"/>
+      <stop offset="50%" stop-color="#FF5252"/>
+      <stop offset="100%" stop-color="#FF007F"/>
+    </linearGradient>
+    <linearGradient id="pulseGrad2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#FF1744" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#FF1744" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="redGlow2">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow2">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#FF1744" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1080" fill="url(#bgGrad2)"/>
+  <rect width="1080" height="400" fill="url(#pulseGrad2)" opacity="0.6"/>
+
+  <!-- Warning diagonal stripes -->
+  <g stroke="#FF1744" stroke-width="0.8" opacity="0.08">
+    <line x1="0" y1="0" x2="150" y2="150"/><line x1="80" y1="0" x2="230" y2="150"/>
+    <line x1="160" y1="0" x2="310" y2="150"/><line x1="240" y1="0" x2="390" y2="150"/>
+    <line x1="320" y1="0" x2="470" y2="150"/><line x1="400" y1="0" x2="550" y2="150"/>
+    <line x1="0" y1="930" x2="150" y2="1080"/><line x1="80" y1="930" x2="230" y2="1080"/>
+    <line x1="160" y1="930" x2="310" y2="1080"/>
+  </g>
+
+  <!-- Warning triangle top-right -->
+  <g transform="translate(920, 60)" opacity="0.15">
+    <polygon points="0,-40 35,20 -35,20" fill="#FF1744" stroke="#FF5252" stroke-width="2"/>
+    <rect x="-3" y="-10" width="6" height="15" rx="1" fill="#FFFFFF"/>
+    <text x="0" y="40" font-size="14" font-weight="700" fill="#FF1744" text-anchor="middle">URGENT</text>
+  </g>
+
+  <!-- Corner accents -->
+  <rect x="40" y="40" width="60" height="3" rx="1.5" fill="#FF1744" opacity="0.6"/>
+  <rect x="40" y="40" width="3" height="60" rx="1.5" fill="#FF1744" opacity="0.6"/>
+
+  <!-- Logo placeholder -->
+  <g transform="translate(80, 80)">
+    <rect x="0" y="20" width="50" height="8" rx="2" fill="url(#alertGrad2)"/>
+    <polygon points="10,28 40,28 35,55 15,55" fill="#FF5252" opacity="0.9"/>
+    <rect x="20" y="55" width="10" height="15" rx="1" fill="#9B59B6"/>
+    <text x="65" y="42" font-size="26" font-weight="700" fill="#FFFFFF" letter-spacing="1">SolFoundry</text>
+  </g>
+
+  <!-- HOT BOUNTY Badge -->
+  <g transform="translate(540, 220)">
+    <!-- Pulsing outer ring -->
+    <circle cx="0" cy="0" r="50" fill="none" stroke="#FF1744" stroke-width="1.5" opacity="0.3"/>
+    <circle cx="0" cy="0" r="40" fill="none" stroke="#FF1744" stroke-width="2" opacity="0.5"/>
+    <g filter="url(#redGlow2)">
+      <text x="0" y="-16" font-size="14" font-weight="800" fill="#FF1744" text-anchor="middle" letter-spacing="4">HOT</text>
+      <text x="0" y="10" font-size="16" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">BOUNTY</text>
+    </g>
+  </g>
+
+  <!-- Bounty Title (EDITABLE) -->
+  <text x="540" y="380" font-size="46" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-title">[BOUNTY TITLE]</text>
+  <text x="540" y="380" font-size="46" font-weight="800" fill="#FF1744" text-anchor="middle" opacity="0.12" transform="translate(2,2)">[BOUNTY TITLE]</text>
+
+  <!-- Urgency subtext -->
+  <text x="540" y="440" font-size="20" font-weight="400" fill="#CC8888">Limited slots available — don't miss out</text>
+
+  <!-- Countdown Timer Display Area -->
+  <g transform="translate(540, 550)">
+    <text font-size="16" font-weight="600" fill="#8899AA" text-anchor="middle" letter-spacing="3">DEADLINE</text>
+    <rect x="-180" y="25" width="360" height="80" rx="12" fill="#1A0808" stroke="#FF1744" stroke-width="1.5" opacity="0.8"/>
+    <text x="-110" y="72" font-size="36" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-deadline">[DAYS]</text>
+    <text x="-110" y="95" font-size="12" font-weight="400" fill="#FF5252" text-anchor="middle">Days</text>
+    <text x="-35" y="72" font-size="30" font-weight="700" fill="#FF5252" text-anchor="middle">:</text>
+    <text x="10" y="72" font-size="36" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-deadline">[HRS]</text>
+    <text x="10" y="95" font-size="12" font-weight="400" fill="#FF5252" text-anchor="middle">Hrs</text>
+    <text x="60" y="72" font-size="30" font-weight="700" fill="#FF5252" text-anchor="middle">:</text>
+    <text x="90" y="72" font-size="36" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-deadline">[MIN]</text>
+    <text x="90" y="95" font-size="12" font-weight="400" fill="#FF5252" text-anchor="middle">Min</text>
+  </g>
+
+  <!-- Reward (EDITABLE) -->
+  <text x="540" y="730" font-size="60" font-weight="900" fill="#FFFFFF" text-anchor="middle" class="editable-reward" filter="url(#shadow2)">[AMOUNT]</text>
+  <text x="540" y="790" font-size="26" font-weight="700" fill="#FF007F" text-anchor="middle" letter-spacing="2">$FNDRY REWARD</text>
+
+  <!-- Difficulty (EDITABLE) -->
+  <g transform="translate(540, 870)">
+    <rect x="-100" y="-24" width="200" height="48" rx="24" fill="#1A0808" stroke="#FF007F" stroke-width="1.5"/>
+    <text x="0" y="7" font-size="16" font-weight="600" fill="#CCCCDD" text-anchor="middle">[DIFFICULTY]</text>
+  </g>
+
+  <!-- CTA -->
+  <g transform="translate(540, 970)">
+    <rect x="-130" y="-27" width="260" height="54" rx="27" fill="url(#alertGrad2)"/>
+    <text x="0" y="7" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">CLAIM BOUNTY →</text>
+  </g>
+</svg>

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+      text { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    </style>
+    <linearGradient id="bgGrad3c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A0A12"/>
+      <stop offset="100%" stop-color="#0F0F1A"/>
+    </linearGradient>
+    <linearGradient id="coinGrad3c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFB300"/>
+    </linearGradient>
+    <linearGradient id="rewardAccent3c" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#FFD700"/>
+    </linearGradient>
+    <radialGradient id="coinGlowGrad3c" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFD700" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow3c">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#00E676" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="675" fill="url(#bgGrad3c)"/>
+  <circle cx="600" cy="337" r="350" fill="url(#coinGlowGrad3c)"/>
+  <rect x="0" y="0" width="6" height="675" fill="url(#coinGrad3c)"/>
+
+  <!-- Coin particles -->
+  <g opacity="0.05">
+    <circle cx="200" cy="120" r="10" fill="#FFD700"/>
+    <circle cx="1000" cy="150" r="12" fill="#FFD700"/>
+    <circle cx="180" cy="580" r="8" fill="#00E676"/>
+    <circle cx="1050" cy="500" r="10" fill="#00E676"/>
+  </g>
+
+  <!-- Logo -->
+  <g transform="translate(50, 40)">
+    <rect x="0" y="12" width="36" height="6" rx="2" fill="url(#coinGrad3c)"/>
+    <polygon points="7,18 29,18 25,38 11,38" fill="#00E676" opacity="0.9"/>
+    <rect x="14" y="38" width="8" height="10" rx="1" fill="#9B59B6"/>
+    <text x="48" y="32" font-size="20" font-weight="700" fill="#FFFFFF" letter-spacing="1">SolFoundry</text>
+  </g>
+
+  <!-- Small coin icon -->
+  <g transform="translate(50, 100)">
+    <circle cx="15" cy="0" r="16" fill="none" stroke="#FFD700" stroke-width="2"/>
+    <text x="15" y="6" font-size="16" font-weight="900" fill="#FFD700" text-anchor="middle">$</text>
+    <rect x="45" y="-14" width="100" height="28" rx="14" fill="none" stroke="#00E676" stroke-width="1.5"/>
+    <text x="95" y="5" font-size="12" font-weight="700" fill="#00E676" text-anchor="middle" letter-spacing="2">REWARD</text>
+  </g>
+
+  <!-- Bounty Title (EDITABLE) -->
+  <text x="50" y="220" font-size="40" font-weight="800" fill="#FFFFFF" class="editable-title">[BOUNTY TITLE]</text>
+
+  <!-- Large Reward (EDITABLE) -->
+  <text x="50" y="360" font-size="70" font-weight="900" fill="#FFFFFF" class="editable-reward" filter="url(#shadow3c)">[AMOUNT]</text>
+  <text x="50" y="420" font-size="26" font-weight="700" fill="url(#rewardAccent3c)" letter-spacing="3">$FNDRY REWARD</text>
+
+  <!-- Info row -->
+  <text x="50" y="490" font-size="18" font-weight="400" fill="#8899AA">Complete the bounty and earn rewards</text>
+  <text x="50" y="518" font-size="18" font-weight="400" fill="#8899AA">in the SolFoundry ecosystem</text>
+
+  <!-- Difficulty & CTA -->
+  <g transform="translate(50, 580)">
+    <rect x="0" y="-20" width="140" height="40" rx="20" fill="#1A1A2E" stroke="#9B59B6" stroke-width="1.5"/>
+    <text x="70" y="6" font-size="14" font-weight="600" fill="#CCCCDD" text-anchor="middle">[DIFFICULTY]</text>
+  </g>
+
+  <g transform="translate(240, 580)">
+    <rect x="0" y="-22" width="180" height="44" rx="22" fill="url(#coinGrad3c)"/>
+    <text x="90" y="6" font-size="17" font-weight="800" fill="#0A0A12" text-anchor="middle" letter-spacing="1">EARN FNDRY</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="50" y="640" font-size="12" font-weight="400" fill="#445566" letter-spacing="1">solfoundry.io / #BuildOnSolFoundry</text>
+</svg>

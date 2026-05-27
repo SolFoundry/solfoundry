@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+      text { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+      .code { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+    </style>
+    <linearGradient id="bgGrad4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#08080F"/>
+      <stop offset="50%" stop-color="#0D0D18"/>
+      <stop offset="100%" stop-color="#08080F"/>
+    </linearGradient>
+    <linearGradient id="codeAccent4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#39FF14"/>
+    </linearGradient>
+    <linearGradient id="purpleAccent4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9B59B6"/>
+      <stop offset="100%" stop-color="#FF007F"/>
+    </linearGradient>
+    <filter id="codeGlow4">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow4">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#00E676" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1080" fill="url(#bgGrad4)"/>
+
+  <!-- Code lines background -->
+  <g opacity="0.06" class="code">
+    <text x="40" y="60" font-size="11" fill="#39FF14">1  &gt; git clone solfoundry/bounty</text>
+    <text x="40" y="82" font-size="11" fill="#39FF14">2  &gt; cd bounty &amp;&amp; npm install</text>
+    <text x="40" y="104" font-size="11" fill="#39FF14">3  &gt; Building dependencies…</text>
+    <text x="40" y="126" font-size="11" fill="#39FF14">4  &gt; ✓ 42 modules installed</text>
+    <text x="40" y="148" font-size="11" fill="#39FF14">5  &gt; git checkout -b feat/bounty</text>
+    <text x="40" y="170" font-size="11" fill="#39FF14">6  &gt; Starting development server…</text>
+    <text x="40" y="192" font-size="11" fill="#39FF14">7  &gt; Listening on port 3000</text>
+  </g>
+
+  <!-- Right side code lines -->
+  <g opacity="0.04" class="code">
+    <text x="680" y="780" font-size="10" fill="#9B59B6">fn deploy() → Result&lt;Tx&gt;</text>
+    <text x="680" y="800" font-size="10" fill="#9B59B6">let program = compile(src)?;</text>
+    <text x="680" y="820" font-size="10" fill="#9B59B6">let sig = cluster.send(tx)?;</text>
+    <text x="680" y="840" font-size="10" fill="#9B59B6">println!("Deployed: {}", sig);</text>
+    <text x="680" y="860" font-size="10" fill="#9B59B6">Ok(())</text>
+  </g>
+
+  <!-- Corner accents -->
+  <rect x="40" y="40" width="60" height="3" rx="1.5" fill="url(#codeAccent4)" opacity="0.5"/>
+  <rect x="40" y="40" width="3" height="60" rx="1.5" fill="url(#codeAccent4)" opacity="0.5"/>
+
+  <!-- Logo -->
+  <g transform="translate(80, 80)">
+    <rect x="0" y="20" width="50" height="8" rx="2" fill="url(#codeAccent4)"/>
+    <polygon points="10,28 40,28 35,55 15,55" fill="#00E676" opacity="0.9"/>
+    <rect x="20" y="55" width="10" height="15" rx="1" fill="#9B59B6"/>
+    <text x="65" y="42" font-size="26" font-weight="700" fill="#FFFFFF" letter-spacing="1">SolFoundry</text>
+  </g>
+
+  <!-- Code brackets decorative -->
+  <g transform="translate(540, 210)" opacity="0.8">
+    <text x="-60" y="0" font-size="50" font-weight="300" fill="#00E676" filter="url(#codeGlow4)" class="code">&lt;/</text>
+    <text x="20" y="0" font-size="50" font-weight="300" fill="#00E676" filter="url(#codeGlow4)" class="code">&gt;</text>
+  </g>
+
+  <!-- Builder tagline -->
+  <text x="540" y="310" font-size="18" font-weight="600" fill="#39FF14" text-anchor="middle" letter-spacing="4" class="code">{ BUILDER BOUNTY }</text>
+
+  <!-- Bounty Title (EDITABLE) -->
+  <text x="540" y="420" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle" class="editable-title">[BOUNTY TITLE]</text>
+
+  <text x="540" y="480" font-size="18" font-weight="400" fill="#8899AA" text-anchor="middle" class="code">// Ship code. Earn FNDRY.</text>
+
+  <!-- Shield icon placeholder / quality indicator -->
+  <g transform="translate(540, 570)">
+    <rect x="-120" y="-35" width="240" height="70" rx="12" fill="#0D0D18" stroke="#9B59B6" stroke-width="1" opacity="0.8"/>
+    <rect x="-114" y="-29" width="228" height="58" rx="10" fill="#1A0A2E" opacity="0.3"/>
+    <text x="-80" y="8" font-size="14" font-weight="600" fill="#9B59B6" class="code">▲</text>
+    <text x="20" y="8" font-size="16" font-weight="600" fill="#CCCCDD" text-anchor="start">[DIFFICULTY]</text>
+  </g>
+
+  <!-- Reward (EDITABLE) -->
+  <g transform="translate(540, 730)">
+    <text font-size="60" font-weight="900" fill="#FFFFFF" text-anchor="middle" class="editable-reward" filter="url(#shadow4)">[AMOUNT]</text>
+    <text x="0" y="55" font-size="22" font-weight="700" fill="url(#codeAccent4)" text-anchor="middle" letter-spacing="2">$FNDRY</text>
+  </g>
+
+  <!-- CTA -->
+  <g transform="translate(540, 920)">
+    <rect x="-140" y="-27" width="280" height="54" rx="27" fill="url(#purpleAccent4)"/>
+    <text x="0" y="7" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="1" class="code">START BUILDING</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="540" y="1030" font-size="13" font-weight="400" fill="#445566" text-anchor="middle" letter-spacing="1">solfoundry.io / #BuildOnSolFoundry</text>
+</svg>
