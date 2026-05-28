@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { GitPullRequest, Clock } from 'lucide-react';
+import { GitPullRequest } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardHover } from '../../lib/animations';
-import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { BountyCountdownTimer } from './BountyCountdownTimer';
 
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
@@ -112,8 +113,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
           </span>
           {bounty.deadline && (
             <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
+              <BountyCountdownTimer deadline={bounty.deadline} compact />
             </span>
           )}
         </div>
