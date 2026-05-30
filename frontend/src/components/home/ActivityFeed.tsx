@@ -2,15 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
-
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
+import type { ActivityEvent } from '../../api/activity';
 
 // Mock events for when API doesn't return activity
 const MOCK_EVENTS: ActivityEvent[] = [
