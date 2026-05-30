@@ -1,0 +1,46 @@
+## Bounty: Bounty Countdown Timer (T1)
+
+Closes: #826
+
+### Summary
+
+Implements a live countdown timer component for bounty deadlines, satisfying all acceptance criteria from the bounty:
+
+- Timer displays on bounty cards and detail page
+- Updates in real-time (1-second interval)
+- Visual urgency indicators:
+  - Normal (>24h): muted gray
+  - Warning (<24h): amber with alert icon
+  - Urgent (<1h): red with zap icon
+  - Expired: shows "Expired" label
+
+### Changes
+
+**New file:** frontend/src/components/bounty/BountyCountdown.tsx
+- BountyCountdown component with compact and showSeconds props
+- Real-time countdown using setInterval (1s)
+- Urgency computed from remaining time
+- Icons: Clock (normal), AlertTriangle (warning), Zap (urgent)
+
+**Modified:** frontend/src/components/bounty/BountyCard.tsx
+- Replaced static timeLeft() + Clock icon with BountyCountdown compact
+- Card now shows live ticking countdown
+
+**Modified:** frontend/src/components/bounty/BountyDetail.tsx
+- Sidebar deadline row now shows full BountyCountdown with colored urgency badge
+
+**New file:** frontend/src/lib/utils.ts
+- timeLeft() - existing relative time string
+- getTimeParts() - new: extracts days/hours/minutes/seconds from deadline
+- timeAgo() - relative time since date
+- formatCurrency() - formats reward amounts
+- LANG_COLORS - language color map
+
+**New file:** frontend/src/lib/animations.ts
+- Created missing animations (cardHover, buttonHover, fadeIn, slideInRight, pageTransition, staggerContainer, staggerItem) that were imported throughout the codebase but didn't exist
+
+### Testing
+
+- TypeScript compiles cleanly
+- Vite production build succeeds
+- No placeholder or CLAUDE.md files added

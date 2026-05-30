@@ -15,6 +15,7 @@ export interface BountiesListParams {
   skill?: string;
   tier?: string;
   reward_token?: string;
+  query?: string;
 }
 
 export interface BountiesListResponse {
@@ -24,6 +25,12 @@ export interface BountiesListResponse {
   offset: number;
 }
 
+/**
+ * Normalizes a raw bounty object from the backend, handling field name mappings
+ * (e.g. funding_token -> reward_token) and providing defaults for missing fields.
+ * @param b - Raw bounty object from the API.
+ * @returns Normalized bounty with reward_token always set.
+ */
 // Map backend field names to frontend types (funding_token -> reward_token)
 function mapBounty(b: Bounty): Bounty {
   const raw = b as Bounty & { funding_token?: string };
