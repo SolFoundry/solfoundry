@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
@@ -11,10 +11,23 @@ const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchInput]);
 
   const params = {
     status: statusFilter,
     skill: activeSkill !== 'All' ? activeSkill : undefined,
+    search: debouncedSearch.trim() || undefined,
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
@@ -22,33 +35,60 @@ export function BountyGrid() {
 
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
 
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setDebouncedSearch('');
+  };
+
   return (
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/bounties/create"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150"
-            >
-              <Plus className="w-4 h-4" />
-              Post a Bounty
-            </Link>
-            {/* Status filter */}
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search bounties..."
+                className="w-full bg-forge-800 border border-border rounded-lg pl-9 pr-8 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald outline-none transition-colors duration-150"
+              />
+              {searchInput && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-forge-700 text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                to="/bounties/create"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150 whitespace-nowrap"
               >
-                <option value="open">Open</option>
-                <option value="funded">Funded</option>
-                <option value="in_review">In Review</option>
-                <option value="completed">Completed</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <Plus className="w-4 h-4" />
+                Post a Bounty
+              </Link>
+              {/* Status filter */}
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
+                >
+                  <option value="open">Open</option>
+                  <option value="funded">Funded</option>
+                  <option value="in_review">In Review</option>
+                  <option value="completed">Completed</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -97,7 +137,7 @@ export function BountyGrid() {
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {searchInput ? 'Try a different search query or filters.' : activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
             </p>
           </div>
         )}
