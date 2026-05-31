@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { GitPullRequest, Clock } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardHover } from '../../lib/animations';
-import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { BountyTimer } from './BountyTimer';
+import { formatCurrency, LANG_COLORS } from '../../lib/utils';
 
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
@@ -97,33 +98,39 @@ export function BountyCard({ bounty }: BountyCardProps) {
         </div>
       )}
 
-      {/* Separator */}
-      <div className="mt-4 border-t border-border/50" />
-
-      {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
-          {formatCurrency(bounty.reward_amount, bounty.reward_token)}
-        </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
-          <span className="inline-flex items-center gap-1">
-            <GitPullRequest className="w-3.5 h-3.5" />
-            {bounty.submission_count} PRs
+      {/* Row 4: Reward & Meta Group */}
+      <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2.5">
+        {/* Reward Line (Standalone for maximum width and clarity) */}
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[17px] sm:text-lg font-bold text-emerald tracking-tight">
+            {formatCurrency(bounty.reward_amount, bounty.reward_token)}
           </span>
-          {bounty.deadline && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
+        </div>
+
+        {/* Meta Stats Line (PRs, Status & Deadline Timer) */}
+        <div className="flex items-center justify-between text-xs text-text-muted">
+          {/* Left Side: PR count & Status indicator */}
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-text-secondary bg-forge-950/60 px-2 py-0.5 border border-border/30 rounded">
+              <GitPullRequest className="w-3 h-3 text-text-muted flex-shrink-0" />
+              {bounty.submission_count} PRs
             </span>
-          )}
+            <span className={`inline-flex items-center gap-1 font-sans font-medium text-[10px] bg-forge-950/60 px-2 py-0.5 border border-border/30 rounded ${statusColor}`}>
+              <span className={`w-1 h-1 rounded-full ${dotColor}`} />
+              {statusLabel}
+            </span>
+          </div>
+
+          {/* Right Side: Deadline Timer */}
+          <div className="flex-shrink-0">
+            {bounty.deadline ? (
+              <BountyTimer deadline={bounty.deadline} />
+            ) : (
+              <span className="text-[10px] font-mono text-text-muted">No deadline</span>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        {statusLabel}
-      </span>
     </motion.div>
   );
 }
