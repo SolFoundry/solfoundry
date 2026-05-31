@@ -5,6 +5,7 @@ import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
 import type { BountyCreatePayload } from '../../types/bounty';
 import { createBounty, getTreasuryDepositInfo, verifyEscrowDeposit } from '../../api/bounties';
 import { pageTransition } from '../../lib/animations';
+import { useToastHook } from '../../hooks/useToast';
 
 const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
 const PLATFORM_FEE_PCT = 0.05;
@@ -273,6 +274,7 @@ function Step3({
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const toast = useToastHook();
 
   const treasuryAddress = state.treasury_address ?? 'Loading treasury address...';
 
@@ -280,6 +282,7 @@ function Step3({
     if (!state.treasury_address) return;
     navigator.clipboard.writeText(state.treasury_address).then(() => {
       setCopiedAddr(true);
+      toast.info('Treasury address copied to clipboard');
       setTimeout(() => setCopiedAddr(false), 2000);
     });
   };
@@ -292,11 +295,16 @@ function Step3({
       const result = await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
       if (result.verified) {
         onChange('verified', true);
+        toast.success('Deposit verified successfully!');
       } else {
-        setVerifyError(result.error ?? 'Verification failed. Check your transaction signature.');
+        const errorMsg = result.error ?? 'Verification failed. Check your transaction signature.';
+        setVerifyError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch {
-      setVerifyError('Verification failed. Try again.');
+      const errorMsg = 'Verification failed. Try again.';
+      setVerifyError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setVerifying(false);
     }
@@ -380,6 +388,7 @@ function Step3({
 
 export function BountyCreateWizard() {
   const navigate = useNavigate();
+  const toast = useToastHook();
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -421,9 +430,12 @@ export function BountyCreateWizard() {
       onChange('bounty_id', bounty.id);
       onChange('treasury_address', depositInfo.treasury_address);
       onChange('total_to_fund', depositInfo.total_to_fund);
+      toast.success('Bounty draft created! Please fund the escrow.');
       setStep(2);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create bounty. Try again.');
+      const errorMsg = e instanceof Error ? e.message : 'Failed to create bounty. Try again.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setCreating(false);
     }
@@ -436,8 +448,11 @@ export function BountyCreateWizard() {
     try {
       await verifyEscrowDeposit({ bounty_id: state.bounty_id, tx_signature: state.tx_signature });
       setSuccess(true);
+      toast.success('Bounty published live successfully!');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to publish bounty. Try again.');
+      const errorMsg = e instanceof Error ? e.message : 'Failed to publish bounty. Try again.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setCreating(false);
     }
