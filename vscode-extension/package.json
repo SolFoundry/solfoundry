@@ -1,0 +1,127 @@
+{
+  "name": "solfoundry-bounties",
+  "displayName": "SolFoundry Bounties",
+  "description": "Browse, search, and claim SolFoundry bounties directly from VS Code",
+  "version": "0.1.0",
+  "publisher": "codex",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onView:solfoundry-bounties",
+    "onCommand:solfoundry-bounties.search",
+    "onCommand:solfoundry-bounties.claim",
+    "onCommand:solfoundry-bounties.filterByLanguage",
+    "onCommand:solfoundry-bounties.filterByReward",
+    "onCommand:solfoundry-bounties.openInBrowser",
+    "onCommand:solfoundry-bounties.refresh"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "solfoundry-sidebar",
+          "title": "SolFoundry Bounties",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "solfoundry-sidebar": [
+        {
+          "id": "solfoundry-bounties",
+          "name": "Bounties"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solfoundry-bounties.search",
+        "title": "Search Bounties",
+        "icon": "$(search)"
+      },
+      {
+        "command": "solfoundry-bounties.claim",
+        "title": "Claim Bounty",
+        "icon": "$(check)"
+      },
+      {
+        "command": "solfoundry-bounties.filterByLanguage",
+        "title": "Filter by Language"
+      },
+      {
+        "command": "solfoundry-bounties.filterByReward",
+        "title": "Filter by Reward"
+      },
+      {
+        "command": "solfoundry-bounties.openInBrowser",
+        "title": "Open in Browser",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "solfoundry-bounties.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "solfoundry-bounties.refresh",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        },
+        {
+          "command": "solfoundry-bounties.filterByLanguage",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        },
+        {
+          "command": "solfoundry-bounties.filterByReward",
+          "when": "view == solfoundry-bounties",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "solfoundry-bounties.claim",
+          "when": "view == solfoundry-bounties && viewItem == bounty",
+          "group": "inline"
+        },
+        {
+          "command": "solfoundry-bounties.openInBrowser",
+          "when": "view == solfoundry-bounties && viewItem == bounty",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SolFoundry Bounties",
+      "properties": {
+        "solfoundry.apiBaseUrl": {
+          "type": "string",
+          "default": "https://api.solfoundry.org",
+          "description": "Base URL for the SolFoundry API"
+        },
+        "solfoundry.walletAddress": {
+          "type": "string",
+          "default": "",
+          "description": "Your Solana wallet address for claiming bounties"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  }
+}
