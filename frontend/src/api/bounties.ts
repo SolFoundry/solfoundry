@@ -15,7 +15,10 @@ export interface BountiesListParams {
   skill?: string;
   tier?: string;
   reward_token?: string;
-}
+  domain?: string;
+  min_amount?: number;
+  max_amount?: number;
+  deadline?: string;
 
 export interface BountiesListResponse {
   items: Bounty[];
