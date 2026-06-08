@@ -1,42 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { getRecentActivity } from '../../api/activity';
 
-interface ActivityEvent {
+export interface ActivityEvent {
   id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
+  type: 'completed' | 'submitted' | 'posted' | 'review' | 'payout';
   username: string;
   avatar_url?: string | null;
   detail: string;
   timestamp: string;
 }
 
-// Mock events for when API doesn't return activity
+/** Fallback mock events when the API is unreachable */
 const MOCK_EVENTS: ActivityEvent[] = [
   {
-    id: '1',
+    id: 'm1',
     type: 'completed',
     username: 'devbuilder',
     detail: '$500 USDC from Bounty #42',
     timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
   },
   {
-    id: '2',
+    id: 'm2',
     type: 'submitted',
     username: 'KodeSage',
     detail: 'PR to Bounty #38',
     timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   },
   {
-    id: '3',
+    id: 'm3',
     type: 'posted',
     username: 'SolanaLabs',
     detail: 'Bounty #145 — $3,500 USDC',
     timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },
   {
-    id: '4',
+    id: 'm4',
     type: 'review',
     username: 'AI Review',
     detail: 'Bounty #42 — 8.5/10',
@@ -50,6 +51,7 @@ function getActionText(type: ActivityEvent['type']) {
     case 'submitted': return 'submitted';
     case 'posted': return 'posted';
     case 'review': return 'AI Review passed for';
+    case 'payout': return 'received payout for';
     default: return 'updated';
   }
 }
@@ -75,20 +77,58 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+const REFRESH_INTERVAL_MS = 30_000; // 30-second auto-refresh
+
+export function ActivityFeed({ events: externalEvents }: { events?: ActivityEvent[] }) {
+  const [apiEvents, setApiEvents] = useState<ActivityEvent[]>([]);
+  const [apiFailed, setApiFailed] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchActivity = useCallback(async () => {
+    const data = await getRecentActivity();
+    if (data.length > 0) {
+      setApiEvents(data);
+      setApiFailed(false);
+    } else {
+      setApiFailed(true);
+    }
+  }, []);
+
+  // Initial fetch + auto-refresh
+  useEffect(() => {
+    fetchActivity();
+    intervalRef.current = setInterval(fetchActivity, REFRESH_INTERVAL_MS);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchActivity]);
+
+  // External events override (for page-level props)
+  const displayEvents = externalEvents?.length
+    ? externalEvents.slice(0, 5)
+    : apiEvents.length > 0
+      ? apiEvents.slice(0, 5)
+      : MOCK_EVENTS;
+
+  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 5));
 
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+    setVisibleEvents(displayEvents.slice(0, 5));
+  }, [displayEvents]);
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center gap-3 mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+          <span
+            className={`w-2 h-2 rounded-full animate-pulse-glow ${
+              apiFailed && !externalEvents ? 'bg-status-warning' : 'bg-emerald'
+            }`}
+          />
+          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">
+            Recent Activity
+            {apiFailed && !externalEvents && ' (demo mode)'}
+          </span>
         </div>
         <div className="space-y-1">
           <AnimatePresence mode="popLayout">
