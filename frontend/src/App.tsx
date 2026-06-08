@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { BountyGridSkeleton, LeaderboardSkeleton, ProfileSkeleton, Skeleton } from './components/ui/Skeleton';
 
 // Lazy load pages
 const HomePage = React.lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -14,11 +15,49 @@ const BountiesPage = React.lazy(() => import('./pages/BountiesPage').then((m) =>
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
 function PageLoader() {
-  return (
-    <div className="min-h-screen bg-forge-950 flex items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
-    </div>
-  );
+  const { pathname } = useLocation();
+
+  const fallback = (() => {
+    if (pathname.startsWith('/leaderboard')) {
+      return (
+        <div className="min-h-screen bg-forge-950 px-4 py-8 max-w-4xl mx-auto">
+          <Skeleton className="w-48 h-8 mb-6" />
+          <LeaderboardSkeleton rows={8} />
+        </div>
+      );
+    }
+    if (pathname.startsWith('/profile')) {
+      return <ProfileSkeleton />;
+    }
+    if (pathname.startsWith('/bounties') && !pathname.includes('/create')) {
+      return (
+        <div className="min-h-screen bg-forge-950 px-4 py-8 max-w-7xl mx-auto">
+          <Skeleton className="w-48 h-8 mb-6" />
+          <BountyGridSkeleton count={6} />
+        </div>
+      );
+    }
+    if (pathname === '/' || pathname.startsWith('/how-it-works')) {
+      return (
+        <div className="min-h-screen bg-forge-950 px-4 py-8 max-w-7xl mx-auto space-y-6">
+          <Skeleton className="h-96 rounded-xl" />
+          <div className="grid grid-cols-3 gap-4">
+            <Skeleton className="h-48 rounded-xl" />
+            <Skeleton className="h-48 rounded-xl" />
+            <Skeleton className="h-48 rounded-xl" />
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      );
+    }
+    return (
+      <div className="min-h-screen bg-forge-950 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+      </div>
+    );
+  })();
+
+  return fallback;
 }
 
 export default function App() {
