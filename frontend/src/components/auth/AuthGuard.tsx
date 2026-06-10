@@ -21,13 +21,17 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) {
+    const [signInError, setSignInError] = React.useState<string | null>(null);
+
     const handleSignIn = async () => {
+      setSignInError(null);
       try {
         const url = await getGitHubAuthorizeUrl();
         window.location.href = url;
-      } catch {
-        // fallback: redirect to backend OAuth endpoint directly
-        window.location.href = '/api/auth/github/authorize';
+      } catch (err) {
+        setSignInError(
+          err instanceof Error ? err.message : 'Failed to initiate sign-in. Is VITE_GITHUB_CLIENT_ID configured?',
+        );
       }
     };
 
@@ -54,6 +58,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
               <GitBranch className="w-4 h-4" />
               Sign in with GitHub
             </button>
+            {signInError && (
+              <p className="mt-3 text-xs text-status-error text-center">
+                {signInError}
+              </p>
+            )}
             <Link
               to="/"
               className="mt-4 block text-sm text-text-muted hover:text-text-secondary transition-colors duration-150"
