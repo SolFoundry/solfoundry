@@ -6,6 +6,7 @@ import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import type { TimePeriod } from '../types/leaderboard';
 import { fadeIn } from '../lib/animations';
+import { SkeletonPodium, SkeletonLeaderboardTable } from '../components/ui/Skeleton';
 
 const PERIODS: { label: string; value: TimePeriod }[] = [
   { label: '7d', value: '7d' },
@@ -45,10 +46,11 @@ export function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Loading */}
+        {/* Loading 鈥?skeleton podium + table */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div className="space-y-10">
+            <SkeletonPodium />
+            <SkeletonLeaderboardTable rows={5} />
           </div>
         )}
 
