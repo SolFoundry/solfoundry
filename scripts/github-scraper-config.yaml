@@ -1,0 +1,41 @@
+# SolFoundry GitHub Issue Scraper Configuration
+# Copy to github-scraper.yaml and customize.
+
+# GitHub repositories to scan for bounties
+repositories:
+  - claude-builders-bounty/claude-builders-bounty
+  - warpspeedopen-source/warpspeed-bounties
+  - PlatformNetwork/bounty-challenge
+  - SecureBananaLabs/bug-bounty
+
+# SolFoundry API
+solfoundry:
+  api_url: "http://localhost:8000"
+  # API key for authenticated posting
+  # api_key: ""
+
+# Webhook server
+webhook:
+  port: 8080
+  # secret: "your-webhook-secret"
+
+# Label-to-tier mapping
+tier_mapping:
+  T1:
+    - bounty
+    - paid
+    - good-first-issue
+    - help-wanted
+  T2:
+    - expert
+    - feature
+    - enhancement
+  T3:
+    - core
+    - security
+
+# Scan settings
+scan:
+  max_issues_per_repo: 20
+  dedup_window_hours: 24
+  min_updated_days: 0  # 0 = any, 7 = last week, 30 = last month
