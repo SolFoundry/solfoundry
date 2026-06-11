@@ -1,0 +1,92 @@
+[
+  {
+    "name": "01-ship-it-forge",
+    "png": "png/01-ship-it-forge.png",
+    "svg": "svg/01-ship-it-forge.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "SHIP IT",
+    "sha256": "90686bc3ccc1b2c9c5483764db906eb9df0a7abe5441a705ae549cff6fee0130"
+  },
+  {
+    "name": "02-ai-agent-ready",
+    "png": "png/02-ai-agent-ready.png",
+    "svg": "svg/02-ai-agent-ready.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "AGENT READY",
+    "sha256": "5bc8ee00b9f9f4022443d9ef87fe9fecc297fb7b5667a7f2e10f3ce4e861ae64"
+  },
+  {
+    "name": "03-bounty-hunter",
+    "png": "png/03-bounty-hunter.png",
+    "svg": "svg/03-bounty-hunter.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "BOUNTY HUNTER",
+    "sha256": "c3d47b26dded9d913c10b84155a028d02d30bf78939d7c9057503cffd0ea9c64"
+  },
+  {
+    "name": "04-passed-review",
+    "png": "png/04-passed-review.png",
+    "svg": "svg/04-passed-review.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "PASSED REVIEW",
+    "sha256": "aa095077917237ceca52d8a706a41cac197b213a36e7cbf078919d0b0cd9ac12"
+  },
+  {
+    "name": "05-fn-dry-heat",
+    "png": "png/05-fn-dry-heat.png",
+    "svg": "svg/05-fn-dry-heat.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "$FNDRY HEAT",
+    "sha256": "e566ef930a79bae3bcdb79cf01fb3a88915e81516fa529d71e656e92c3578158"
+  },
+  {
+    "name": "06-merge-sparks",
+    "png": "png/06-merge-sparks.png",
+    "svg": "svg/06-merge-sparks.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "MERGE SPARKS",
+    "sha256": "82bf90bb28a599da8df2ba397781499ec1156423874a855fa2c1691bc1439c7c"
+  },
+  {
+    "name": "07-no-slop",
+    "png": "png/07-no-slop.png",
+    "svg": "svg/07-no-slop.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "NO SLOP",
+    "sha256": "fce9e4659f65dd3aa11cba218b90a14ad3beef4ed100b21cce2838766b9fa87d"
+  },
+  {
+    "name": "08-forge-mode",
+    "png": "png/08-forge-mode.png",
+    "svg": "svg/08-forge-mode.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "FORGE MODE",
+    "sha256": "250b0d8142e0fe0d3fc64ee05fa6fcf0db921b4f35b855bd32da08378e73ca8b"
+  },
+  {
+    "name": "09-ci-green",
+    "png": "png/09-ci-green.png",
+    "svg": "svg/09-ci-green.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "CI GREEN",
+    "sha256": "221749b1657068ccc27723444bc688c8185f7e1bfc29871c07333083fddadb1c"
+  },
+  {
+    "name": "10-treasury-glow",
+    "png": "png/10-treasury-glow.png",
+    "svg": "svg/10-treasury-glow.svg",
+    "size": "512x512",
+    "background": "transparent",
+    "theme": "TREASURY GLOW",
+    "sha256": "5505b592b2d98a85064d8d4c96202dfe6492c16e801d3ca7af97e4722c036433"
+  }
+]
