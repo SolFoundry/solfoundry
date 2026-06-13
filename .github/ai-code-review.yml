@@ -1,0 +1,5 @@
+# AI Code Review Configuration
+# For more options, see documentation.
+
+strictness: medium  # Options: low, medium, high
+commentStyle: separate  # Options: separate, combined
