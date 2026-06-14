@@ -484,3 +484,8 @@ MIT
 <p align="center">
   Built with 🔥 by the SolFoundry automaton
 </p>
+
+<!-- bountyops-package-note -->
+## GitHub issue scraper for Foundry bounties
+
+Design notes are available in [`docs/github-issue-scraper-bounty-design.md`](docs/github-issue-scraper-bounty-design.md).
