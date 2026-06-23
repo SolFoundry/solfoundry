@@ -111,15 +111,17 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
-            <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
-              forge bounty --reward 100 --lang typescript --tier 2
-            </span>
-            {typewriterDone && (
-              <span className="inline-block w-2 h-5 bg-emerald animate-blink ml-0.5 align-middle" />
-            )}
+        <div className="p-3 sm:p-4 md:p-5 font-mono text-[10px] sm:text-xs md:text-sm leading-relaxed">
+          <div className="overflow-x-auto overflow-y-hidden scrollbar-hide">
+            <div className="min-w-max">
+              <span className="text-emerald">$ </span>
+              <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+                forge bounty --reward 100 --lang typescript --tier 2
+              </span>
+              {typewriterDone && (
+                <span className="inline-block w-1.5 md:w-2 h-3 sm:h-4 md:h-5 bg-emerald animate-blink ml-0.5 align-middle" />
+              )}
+            </div>
           </div>
 
           {resultLinesVisible && (
