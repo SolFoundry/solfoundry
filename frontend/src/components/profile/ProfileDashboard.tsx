@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { GitPullRequest } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
+import { SkeletonProfileHeader, SkeletonBountyRow } from '../Skeleton';
 import type { Bounty } from '../../types/bounty';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
@@ -35,7 +36,13 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonBountyRow key={i} />
+        ))}
+      </div>
+    );
   }
   if (!bounties.length) {
     return (
@@ -153,7 +160,18 @@ export function ProfileDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('My Bounties');
   const { data: bountiesData, isLoading } = useBounties({ limit: 50 });
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <SkeletonProfileHeader />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonBountyRow key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const joinDate = user.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })

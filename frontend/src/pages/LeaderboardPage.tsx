@@ -5,6 +5,7 @@ import { PodiumCards } from '../components/leaderboard/PodiumCards';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import type { TimePeriod } from '../types/leaderboard';
+import { SkeletonLeaderboardTable } from '../components/Skeleton';
 import { fadeIn } from '../lib/animations';
 
 const PERIODS: { label: string; value: TimePeriod }[] = [
@@ -47,8 +48,8 @@ export function LeaderboardPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div className="py-8">
+            <SkeletonLeaderboardTable />
           </div>
         )}
 
