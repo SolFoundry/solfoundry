@@ -58,6 +58,34 @@ services:
       start_period: 10s
       retries: 3
 
+  email-notification:
+    build:
+      context: services/email-notification
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${EMAIL_PORT:-8100}:8100"
+    environment:
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
+      EMAIL_SMTP_USE_TLS: ${EMAIL_SMTP_USE_TLS:-true}
+      EMAIL_FROM: ${EMAIL_FROM:-notifications@solfoundry.org}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-SolFoundry}
+      EMAIL_REDIS_URL: redis://redis:6379/0
+      EMAIL_SOLFOUNDRY_API_URL: http://backend:8000
+      EMAIL_DEBUG: ${EMAIL_DEBUG:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/api/notifications/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
   # Frontend is deployed as static files via SCP — not containerized
   # Build locally with: cd frontend && npm run build
   # Deploy with: scp -r frontend/dist/* root@192.241.139.206:/opt/solfoundry/frontend/dist/
