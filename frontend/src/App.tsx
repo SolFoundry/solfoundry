@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { ToastContainer } from './components/ui/ToastContainer';
 
 // Lazy load pages
 const HomePage = React.lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <ToastContainer />
     </Suspense>
   );
 }
