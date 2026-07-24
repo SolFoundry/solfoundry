@@ -7,6 +7,7 @@ import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils'
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
 import { fadeIn } from '../../lib/animations';
+import { CountdownTimer } from '../ui/CountdownTimer';
 
 interface BountyDetailProps {
   bounty: Bounty;
@@ -139,7 +140,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-muted">Deadline</span>
                 <span className="font-mono text-status-warning inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {timeLeft(bounty.deadline)}
+                  <CountdownTimer deadline={bounty.deadline} />
                 </span>
               </div>
             )}
