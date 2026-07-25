@@ -12,6 +12,7 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => (
 const GitHubCallbackPage = React.lazy(() => import('./pages/GitHubCallbackPage').then((m) => ({ default: m.GitHubCallbackPage })));
 const BountiesPage = React.lazy(() => import('./pages/BountiesPage').then((m) => ({ default: m.BountiesPage })));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+const ActivityFeedPage = React.lazy(() => import('./pages/ActivityFeedPage').then((m) => ({ default: m.ActivityFeedPage })));
 
 function PageLoader() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/activity" element={<ActivityFeedPage />} />
         <Route
           path="/profile"
           element={

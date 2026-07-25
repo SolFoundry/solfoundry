@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRealtimeEventFeed } from '../../hooks/useEventFeed';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
 
@@ -12,37 +13,40 @@ interface ActivityEvent {
   timestamp: string;
 }
 
-// Mock events for when API doesn't return activity
-const MOCK_EVENTS: ActivityEvent[] = [
-  {
-    id: '1',
-    type: 'completed',
-    username: 'devbuilder',
-    detail: '$500 USDC from Bounty #42',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'submitted',
-    username: 'KodeSage',
-    detail: 'PR to Bounty #38',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'posted',
-    username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'review',
-    username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-];
+// Map IndexedEvent to ActivityEvent
+function toActivityEvent(e: {
+  id: string;
+  event_type: string;
+  user_wallet: string | null;
+  amount: number | null;
+  bounty_id: string | null;
+  indexed_at: string;
+}): ActivityEvent {
+  const typeMap: Record<string, ActivityEvent['type']> = {
+    escrow_created: 'posted',
+    escrow_released: 'completed',
+    bounty_created: 'posted',
+    bounty_completed: 'completed',
+    submission_approved: 'completed',
+    review_completed: 'review',
+    bounty_claimed: 'submitted',
+  };
+  const wallet = e.user_wallet
+    ? `${e.user_wallet.slice(0, 4)}...${e.user_wallet.slice(-4)}`
+    : 'System';
+  const detail = e.amount != null
+    ? `${(e.amount / 100).toLocaleString()} $FNDRY${e.bounty_id ? ` from Bounty #${e.bounty_id}` : ''}`
+    : e.bounty_id
+      ? `Bounty #${e.bounty_id}`
+      : '';
+  return {
+    id: e.id,
+    type: typeMap[e.event_type] ?? 'posted',
+    username: wallet,
+    detail,
+    timestamp: e.indexed_at,
+  };
+}
 
 function getActionText(type: ActivityEvent['type']) {
   switch (type) {
@@ -75,12 +79,13 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+export function ActivityFeed() {
+  const { events } = useRealtimeEventFeed();
+  const displayEvents = events.slice(0, 4).map(toActivityEvent);
+  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents);
 
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
+    setVisibleEvents(displayEvents);
   }, [events]);
 
   return (
