@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { GitPullRequest, Clock } from 'lucide-react';
+import { GitPullRequest } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { cardHover } from '../../lib/animations';
-import { timeLeft, formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { formatCurrency, LANG_COLORS } from '../../lib/utils';
+import { BountyCountdownTimer } from './BountyCountdownTimer';
 
 function TierBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
@@ -61,10 +62,10 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
     >
       {/* Row 1: Repo + Tier */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-sm gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {bounty.org_avatar_url && (
             <img src={bounty.org_avatar_url} className="w-5 h-5 rounded-full flex-shrink-0" alt="" />
@@ -78,7 +79,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       </div>
 
       {/* Row 2: Title */}
-      <h3 className="mt-3 font-sans text-base font-semibold text-text-primary leading-snug line-clamp-2">
+      <h3 className="mt-3 font-sans text-sm sm:text-base font-semibold text-text-primary leading-snug line-clamp-2">
         {bounty.title}
       </h3>
 
@@ -101,26 +102,25 @@ export function BountyCard({ bounty }: BountyCardProps) {
       <div className="mt-4 border-t border-border/50" />
 
       {/* Row 4: Reward + Meta */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-3">
+        <span className="font-mono text-base sm:text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <GitPullRequest className="w-3.5 h-3.5" />
             {bounty.submission_count} PRs
           </span>
           {bounty.deadline && (
             <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft(bounty.deadline)}
+              <BountyCountdownTimer deadline={bounty.deadline} size="sm" />
             </span>
           )}
         </div>
       </div>
 
-      {/* Status badge */}
-      <span className={`absolute bottom-4 right-5 text-xs font-medium inline-flex items-center gap-1 ${statusColor}`}>
+      {/* Status badge - inline on mobile, absolute on desktop */}
+      <span className={`mt-3 sm:absolute sm:bottom-4 sm:right-5 inline-flex items-center gap-1 text-xs font-medium ${statusColor}`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         {statusLabel}
       </span>
