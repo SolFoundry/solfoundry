@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * ActivityFeed — Shows recent on-chain / platform events.
+ * Fetches from the backend API with 30-second auto-refresh.
+ * Falls back to mock data when the API is unavailable.
+ */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { RefreshCw } from 'lucide-react';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { fetchActivity, type ActivityEvent } from '../../api/activity';
 
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
-
-// Mock events for when API doesn't return activity
+// ── Mock events (fallback when API is unavailable) ──────────────────────────
 const MOCK_EVENTS: ActivityEvent[] = [
   {
     id: '1',
@@ -44,6 +42,7 @@ const MOCK_EVENTS: ActivityEvent[] = [
   },
 ];
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
 function getActionText(type: ActivityEvent['type']) {
   switch (type) {
     case 'completed': return 'earned';
@@ -75,36 +74,107 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+// ── Component ───────────────────────────────────────────────────────────────
+const REFRESH_INTERVAL = 30_000; // 30 seconds
 
+export function ActivityFeed({ events: propEvents }: { events?: ActivityEvent[] }) {
+  // If events are passed via props, use them directly (no auto-refresh)
+  const isControlled = propEvents !== undefined;
+
+  const [events, setEvents] = useState<ActivityEvent[]>(
+    (propEvents?.length ? propEvents : MOCK_EVENTS).slice(0, 4)
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
+
+  // ── Load events from API (with mock fallback) ──
+  const loadEvents = useCallback(async () => {
+    if (isControlled) return;
+    setIsLoading(true);
+    try {
+      const apiEvents = await fetchActivity(10);
+      if (!mountedRef.current) return;
+      if (apiEvents && apiEvents.length > 0) {
+        setEvents(apiEvents.slice(0, 4));
+      } else {
+        // API returned empty — use mock data
+        setEvents(MOCK_EVENTS.slice(0, 4));
+      }
+    } catch {
+      if (!mountedRef.current) return;
+      // API unavailable — keep current events or use mock
+      setEvents((prev) => prev.length > 0 ? prev : MOCK_EVENTS.slice(0, 4));
+    } finally {
+      if (mountedRef.current) setIsLoading(false);
+    }
+  }, [isControlled]);
+
+  // ── Initial load + auto-refresh ──
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+    mountedRef.current = true;
+    if (!isControlled) {
+      loadEvents();
+      intervalRef.current = setInterval(loadEvents, REFRESH_INTERVAL);
+    }
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isControlled, loadEvents]);
+
+  // ── Update when prop events change ──
+  useEffect(() => {
+    if (isControlled && propEvents) {
+      setEvents(propEvents.slice(0, 4));
+    }
+  }, [propEvents, isControlled]);
+
+  // ── Empty state ──
+  const showEmpty = !isLoading && events.length === 0;
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
-          <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-status-warning animate-pulse' : 'bg-emerald animate-pulse-glow'}`} />
+            <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+          </div>
+          {!isControlled && (
+            <button
+              onClick={loadEvents}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-text-secondary transition-colors disabled:opacity-50"
+              aria-label="Refresh activity"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          )}
         </div>
+
+        {/* Events list */}
         <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {showEmpty ? (
+            <p className="text-sm text-text-muted text-center py-4">No recent activity</p>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {events.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
         </div>
       </div>
     </section>
