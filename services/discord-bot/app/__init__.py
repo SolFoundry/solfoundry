@@ -1,0 +1,1 @@
+"""SolFoundry Discord Bot — Bounty notifications via Discord."""
