@@ -80,3 +80,6 @@ data/
 *.sqlite
 *.db
 *.sqlite3
+
+# Discord bot last-seen state (contains no secrets but is local runtime state)
+.last_seen_bounties.json
