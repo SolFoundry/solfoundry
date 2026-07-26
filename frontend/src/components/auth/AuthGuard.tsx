@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { GitBranch } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getGitHubAuthorizeUrl } from '../../api/auth';
+import { redirectToGitHubSignIn } from '../../api/auth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -22,13 +22,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (!isAuthenticated) {
     const handleSignIn = async () => {
-      try {
-        const url = await getGitHubAuthorizeUrl();
-        window.location.href = url;
-      } catch {
-        // fallback: redirect to backend OAuth endpoint directly
-        window.location.href = '/api/auth/github/authorize';
-      }
+      await redirectToGitHubSignIn();
     };
 
     return (

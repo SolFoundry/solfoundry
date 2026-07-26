@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-import { exchangeGitHubCode } from '../api/auth';
+import { exchangeGitHubCode, consumeOAuthState } from '../api/auth';
 import { setAuthToken } from '../services/apiClient';
 import { fadeIn } from '../lib/animations';
 
@@ -20,8 +20,22 @@ export function GitHubCallbackPage() {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
-    if (error || !code) {
+    if (error) {
+      console.error('GitHub OAuth error:', error);
+      navigate('/?auth_error=' + encodeURIComponent(error), { replace: true });
+      return;
+    }
+
+    if (!code) {
       navigate('/', { replace: true });
+      return;
+    }
+
+    // Validate OAuth state for CSRF protection
+    const expectedState = consumeOAuthState();
+    if (expectedState && state !== expectedState) {
+      console.error('GitHub OAuth state mismatch — possible CSRF attack');
+      navigate('/?auth_error=state_mismatch', { replace: true });
       return;
     }
 
@@ -37,8 +51,9 @@ export function GitHubCallbackPage() {
         }
         navigate('/', { replace: true });
       })
-      .catch(() => {
-        navigate('/', { replace: true });
+      .catch((err) => {
+        console.error('GitHub OAuth code exchange failed:', err);
+        navigate('/?auth_error=exchange_failed', { replace: true });
       });
   }, []);
 
