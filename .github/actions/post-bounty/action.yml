@@ -1,0 +1,80 @@
+name: 'SolFoundry Post Bounty'
+description: 'Watch for bounty-labeled GitHub issues and auto-create bounties on SolFoundry.'
+
+inputs:
+  solfoundry_token:
+    description: 'Bearer token for the SolFoundry API'
+    required: false
+    default: ''
+  solfoundry_api_url:
+    description: 'SolFoundry API base URL'
+    required: false
+    default: 'https://solfoundry.dev'
+  bounty_labels:
+    description: 'Comma-separated labels that mark an issue as a bounty'
+    required: false
+    default: 'bounty,tier-1,tier-2,tier-3'
+  default_reward_amount:
+    description: 'Default reward amount ($FNDRY) when not parsed from the issue'
+    required: false
+    default: '1000'
+  default_reward_token:
+    description: 'Default reward token (USDC|FNDRY)'
+    required: false
+    default: 'FNDRY'
+  default_tier:
+    description: 'Default tier (T1|T2|T3) when not derived from a tier-* label'
+    required: false
+    default: 'T1'
+  require_tier_label:
+    description: 'If true, skip issues that lack a tier-1/tier-2/tier-3 label'
+    required: false
+    default: 'false'
+  label_skip:
+    description: 'Label that means "do not sync" (set on issue to opt out)'
+    required: false
+    default: 'solfoundry-synced'
+  gh_token:
+    description: 'GitHub PAT with issues:write (needed to add the synced label)'
+    required: false
+    default: ${{ github.token }}
+  auto_sync_label:
+    description: 'If true, add the skip label on successful sync so the issue is not re-synced'
+    required: false
+    default: 'true'
+  dry_run:
+    description: 'If true, only log what would be posted; never call the API'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Post bounty to SolFoundry
+      shell: bash
+      run: |
+        set -euo pipefail
+        DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        "$DIR/post-bounty.sh"
+      env:
+        SOLFOUNDRY_TOKEN: ${{ inputs.solfoundry_token }}
+        SOLFOUNDRY_API_URL: ${{ inputs.solfoundry_api_url }}
+        SOLFOUNDRY_BOUNTY_LABELS: ${{ inputs.bounty_labels }}
+        SOLFOUNDRY_DEFAULT_REWARD_AMOUNT: ${{ inputs.default_reward_amount }}
+        SOLFOUNDRY_DEFAULT_REWARD_TOKEN: ${{ inputs.default_reward_token }}
+        SOLFOUNDRY_DEFAULT_TIER: ${{ inputs.default_tier }}
+        SOLFOUNDRY_REQUIRE_TIER_LABEL: ${{ inputs.require_tier_label }}
+        SOLFOUNDRY_LABEL_SKIP: ${{ inputs.label_skip }}
+        SOLFOUNDRY_GH_TOKEN: ${{ inputs.gh_token }}
+        SOLFOUNDRY_AUTO_SYNC_LABEL: ${{ inputs.auto_sync_label }}
+        SOLFOUNDRY_DRY_RUN: ${{ inputs.dry_run }}
+        SOLFOUNDRY_ISSUE_BODY: ${{ github.event.issue.body }}
+        SOLFOUNDRY_ISSUE_TITLE: ${{ github.event.issue.title }}
+        SOLFOUNDRY_ISSUE_URL: ${{ github.event.issue.html_url }}
+        SOLFOUNDRY_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        SOLFOUNDRY_ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+        SOLFOUNDRY_REPO: ${{ github.repository }}
+
+branding:
+  icon: 'zap'
+  color: 'green'

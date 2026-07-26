@@ -1,0 +1,53 @@
+# SolFoundry — GitHub Action for External Repos to Post Bounties
+# ================================================================
+# When a new issue (or a relabel) gets the `bounty` + `tier-*` labels, this
+# workflow automatically creates a matching bounty on the SolFoundry platform.
+#
+# External repositories copy this file to .github/workflows/post-bounty.yml,
+# add the SolFoundry API token as a secret (SOLFOUNDRY_TOKEN) and they are done.
+
+name: Sync bounty issues to SolFoundry
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  issues: write           # needed to add the synced label
+
+jobs:
+  post-bounty:
+    if: >-
+      contains(join(github.event.issue.labels.*.name, ','), 'bounty') &&
+      contains(join(github.event.issue.labels.*.name, ','), 'tier-')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: post-bounty-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Post bounty to SolFoundry
+        uses: actions/checkout@v4
+        if: false               # action is self-contained, checkout not needed
+        # ---- action step ---------------------------------------------------
+      - name: Sync to SolFoundry
+        uses: SolFoundry/solfoundry/.github/actions/post-bounty@main
+        with:
+          # ── auth (set these as repo secrets) ─────────────────────────────
+          solfoundry_token: ${{ secrets.SOLFOUNDRY_TOKEN }}
+          solfoundry_api_url: ${{ secrets.SOLFOUNDRY_API_URL }}  # default https://solfoundry.dev
+
+          # ── which issues qualify ────────────────────────────────────────
+          bounty_labels: bounty,tier-1,tier-2,tier-3
+          require_tier_label: true   # ignore bare "bounty" issues without a tier
+          label_skip: solfoundry-synced   # label added on success; re-runs skip it
+
+          # ── reward defaults when not parsed from the issue body ────────
+          default_reward_amount: '1000'
+          default_reward_token: FNDRY
+          default_tier: T1
+
+          # ── safety ──────────────────────────────────────────────────────
+          auto_sync_label: true    # add solfoundry-synced so the issue is synced once
+          dry_run: false           # set true to preview without posting
+          gh_token: ${{ github.token }}

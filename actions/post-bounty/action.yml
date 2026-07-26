@@ -1,0 +1,38 @@
+name: 'SolFoundry Post Bounty'
+description: 'Automatically convert labeled GitHub issues into SolFoundry bounties'
+author: 'SolFoundry'
+branding:
+  icon: 'award'
+  color: 'green'
+
+inputs:
+  solfoundry-api-url:
+    description: 'SolFoundry API URL'
+    required: true
+    default: 'https://api.solfoundry.io'
+  solfoundry-api-token:
+    description: 'SolFoundry API auth token'
+    required: true
+  github-token:
+    description: 'GitHub token for API calls'
+    required: true
+  default-reward:
+    description: 'Default reward amount in $FNDRY'
+    required: false
+    default: '50'
+  reward-label-pattern:
+    description: 'Regex pattern to extract reward amount from issue labels'
+    required: false
+    default: 'reward:(\d+)'
+  tier:
+    description: 'Default bounty tier (1, 2, or 3)'
+    required: false
+    default: '2'
+  labels:
+    description: 'Comma-separated labels that trigger bounty posting'
+    required: false
+    default: 'bounty'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
