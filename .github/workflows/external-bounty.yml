@@ -1,0 +1,66 @@
+# Example: External Repository Bounty Workflow
+#
+# Install this workflow in your repository to automatically post
+# labeled issues as bounties on SolFoundry.
+#
+# Setup:
+#   1. Add SOLFOUNDRY_API_KEY to your repository secrets
+#      (Settings → Secrets and variables → Actions)
+#   2. Configure the labels you want to use for bounties
+#   3. That's it! Issues with matching labels will be auto-posted.
+#
+# Label Convention:
+#   - bounty-t1 (Tier 1, Small): Simple tasks, ~50K $FNDRY
+#   - bounty-t2 (Tier 2, Medium): Moderate complexity, ~500K $FNDRY
+#   - bounty-t3 (Tier 3, Large): Complex features, ~5M $FNDRY
+#
+# You can customize the reward amounts and label names in the workflow.
+
+name: Post Bounties to SolFoundry
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  post-bounty:
+    # Only run when the issue has a bounty label
+    if: |
+      contains(github.event.issue.labels.*.name, 'bounty-t1') ||
+      contains(github.event.issue.labels.*.name, 'bounty-t2') ||
+      contains(github.event.issue.labels.*.name, 'bounty-t3')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Post Bounty to SolFoundry
+        uses: SolFoundry/solfoundry/.github/actions/post-bounty@main
+        with:
+          solfoundry-api-key: ${{ secrets.SOLFOUNDRY_API_KEY }}
+          bounty-labels: "bounty-t1,bounty-t2,bounty-t3"
+          reward-tier-1: "50000"   # 50K $FNDRY for T1
+          reward-tier-2: "500000"  # 500K $FNDRY for T2
+          reward-tier-3: "5000000" # 5M $FNDRY for T3
+
+      - name: Comment on Issue with Bounty Link
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOUNTY_URL: ${{ steps.post-bounty.outputs.bounty-url }}
+          BOUNTY_ID: ${{ steps.post-bounty.outputs.bounty-id }}
+          TIER: ${{ steps.post-bounty.outputs.tier }}
+        run: |
+          if [ -n "$BOUNTY_URL" ]; then
+            gh issue comment "${{ github.event.issue.number }}" \
+              --body "✨ **Bounty posted to SolFoundry!** ✨
+
+          🏆 **Tier:** T$TIER
+          💰 **Reward:** ${{ inputs.reward-tier-1 || inputs.reward-tier-2 || inputs.reward-tier-3 }} \$FNDRY
+          🔗 **View bounty:** [$BOUNTY_URL]($BOUNTY_URL)
+
+          Developers can browse and claim this bounty on SolFoundry."
+          fi

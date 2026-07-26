@@ -1,0 +1,72 @@
+name: "Post Bounty to SolFoundry"
+description: |
+  Automatically post GitHub issues with bounty labels to the SolFoundry marketplace.
+  Detects labeled issues and converts them into SolFoundry bounties with
+  configurable reward tiers.
+
+branding:
+  icon: "dollar-sign"
+  color: "orange"
+
+inputs:
+  solfoundry-api-key:
+    description: "SolFoundry API key for authentication (store in secrets)"
+    required: true
+
+  bounty-labels:
+    description: "Comma-separated list of labels that trigger bounty posting, in order of tiers (T1, T2, T3)"
+    required: false
+    default: "bounty-t1,bounty-t2,bounty-t3"
+
+  reward-tier-1:
+    description: "Reward amount in $FNDRY for T1 (small) bounties"
+    required: false
+    default: "50000"
+
+  reward-tier-2:
+    description: "Reward amount in $FNDRY for T2 (medium) bounties"
+    required: false
+    default: "500000"
+
+  reward-tier-3:
+    description: "Reward amount in $FNDRY for T3 (large) bounties"
+    required: false
+    default: "5000000"
+
+outputs:
+  bounty-id:
+    description: "UUID of the created bounty on SolFoundry"
+  bounty-url:
+    description: "URL to view the bounty on SolFoundry"
+  tier:
+    description: "Tier of the created bounty (1, 2, or 3)"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Run post-bounty script
+      id: post-bounty
+      shell: bash
+      env:
+        INPUT_SOLFOUNDRY_API_KEY: ${{ inputs.solfoundry-api-key }}
+        INPUT_BOUNTY_LABELS: ${{ inputs.bounty-labels }}
+        INPUT_REWARD_TIER_1: ${{ inputs.reward-tier-1 }}
+        INPUT_REWARD_TIER_2: ${{ inputs.reward-tier-2 }}
+        INPUT_REWARD_TIER_3: ${{ inputs.reward-tier-3 }}
+      run: |
+        python3 "${{ github.action_path }}/post-bounty.py"
+
+    - name: Export outputs
+      shell: bash
+      run: |
+        # Read outputs from the script's GITHUB_OUTPUT writes
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          echo "bounty-id=$(grep '^bounty-id=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
+          echo "bounty-url=$(grep '^bounty-url=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
+          echo "tier=$(grep '^tier=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
+        fi
