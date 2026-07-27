@@ -1,0 +1,31 @@
+{
+  "name": "@solfoundry/auto-submit-agent",
+  "version": "0.1.0",
+  "description": "Autonomous Claude agent that discovers Tier-1 bounties, implements solutions, and auto-submits PRs",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "solfoundry-agent": "./dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "run": "tsx src/bin.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "tsx": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

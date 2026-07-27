@@ -1,0 +1,5 @@
+node_modules/
+dist/
+agent-output/
+package-lock.json
+hermes-verify-*.mjs
