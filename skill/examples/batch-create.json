@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Example: Improve API Response Times",
+    "description": "Optimize slow API endpoints by adding database query caching and pagination improvements.",
+    "reward_amount": 500,
+    "tier": 2,
+    "tags": ["backend", "performance", "api"]
+  },
+  {
+    "title": "Example: Add Unit Tests for Bounty Service",
+    "description": "Write comprehensive unit tests for the bounty service layer covering CRUD, validation, and authorization.",
+    "reward_amount": 300,
+    "tier": 1,
+    "tags": ["testing", "backend"]
+  }
+]
