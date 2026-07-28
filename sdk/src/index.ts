@@ -6,6 +6,8 @@
  *
  * - **Bounty operations**: CRUD, search, submissions, autocomplete
  * - **Escrow management**: Fund, release, refund, audit ledger
+ * - **User profiles**: Get profile, update, activity history, notifications
+ * - **Submission management**: Submit, list, review, status updates
  * - **Contributor profiles**: Create, update, list, stats
  * - **GitHub integration**: List bounties, check claims, verify completion
  * - **Solana helpers**: PDA derivation, account deserialization, tx building
@@ -44,6 +46,8 @@ export { GitHubClient } from './github.js';
 export type { GitHubClientConfig } from './github.js';
 export { EventSubscriber } from './events.js';
 export type { EventSubscriberConfig, EventHandler, ConnectionHandler, ErrorHandler } from './events.js';
+export { UserClient } from './users.js';
+export { SubmissionsClient } from './submissions.js';
 
 // Solana helpers
 export {
@@ -142,6 +146,19 @@ export type {
   // Config types
   SolFoundryClientConfig,
   ApiErrorResponse,
+  // User types
+  UserProfile,
+  UserProfileUpdate,
+  UserActivityEntry,
+  UserActivityResponse,
+  UserContributionStats,
+  UserNotification,
+  UserNotificationResponse,
+  UserNotificationUpdate,
+  UserNotificationPreferences,
+  // Submission review types
+  ModelReviewResult,
+  SubmissionReviewResponse,
 } from './types.js';
 
 // Program clients (on-chain Anchor program interaction)
@@ -168,6 +185,8 @@ import { HttpClient } from './client.js';
 import { BountyClient } from './bounties.js';
 import { EscrowClient } from './escrow.js';
 import { ContributorClient } from './contributors.js';
+import { UserClient } from './users.js';
+import { SubmissionsClient } from './submissions.js';
 import type { SolFoundryClientConfig } from './types.js';
 
 /**
@@ -191,6 +210,12 @@ import type { SolFoundryClientConfig } from './types.js';
  * // Access escrow operations
  * const escrow = await sf.escrow.getStatus('bounty-uuid');
  *
+ * // Access user profile
+ * const profile = await sf.users.getProfile();
+ *
+ * // Access submission operations
+ * const submissions = await sf.submissions.list('bounty-uuid');
+ *
  * // Access contributor operations
  * const stats = await sf.contributors.getStats();
  * ```
@@ -205,6 +230,12 @@ export class SolFoundry {
   /** Client for escrow lifecycle management. */
   public readonly escrow: EscrowClient;
 
+  /** Client for user profile, activity, and notification management. */
+  public readonly users: UserClient;
+
+  /** Client for submission lifecycle operations (submit, list, review). */
+  public readonly submissions: SubmissionsClient;
+
   /** Client for contributor profiles and platform statistics. */
   public readonly contributors: ContributorClient;
 
@@ -217,6 +248,8 @@ export class SolFoundry {
     this.http = new HttpClient(config);
     this.bounties = new BountyClient(this.http);
     this.escrow = new EscrowClient(this.http);
+    this.users = new UserClient(this.http);
+    this.submissions = new SubmissionsClient(this.http);
     this.contributors = new ContributorClient(this.http);
   }
 

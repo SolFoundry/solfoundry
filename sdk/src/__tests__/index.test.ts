@@ -11,6 +11,8 @@ import { SolFoundry } from '../index.js';
 import { BountyClient } from '../bounties.js';
 import { EscrowClient } from '../escrow.js';
 import { ContributorClient } from '../contributors.js';
+import { UserClient } from '../users.js';
+import { SubmissionsClient } from '../submissions.js';
 import { HttpClient } from '../client.js';
 
 describe('SolFoundry', () => {
@@ -24,6 +26,8 @@ describe('SolFoundry', () => {
       expect(client.bounties).toBeInstanceOf(BountyClient);
       expect(client.escrow).toBeInstanceOf(EscrowClient);
       expect(client.contributors).toBeInstanceOf(ContributorClient);
+      expect(client.users).toBeInstanceOf(UserClient);
+      expect(client.submissions).toBeInstanceOf(SubmissionsClient);
       expect(client.http).toBeInstanceOf(HttpClient);
     });
 

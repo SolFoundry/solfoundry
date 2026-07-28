@@ -677,3 +677,207 @@ export interface ApiErrorResponse {
   /** Machine-readable error code. */
   readonly code: string;
 }
+
+// ---------------------------------------------------------------------------
+// User types
+// ---------------------------------------------------------------------------
+
+/** Full user profile returned from the API. */
+export interface UserProfile {
+  /** Unique user UUID. */
+  readonly id: string;
+  /** GitHub username. */
+  readonly username: string;
+  /** Display name. */
+  readonly display_name: string | null;
+  /** Email address (only visible to the authenticated user). */
+  readonly email: string | null;
+  /** Solana wallet address. */
+  readonly wallet_address: string | null;
+  /** Avatar URL. */
+  readonly avatar_url: string | null;
+  /** Short bio. */
+  readonly bio: string | null;
+  /** Technical skills. */
+  readonly skills: string[];
+  /** Earned badges. */
+  readonly badges: string[];
+  /** Current reputation score. */
+  readonly reputation_score: number;
+  /** Total bounties completed. */
+  readonly total_bounties_completed: number;
+  /** Total $FNDRY earned. */
+  readonly total_earned: number;
+  /** Current unlocked tier. */
+  readonly tier_unlocked: number;
+  /** ISO timestamp of account creation. */
+  readonly created_at: string;
+  /** ISO timestamp of last profile update. */
+  readonly updated_at: string;
+}
+
+/** Payload for updating the authenticated user's profile. */
+export interface UserProfileUpdate {
+  /** Updated display name. */
+  readonly display_name?: string;
+  /** Updated Solana wallet address (32-44 chars base58). */
+  readonly wallet_address?: string;
+  /** Updated avatar URL. */
+  readonly avatar_url?: string;
+  /** Updated bio (max 500 chars). */
+  readonly bio?: string;
+  /** Updated skills list. */
+  readonly skills?: string[];
+}
+
+/** A single activity entry in the user's activity history. */
+export interface UserActivityEntry {
+  /** Unique activity UUID. */
+  readonly id: string;
+  /** Type of activity (e.g., "submission_created", "bounty_completed", "payout_received"). */
+  readonly activity_type: string;
+  /** Human-readable description of the activity. */
+  readonly description: string;
+  /** Associated bounty UUID (if applicable). */
+  readonly bounty_id: string | null;
+  /** Associated bounty title (if applicable). */
+  readonly bounty_title: string | null;
+  /** Reward amount in $FNDRY (if applicable). */
+  readonly reward_amount: number | null;
+  /** ISO timestamp of the activity. */
+  readonly created_at: string;
+}
+
+/** Paginated user activity response. */
+export interface UserActivityResponse {
+  /** Array of activity entries. */
+  readonly items: UserActivityEntry[];
+  /** Total number of activities matching the query. */
+  readonly total: number;
+  /** Pagination offset. */
+  readonly skip: number;
+  /** Page size. */
+  readonly limit: number;
+}
+
+/** Aggregated contribution statistics for a user. */
+export interface UserContributionStats {
+  /** Total bounties completed. */
+  readonly total_bounties_completed: number;
+  /** Total bounties in progress. */
+  readonly total_bounties_in_progress: number;
+  /** Total $FNDRY earned. */
+  readonly total_fndry_earned: number;
+  /** Average AI review score across all submissions. */
+  readonly average_review_score: number;
+  /** Number of submissions that were auto-approved. */
+  readonly auto_approved_count: number;
+  /** Current tier unlocked. */
+  readonly tier_unlocked: number;
+  /** Bounties completed per tier. */
+  readonly bounties_by_tier: Record<string, number>;
+  /** Total submissions made. */
+  readonly total_submissions: number;
+  /** Submission approval rate (0.0 - 1.0). */
+  readonly approval_rate: number;
+}
+
+// ---------------------------------------------------------------------------
+// Notification types
+// ---------------------------------------------------------------------------
+
+/** A single notification for a user. */
+export interface UserNotification {
+  /** Unique notification UUID. */
+  readonly id: string;
+  /** Type of notification (e.g., "submission_reviewed", "bounty_completed", "payout_sent"). */
+  readonly notification_type: string;
+  /** Human-readable notification title. */
+  readonly title: string;
+  /** Notification body text. */
+  readonly body: string;
+  /** Whether the notification has been read. */
+  readonly read: boolean;
+  /** URL to navigate to when clicked (if applicable). */
+  readonly action_url: string | null;
+  /** ISO timestamp of the notification. */
+  readonly created_at: string;
+}
+
+/** Paginated notification list response. */
+export interface UserNotificationResponse {
+  /** Array of notifications. */
+  readonly items: UserNotification[];
+  /** Total number of notifications matching the query. */
+  readonly total: number;
+  /** Number of unread notifications. */
+  readonly unread_count: number;
+  /** Pagination offset. */
+  readonly skip: number;
+  /** Page size. */
+  readonly limit: number;
+}
+
+/** Response after marking a single notification as read. */
+export interface UserNotificationUpdate {
+  /** The updated notification. */
+  readonly notification: UserNotification;
+  /** Updated unread count. */
+  readonly unread_count: number;
+}
+
+/** User notification preferences. */
+export interface UserNotificationPreferences {
+  /** Whether to receive email notifications for submission reviews. */
+  readonly email_on_review: boolean;
+  /** Whether to receive email notifications for bounty completions. */
+  readonly email_on_completion: boolean;
+  /** Whether to receive email notifications for payouts. */
+  readonly email_on_payout: boolean;
+  /** Whether to receive email notifications for new bounties. */
+  readonly email_on_new_bounty: boolean;
+  /** Whether to receive in-app notifications. */
+  readonly in_app_notifications: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Submission review types
+// ---------------------------------------------------------------------------
+
+/** A single model's review result for a submission. */
+export interface ModelReviewResult {
+  /** Name of the reviewing model (e.g., "claude", "codex", "gemini"). */
+  readonly model_name: string;
+  /** Score assigned by this model (0-10). */
+  readonly score: number;
+  /** Summary of the model's review feedback. */
+  readonly summary: string;
+  /** Detailed review comments from the model. */
+  readonly detailed_feedback: string;
+  /** Whether the model found any critical issues. */
+  readonly has_critical_issues: boolean;
+  /** List of specific issues found (if any). */
+  readonly issues: string[];
+  /** ISO timestamp when the review completed. */
+  readonly reviewed_at: string;
+}
+
+/** Complete AI review response for a submission. */
+export interface SubmissionReviewResponse {
+  /** UUID of the submission being reviewed. */
+  readonly submission_id: string;
+  /** UUID of the parent bounty. */
+  readonly bounty_id: string;
+  /** Aggregated AI review score across all models (0-10). */
+  readonly aggregated_score: number;
+  /** Whether the score meets the tier threshold for approval. */
+  readonly meets_threshold: boolean;
+  /** Whether the review process is complete for all models. */
+  readonly review_complete: boolean;
+  /** Whether eligible for automatic approval. */
+  readonly auto_approve_eligible: boolean;
+  /** Individual review results from each model. */
+  readonly model_reviews: ModelReviewResult[];
+  /** ISO timestamp when the review process started. */
+  readonly reviewed_at: string;
+}
