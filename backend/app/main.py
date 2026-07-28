@@ -56,6 +56,7 @@ from app.database import init_db, close_db
 from app.api.og import router as og_router
 from app.api.contributor_webhooks import router as contributor_webhooks_router
 from app.api.siws import router as siws_router
+from app.api.bounty_enhance import router as bounty_enhance_router
 from app.middleware.security import SecurityHeadersMiddleware
 from app.middleware.sanitization import InputSanitizationMiddleware
 from app.services.config_validator import install_log_filter, validate_secrets
@@ -411,6 +412,7 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(og_router)
 app.include_router(contributor_webhooks_router, prefix="/api")
 app.include_router(siws_router, prefix="/api")
+app.include_router(bounty_enhance_router, prefix="/api")
 
 # System Health: /health, Prometheus: /metrics
 app.include_router(health_router)
