@@ -13,6 +13,7 @@ import LifecycleTimeline from './bounties/LifecycleTimeline';
 import { MilestoneProgress } from './bounties/MilestoneProgress';
 import { BountyTags } from './bounties/BountyTags';
 import { BoostPanel } from './bounties/BoostPanel';
+import { CommentSection } from './bounties/CommentSection';
 
 interface BountyDetail {
   id: string;
@@ -307,6 +308,9 @@ export const BountyDetailPage: React.FC<{ bounty: BountyDetail }> = ({ bounty })
 
             {/* Lifecycle Timeline */}
             <LifecycleTimeline entries={lifecycle} />
+
+            {/* Discussion / Comments */}
+            <CommentSection bountyId={bounty.id} />
 
             {/* Legacy Activity Feed */}
             {bounty.activities && bounty.activities.length > 0 && (
