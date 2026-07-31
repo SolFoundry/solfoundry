@@ -14,6 +14,7 @@ import base64
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict
+from urllib.parse import urlencode
 
 import httpx
 from jose import jwt, JWTError
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
 GITHUB_REDIRECT_URI = os.getenv(
-    "GITHUB_REDIRECT_URI", "http://localhost:3000/auth/callback"
+    "GITHUB_REDIRECT_URI", "http://localhost:3000/auth/github/callback"
 )
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or secrets.token_urlsafe(32)
@@ -164,11 +165,9 @@ def get_github_authorize_url(state: Optional[str] = None) -> tuple:
         "response_type": "code",
     }
     return (
-        f"https://github.com/login/oauth/authorize?{'&'.join(f'{k}={v}' for k, v in params.items())}",
+        f"https://github.com/login/oauth/authorize?{urlencode(params)}",
         state,
     )
-
-
 def verify_oauth_state(state: str) -> bool:
     """Verify the OAuth state parameter is valid."""
     if not state:
