@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { Crown } from 'lucide-react';
 import type { LeaderboardEntry } from '../../types/leaderboard';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import { getStreakLevel } from '../../lib/gamification';
+import { BadgeDisplay } from './BadgeDisplay';
+import { TierBadge } from './TierBadge';
 
 interface PodiumCardsProps {
   entries: LeaderboardEntry[];
@@ -60,6 +63,14 @@ function PodiumCard({ entry, rank }: { entry: LeaderboardEntry; rank: number }) 
       <span className="mt-1 font-mono text-lg font-semibold text-emerald">
         ${entry.earningsFndry.toLocaleString()}
       </span>
+
+      {/* Gamification: tier + badges */}
+      <div className="mt-2 flex flex-col items-center gap-1">
+        <TierBadge points={entry.points} tier={entry.tier} size="sm" showLabel />
+        {entry.badges && entry.badges.length > 0 && (
+          <BadgeDisplay badgeIds={entry.badges} size="sm" max={3} />
+        )}
+      </div>
     </motion.div>
   );
 }

@@ -4,6 +4,9 @@ import { Flame } from 'lucide-react';
 import type { LeaderboardEntry } from '../../types/leaderboard';
 import { LANG_COLORS } from '../../lib/utils';
 import { fadeIn } from '../../lib/animations';
+import { getStreakLevel } from '../../lib/gamification';
+import { BadgeDisplay } from './BadgeDisplay';
+import { TierBadge } from './TierBadge';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -42,6 +45,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
         <div className="w-[60px] text-center">Rank</div>
         <div className="flex-1">User</div>
+        <div className="w-[80px] text-center hidden sm:block">Tier</div>
         <div className="w-[100px] text-center">Bounties</div>
         <div className="w-[120px] text-right">Earned</div>
         <div className="w-[80px] text-center hidden sm:block">Streak</div>
@@ -76,7 +80,15 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
                   ))}
                 </div>
               )}
+              {entry.badges && entry.badges.length > 0 && (
+                <div className="mt-0.5">
+                  <BadgeDisplay badgeIds={entry.badges} size="sm" max={3} />
+                </div>
+              )}
             </div>
+          </div>
+          <div className="w-[80px] text-center hidden sm:block">
+            <TierBadge points={entry.points} tier={entry.tier} size="sm" />
           </div>
           <div className="w-[100px] text-center font-mono text-sm text-text-secondary">
             {entry.bountiesCompleted}
@@ -86,8 +98,12 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
           </div>
           <div className="w-[80px] text-center hidden sm:block">
             {entry.streak && entry.streak > 0 ? (
-              <span className="font-mono text-sm text-status-warning inline-flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5" /> {entry.streak}
+              <span
+                className="font-mono text-sm inline-flex items-center gap-1"
+                style={{ color: getStreakLevel(entry.streak).color }}
+                title={`${getStreakLevel(entry.streak).label} · ${entry.streak} day streak`}
+              >
+                <Flame className="w-3.5 h-3.5" style={{ color: getStreakLevel(entry.streak).color }} /> {entry.streak}
               </span>
             ) : (
               <span className="text-text-muted">—</span>

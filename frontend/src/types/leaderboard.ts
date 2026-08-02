@@ -11,6 +11,10 @@ export interface LeaderboardEntry {
   reputation: number;
   stakedFndry: number;
   reputationBoost: number;
+  /** Gamification: badge IDs earned by this user */
+  badges?: string[];
+  /** Gamification: computed tier label (e.g. 'gold', 'diamond') */
+  tier?: string;
 }
 
 export interface PlatformStats {
