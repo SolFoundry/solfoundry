@@ -168,7 +168,8 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
+            className="md:hidden p-2.5 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary active:bg-forge-700"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>

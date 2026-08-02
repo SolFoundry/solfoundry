@@ -86,7 +86,7 @@ function EarningsTab() {
   const totalEarned = MONTHLY_MOCK.reduce((s, m) => s + m.usdc, 0);
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: 'Total Earned', value: `$${totalEarned}`, color: 'text-emerald' },
           { label: 'This Month', value: '$800', color: 'text-emerald' },
@@ -165,7 +165,7 @@ export function ProfileDashboard() {
     <motion.div variants={fadeIn} initial="initial" animate="animate" className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="rounded-xl border border-border bg-forge-900 p-6 mb-6">
-        <div className="flex items-start gap-5">
+        <div className="flex items-start gap-4 sm:gap-5">
           {user.avatar_url ? (
             <img src={user.avatar_url} className="w-16 h-16 rounded-full border-2 border-border" alt={user.username} />
           ) : (
@@ -174,7 +174,7 @@ export function ProfileDashboard() {
             </div>
           )}
           <div className="flex-1">
-            <h1 className="font-sans text-2xl font-semibold text-text-primary">{user.username}</h1>
+            <h1 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">{user.username}</h1>
             <p className="mt-1 font-mono text-sm text-text-muted">
               Joined {joinDate} · {myBounties.length} bounties created
             </p>
@@ -182,7 +182,7 @@ export function ProfileDashboard() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-forge-800 mt-6 w-fit overflow-x-auto scrollbar-none">
           {TABS.map((tab) => (
             <button
               key={tab}

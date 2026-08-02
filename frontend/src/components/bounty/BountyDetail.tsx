@@ -45,7 +45,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
                   <span>{bounty.org_name}/{bounty.repo_name}</span>
                   {bounty.issue_number && <span>#{bounty.issue_number}</span>}
                 </div>
-                <h1 className="font-sans text-2xl font-semibold text-text-primary">{bounty.title}</h1>
+                <h1 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">{bounty.title}</h1>
               </div>
               <button
                 onClick={copyLink}
@@ -118,7 +118,7 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
           {/* Reward card */}
           <div className="rounded-xl border border-emerald-border bg-emerald-bg/50 p-5">
             <p className="text-xs text-text-muted font-mono mb-1">Reward</p>
-            <p className="font-mono text-3xl font-bold text-emerald">
+            <p className="font-mono text-2xl sm:text-3xl font-bold text-emerald">
               {formatCurrency(bounty.reward_amount, bounty.reward_token)}
             </p>
           </div>
