@@ -72,3 +72,67 @@ export interface EscrowVerifyResult {
   amount_verified?: number;
   error?: string;
 }
+
+// LLM Review types for Bounty Detail Page
+export type LLMProvider = 'claude' | 'codex' | 'gemini';
+
+export interface LLMReviewScore {
+  provider: LLMProvider;
+  score: number;           // 0-10
+  confidence: number;      // 0-100 percentage
+  quality: 'excellent' | 'good' | 'fair' | 'poor';
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  full_review_url?: string;
+}
+
+export interface LLMReviewResult {
+  bounty_id: string;
+  reviews: LLMReviewScore[];
+  aggregate_score: number;
+  pass_threshold: number;
+  reviewed_at: string;
+}
+
+// Mock review data for demo/development
+export function getMockLLMReviews(bountyId: string): LLMReviewResult {
+  return {
+    bounty_id: bountyId,
+    aggregate_score: 7.8,
+    pass_threshold: 7.0,
+    reviewed_at: new Date().toISOString(),
+    reviews: [
+      {
+        provider: 'claude',
+        score: 8.2,
+        confidence: 92,
+        quality: 'excellent',
+        summary: 'Well-structured code with clear separation of concerns. Good error handling and type safety.',
+        strengths: ['Clean architecture', 'Type safety', 'Error handling'],
+        weaknesses: ['Could improve test coverage'],
+        full_review_url: 'https://claude.ai/review/' + bountyId,
+      },
+      {
+        provider: 'codex',
+        score: 7.5,
+        confidence: 88,
+        quality: 'good',
+        summary: 'Functional implementation meets requirements. Some optimization opportunities in data fetching.',
+        strengths: ['Functional correctness', 'API integration'],
+        weaknesses: ['Data fetching optimization', 'Edge case handling'],
+        full_review_url: 'https://openai.com/codex/review/' + bountyId,
+      },
+      {
+        provider: 'gemini',
+        score: 7.8,
+        confidence: 85,
+        quality: 'good',
+        summary: 'Solid implementation with good documentation. UI/UX could be more polished.',
+        strengths: ['Documentation', 'Code readability'],
+        weaknesses: ['UI polish', 'Accessibility'],
+        full_review_url: 'https://gemini.google.com/review/' + bountyId,
+      },
+    ],
+  };
+}

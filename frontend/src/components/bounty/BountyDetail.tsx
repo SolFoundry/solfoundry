@@ -6,6 +6,8 @@ import type { Bounty } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { LLMReviewPanel } from './LLMReviewCard';
+import { getMockLLMReviews } from '../../types/bounty';
 import { fadeIn } from '../../lib/animations';
 
 interface BountyDetailProps {
@@ -91,6 +93,14 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               All submissions are reviewed by our AI pipeline (3 LLMs, pass threshold 7.0/10).
             </p>
           </div>
+
+          {/* AI Review Results */}
+          <LLMReviewPanel
+            bountyId={bounty.id}
+            reviews={getMockLLMReviews(bounty.id).reviews}
+            aggregateScore={getMockLLMReviews(bounty.id).aggregate_score}
+            passThreshold={getMockLLMReviews(bounty.id).pass_threshold}
+          />
 
           {/* Submission form */}
           {bounty.status === 'open' || bounty.status === 'funded' ? (
