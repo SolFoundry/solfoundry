@@ -72,3 +72,24 @@ export interface EscrowVerifyResult {
   amount_verified?: number;
   error?: string;
 }
+
+export interface LLMReviewScore {
+  llm_name: string;
+  score: number;
+  max_score: number;
+  confidence: number;
+  quality: 'excellent' | 'good' | 'average' | 'poor';
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  reasoning: string;
+}
+
+export interface BountyReview {
+  submission_id: string;
+  contributor_username: string;
+  scores: LLMReviewScore[];
+  overall_score: number;
+  passed: boolean;
+  reviewed_at: string;
+}

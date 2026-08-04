@@ -6,6 +6,7 @@ import type {
   TreasuryDepositInfo,
   EscrowVerifyPayload,
   EscrowVerifyResult,
+  BountyReview,
 } from '../types/bounty';
 
 export interface BountiesListParams {
@@ -102,4 +103,8 @@ export async function verifyReviewFee(payload: {
   payer_wallet?: string;
 }): Promise<{ verified: boolean; bounty_id: string; fndry_amount_verified?: number; error?: string }> {
   return apiClient('/api/review-fee/verify', { method: 'POST', body: payload });
+}
+
+export async function getBountyReviews(bountyId: string): Promise<BountyReview[]> {
+  return apiClient<BountyReview[]>(`/api/bounties/${bountyId}/reviews`);
 }

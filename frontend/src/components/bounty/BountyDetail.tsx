@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, GitPullRequest, ExternalLink, Loader2, Check, Copy } from 'lucide-react';
-import type { Bounty } from '../../types/bounty';
+import type { Bounty, BountyReview } from '../../types/bounty';
 import { timeLeft, timeAgo, formatCurrency, LANG_COLORS } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { SubmissionForm } from './SubmissionForm';
+import { LLMReviewCard } from './LLMReviewCard';
+import { getBountyReviews } from '../../api/bounties';
 import { fadeIn } from '../../lib/animations';
 
 interface BountyDetailProps {
@@ -16,6 +18,27 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
   const { isAuthenticated } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reviews, setReviews] = useState<BountyReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getBountyReviews(bounty.id)
+      .then((data) => {
+        if (!cancelled) {
+          setReviews(data);
+          setReviewsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReviewsError(true);
+          setReviewsLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [bounty.id]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -111,6 +134,24 @@ export function BountyDetail({ bounty }: BountyDetailProps) {
               )}
             </div>
           ) : null}
+
+          {/* LLM Review Results */}
+          {reviewsLoading && (
+            <div className="rounded-xl border border-border bg-forge-900 p-6">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-4 h-4 animate-spin text-text-muted" />
+                <span className="text-sm text-text-muted">Loading AI review results...</span>
+              </div>
+            </div>
+          )}
+          {reviewsError && (
+            <div className="rounded-xl border border-border bg-forge-900 p-6">
+              <p className="text-sm text-text-muted">AI review results unavailable.</p>
+            </div>
+          )}
+          {!reviewsLoading && !reviewsError && reviews.length > 0 && (
+            <LLMReviewCard reviews={reviews} />
+          )}
         </div>
 
         {/* Sidebar */}
