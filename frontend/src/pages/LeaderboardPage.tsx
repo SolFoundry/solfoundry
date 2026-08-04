@@ -4,6 +4,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { PodiumCards } from '../components/leaderboard/PodiumCards';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { useLeaderboard } from '../hooks/useLeaderboard';
+import { PodiumCardSkeleton, LeaderboardRowSkeleton } from '../components/ui/Skeleton';
 import type { TimePeriod } from '../types/leaderboard';
 import { fadeIn } from '../lib/animations';
 
@@ -45,10 +46,26 @@ export function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Loading */}
+        {/* Loading — podium + table skeletons */}
         {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald border-t-transparent animate-spin" />
+          <div>
+            <div className="flex items-end justify-center gap-4 md:gap-6 mb-12">
+              <PodiumCardSkeleton />
+              <PodiumCardSkeleton isGold />
+              <PodiumCardSkeleton />
+            </div>
+            <div className="max-w-4xl mx-auto rounded-xl border border-border bg-forge-900 overflow-hidden">
+              <div className="flex items-center px-4 py-3 border-b border-border/50 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                <div className="w-[60px] text-center">Rank</div>
+                <div className="flex-1">User</div>
+                <div className="w-[100px] text-center">Bounties</div>
+                <div className="w-[120px] text-right">Earned</div>
+                <div className="w-[80px] text-center hidden sm:block">Streak</div>
+              </div>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <LeaderboardRowSkeleton key={i} />
+              ))}
+            </div>
           </div>
         )}
 
