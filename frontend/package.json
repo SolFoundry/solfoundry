@@ -22,7 +22,8 @@
     "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.5",
@@ -33,6 +34,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^25.0.0",
+    "@types/three": "^0.185.1",
     "typescript": "^5.4.5",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"

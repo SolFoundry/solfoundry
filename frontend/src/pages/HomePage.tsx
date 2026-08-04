@@ -5,10 +5,12 @@ import { ActivityFeed } from '../components/home/ActivityFeed';
 import { HowItWorksCondensed } from '../components/home/HowItWorksCondensed';
 import { FeaturedBounties } from '../components/home/FeaturedBounties';
 import { WhySolFoundry } from '../components/home/WhySolFoundry';
+import { ForgeScene } from '../components/home/ForgeScene';
 
 export function HomePage() {
   return (
     <PageLayout noFooter={false}>
+      <ForgeScene />
       <HeroSection />
       <ActivityFeed />
       <HowItWorksCondensed />
