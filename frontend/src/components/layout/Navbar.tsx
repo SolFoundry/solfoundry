@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut, User, Rocket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useStats } from '../../hooks/useStats';
@@ -142,6 +142,13 @@ export function Navbar() {
                       className="flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
                     >
                       <User className="w-4 h-4" /> Profile
+                    </Link>
+                    <Link
+                      to="/onboarding"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 text-sm text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                    >
+                      <Rocket className="w-4 h-4" /> Onboarding
                     </Link>
                     <div className="border-t border-border/50" />
                     <button

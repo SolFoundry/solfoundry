@@ -1,26 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { BountyCard } from './BountyCard';
-import { useInfiniteBounties } from '../../hooks/useBounties';
+import { useBounties } from '../../hooks/useBounties';
+import { BountyFilters, Pagination } from '../bounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import type { BountyBoardFilters } from '../../types/bounty';
+import { DEFAULT_FILTERS } from '../../types/bounty';
 
-const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
+const ITEMS_PER_PAGE = 12;
 
 export function BountyGrid() {
-  const [activeSkill, setActiveSkill] = useState<string>('All');
-  const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<BountyBoardFilters>(() => {
+    // Restore filters from URL search params for persistence
+    const fromUrl = (key: string, fallback: string) => searchParams.get(key) ?? fallback;
+    const skillsRaw = searchParams.get('skills');
+    return {
+      category: fromUrl('category', DEFAULT_FILTERS.category),
+      skills: skillsRaw ? skillsRaw.split(',').filter(Boolean) : DEFAULT_FILTERS.skills,
+      tier: fromUrl('tier', DEFAULT_FILTERS.tier),
+      rewardMin: Number(fromUrl('rewardMin', String(DEFAULT_FILTERS.rewardMin))),
+      rewardMax: Number(fromUrl('rewardMax', String(DEFAULT_FILTERS.rewardMax))),
+      deadlineBefore: fromUrl('deadlineBefore', DEFAULT_FILTERS.deadlineBefore),
+      searchQuery: fromUrl('q', DEFAULT_FILTERS.searchQuery),
+    };
+  });
+  const [page, setPage] = useState(() => {
+    const p = searchParams.get('page');
+    return p ? Math.max(1, parseInt(p, 10)) : 1;
+  });
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get('status') ?? 'open');
 
-  const params = {
-    status: statusFilter,
-    skill: activeSkill !== 'All' ? activeSkill : undefined,
-  };
+  // Sync filters to URL search params for search persistence
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.category !== DEFAULT_FILTERS.category) params.set('category', filters.category);
+    if (filters.skills.length > 0) params.set('skills', filters.skills.join(','));
+    if (filters.tier) params.set('tier', filters.tier);
+    if (filters.rewardMin !== DEFAULT_FILTERS.rewardMin) params.set('rewardMin', String(filters.rewardMin));
+    if (filters.rewardMax !== DEFAULT_FILTERS.rewardMax) params.set('rewardMax', String(filters.rewardMax));
+    if (filters.deadlineBefore) params.set('deadlineBefore', filters.deadlineBefore);
+    if (filters.searchQuery) params.set('q', filters.searchQuery);
+    if (page > 1) params.set('page', String(page));
+    if (statusFilter !== 'open') params.set('status', statusFilter);
+    setSearchParams(params, { replace: true });
+  }, [filters, page, statusFilter, setSearchParams]);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useInfiniteBounties(params);
+  const apiParams = useMemo(() => {
+    const params: Record<string, string | number | boolean | undefined> = {
+      status: statusFilter,
+      limit: ITEMS_PER_PAGE,
+      offset: (page - 1) * ITEMS_PER_PAGE,
+    };
 
-  const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
+    if (filters.searchQuery) params.search = filters.searchQuery;
+    if (filters.category && filters.category !== 'all') params.category = filters.category;
+    if (filters.skills.length > 0) params.skills = filters.skills.join(',');
+    if (filters.tier) params.tier = filters.tier;
+    if (filters.rewardMin > 0) params.reward_min = filters.rewardMin;
+    if (filters.rewardMax < 500000) params.reward_max = filters.rewardMax;
+    if (filters.deadlineBefore) params.deadline_before = filters.deadlineBefore;
+
+    return params;
+  }, [filters, page, statusFilter]);
+
+  const { data, isLoading, isError } = useBounties(apiParams);
+
+  const bounties = data?.items ?? [];
+  const totalCount = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+
+  const handleFilterChange = useCallback((key: string, value: unknown) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+  }, []);
 
   return (
     <section id="bounties" className="py-16 md:py-24">
@@ -40,7 +101,10 @@ export function BountyGrid() {
             <div className="relative">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
               >
                 <option value="open">Open</option>
@@ -48,26 +112,19 @@ export function BountyGrid() {
                 <option value="in_review">In Review</option>
                 <option value="completed">Completed</option>
               </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
             </div>
           </div>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
-          {FILTER_SKILLS.map((skill) => (
-            <button
-              key={skill}
-              onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
-                activeSkill === skill
-                  ? 'bg-forge-700 text-text-primary'
-                  : 'text-text-muted hover:text-text-secondary bg-forge-800'
-              }`}
-            >
-              {skill}
-            </button>
-          ))}
+        {/* Advanced filters */}
+        <div className="mb-8">
+          <BountyFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onReset={handleReset}
+            resultCount={bounties.length}
+            totalCount={totalCount}
+          />
         </div>
 
         {/* Loading state */}
@@ -93,17 +150,17 @@ export function BountyGrid() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && allBounties.length === 0 && (
+        {!isLoading && !isError && bounties.length === 0 && (
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              Try adjusting your filters or search query.
             </p>
           </div>
         )}
 
         {/* Bounty grid */}
-        {!isLoading && allBounties.length > 0 && (
+        {!isLoading && bounties.length > 0 && (
           <motion.div
             variants={staggerContainer}
             initial="initial"
@@ -111,7 +168,7 @@ export function BountyGrid() {
             viewport={{ once: true, margin: '-50px' }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
           >
-            {allBounties.map((bounty) => (
+            {bounties.map((bounty) => (
               <motion.div key={bounty.id} variants={staggerItem}>
                 <BountyCard bounty={bounty} />
               </motion.div>
@@ -119,17 +176,10 @@ export function BountyGrid() {
           </motion.div>
         )}
 
-        {/* Load more */}
-        {hasNextPage && (
-          <div className="mt-10 text-center">
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-border text-text-secondary text-sm font-medium hover:border-border-hover hover:text-text-primary transition-all duration-200 disabled:opacity-50"
-            >
-              {isFetchingNextPage && <Loader2 className="w-4 h-4 animate-spin" />}
-              Load More
-            </button>
+        {/* Pagination */}
+        {!isLoading && totalPages > 1 && (
+          <div className="mt-10">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
       </div>

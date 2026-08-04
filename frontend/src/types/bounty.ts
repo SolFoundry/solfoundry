@@ -72,3 +72,23 @@ export interface EscrowVerifyResult {
   amount_verified?: number;
   error?: string;
 }
+
+export interface BountyBoardFilters {
+  category: string;
+  skills: string[];
+  tier: string;
+  rewardMin: number;
+  rewardMax: number;
+  deadlineBefore: string;
+  searchQuery: string;
+}
+
+export const DEFAULT_FILTERS: BountyBoardFilters = {
+  category: 'all',
+  skills: [],
+  tier: '',
+  rewardMin: 0,
+  rewardMax: 500000,
+  deadlineBefore: '',
+  searchQuery: '',
+};
