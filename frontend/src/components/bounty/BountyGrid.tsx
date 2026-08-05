@@ -26,8 +26,8 @@ export function BountyGrid() {
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <h2 className="font-sans text-xl sm:text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
             <Link
               to="/bounties/create"
@@ -54,7 +54,7 @@ export function BountyGrid() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2 flex-wrap mb-8">
+        <div className="flex items-center gap-2 flex-wrap mb-8 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
           {FILTER_SKILLS.map((skill) => (
             <button
               key={skill}

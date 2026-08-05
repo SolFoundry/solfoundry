@@ -31,8 +31,8 @@ export function Footer() {
       {/* Magenta accent line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-footer opacity-50" />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
           {/* Col 1: Brand */}
           <div>
             <div className="flex items-center gap-2 mb-3">

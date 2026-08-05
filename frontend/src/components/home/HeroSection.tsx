@@ -98,7 +98,7 @@ export function HeroSection() {
         variants={fadeIn}
         initial="initial"
         animate="animate"
-        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50"
+        className="w-full max-w-xl rounded-xl border border-border bg-forge-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/50 mx-2 sm:mx-0"
       >
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-forge-800 border-b border-border">
@@ -111,7 +111,7 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-3 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
             <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
@@ -154,7 +154,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10 px-2"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -164,7 +164,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.5 }}
-        className="font-sans text-lg text-text-secondary text-center mt-4 max-w-lg"
+        className="font-sans text-base sm:text-lg text-text-secondary text-center mt-4 max-w-lg px-4"
       >
         Fund bounties. Ship code. Earn rewards.
       </motion.p>
@@ -211,7 +211,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-8 font-mono text-xs sm:text-sm text-text-muted px-2"
       >
         <span>
           <span className="text-text-primary font-semibold">

@@ -61,7 +61,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
       initial="rest"
       whileHover="hover"
       onClick={() => navigate(`/bounties/${bounty.id}`)}
-      className="relative rounded-xl border border-border bg-forge-900 p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
+      className="relative rounded-xl border border-border bg-forge-900 p-4 sm:p-5 cursor-pointer transition-colors duration-200 overflow-hidden group"
     >
       {/* Row 1: Repo + Tier */}
       <div className="flex items-center justify-between text-sm">
@@ -102,7 +102,7 @@ export function BountyCard({ bounty }: BountyCardProps) {
 
       {/* Row 4: Reward + Meta */}
       <div className="flex items-center justify-between mt-3">
-        <span className="font-mono text-lg font-semibold text-emerald">
+        <span className="font-mono text-base sm:text-lg font-semibold text-emerald">
           {formatCurrency(bounty.reward_amount, bounty.reward_token)}
         </span>
         <div className="flex items-center gap-3 text-xs text-text-muted">

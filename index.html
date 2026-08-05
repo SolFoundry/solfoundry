@@ -17,6 +17,12 @@
             line-height: 1.6;
             color: #333;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
         }
 
         .container {
@@ -319,19 +325,27 @@
 
         @media (max-width: 768px) {
             .nav-links {
+                display: none;
                 position: fixed;
-                top: 100%;
+                top: 0;
                 left: 0;
                 width: 100%;
-                background: white;
+                height: 100vh;
+                background: rgba(255, 255, 255, 0.98);
                 flex-direction: column;
-                padding: 2rem;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                justify-content: center;
+                align-items: center;
+                padding: 5rem 2rem;
+                gap: 2rem;
+                z-index: 999;
             }
 
             .nav-links.active {
-                transform: translateX(0);
+                display: flex;
+            }
+
+            .nav-links a {
+                font-size: 1.3rem;
             }
 
             .mobile-menu {
@@ -340,6 +354,8 @@
                 border: none;
                 font-size: 1.5rem;
                 cursor: pointer;
+                z-index: 1000;
+                position: relative;
             }
 
             .hero-buttons {
@@ -349,6 +365,45 @@
 
             .steps {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .hero h1 {
+                font-size: 1.8rem;
+                line-height: 1.2;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .section-title {
+                font-size: 1.6rem;
+            }
+
+            .token-feature[style*="span 2"] {
+                grid-column: span 1 !important;
+            }
+
+            .cta-content h2 {
+                font-size: 1.5rem;
+            }
+
+            .cta-content p {
+                font-size: 1rem;
+            }
+
+            .step {
+                padding: 1.5rem;
+            }
+
+            .token-feature {
+                padding: 1.5rem;
             }
         }
 
@@ -565,8 +620,26 @@
         // Mobile menu toggle
         function toggleMenu() {
             const navLinks = document.querySelector('.nav-links');
+            const menuIcon = document.getElementById('menu-icon');
             navLinks.classList.toggle('active');
+            if (menuIcon) {
+                menuIcon.classList.toggle('fa-bars');
+                menuIcon.classList.toggle('fa-times');
+            }
         }
+
+        // Close mobile menu when clicking a link
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const navLinks = document.querySelector('.nav-links');
+                const menuIcon = document.getElementById('menu-icon');
+                navLinks.classList.remove('active');
+                if (menuIcon) {
+                    menuIcon.classList.add('fa-bars');
+                    menuIcon.classList.remove('fa-times');
+                }
+            });
+        });
 
         // Smooth scrolling
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
