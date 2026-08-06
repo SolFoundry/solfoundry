@@ -12,7 +12,6 @@ interface ActivityEvent {
   timestamp: string;
 }
 
-// Mock events for when API doesn't return activity
 const MOCK_EVENTS: ActivityEvent[] = [
   {
     id: '1',
@@ -32,14 +31,14 @@ const MOCK_EVENTS: ActivityEvent[] = [
     id: '3',
     type: 'posted',
     username: 'SolanaLabs',
-    detail: 'Bounty #145 — $3,500 USDC',
+    detail: 'Bounty #145 - $3,500 USDC',
     timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },
   {
     id: '4',
     type: 'review',
     username: 'AI Review',
-    detail: 'Bounty #42 — 8.5/10',
+    detail: 'Bounty #42 - 8.5/10',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
 ];
@@ -57,7 +56,7 @@ function getActionText(type: ActivityEvent['type']) {
 function EventItem({ event }: { event: ActivityEvent }) {
   const isMagenta = event.type === 'review';
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-forge-850 transition-colors duration-150">
+    <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 py-2 px-3 rounded-lg hover:bg-forge-850 transition-colors duration-150">
       {event.avatar_url ? (
         <img src={event.avatar_url} className="w-6 h-6 rounded-full flex-shrink-0" alt="" />
       ) : (
@@ -65,12 +64,12 @@ function EventItem({ event }: { event: ActivityEvent }) {
           <span className="font-mono text-xs text-text-muted">{event.username[0]?.toUpperCase()}</span>
         </div>
       )}
-      <p className="text-sm text-text-secondary flex-1 truncate">
+      <p className="text-sm text-text-secondary flex-1 min-w-0 truncate">
         <span className="font-medium text-text-primary">{event.username}</span>
         {' '}{getActionText(event.type)}{' '}
         <span className={`font-mono ${isMagenta ? 'text-magenta' : 'text-emerald'}`}>{event.detail}</span>
       </p>
-      <span className="font-mono text-xs text-text-muted flex-shrink-0">{timeAgo(event.timestamp)}</span>
+      <span className="font-mono text-xs text-text-muted flex-shrink-0 ml-9 sm:ml-0">{timeAgo(event.timestamp)}</span>
     </div>
   );
 }
@@ -85,7 +84,7 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4">
         <div className="flex items-center gap-3 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>

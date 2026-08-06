@@ -23,25 +23,25 @@ export function BountyGrid() {
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <section id="bounties" className="py-16 md:py-24">
-      <div className="max-w-7xl mx-auto px-4">
+    <section id="bounties" className="py-14 md:py-24">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4">
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
             <Link
               to="/bounties/create"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald text-forge-950 font-semibold text-sm hover:bg-emerald/90 transition-colors duration-150 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
               Post a Bounty
             </Link>
             {/* Status filter */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
+                className="appearance-none w-full bg-forge-800 border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-text-secondary font-medium focus:border-emerald outline-none transition-colors duration-150 cursor-pointer"
               >
                 <option value="open">Open</option>
                 <option value="funded">Funded</option>
@@ -59,7 +59,7 @@ export function BountyGrid() {
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 whitespace-nowrap ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
@@ -72,7 +72,7 @@ export function BountyGrid() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
@@ -109,7 +109,7 @@ export function BountyGrid() {
             initial="initial"
             whileInView="animate"
             viewport={{ once: true, margin: '-50px' }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
           >
             {allBounties.map((bounty) => (
               <motion.div key={bounty.id} variants={staggerItem}>
