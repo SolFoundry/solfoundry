@@ -10,16 +10,16 @@ export function FeaturedBounties() {
   const { data, isLoading, isError } = useBounties({ limit: 4, status: 'open' });
 
   return (
-    <section className="py-16 md:py-24 px-4 bg-forge-900/30">
+    <section className="py-14 md:py-24 px-3 sm:px-4 bg-forge-900/30">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4 }}
-          className="flex items-end justify-between mb-10"
+          className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10"
         >
-          <div>
+          <div className="min-w-0">
             <h2 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-wide">
               Open Bounties
             </h2>
