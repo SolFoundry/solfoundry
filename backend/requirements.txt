@@ -1,0 +1,12 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.32
+httpx==0.28.1
+pydantic==2.5.3
+starlette==0.35.0
+email-validator==2.1.0
+# optional in production (env-file support):
+# pydantic-settings>=2.1
+# jwt: uses a stdlib HS256 implementation (app/core/security.py) — no external
+# cryptography/jose dependency required. Add `python-jose[cryptography]` if
+# supporting RS256/EdDSA ever becomes necessary.
