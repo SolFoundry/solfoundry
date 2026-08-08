@@ -1,0 +1,20 @@
+# Example configuration for the SolFoundry AI Code Review GitHub App
+# Copy to .github/ai-code-review.yml in your repository to customize.
+
+mode: standard            # quick | standard | thorough
+strictness: balanced      # lenient | balanced | strict
+comment_style: inline     # inline | summary | both
+
+# Scoring thresholds (0-10)
+auto_approve_threshold: 8.0
+block_threshold: 4.0
+
+# Languages to review
+languages:
+  - python
+  - javascript
+  - typescript
+  - go
+  - rust
+  - java
+  - solidity

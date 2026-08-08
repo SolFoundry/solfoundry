@@ -1,0 +1,24 @@
+{
+  "name": "SolFoundry AI Code Review",
+  "url": "https://github.com/SolFoundry/solfoundry",
+  "hook_attributes": {
+    "url": "https://solfoundry.org/api/github/webhook"
+  },
+  "redirect_url": "https://solfoundry.org/api/github/callback",
+  "description": "Multi-LLM AI code review for every PR. Security checks, performance analysis, and best practices.",
+  "public": true,
+  "default_permissions": {
+    "pull_requests": "write",
+    "checks": "write",
+    "contents": "read",
+    "metadata": "read",
+    "issues": "read"
+  },
+  "default_events": [
+    "pull_request",
+    "pull_request_review",
+    "check_suite"
+  ],
+  "request_oauth_on_install": true,
+  "setup_url": "https://solfoundry.org/setup"
+}
