@@ -243,3 +243,30 @@ export class SolFoundry {
     this.http.setAuthToken(token);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Autonomous Bounty-Hunting Agent
+// ---------------------------------------------------------------------------
+
+/**
+ * The autonomous bounty-hunting agent system provides a multi-LLM
+ * orchestration pipeline for discovering, planning, implementing,
+ * verifying, and submitting solutions to SolFoundry bounties.
+ *
+ * This module is part of the {@link BountyHunter} system.
+ *
+ * @example
+ * ```typescript
+ * import { BountyHunter } from '@solfoundry/sdk/agent';
+ *
+ * const hunter = new BountyHunter({
+ *   defaultProvider: { provider: 'openai', apiKey: 'sk-...', model: 'gpt-4o' },
+ *   github: { owner: 'SolFoundry', repo: 'solfoundry', token: 'ghp_...' },
+ *   walletAddress: 'fj4WqyCCw3C5ShR1RfB7MoBPTpkRrBFYP1uT35g3MvT',
+ * });
+ *
+ * const result = await hunter.hunt(861);
+ * console.log(result.prUrl);
+ * ```
+ */
+export * from './agent/index.js';
