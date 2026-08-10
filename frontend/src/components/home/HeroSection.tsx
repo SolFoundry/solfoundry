@@ -5,6 +5,7 @@ import { useStats } from '../../hooks/useStats';
 import { getGitHubAuthorizeUrl } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { buttonHover, fadeIn } from '../../lib/animations';
+import { FndryTokenPrice } from '../widgets/FndryTokenPrice';
 
 const GitHubIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -233,6 +234,16 @@ export function HeroSection() {
           </span>
           {' '}builders
         </span>
+      </motion.div>
+
+      {/* FNDRY Token Price Widget */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.0, duration: 0.5 }}
+        className="mt-8 w-full max-w-xs mx-auto"
+      >
+        <FndryTokenPrice />
       </motion.div>
     </section>
   );
