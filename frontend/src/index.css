@@ -80,6 +80,10 @@
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-gradient-shift: gradient-shift 6s ease infinite;
+  --animate-spark: spark 3s ease-out infinite;
+  --animate-ember-drift: ember-drift 8s ease-in-out infinite;
+  --animate-molten-ripple: molten-ripple 3s linear infinite;
+  --animate-smoke: smoke 12s ease-in-out infinite;
 
   @keyframes typewriter {
     from { width: 0; }
@@ -106,6 +110,29 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+  @keyframes spark {
+    0% { opacity: 0; transform: translateY(0) translateX(0) scale(0.5); }
+    20% { opacity: 0.9; }
+    80% { opacity: 0.6; }
+    100% { opacity: 0; transform: translateY(-120px) translateX(var(--spark-drift, 30px)) scale(0.2); }
+  }
+  @keyframes ember-drift {
+    0% { opacity: 0; transform: translateY(0) translateX(0) scale(0.5); }
+    20% { opacity: 0.8; transform: translateY(-20px) translateX(10px) scale(1); }
+    50% { opacity: 0.6; transform: translateY(-60px) translateX(-15px) scale(0.8); }
+    80% { opacity: 0.3; transform: translateY(-100px) translateX(10px) scale(0.4); }
+    100% { opacity: 0; transform: translateY(-140px) translateX(-5px) scale(0.1); }
+  }
+  @keyframes molten-ripple {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 150px 0%; }
+  }
+  @keyframes smoke {
+    0% { opacity: 0; transform: translateY(0) scale(0.8); }
+    20% { opacity: 1; }
+    60% { opacity: 0.5; transform: translateY(-80px) scale(1.2); }
+    100% { opacity: 0; transform: translateY(-160px) scale(1.5); }
   }
 }
 
