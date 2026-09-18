@@ -59,7 +59,7 @@ export function BountyGrid() {
             <button
               key={skill}
               onClick={() => setActiveSkill(skill)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              className={`min-h-11 inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                 activeSkill === skill
                   ? 'bg-forge-700 text-text-primary'
                   : 'text-text-muted hover:text-text-secondary bg-forge-800'
@@ -125,7 +125,7 @@ export function BountyGrid() {
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-border text-text-secondary text-sm font-medium hover:border-border-hover hover:text-text-primary transition-all duration-200 disabled:opacity-50"
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border border-border text-text-secondary text-sm font-medium hover:border-border-hover hover:text-text-primary transition-all duration-200 disabled:opacity-50"
             >
               {isFetchingNextPage && <Loader2 className="w-4 h-4 animate-spin" />}
               Load More

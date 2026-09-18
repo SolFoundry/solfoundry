@@ -115,6 +115,9 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  /* Safety net: no page-level horizontal scroll on small viewports.
+     `clip` (not `hidden`) preserves position: sticky descendants. */
+  overflow-x: clip;
 }
 
 body {

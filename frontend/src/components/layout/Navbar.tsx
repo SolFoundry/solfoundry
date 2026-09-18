@@ -157,7 +157,7 @@ export function Navbar() {
           ) : (
             <button
               onClick={handleGitHubSignIn}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700"
+              className="min-h-11 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forge-800 border border-border hover:border-border-hover text-text-primary text-sm font-medium transition-all duration-200 hover:bg-forge-700"
             >
               <GitHubIcon />
               <span className="hidden sm:block">Sign in with GitHub</span>
@@ -168,7 +168,9 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            className="md:hidden min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-forge-800 transition-colors text-text-secondary"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -190,7 +192,7 @@ export function Navbar() {
                   key={link.to}
                   to={link.to}
                   onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
+                  className="min-h-11 flex items-center px-4 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-forge-850 transition-colors duration-150"
                 >
                   {link.label}
                 </Link>

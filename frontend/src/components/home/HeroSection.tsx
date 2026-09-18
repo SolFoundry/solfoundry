@@ -111,10 +111,15 @@ export function HeroSection() {
         </div>
 
         {/* Terminal body */}
-        <div className="p-5 font-mono text-sm leading-relaxed">
+        <div className="p-4 sm:p-5 font-mono text-xs sm:text-sm leading-relaxed">
           <div className="overflow-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            {/* Mobile: static wrapped text (typewriter would clip at 375px) */}
+            <span className="text-text-secondary sm:hidden break-words">
+              forge bounty --reward 100 --lang typescript --tier 2
+            </span>
+            {/* sm and up: typewriter effect */}
+            <span className="text-text-secondary overflow-hidden whitespace-nowrap hidden sm:inline-block animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
@@ -154,7 +159,7 @@ export function HeroSection() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
-        className="font-display text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
+        className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary tracking-wider text-center mt-10"
       >
         THE AI-POWERED BOUNTY{' '}
         <span className="text-emerald">FORGE</span>
@@ -211,7 +216,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8, duration: 0.5 }}
-        className="flex items-center justify-center gap-6 mt-8 font-mono text-sm text-text-muted"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 mt-8 font-mono text-sm text-text-muted"
       >
         <span>
           <span className="text-text-primary font-semibold">
