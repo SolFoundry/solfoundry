@@ -26,6 +26,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# ...except the frontend source lib (utils, animations) — real source, not build output
+!frontend/src/lib/
 lib64/
 parts/
 sdist/

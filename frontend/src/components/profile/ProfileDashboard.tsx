@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
+import { BountyCardSkeleton } from '../ui/Skeleton';
 import type { Bounty } from '../../types/bounty';
 
 const TABS = ['My Bounties', 'My Submissions', 'Earnings', 'Settings'] as const;
@@ -35,7 +36,13 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-busy="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <BountyCardSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
   if (!bounties.length) {
     return (

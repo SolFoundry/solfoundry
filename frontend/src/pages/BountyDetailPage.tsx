@@ -4,6 +4,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { BountyDetail } from '../components/bounty/BountyDetail';
 import { useBounty } from '../hooks/useBounties';
 import { fadeIn } from '../lib/animations';
+import { BountyDetailSkeleton } from '../components/ui/Skeleton';
 import { motion } from 'framer-motion';
 
 export function BountyDetailPage() {
@@ -12,15 +13,7 @@ export function BountyDetailPage() {
 
   return (
     <PageLayout>
-      {isLoading && (
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-border bg-forge-900 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <BountyDetailSkeleton />}
 
       {isError && !isLoading && (
         <div className="max-w-4xl mx-auto px-4 py-16 text-center">
