@@ -28,8 +28,8 @@ export interface RequestOptions {
   readonly path: string;
   /** HTTP method. */
   readonly method: HttpMethod;
-  /** Query string parameters (appended as ?key=value). */
-  readonly params?: Record<string, string | number | boolean | undefined>;
+  /** Query string parameters (appended as ?key=value). Nullish values are omitted. */
+  readonly params?: Record<string, string | number | boolean | null | undefined>;
   /** JSON request body for POST/PATCH requests. */
   readonly body?: unknown;
   /** Whether this request requires authentication. Defaults to false. */
@@ -136,7 +136,7 @@ export function calculateBackoff(
  * Build a full URL from a base URL, path, and optional query parameters.
  *
  * Handles trailing slashes on baseUrl and leading slashes on path
- * to avoid double slashes. Undefined parameter values are omitted.
+ * to avoid double slashes. Nullish parameter values are omitted.
  *
  * @param baseUrl - The API base URL.
  * @param path - The endpoint path.
@@ -146,7 +146,7 @@ export function calculateBackoff(
 export function buildUrl(
   baseUrl: string,
   path: string,
-  params?: Record<string, string | number | boolean | undefined>,
+  params?: Record<string, string | number | boolean | null | undefined>,
 ): string {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -155,7 +155,7 @@ export function buildUrl(
   if (params) {
     const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         searchParams.set(key, String(value));
       }
     }

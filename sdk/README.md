@@ -1,17 +1,15 @@
-# @solfoundry/sdk
+# SolFoundry TypeScript SDK
 
-[![npm version](https://img.shields.io/npm/v/@solfoundry/sdk?color=orange)](https://www.npmjs.com/package/@solfoundry/sdk)
-[![CI](https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml/badge.svg)](https://github.com/SolFoundry/solfoundry/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://github.com/SolFoundry/solfoundry/tree/main/sdk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
+Production-ready TypeScript SDK for the SolFoundry bounty platform. It provides typed access to bounty management, submissions, users, authentication, retries, and rate-limit-aware request handling.
 
-TypeScript SDK for the [SolFoundry](https://solfoundry.io) bounty marketplace on Solana.
+## Features
 
-**[📖 Full Docs](https://docs.solfoundry.io)** · **[🔧 CLI Reference](https://docs.solfoundry.io/guide/cli-commands)** · **[📋 Examples](https://docs.solfoundry.io/examples/)** · **[🔌 API Reference](https://docs.solfoundry.io/api/)**
-
----
+- Full API surface for bounties, submissions, and users
+- Strong TypeScript definitions with JSDoc on exported APIs
+- Dependency-light client built on the standard Fetch API
+- Configurable retries with exponential backoff
+- Client-side pacing plus `Retry-After` support for rate-limited environments
+- Browser and Node.js support
 
 ## Installation
 
@@ -19,126 +17,165 @@ TypeScript SDK for the [SolFoundry](https://solfoundry.io) bounty marketplace on
 npm install @solfoundry/sdk
 ```
 
-Node.js **18+** required.
-
 ## Quick Start
 
-```typescript
-import { SolFoundry } from '@solfoundry/sdk';
+```ts
+import { SolFoundryClient, SolFoundryError } from "@solfoundry/sdk";
 
-const client = SolFoundry.create({
-  baseUrl: 'https://api.solfoundry.io',
-  authToken: process.env.SOLFOUNDRY_TOKEN, // optional for read-only
+const client = new SolFoundryClient({
+  auth: {
+    accessToken: process.env.SOLFOUNDRY_ACCESS_TOKEN,
+  },
+  retry: {
+    maxRetries: 3,
+  },
+  rateLimit: {
+    minIntervalMs: 100,
+  },
 });
 
-// List open bounties
-const bounties = await client.bounties.list({ status: 'open', limit: 10 });
-console.log(`${bounties.total} open bounties`);
-bounties.bounties.forEach(b => console.log(`[T${b.tier}] ${b.title} — ${b.reward_amount} $FNDRY`));
+async function main(): Promise<void> {
+  const bounties = await client.bounties.list({ status: "open", limit: 10 });
+  console.log(bounties.items.map((bounty) => bounty.title));
+}
 
-// Get a specific bounty
-const bounty = await client.bounties.get('bounty-uuid');
+main().catch((error) => {
+  if (error instanceof SolFoundryError) {
+    console.error(error.status, error.problem?.message);
+    return;
+  }
 
-// Check contributor stats
-const profile = await client.contributors.get('octocat');
-console.log(`${profile.display_name}: ${profile.reputation_score} pts (T${profile.tier})`);
-
-// Check escrow status
-const escrow = await client.escrow.getStatus('bounty-uuid');
-console.log(`Escrow: ${escrow.state} — ${escrow.amount} $FNDRY locked`);
+  throw error;
+});
 ```
 
-## CLI
+## Configuration
 
-```bash
-# One-off (no install needed)
-npx @solfoundry/cli bounties
-npx @solfoundry/cli status <bounty-id>
-npx @solfoundry/cli profile <github-username>
-npx @solfoundry/cli verify <tx-hash>
-
-# Global install
-npm install -g @solfoundry/cli
-solfoundry bounties --tier 2 --limit 5
+```ts
+const client = new SolFoundryClient({
+  baseUrl: "https://api.solfoundry.com/v1",
+  auth: {
+    accessToken: process.env.SOLFOUNDRY_ACCESS_TOKEN,
+    apiKey: process.env.SOLFOUNDRY_API_KEY,
+    getAccessToken: async () => process.env.SOLFOUNDRY_ACCESS_TOKEN,
+  },
+  headers: {
+    "X-App-Version": "my-app/1.0.0",
+  },
+  timeoutMs: 30_000,
+  retry: {
+    maxRetries: 4,
+    baseDelayMs: 250,
+    maxDelayMs: 4_000,
+    retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+  },
+  rateLimit: {
+    minIntervalMs: 100,
+    respectRetryAfter: true,
+  },
+  onResponse: (response, rateLimitState) => {
+    console.log(response.status, rateLimitState.remaining);
+  },
+});
 ```
 
-## Solana Helpers
+## API Coverage
 
-```typescript
-import { createConnection, PublicKey, getTokenBalance, getSolBalance, isValidSolanaAddress, toRawAmount } from '@solfoundry/sdk';
+### Bounties
 
-const connection = createConnection('https://api.mainnet-beta.solana.com');
-const wallet = new PublicKey('YourWalletAddress');
+```ts
+const created = await client.bounties.create({
+  title: "Implement wallet insights API",
+  description: "Build and ship the endpoint with tests and docs.",
+  reward: { currency: "FNDRY", amount: "900000" },
+  status: "open",
+  tags: ["backend", "solana"],
+});
 
-const fndry = await getTokenBalance(connection, wallet);
-const sol   = await getSolBalance(connection, wallet);
+const list = await client.bounties.list({
+  status: "open",
+  ownerId: "user_123",
+  search: "wallet",
+  limit: 20,
+});
 
-console.log(`${fndry.balance} $FNDRY | ${sol.balanceSol} SOL`);
-isValidSolanaAddress('validBase58'); // true
-toRawAmount(1.5); // 1500000000n
+const updated = await client.bounties.update(created.id, {
+  status: "in_review",
+});
+
+await client.bounties.delete(created.id);
 ```
 
-## Real-Time Events
+### Submissions
 
-```typescript
-import { EventSubscriber } from '@solfoundry/sdk';
+```ts
+const submission = await client.submissions.submit({
+  bountyId: "bounty_123",
+  artifactUrl: "https://github.com/acme/sdk",
+  content: "Implementation complete with test coverage.",
+});
 
-const events = new EventSubscriber({ wsUrl: 'wss://api.solfoundry.io/ws', autoReconnect: true });
+await client.submissions.review(submission.id, {
+  status: "changes_requested",
+  comment: "Please add pagination tests.",
+});
 
-events.on('bounty_created', e => console.log('New bounty:', e.data.title));
-events.onConnect(() => events.subscribe('bounties'));
-await events.connect();
+await client.submissions.approve(submission.id, {
+  comment: "Looks good.",
+  settlementReference: "payout_456",
+});
+```
+
+### Users and Authentication
+
+```ts
+const session = await client.users.login({
+  email: "builder@example.com",
+  password: "s3cret",
+});
+
+client.setSession(session);
+
+const me = await client.users.getMe();
+
+const refreshed = await client.users.refresh(session.refreshToken!);
+client.setSession(refreshed);
+
+await client.users.updateMe({
+  displayName: "Aki Builder",
+  bio: "Shipping Solana tooling.",
+});
+
+await client.users.logout(refreshed.refreshToken);
+client.clearSession();
 ```
 
 ## Error Handling
 
-```typescript
-import { SolFoundry, NotFoundError, RateLimitError, AuthenticationError } from '@solfoundry/sdk';
-
+```ts
 try {
-  const bounty = await client.bounties.get('invalid-id');
-} catch (err) {
-  if (err instanceof NotFoundError)      console.log('Not found');
-  else if (err instanceof RateLimitError) console.log('Rate limited — slow down');
-  else if (err instanceof AuthenticationError) console.log('Set SOLFOUNDRY_TOKEN');
-  else throw err;
+  await client.bounties.getById("missing-id");
+} catch (error) {
+  if (error instanceof SolFoundryError) {
+    console.error({
+      status: error.status,
+      code: error.problem?.code,
+      message: error.problem?.message,
+      rateLimit: error.rateLimit,
+    });
+  }
 }
 ```
 
-## API Reference
+## Documentation
 
-| Client | Methods |
-|--------|---------|
-| `client.bounties` | `list`, `get`, `create`, `update`, `delete`, `submitSolution`, `listSubmissions`, `search`, `autocomplete` |
-| `client.escrow` | `fund`, `release`, `refund`, `getStatus` |
-| `client.contributors` | `list`, `get`, `create`, `update`, `getStats`, `getHealth` |
-| `GitHubClient` | `listBountyIssues`, `isIssueClaimed`, `isIssueCompleted` |
-| `EventSubscriber` | `connect`, `disconnect`, `subscribe`, `on`, `onConnect` |
+- API guide: [docs/API.md](docs/API.md)
+- Main client: [src/client/SolFoundryClient.ts](src/client/SolFoundryClient.ts)
+- Exported types: [src/types/index.ts](src/types/index.ts)
 
-Full reference: [docs.solfoundry.io/api](https://docs.solfoundry.io/api/)
+## Development
 
-## Examples
-
-11 working examples in [`sdk/examples/`](./examples/):
-
-| # | File | Description |
-|---|------|-------------|
-| 01 | [list-bounties.ts](./examples/01-list-bounties.ts) | Paginate and filter bounties |
-| 02 | [contributor-stats.ts](./examples/02-contributor-stats.ts) | Reputation, tier, earnings |
-| 03 | [realtime-events.ts](./examples/03-realtime-events.ts) | WebSocket event subscriptions |
-| 04 | [verify-onchain.ts](./examples/04-verify-onchain.ts) | Solana transaction verification |
-| 05 | [leaderboard.ts](./examples/05-leaderboard.ts) | Top contributors |
-| 06 | [submit-solution.ts](./examples/06-submit-solution.ts) | Submit a PR to a bounty |
-| 07 | [escrow.ts](./examples/07-escrow.ts) | Fund, release, refund |
-| 08 | [search-bounties.ts](./examples/08-search-bounties.ts) | Full-text search |
-| 09 | [github-integration.ts](./examples/09-github-integration.ts) | GitHub Issues |
-| 10 | [solana-helpers.ts](./examples/10-solana-helpers.ts) | On-chain utilities |
-| 11 | [error-handling.ts](./examples/11-error-handling.ts) | Typed error patterns |
-
-## Contributing
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md).
-
-## License
-
-MIT
+```bash
+npm run build
+npm run typecheck
+```

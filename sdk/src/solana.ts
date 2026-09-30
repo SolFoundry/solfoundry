@@ -245,7 +245,11 @@ export function buildTokenTransferInstruction(
   // [3] (u8 instruction index for Transfer) + amount (u64 LE)
   const dataBuffer = Buffer.alloc(9);
   dataBuffer.writeUInt8(3, 0); // Transfer instruction index
-  dataBuffer.writeBigUInt64LE(amount, 1);
+  let remaining = amount;
+  for (let offset = 1; offset < 9; offset++) {
+    dataBuffer[offset] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
 
   return new TransactionInstruction({
     keys: [

@@ -26,35 +26,35 @@ export class StakingClient extends BaseClient {
   }
 
   async initialize(): Promise<TransactionSignature> {
-    return this.program.methods.initialize().rpc();
+    return (this.program.methods as any).initialize().rpc();
   }
 
   async stake(amount: BN): Promise<TransactionSignature> {
-    return this.program.methods.stake(amount).rpc();
+    return (this.program.methods as any).stake(amount).rpc();
   }
 
   async unstakeInitiate(amount: BN): Promise<TransactionSignature> {
-    return this.program.methods.unstakeInitiate(amount).rpc();
+    return (this.program.methods as any).unstakeInitiate(amount).rpc();
   }
 
   async unstakeComplete(): Promise<TransactionSignature> {
-    return this.program.methods.unstakeComplete().rpc();
+    return (this.program.methods as any).unstakeComplete().rpc();
   }
 
   async claimRewards(): Promise<TransactionSignature> {
-    return this.program.methods.claimRewards().rpc();
+    return (this.program.methods as any).claimRewards().rpc();
   }
 
   async compound(): Promise<TransactionSignature> {
-    return this.program.methods.compound().rpc();
+    return (this.program.methods as any).compound().rpc();
   }
 
   async slash(userPubkey: PublicKey, amount: BN): Promise<TransactionSignature> {
-    return this.program.methods.slash(userPubkey, amount).rpc();
+    return (this.program.methods as any).slash(userPubkey, amount).rpc();
   }
 
   async toggleAutoCompound(enabled: boolean): Promise<TransactionSignature> {
-    return this.program.methods.toggleAutoCompound(enabled).rpc();
+    return (this.program.methods as any).toggleAutoCompound(enabled).rpc();
   }
 
   async updateConfig(params: {
@@ -63,7 +63,7 @@ export class StakingClient extends BaseClient {
     cooldownSeconds?: BN | null;
     paused?: boolean | null;
   }): Promise<TransactionSignature> {
-    return this.program.methods
+    return (this.program.methods as any)
       .updateConfig({
         tierThresholds: params.tierThresholds ?? null,
         tierApyBps: params.tierApyBps ?? null,

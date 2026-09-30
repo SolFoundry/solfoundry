@@ -54,13 +54,15 @@ describe('buildUrl', () => {
     expect(url).toContain('?');
   });
 
-  it('should omit undefined query parameters', () => {
+  it('should omit nullish query parameters', () => {
     const url = buildUrl('https://api.example.com', '/api/bounties', {
       status: 'open',
       tier: undefined,
+      owner: null,
     });
     expect(url).toContain('status=open');
     expect(url).not.toContain('tier');
+    expect(url).not.toContain('owner');
   });
 
   it('should handle empty params object', () => {

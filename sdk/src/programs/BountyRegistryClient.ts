@@ -26,7 +26,7 @@ export class BountyRegistryClient extends BaseClient {
     githubIssue: string,
   ): Promise<TransactionSignature> {
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
+    return (this.program.methods as any)
       .registerBounty(bountyId, title, tier, rewardAmount, githubIssue)
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
@@ -38,7 +38,7 @@ export class BountyRegistryClient extends BaseClient {
     contributor: PublicKey | null = null,
   ): Promise<TransactionSignature> {
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
+    return (this.program.methods as any)
       .updateStatus(newStatus, contributor)
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
@@ -52,7 +52,7 @@ export class BountyRegistryClient extends BaseClient {
     prHash: number[],
   ): Promise<TransactionSignature> {
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
+    return (this.program.methods as any)
       .recordCompletion(githubPr, reviewScores, finalScore, prHash)
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();
@@ -60,7 +60,7 @@ export class BountyRegistryClient extends BaseClient {
 
   async closeBounty(bountyId: BN): Promise<TransactionSignature> {
     const [bountyRecord] = BountyRegistryClient.deriveBountyRecordPDA(bountyId, this.programId);
-    return this.program.methods
+    return (this.program.methods as any)
       .closeBounty()
       .accounts({ admin: this.provider.wallet.publicKey, bountyRecord })
       .rpc();

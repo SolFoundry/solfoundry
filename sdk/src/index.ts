@@ -32,6 +32,9 @@
  * @packageDocumentation
  */
 
+// Modern API client (added in the TypeScript SDK rewrite)
+export { SolFoundryClient } from './client/SolFoundryClient.js';
+
 // Core client
 export { HttpClient, RateLimiter, buildUrl, calculateBackoff, isRetryable } from './client.js';
 export type { RequestOptions } from './client.js';
