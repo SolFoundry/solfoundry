@@ -191,6 +191,17 @@ Proven builders (80+ reputation score from merged bounties) get slightly reduced
 
 **No VC. No presale. No airdrop farming.** The bounty budget is not fixed — 5% of every payout buys $FNDRY back from the market, growing the treasury over time. More work shipped = more buy pressure = larger bounty pool.
 
+### FNDRY price widget package
+
+The embeddable React widget is exported from `solfoundry-price-widget`. Import the package stylesheet once in your app before rendering the widget:
+
+```tsx
+import { FNDRYPriceWidget, useFNDRYPrice } from 'solfoundry-price-widget';
+import 'solfoundry-price-widget/style.css';
+```
+
+`useFNDRYPrice` is also exported for custom displays, together with its public option/result types.
+
 ### How to Earn $FNDRY
 
 The **only** way to earn $FNDRY is by building SolFoundry:
