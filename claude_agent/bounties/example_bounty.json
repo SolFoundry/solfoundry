@@ -1,0 +1,16 @@
+{
+  "id": "T1-001",
+  "title": "Implement a simple Python utility function for string reversal",
+  "description": "Create a Python function `reverse_string(s)` that takes a string `s` as input and returns its reversed version. The function should handle empty strings and non-string inputs gracefully (e.g., raise a TypeError for non-strings).",
+  "acceptance_criteria": [
+    "Function `reverse_string(s)` must be defined in `utils.py`.",
+    "It must correctly reverse a given string.",
+    "It must return an empty string for an empty input string.",
+    "It must raise a `TypeError` if the input `s` is not a string.",
+    "Unit tests must be provided in `test_utils.py` covering all acceptance criteria.",
+    "A brief `README.md` update explaining how to use the function."
+  ],
+  "target_repo": "SolFoundry/solfoundry",
+  "target_branch": "main",
+  "pr_template": "## Bounty Submission: [T1-001] Simple String Reversal Utility\n\n### Description\nThis PR implements the `reverse_string` utility function as specified in Bounty T1-001.\n\n### Changes Made\n- Added `utils.py` with the `reverse_string` function.\n- Added `test_utils.py` with comprehensive unit tests.\n- Updated `README.md` with usage instructions.\n\n### Testing\nAll unit tests pass successfully.\n\n### Reviewers\n@SolFoundry/maintainers\n"
+}
