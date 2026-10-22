@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Clock, GitPullRequest, DollarSign, Settings } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
+import { BountyGridSkeleton } from '../ui/Skeleton';
 import { useBounties } from '../../hooks/useBounties';
 import { timeAgo, formatCurrency } from '../../lib/utils';
 import { fadeIn, staggerContainer, staggerItem } from '../../lib/animations';
@@ -35,7 +36,7 @@ function BountyStatusBadge({ status }: { status: string }) {
 
 function MyBountiesTab({ bounties, loading }: { bounties: Bounty[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-text-muted text-sm py-8 text-center">Loading...</div>;
+    return <BountyGridSkeleton count={3} />;
   }
   if (!bounties.length) {
     return (
