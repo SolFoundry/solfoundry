@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Check, Copy } from 'lucide-react';
 import type { Bounty } from '../../types/bounty';
 import { createSubmission, getReviewFee, verifyReviewFee } from '../../api/bounties';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SubmissionFormProps {
   bounty: Bounty;
@@ -9,6 +10,7 @@ interface SubmissionFormProps {
 }
 
 export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
+  const { addToast } = useToast();
   const hasRepo = bounty.has_repo ?? !!bounty.github_repo_url;
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -38,11 +40,16 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
       const result = await verifyReviewFee({ bounty_id: bounty.id, tx_signature: txSig });
       if (result.verified) {
         setFeeVerified(true);
+        addToast('Review fee verified!', 'success');
       } else {
-        setError(result.error ?? 'Fee verification failed. Check your transaction signature.');
+        const msg = result.error ?? 'Fee verification failed. Check your transaction signature.';
+        setError(msg);
+        addToast(msg, 'error');
       }
     } catch {
-      setError('Fee verification failed. Try again.');
+      const msg = 'Fee verification failed. Try again.';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setVerifying(false);
     }
@@ -61,9 +68,12 @@ export function SubmissionForm({ bounty, onSuccess }: SubmissionFormProps) {
         tx_signature: txSig,
       });
       setSuccess(true);
+      addToast('Submission received! AI review will begin shortly.', 'success');
       onSuccess?.();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Submission failed. Try again.');
+      const msg = e instanceof Error ? e.message : 'Submission failed. Try again.';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
