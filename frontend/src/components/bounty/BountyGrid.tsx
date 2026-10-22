@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useDeferredValue } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { BountyCard } from './BountyCard';
 import { useInfiniteBounties } from '../../hooks/useBounties';
 import { staggerContainer, staggerItem } from '../../lib/animations';
+import { BountyGridSkeleton } from '../ui/Skeleton';
 
 const FILTER_SKILLS = ['All', 'TypeScript', 'Rust', 'Solidity', 'Python', 'Go', 'JavaScript'];
 
 export function BountyGrid() {
   const [activeSkill, setActiveSkill] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const deferredSearch = useDeferredValue(searchInput);
 
   const params = {
     status: statusFilter,
@@ -22,11 +25,23 @@ export function BountyGrid() {
 
   const allBounties = data?.pages.flatMap((p) => p.items) ?? [];
 
+  const q = deferredSearch.trim().toLowerCase();
+  const filteredBounties = q
+    ? allBounties.filter(
+        (b) =>
+          b.title?.toLowerCase().includes(q) ||
+          b.description?.toLowerCase().includes(q) ||
+          b.skills?.some((s: string) => s.toLowerCase().includes(q))
+      )
+    : allBounties;
+
+  const clearSearch = useCallback(() => setSearchInput(''), []);
+
   return (
     <section id="bounties" className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <h2 className="font-sans text-2xl font-semibold text-text-primary">Open Bounties</h2>
           <div className="flex items-center gap-2">
             <Link
@@ -53,6 +68,27 @@ export function BountyGrid() {
           </div>
         </div>
 
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search bounties by title, description, or language…"
+            className="w-full bg-forge-800 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none transition-all duration-150"
+          />
+          {searchInput && (
+            <button
+              onClick={clearSearch}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Filter pills */}
         <div className="flex items-center gap-2 flex-wrap mb-8">
           {FILTER_SKILLS.map((skill) => (
@@ -71,18 +107,7 @@ export function BountyGrid() {
         </div>
 
         {/* Loading state */}
-        {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-52 rounded-xl border border-border bg-forge-900 overflow-hidden"
-              >
-                <div className="h-full bg-gradient-to-r from-forge-900 via-forge-800 to-forge-900 bg-[length:200%_100%] animate-shimmer" />
-              </div>
-            ))}
-          </div>
-        )}
+        {isLoading && <BountyGridSkeleton count={6} />}
 
         {/* Error state */}
         {isError && !isLoading && (
@@ -93,17 +118,21 @@ export function BountyGrid() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && allBounties.length === 0 && (
+        {!isLoading && !isError && filteredBounties.length === 0 && (
           <div className="text-center py-16">
             <p className="text-text-muted text-lg mb-2">No bounties found</p>
             <p className="text-text-muted text-sm">
-              {activeSkill !== 'All' ? `Try a different language filter.` : 'Check back soon for new bounties.'}
+              {q
+                ? `No results for "${q}". Try a different search term.`
+                : activeSkill !== 'All'
+                ? 'Try a different language filter.'
+                : 'Check back soon for new bounties.'}
             </p>
           </div>
         )}
 
         {/* Bounty grid */}
-        {!isLoading && allBounties.length > 0 && (
+        {!isLoading && filteredBounties.length > 0 && (
           <motion.div
             variants={staggerContainer}
             initial="initial"
@@ -111,7 +140,7 @@ export function BountyGrid() {
             viewport={{ once: true, margin: '-50px' }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
           >
-            {allBounties.map((bounty) => (
+            {filteredBounties.map((bounty) => (
               <motion.div key={bounty.id} variants={staggerItem}>
                 <BountyCard bounty={bounty} />
               </motion.div>
