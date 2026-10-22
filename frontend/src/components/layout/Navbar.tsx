@@ -4,7 +4,7 @@ import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useStats } from '../../hooks/useStats';
-import { getGitHubAuthorizeUrl } from '../../api/auth';
+import { useGitHubSignIn } from '../../hooks/useGitHubSignIn';
 
 const GitHubIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -26,22 +26,13 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { signIn: handleGitHubSignIn } = useGitHubSignIn();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  const handleGitHubSignIn = async () => {
-    try {
-      const url = await getGitHubAuthorizeUrl();
-      window.location.href = url;
-    } catch {
-      // Fallback: direct to backend authorize endpoint
-      window.location.href = '/api/auth/github/authorize';
-    }
-  };
 
   const isActive = (to: string) => {
     if (to === '/') return location.pathname === '/';

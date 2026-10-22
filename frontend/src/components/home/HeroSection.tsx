@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useInView, animate, useMotionValue } from 'framer-motion';
 import { useStats } from '../../hooks/useStats';
-import { getGitHubAuthorizeUrl } from '../../api/auth';
+import { useGitHubSignIn } from '../../hooks/useGitHubSignIn';
 import { useAuth } from '../../hooks/useAuth';
 import { buttonHover, fadeIn } from '../../lib/animations';
 
@@ -77,14 +77,7 @@ export function HeroSection() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const handleSignIn = async () => {
-    try {
-      const url = await getGitHubAuthorizeUrl();
-      window.location.href = url;
-    } catch {
-      window.location.href = '/api/auth/github/authorize';
-    }
-  };
+  const { signIn: handleSignIn } = useGitHubSignIn();
 
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 pt-24 pb-16 overflow-hidden">
