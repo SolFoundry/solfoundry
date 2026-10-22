@@ -112,9 +112,9 @@ export function HeroSection() {
 
         {/* Terminal body */}
         <div className="p-5 font-mono text-sm leading-relaxed">
-          <div className="overflow-hidden">
+          <div className="overflow-x-hidden">
             <span className="text-emerald">$ </span>
-            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block animate-typewriter">
+            <span className="text-text-secondary overflow-hidden whitespace-nowrap inline-block max-w-[calc(100%-2rem)] animate-typewriter">
               forge bounty --reward 100 --lang typescript --tier 2
             </span>
             {typewriterDone && (
