@@ -1,42 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { slideInRight } from '../../lib/animations';
 import { timeAgo } from '../../lib/utils';
+import { useActivity } from '../../hooks/useActivity';
+import type { ActivityEvent } from '../../api/activity';
 
-interface ActivityEvent {
-  id: string;
-  type: 'completed' | 'submitted' | 'posted' | 'review';
-  username: string;
-  avatar_url?: string | null;
-  detail: string;
-  timestamp: string;
-}
-
-// Mock events for when API doesn't return activity
+// Fallback mock events shown while loading or when API is unavailable
 const MOCK_EVENTS: ActivityEvent[] = [
   {
-    id: '1',
+    id: 'mock-1',
     type: 'completed',
     username: 'devbuilder',
     detail: '$500 USDC from Bounty #42',
     timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
   },
   {
-    id: '2',
+    id: 'mock-2',
     type: 'submitted',
     username: 'KodeSage',
     detail: 'PR to Bounty #38',
     timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   },
   {
-    id: '3',
+    id: 'mock-3',
     type: 'posted',
     username: 'SolanaLabs',
     detail: 'Bounty #145 — $3,500 USDC',
     timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },
   {
-    id: '4',
+    id: 'mock-4',
     type: 'review',
     username: 'AI Review',
     detail: 'Bounty #42 — 8.5/10',
@@ -75,13 +68,22 @@ function EventItem({ event }: { event: ActivityEvent }) {
   );
 }
 
-export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
-  const displayEvents = events?.length ? events.slice(0, 4) : MOCK_EVENTS;
-  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(displayEvents.slice(0, 4));
+export function ActivityFeed() {
+  const { data, isLoading, isError } = useActivity(8);
+
+  // Determine displayed events: real data, loading placeholder, or mock fallback
+  const events: ActivityEvent[] =
+    !isLoading && !isError && data && data.length > 0
+      ? data.slice(0, 4)
+      : MOCK_EVENTS;
+
+  const isEmpty = !isLoading && !isError && data !== undefined && data.length === 0;
+
+  const [visibleEvents, setVisibleEvents] = useState<ActivityEvent[]>(events);
 
   useEffect(() => {
-    setVisibleEvents(displayEvents.slice(0, 4));
-  }, [events]);
+    setVisibleEvents(events);
+  }, [data]);
 
   return (
     <section className="w-full border-y border-border bg-forge-900/50 py-4 overflow-hidden">
@@ -89,23 +91,31 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
         <div className="flex items-center gap-3 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-glow" />
           <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Recent Activity</span>
+          {isLoading && (
+            <span className="font-mono text-xs text-text-muted">(loading…)</span>
+          )}
         </div>
-        <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
-            {visibleEvents.map((event) => (
-              <motion.div
-                key={event.id}
-                variants={slideInRight}
-                initial="initial"
-                animate="animate"
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                layout
-              >
-                <EventItem event={event} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+
+        {isEmpty ? (
+          <p className="text-sm text-text-muted px-3 py-2">No recent activity.</p>
+        ) : (
+          <div className="space-y-1">
+            <AnimatePresence mode="popLayout">
+              {visibleEvents.map((event) => (
+                <motion.div
+                  key={event.id}
+                  variants={slideInRight}
+                  initial="initial"
+                  animate="animate"
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                  layout
+                >
+                  <EventItem event={event} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </section>
   );
