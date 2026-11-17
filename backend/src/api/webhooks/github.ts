@@ -3,8 +3,12 @@ import crypto from "crypto";
 import { GitHubScraper } from "../../scraper/github-client";
 import { BountyPoster } from "../../scraper/bounty-poster";
 
+interface WebhookRequest extends Request {
+  rawBody?: Buffer;
+}
+
 export const handleGitHubWebhook = async (
-  req: Request, 
+  req: WebhookRequest, 
   res: Response, 
   scraper: GitHubScraper, 
   poster: BountyPoster,
@@ -17,10 +21,8 @@ export const handleGitHubWebhook = async (
   }
 
   const hmac = crypto.createHmac("sha256", webhookSecret);
-  // Use the raw body buffer provided by express.json() or express.raw()
-  // Note: For signature verification to work, the raw body must be used.
-  // If req.body is already parsed as JSON, stringifying it might not match the original payload exactly.
-  const digest = "sha256=" + hmac.update(JSON.stringify(req.body)).digest("hex");
+  // Use the raw body buffer captured by express.json() verify middleware
+  const digest = "sha256=" + hmac.update(req.rawBody || "").digest("hex");
 
   if (signature !== digest) {
     return res.status(401).send("Invalid signature");
