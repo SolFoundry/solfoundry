@@ -12,6 +12,10 @@ export const handleGitHubWebhook = async (
 ) => {
   // Verify Signature
   const signature = req.headers["x-hub-signature-256"];
+  if (!signature) {
+    return res.status(401).send("Missing signature");
+  }
+
   const hmac = crypto.createHmac("sha256", webhookSecret);
   const digest = "sha256=" + hmac.update(JSON.stringify(req.body)).digest("hex");
 
@@ -19,16 +23,18 @@ export const handleGitHubWebhook = async (
     return res.status(401).send("Invalid signature");
   }
 
-  const { action, issue, label } = req.body;
+  const { action, issue } = req.body;
 
   // Logic: When an issue is labeled with a tier or opened with a tier label
-  if (
-    (action === "labeled" || action === "opened") &&
-    issue.labels.some((l: any) => l.name === "bounty")
-  ) {
-    const bountyData = scraper.mapIssueToBounty(issue);
-    if (bountyData) {
-      await poster.postToRegistry(bountyData);
+  // Ensure issue exists in payload
+  if (issue && (action === "labeled" || action === "opened")) {
+    const hasBountyLabel = issue.labels.some((l: any) => l.name === "bounty");
+    
+    if (hasBountyLabel) {
+      const bountyData = scraper.mapIssueToBounty(issue);
+      if (bountyData) {
+        await poster.postToRegistry(bountyData);
+      }
     }
   }
 
