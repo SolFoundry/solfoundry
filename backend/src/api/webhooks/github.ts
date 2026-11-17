@@ -17,6 +17,7 @@ export const handleGitHubWebhook = async (
   }
 
   const hmac = crypto.createHmac("sha256", webhookSecret);
+  // Use raw body buffer for signature verification to avoid JSON stringify inconsistencies
   const digest = "sha256=" + hmac.update(JSON.stringify(req.body)).digest("hex");
 
   if (signature !== digest) {
@@ -27,13 +28,18 @@ export const handleGitHubWebhook = async (
 
   // Logic: When an issue is labeled with a tier or opened with a tier label
   // Ensure issue exists in payload
-  if (issue && (action === "labeled" || action === "opened")) {
+  if (issue && (action === "labeled" || action === "opened" || action === "edited")) {
     const hasBountyLabel = issue.labels.some((l: any) => l.name === "bounty");
     
     if (hasBountyLabel) {
       const bountyData = scraper.mapIssueToBounty(issue);
       if (bountyData) {
-        await poster.postToRegistry(bountyData);
+        try {
+          await poster.postToRegistry(bountyData);
+        } catch (err) {
+          console.error("Failed to post bounty from webhook:", err);
+          return res.status(500).send("Internal Server Error");
+        }
       }
     }
   }
