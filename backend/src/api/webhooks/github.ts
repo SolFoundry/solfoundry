@@ -16,8 +16,8 @@ export const handleGitHubWebhook = async (
 ) => {
   // Verify Signature
   const signature = req.headers["x-hub-signature-256"];
-  if (!signature) {
-    return res.status(401).send("Missing signature");
+  if (!signature || typeof signature !== "string") {
+    return res.status(401).send("Missing or invalid signature");
   }
 
   const hmac = crypto.createHmac("sha256", webhookSecret);
