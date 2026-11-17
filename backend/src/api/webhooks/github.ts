@@ -17,7 +17,7 @@ export const handleGitHubWebhook = async (
   }
 
   const hmac = crypto.createHmac("sha256", webhookSecret);
-  // Use raw body buffer for signature verification to avoid JSON stringify inconsistencies
+  // Use the raw body buffer for signature verification
   const digest = "sha256=" + hmac.update(JSON.stringify(req.body)).digest("hex");
 
   if (signature !== digest) {
