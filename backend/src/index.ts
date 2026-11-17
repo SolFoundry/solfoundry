@@ -9,7 +9,13 @@ import { ScraperConfig } from "./scraper/types";
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+
+// Use express.json with verify to capture raw body for signature verification
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 const PORT = process.env.PORT || 3000;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
