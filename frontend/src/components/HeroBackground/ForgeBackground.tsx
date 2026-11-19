@@ -9,13 +9,15 @@ export const ForgeBackground: React.FC = () => {
       
       {/* Animated Molten "Veins" */}
       <svg className="absolute inset-0 w-full h-full opacity-20">
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-          <feMerge>
-            <feMergeNode in="coloredBlur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         <path
           d="M-100 800 Q 400 700 900 850 T 1900 750"
           stroke="#f59e0b"
