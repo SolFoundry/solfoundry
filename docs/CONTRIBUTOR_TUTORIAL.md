@@ -43,7 +43,7 @@ Once you find a T1 bounty you want to tackle:
 ### Step B: Create a Branch
 Always work on a new branch named after the issue:
 ```bash
-git checkout -b feat/issue-830-tutorial
+git checkout -b feat/issue-1497-tutorial
 ```
 
 ### Step C: Development & Local Testing
@@ -56,9 +56,9 @@ Follow the instructions in the issue. If you are working on smart contracts:
 ## 4. Submitting your PR
 
 When your code is ready:
-1. Push to your fork: `git push origin feat/issue-830-tutorial`.
+1. Push to your fork: `git push origin feat/issue-1497-tutorial`.
 2. Open a **Pull Request** against the `main` branch of `SolFoundry/solfoundry`.
-3. **Crucial:** Use the provided PR template. Link the issue by writing `Closes #830` in the description.
+3. **Crucial:** Use the provided PR template. Link the issue by writing `Closes #1497` in the description.
 
 ![Screenshot: The New Pull Request page showing the 'Closes #issue_number' syntax](https://via.placeholder.com/800x400?text=Creating+a+Pull+Request+Linking+to+Issue)
 
@@ -69,8 +69,9 @@ When your code is ready:
 SolFoundry uses an automated AI review system to provide instant feedback.
 
 1. **Spam Guard:** Upon submission, the `spam-guard.yml` workflow checks if your PR meets basic quality standards.
-2. **AI Feedback:** A bot (powered by CodeRabbit and custom scripts) will comment on your PR within minutes. It will suggest improvements or highlight potential bugs in your Rust or TypeScript code.
-3. **Iterate:** Don't be discouraged by AI comments! Address the suggestions, push new commits, and the AI will re-evaluate.
+2. **Trigger Review:** The `trigger-review.yml` workflow initiates the analysis. Ensure your PR description contains the issue link so the bot can contextually review your changes.
+3. **AI Feedback:** A bot (powered by CodeRabbit and custom scripts) will comment on your PR within minutes. It will suggest improvements or highlight potential bugs in your Rust or TypeScript code.
+4. **Iterate:** Don't be discouraged by AI comments! Address the suggestions, push new commits, and the AI will re-evaluate.
 
 ![Screenshot: An example of an AI Bot comment on a PR providing code suggestions](https://via.placeholder.com/800x400?text=AI+Review+Bot+Comments+on+PR)
 
@@ -89,7 +90,7 @@ SolFoundry automates payments using the `bounty-tracker.yml` and `escrow-cleanup
 ---
 
 ## Quick Checklist for Success
-- [ ] Did I link the issue number (e.g., `Closes #123`)?
+- [ ] Did I link the issue number (e.g., `Closes #1497`)?
 - [ ] Did I follow the project's coding style (see `CONTRIBUTING.md`)?
 - [ ] Did all GitHub Action checks pass?
 - [ ] Did I respond to the AI Reviewer's comments?
