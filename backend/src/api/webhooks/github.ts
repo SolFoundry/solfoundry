@@ -22,7 +22,7 @@ export const handleGitHubWebhook = async (
 
   const hmac = crypto.createHmac("sha256", webhookSecret);
   // Use the raw body buffer captured by express.json() verify middleware
-  const digest = "sha256=" + hmac.update(req.rawBody || "").digest("hex");
+  const digest = "sha256=" + hmac.update(req.rawBody || Buffer.alloc(0)).digest("hex");
 
   if (signature !== digest) {
     return res.status(401).send("Invalid signature");
