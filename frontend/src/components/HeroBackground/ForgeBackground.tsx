@@ -61,7 +61,7 @@ export const ForgeBackground: React.FC = () => {
         </p>
       </div>
 
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes molten-flow {
           0% { stroke-dasharray: 0 2000; stroke-dashoffset: 0; opacity: 0.3; }
           50% { stroke-dasharray: 1000 1000; opacity: 0.6; }
